@@ -1,0 +1,11 @@
+{
+  "name": "messy-ts-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Intentionally messy TypeScript app used as a fixture for the crimes scanner.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "scan": "crimes scan"
+  }
+}

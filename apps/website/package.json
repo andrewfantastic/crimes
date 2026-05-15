@@ -1,0 +1,15 @@
+{
+  "name": "@crimes/website",
+  "version": "0.0.0",
+  "private": true,
+  "description": "crimes.sh — marketing and docs site for crimes. Skeleton; will be replaced with Astro or Next.js.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "dev": "node ./scripts/serve.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

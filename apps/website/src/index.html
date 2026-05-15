@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>crimes — codebase risk scanner for agents</title>
+    <meta
+      name="description"
+      content="crimes is an open-source CLI that investigates a codebase for maintainability risks, code smells, and agent-confusing patterns."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>crimes</h1>
+        <p class="tagline">A crime scene investigator for your codebase. Built for agents, readable by humans.</p>
+      </header>
+
+      <section>
+        <h2>Install</h2>
+        <pre><code>npx crimes scan</code></pre>
+        <p class="note">Not yet published. Site and CLI are pre-release.</p>
+      </section>
+
+      <section>
+        <h2>What it finds</h2>
+        <ul>
+          <li>Large files and god functions</li>
+          <li>TODO/FIXME density</li>
+          <li>Direct <code>Date.now()</code> / <code>new Date()</code> in domain code</li>
+          <li>… and more detectors coming</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>
+          <a href="https://github.com/crimes-sh/crimes">GitHub</a>
+          · MIT licensed
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
