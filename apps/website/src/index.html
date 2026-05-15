@@ -3,55 +3,238 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>crimes — codebase risk scanner for agents</title>
+    <title>crimes — a crime scene investigator for your codebase</title>
     <meta
       name="description"
-      content="crimes is an open-source CLI that investigates a codebase for maintainability risks, code smells, and patterns that confuse AI coding agents."
+      content="crimes is an open-source CLI that investigates a codebase for maintainability risks, duplicated business rules, and patterns that confuse AI coding agents. Built for agents, readable by humans."
     />
+    <meta name="theme-color" content="#0b0b0b" />
+    <meta property="og:title" content="crimes — built for agents, readable by humans" />
+    <meta
+      property="og:description"
+      content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS repos. JSON output is the contract."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://crimes.sh" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main>
-      <header>
-        <h1>crimes</h1>
-        <p class="tagline">
-          A crime scene investigator for your codebase.
-          <span class="nowrap">Built for agents, readable by humans.</span>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="crimes — home">
+        <span class="brand-mark" aria-hidden="true">⌖</span>
+        <span class="brand-name">crimes</span>
+      </a>
+      <nav class="topnav" aria-label="Section navigation">
+        <a href="#install">Install</a>
+        <a href="#quickstart">Quick start</a>
+        <a href="#agents">For agents</a>
+        <a href="#detects">Detectors</a>
+        <a href="#next">Roadmap</a>
+        <a class="external" href="https://github.com/crimes-sh/crimes">GitHub ↗</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section id="top" class="hero">
+        <p class="eyebrow">
+          <span class="pill">pre-release · v0.0.1</span>
+          <span class="dot" aria-hidden="true">·</span>
+          <span>open source · MIT</span>
         </p>
+        <h1>A crime scene investigator for your codebase.</h1>
+        <p class="tagline">Built for agents, readable by humans.</p>
         <p class="lede">
-          <code>crimes</code> is an open-source CLI that scans a repository for
-          maintainability risks, duplicated business rules, and patterns that
-          confuse AI coding agents — before humans or agents make risky changes.
+          <code>crimes</code> is an open-source CLI that scans a TypeScript or
+          JavaScript repository for <strong>change risk</strong> and
+          <strong>agent risk</strong> — duplicated business rules, ambiguous
+          sources of truth, weakly tested hotspots, and patterns that confuse
+          AI coding agents. Local, deterministic, no cloud.
         </p>
-      </header>
+
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#install">Install</a>
+          <a class="btn" href="#agents">Read the agent guide</a>
+          <a class="btn btn-ghost" href="https://github.com/crimes-sh/crimes">
+            View on GitHub
+          </a>
+        </div>
+
+        <pre class="hero-snippet" aria-label="Example terminal session"><code><span class="prompt">$</span> <span class="cmd">crimes scan .</span>
+<span class="output">CRIME SCENE REPORT
+repo: messy-ts-app  ·  5 findings
+
+HIGH severity (1)
+  1. src/billing.ts:37-240 (generateInvoice)
+     Charge: God Function
+     Evidence: 204 lines · 3.4× threshold · function declaration
+     id=crime_00001  confidence=0.95
+
+Total 5  ·  high 1  medium 3  low 1</span></code></pre>
+
+        <p class="hero-foot">
+          Not another linter. Not a security scanner. <code>crimes</code>
+          answers: <em>where is future change most likely to go wrong, and
+          what should a human or agent know before editing it?</em>
+        </p>
+      </section>
 
       <section id="install">
         <h2>Install</h2>
-        <pre><code># Once crimes@0.0.1 ships to npm:
-npx crimes scan</code></pre>
         <p>
-          The v0.0.1 tarball is built and smoke-tested in CI — every commit
-          packs the package, installs it into a clean temp directory, and runs
-          <code>--version</code>, <code>--help</code>, <code>scan</code>, and
-          <code>scan --format json</code> against the bundled fixture. The npm
-          publish step itself is the only thing standing between the snippet
-          above and a live install.
+          The v0.0.1 tarball is built and smoke-tested in CI on every commit,
+          but the package is <strong>not yet published to npm</strong>. The
+          snippet below will work the moment publish lands.
         </p>
+
+        <!-- SWAP-ON-PUBLISH-START: when crimes@0.0.1 is live on npm, remove
+             the "coming soon" comment and the "Until then…" paragraph. -->
+        <pre><code><span class="comment"># Coming soon on npm — one command, no config:</span>
+npm install -g crimes
+crimes scan .</code></pre>
+
+        <p>
+          Or, with <code>npx</code>:
+        </p>
+        <pre><code>npx crimes scan</code></pre>
+
         <p class="note">
           Until the package is on the registry, clone
           <a href="https://github.com/crimes-sh/crimes">the repo</a> and run
           <code>pnpm install &amp;&amp; pnpm build &amp;&amp; pnpm scan:example</code>
           from the repo root. Homebrew lands after npm.
         </p>
+        <!-- SWAP-ON-PUBLISH-END -->
       </section>
 
-      <section id="example">
-        <h2>Example output</h2>
+      <section id="quickstart">
+        <h2>Quick start</h2>
+        <p>Three commands cover most of what <code>crimes</code> does today:</p>
+
+        <div class="qs">
+          <div class="qs-row">
+            <h3>Scan a directory</h3>
+            <pre><code>crimes scan .</code></pre>
+            <p class="note">
+              Discovers TS/JS files, runs every detector, prints the top 10
+              findings ranked by severity. Pass <code>--all</code> for the
+              full list.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>JSON output (the product contract)</h3>
+            <pre><code>crimes scan . --format json</code></pre>
+            <p class="note">
+              Versioned via <code>schema_version</code>. Stable while it
+              reads <code>"0.1.0"</code>. This is what agents should consume.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Pre-edit briefing for a single file</h3>
+            <pre><code>crimes context src/billing/tax.ts --format json</code></pre>
+            <p class="note">
+              Returns the file's findings, the test files likely to cover it,
+              and short safe-editing notes. The cheapest, most file-specific
+              entry point for an agent.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Working-tree-only scan</h3>
+            <pre><code>crimes scan --changed --format json
+crimes scan --changed --base main --format json</code></pre>
+            <p class="note">
+              Restricts to files changed in the working tree, optionally
+              including commits unique to the current branch. The post-edit
+              gate inside an agent loop.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Churn × findings hotspots</h3>
+            <pre><code>crimes hotspots --since 90d --format json</code></pre>
+            <p class="note">
+              Ranks files by an aggregate score of git churn and current
+              findings. Use it to triage where to look first.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="agents">
+        <h2>Built for agents</h2>
         <p>
-          Running <code>crimes scan</code> against the bundled
-          <code>messy-ts-app</code> fixture (a deliberately crime-ridden
-          TypeScript app):
+          The wedge isn't "better linter". It's <em>local, open-source,
+          agent-native codebase risk and context</em>. <code>crimes</code>
+          ships two on-disk artefacts that AI coding agents pick up
+          automatically — there is nothing to install into a prompt.
         </p>
+
+        <div class="cards">
+          <article class="card">
+            <header class="card-head">
+              <span class="card-tag">Claude Code</span>
+              <h3><code>.claude/skills/crimes/SKILL.md</code></h3>
+            </header>
+            <p>
+              A Claude Code skill that loads on demand. Tells Claude
+              <em>when</em> to run <code>crimes</code>, <em>which</em>
+              command to use, and <em>how</em> to read the JSON. Discovered
+              automatically by Claude Code in any repo with a
+              <code>SKILL.md</code> under <code>.claude/skills/&lt;name&gt;/</code>.
+            </p>
+            <ul class="card-list">
+              <li>Pre-edit: <code>crimes context &lt;file&gt; --format json</code></li>
+              <li>Post-edit: <code>crimes scan --changed --format json</code></li>
+              <li>New <code>severity: "high"</code> after your edit → blocker</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <span class="card-tag">Codex / Cursor / Aider</span>
+              <h3><code>AGENTS.md</code></h3>
+            </header>
+            <p>
+              The convention OpenAI Codex CLI, Cursor, Aider, Continue, and
+              Copilot Workspace read on startup. A single file at the repo
+              root with install commands, the shipped CLI surface, package
+              boundaries, and agent safety rules — no auto-publish, no
+              silent auto-fix.
+            </p>
+            <ul class="card-list">
+              <li>Stable JSON makes <code>crimes</code> output safe to feed back into the agent loop</li>
+              <li>Same pre/post-edit workflow as Claude</li>
+              <li>Works with any agent that reads <code>AGENTS.md</code></li>
+            </ul>
+          </article>
+        </div>
+
+        <h3 class="sub">Pre-edit / post-edit, in detail</h3>
+        <pre><code><span class="comment"># 1. Before editing a single file — get the briefing</span>
+crimes context src/billing/tax.ts --format json
+
+<span class="comment"># 2. Make the change</span>
+
+<span class="comment"># 3. After editing — re-scan only what you touched</span>
+crimes scan --changed --format json</code></pre>
+        <p>
+          Decision rule: any <strong>new <code>severity: "high"</code>
+          finding</strong> introduced by your edit is a blocker — fix it, or
+          surface it to the user citing the finding <code>id</code> and
+          <code>charge</code>. Quote <code>evidence[]</code> back to the
+          user when you explain a decision: it is deterministic AST or
+          file-content data, not opinion.
+        </p>
+      </section>
+
+      <section id="examples">
+        <h2>Example output</h2>
+
+        <h3 class="sub">Human report</h3>
         <pre><code>CRIME SCENE REPORT
 repo: messy-ts-app  ·  5 findings
 
@@ -76,130 +259,203 @@ MEDIUM severity (3)
      and couples tests to wall time.
      ...
 
-LOW severity (1)
-  ...
-
 Total 5  ·  high 1  medium 3  low 1</code></pre>
-        <p class="note">
-          Every finding includes <strong>evidence</strong> (raw facts) and
-          <strong>scores</strong> (severity, confidence, agent risk). No
-          verdicts without receipts.
-        </p>
-      </section>
 
-      <section id="agents">
-        <h2>Agent-native JSON</h2>
-        <p>
-          Humans get the colourful report. Agents get a stable, versioned JSON
-          contract — the same scan, structured for machines:
-        </p>
-        <pre><code>crimes scan ./src --format json</code></pre>
+        <h3 class="sub">JSON report (the contract)</h3>
         <pre><code>{
-  "schema_version": "0.1.0",
-  "repo": { "name": "messy-ts-app", "root": "/..." },
-  "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
-  "findings": [
+  <span class="json-key">"schema_version"</span>: <span class="json-str">"0.1.0"</span>,
+  <span class="json-key">"repo"</span>: { <span class="json-key">"name"</span>: <span class="json-str">"messy-ts-app"</span>, <span class="json-key">"root"</span>: <span class="json-str">"/..."</span> },
+  <span class="json-key">"summary"</span>: { <span class="json-key">"total"</span>: 5, <span class="json-key">"high"</span>: 1, <span class="json-key">"medium"</span>: 3, <span class="json-key">"low"</span>: 1 },
+  <span class="json-key">"findings"</span>: [
     {
-      "id": "crime_00001",
-      "type": "large_function",
-      "charge": "God Function",
-      "severity": "high",
-      "confidence": 0.95,
-      "file": "src/billing.ts",
-      "symbol": "generateInvoice",
-      "lines": [37, 240],
-      "summary": "generateInvoice spans 204 lines — past the ...",
-      "evidence": [
-        "lines 37–240 (204 lines)",
-        "3.4× the configured 60-line threshold",
-        "function declaration"
+      <span class="json-key">"id"</span>: <span class="json-str">"crime_00001"</span>,
+      <span class="json-key">"type"</span>: <span class="json-str">"large_function"</span>,
+      <span class="json-key">"charge"</span>: <span class="json-str">"God Function"</span>,
+      <span class="json-key">"severity"</span>: <span class="json-str">"high"</span>,
+      <span class="json-key">"confidence"</span>: 0.95,
+      <span class="json-key">"file"</span>: <span class="json-str">"src/billing.ts"</span>,
+      <span class="json-key">"symbol"</span>: <span class="json-str">"generateInvoice"</span>,
+      <span class="json-key">"lines"</span>: [37, 240],
+      <span class="json-key">"summary"</span>: <span class="json-str">"generateInvoice spans 204 lines — past the …"</span>,
+      <span class="json-key">"evidence"</span>: [
+        <span class="json-str">"lines 37–240 (204 lines)"</span>,
+        <span class="json-str">"3.4× the configured 60-line threshold"</span>,
+        <span class="json-str">"function declaration"</span>
       ],
-      "scores": {
-        "severity": 0.9,
-        "confidence": 0.95,
-        "agent_risk": 0.95
-      }
+      <span class="json-key">"scores"</span>: {
+        <span class="json-key">"severity"</span>: 0.9,
+        <span class="json-key">"confidence"</span>: 0.95,
+        <span class="json-key">"agent_risk"</span>: 0.95
+      },
+      <span class="json-key">"suggested_actions"</span>: [
+        {
+          <span class="json-key">"kind"</span>: <span class="json-str">"extract_function"</span>,
+          <span class="json-key">"description"</span>: <span class="json-str">"Extract cohesive sections into named helpers …"</span>,
+          <span class="json-key">"risk"</span>: <span class="json-str">"low"</span>
+        }
+      ]
     }
   ]
 }</code></pre>
         <p>
-          <code>schema_version</code> is bumped on breaking changes, so agents
-          can pin against a known shape. JSON is the product contract; the
-          human report is a renderer over it. Three docs back this up:
+          <code>schema_version</code> is bumped on breaking changes, so
+          agents can refuse to consume an unfamiliar shape. Three docs back
+          this contract up:
         </p>
         <ul>
           <li>
-            <a href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md"><code>docs/agent-usage.md</code></a>
-            — pre-edit / post-edit workflow, what's shipped vs deferred, exit-code behaviour
+            <a
+              href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md"
+              ><code>docs/agent-usage.md</code></a
+            >
+            — pre-edit / post-edit workflow, shipped vs deferred, exit-code
+            behaviour
           </li>
           <li>
-            <a href="https://github.com/crimes-sh/crimes/blob/main/docs/json-schema.md"><code>docs/json-schema.md</code></a>
-            — every field of the wire format, what's required, what's reserved
+            <a
+              href="https://github.com/crimes-sh/crimes/blob/main/docs/json-schema.md"
+              ><code>docs/json-schema.md</code></a
+            >
+            — every field of the wire format, required vs reserved
           </li>
           <li>
-            <a href="https://github.com/crimes-sh/crimes/blob/main/docs/fixtures/messy-ts-app.json"><code>docs/fixtures/messy-ts-app.json</code></a>
+            <a
+              href="https://github.com/crimes-sh/crimes/blob/main/docs/fixtures/messy-ts-app.json"
+              ><code>docs/fixtures/messy-ts-app.json</code></a
+            >
             — the full pinned sample output, version-controlled
           </li>
         </ul>
       </section>
 
-      <section id="what">
-        <h2>What it finds today</h2>
-        <ul>
-          <li>
-            <strong>God Function</strong> — functions past a body-line threshold
-            (default 60). Escalates to <code>high</code> at 2× threshold.
-          </li>
-          <li>
-            <strong>God File</strong> — files past a line threshold (default
-            300). Same severity ramp.
-          </li>
-          <li>
-            <strong>Unfinished Business</strong> — files dense with
-            <code>TODO</code> / <code>FIXME</code> / <code>XXX</code> /
-            <code>HACK</code> markers, with line ranges for each cluster.
-          </li>
-          <li>
-            <strong>Temporal Recklessness</strong> — direct
-            <code>Date.now()</code> / <code>new Date()</code> calls in source
-            files, with per-call line numbers.
-          </li>
-        </ul>
+      <section id="detects">
+        <h2>What it detects today</h2>
+        <div class="detector-table" role="table" aria-label="Shipped detectors">
+          <div class="row head" role="row">
+            <span role="columnheader">Detector</span>
+            <span role="columnheader">Charge</span>
+            <span role="columnheader">What it flags</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>large_function</code></span>
+            <span role="cell"><strong>God Function</strong></span>
+            <span role="cell">
+              Functions / methods / arrows past a body-line threshold
+              (default 60). Escalates to <code>high</code> at 2× threshold.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>large_file</code></span>
+            <span role="cell"><strong>God File</strong></span>
+            <span role="cell">
+              Files past a line threshold (default 300). Same severity ramp.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>todo_density</code></span>
+            <span role="cell"><strong>Unfinished Business</strong></span>
+            <span role="cell">
+              Files dense with <code>TODO</code> / <code>FIXME</code> /
+              <code>XXX</code> / <code>HACK</code> markers, with line ranges
+              for each cluster.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>direct_date</code></span>
+            <span role="cell"><strong>Temporal Recklessness</strong></span>
+            <span role="cell">
+              Direct <code>Date.now()</code> / <code>new Date()</code> calls
+              in source files, with per-call line numbers.
+            </span>
+          </div>
+        </div>
         <p class="note">
-          Coming next: duplication, circular dependencies, layer violations,
-          git hotspots, and <code>crimes context &lt;file&gt;</code> for
-          pre-edit briefings.
+          Every finding includes <strong>evidence</strong> (raw facts the
+          detector observed) and <strong>scores</strong>
+          (<code>severity</code>, <code>confidence</code>,
+          <code>agent_risk</code>). No verdicts without receipts.
         </p>
       </section>
 
-      <section id="open-source">
-        <h2>Open source, local, no cloud</h2>
+      <section id="next">
+        <h2>What's coming next</h2>
         <p>
-          <code>crimes</code> is MIT-licensed and runs entirely on your machine.
-          No accounts, no telemetry, no SaaS dashboard. The wedge isn't "better
-          linter" — it's <em>local, open-source, agent-native codebase risk
-          and context</em>. Core detectors are deterministic; LLM-assisted
-          features are optional and additive.
+          The PRD names the wedge plainly: ship a small number of excellent
+          detectors, keep heuristics conservative, push out from there. The
+          near-term roadmap, in roughly the order of leverage:
+        </p>
+        <ul class="roadmap">
+          <li>
+            <strong>Git churn × test gap on individual findings</strong> —
+            promote <code>likely_tests</code> into <code>scores.test_gap</code>
+            and surface "frequently changed + weakly tested" hotspots.
+          </li>
+          <li>
+            <strong>Duplication detectors</strong> — exact and near-duplicate
+            blocks, repeated string literals, duplicated role / status / plan
+            checks.
+          </li>
+          <li>
+            <strong>Dependency structure</strong> — circular dependencies,
+            deep imports, config-driven layer violations.
+          </li>
+          <li>
+            <strong>Diff-aware CI gate</strong> —
+            <code>crimes diff main...HEAD</code> + baseline support so CI
+            fails only on <em>new</em> high-severity findings, not legacy
+            debt.
+          </li>
+          <li>
+            <strong>Public launch</strong> — npm publish, GitHub Action
+            wrapper, Homebrew tap, standalone binaries.
+          </li>
+        </ul>
+        <p>
+          Live status:
+          <a
+            href="https://github.com/crimes-sh/crimes/blob/main/ROADMAP_STATUS.md"
+            ><code>ROADMAP_STATUS.md</code></a
+          >
+          · authoritative spec:
+          <a href="https://github.com/crimes-sh/crimes/blob/main/PRD.md"
+            ><code>PRD.md</code></a
+          >.
+        </p>
+      </section>
+
+      <section id="oss" class="strip">
+        <h2>Local, open-source, no cloud</h2>
+        <p>
+          <code>crimes</code> is <a href="https://github.com/crimes-sh/crimes/blob/main/LICENSE">MIT-licensed</a>
+          and runs entirely on your machine. No accounts, no telemetry, no
+          SaaS dashboard. Core detectors are deterministic; any LLM-assisted
+          features in the future are optional and additive.
         </p>
         <p>
           Detectors live in <code>packages/core</code>, language parsing in
           <code>packages/language-js</code>, reporters in
-          <code>packages/reporter</code>. Adding a detector is a pull request,
-          not a plugin marketplace.
+          <code>packages/reporter</code>. Adding a detector is a pull
+          request, not a plugin marketplace.
         </p>
       </section>
-
-      <footer>
-        <p>
-          <a href="https://github.com/crimes-sh/crimes">GitHub</a>
-          · <a href="https://github.com/crimes-sh/crimes/blob/main/PRD.md">PRD</a>
-          · <a href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
-          · MIT licensed
-        </p>
-        <p class="footnote">
-          Repository link is a placeholder until the public repo is live.
-        </p>
-      </footer>
     </main>
+
+    <footer>
+      <div class="foot-links">
+        <a href="https://github.com/crimes-sh/crimes">GitHub</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/crimes-sh/crimes/blob/main/PRD.md">PRD</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/crimes-sh/crimes/blob/main/docs/json-schema.md">JSON schema</a>
+        <span aria-hidden="true">·</span>
+        <span class="muted">npm: <em>coming soon</em></span>
+      </div>
+      <p class="footnote">
+        MIT licensed. GitHub URL is a placeholder until the public repo
+        goes live; this page will update when it does.
+      </p>
+    </footer>
   </body>
 </html>
