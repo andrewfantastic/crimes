@@ -87,7 +87,47 @@ export function generateInvoice(
       discountCents = Math.round(subtotal * 0.02);
     }
   }
-  const afterDiscount = subtotal - discountCents;
+  let afterDiscount = subtotal - discountCents;
+
+  // -- Promo code resolution (inline; should be its own service) ---------
+  let promoCents = 0;
+  const promoCode = metadata.promo ?? "";
+  if (promoCode === "WELCOME10") {
+    promoCents = Math.round(afterDiscount * 0.1);
+  } else if (promoCode === "WELCOME20") {
+    promoCents = Math.round(afterDiscount * 0.2);
+  } else if (promoCode === "BLACKFRIDAY") {
+    if (user.plan === "free") {
+      promoCents = Math.round(afterDiscount * 0.25);
+    } else {
+      promoCents = Math.round(afterDiscount * 0.15);
+    }
+  } else if (promoCode.startsWith("REF_")) {
+    // Referral codes get a flat $5 off
+    promoCents = Math.min(500, afterDiscount);
+  }
+  if (promoCents > 0) {
+    metadata.promoApplied = promoCode;
+    metadata.promoCents = String(promoCents);
+    afterDiscount -= promoCents;
+  }
+
+  // -- Inline fraud-risk scoring (does not belong in invoice generation) --
+  let riskScore = 0;
+  if (afterDiscount > 100_000) riskScore += 30;
+  if (user.country !== "US" && user.country !== "GB") riskScore += 10;
+  if (paymentMethod === "wire") riskScore += 25;
+  if (paymentMethod === "crypto") riskScore += 40;
+  if (daysSince < 1) riskScore += 35;
+  if (items.length > 20) riskScore += 15;
+  metadata.riskScore = String(riskScore);
+  if (riskScore >= 80) {
+    metadata.riskDecision = "block";
+  } else if (riskScore >= 50) {
+    metadata.riskDecision = "review";
+  } else {
+    metadata.riskDecision = "allow";
+  }
 
   // -- Country tax (duplicated business rule — also lives in `tax()`) -----
   let taxRate = 0;
@@ -144,6 +184,18 @@ export function generateInvoice(
     "ts",
     new Date().toISOString(),
   );
+
+  // -- Metrics emission (synchronous; should be a background job) -------
+  const metricTags = [
+    "plan=" + user.plan,
+    "country=" + user.country,
+    "currency=" + currency,
+    "promo=" + (metadata.promoApplied ?? "none"),
+    "risk=" + metadata.riskDecision,
+  ];
+  for (const tag of metricTags) {
+    console.log("[metric] invoice.generated", tag, "totalCents=" + totalCents);
+  }
 
   // -- Email body composition (mixes presentation with billing logic) ----
   let body = "Hi " + user.email + ",\n\n";
