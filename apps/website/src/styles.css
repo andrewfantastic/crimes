@@ -46,13 +46,39 @@ h1 {
   margin: 0;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
+.lede {
+  margin: 1.25rem 0 0;
+  font-size: 1rem;
+  max-width: 60ch;
+}
+
 section {
   margin-top: 3rem;
+}
+
+section + section {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(127, 127, 127, 0.12);
 }
 
 h2 {
   font-size: 1.25rem;
   margin: 0 0 0.75rem;
+}
+
+section p {
+  margin: 0 0 0.75rem;
+  max-width: 65ch;
+}
+
+section p + pre,
+section pre + p,
+section pre + pre {
+  margin-top: 0.75rem;
 }
 
 pre {
@@ -86,4 +112,10 @@ footer {
 
 footer a {
   color: var(--accent);
+}
+
+.footnote {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.75;
 }

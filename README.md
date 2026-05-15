@@ -14,24 +14,26 @@ This README assumes you have never installed a Node.js CLI before, and it also g
 
 ## Status
 
-Pre-release. Milestone 0 (repo foundation) and the very first slice of Milestone 1 (basic `crimes scan`) are implemented. The CLI is **not yet published to npm** — for now you run it from this monorepo.
+Pre-release `0.0.1`. Milestone 0 (repo foundation) and the first slice of Milestone 1 (`crimes scan` with four detectors) are implemented. The CLI is **not yet published to npm** — for now you run it from this monorepo.
 
 What works today:
 
-- `crimes scan` over any TypeScript / JavaScript directory
-- `crimes scan --format json` machine-readable output
+- `crimes --help` / `crimes --version`
+- `crimes scan [path]` over any TypeScript / JavaScript directory
+- `crimes scan --format json` machine-readable output (stable, versioned via `schema_version`)
 - Four detectors:
-  - **Large file** ("God File")
-  - **Large function** ("God Function")
+  - **Large function** ("God Function") — escalates to `high` at ≥2× the line threshold
+  - **Large file** ("God File") — same severity ramp
   - **TODO / FIXME density** ("Unfinished Business")
   - **Direct `Date.now()` / `new Date()`** ("Temporal Recklessness")
+- A publish-tarball smoke test (`pnpm --filter crimes smoke`) that builds, packs, installs `crimes@0.0.1` into a clean temp directory, and exercises every shipped command and flag. Runs in CI on every commit, so the moment the package goes live `npx crimes scan` works.
 
 What does **not** work yet:
 
-- Publishing to npm (`npx crimes` will not resolve)
+- Publishing to npm (`npx crimes` does not resolve)
 - Homebrew
 - Any LLM-assisted features
-- `crimes context`, `crimes diff`, `crimes hotspots`, `crimes verdict` (planned)
+- `crimes context`, `crimes diff`, `crimes hotspots`, `crimes verdict`, `crimes scan --changed` (planned)
 
 See [PRD.md](./PRD.md) for the full roadmap.
 
@@ -212,7 +214,7 @@ For the full schema and the complete pre/post-edit workflow:
 ```
 crimes/
 ├── apps/
-│   └── website/              # crimes.sh static skeleton
+│   └── website/              # crimes.sh static site (no framework — pure HTML + CSS)
 ├── packages/
 │   ├── cli/                  # crimes — Commander entrypoint, `crimes` binary (the published package)
 │   ├── core/                 # @crimes/core — detector engine, finding schema, built-in detectors
@@ -241,6 +243,7 @@ pnpm typecheck                # tsc --noEmit across the workspace
 pnpm test                     # vitest run across the workspace
 pnpm scan:example             # build CLI + run it on the fixture
 pnpm scan:example:json        # same, as JSON
+pnpm --filter crimes smoke    # publish-tarball smoke test (pack → install → run)
 ```
 
 Build a single package:
@@ -248,6 +251,8 @@ Build a single package:
 ```bash
 pnpm --filter @crimes/core build
 ```
+
+The `smoke` script is the canonical "does the published package actually work" check. It does an `npm pack`, installs the resulting tarball into a clean temp directory with `npm install`, and runs `--version`, `--help`, `scan`, and `scan --format json` against `examples/messy-ts-app`. CI runs it on every commit as the `publish-smoke` job.
 
 ---
 
