@@ -117,6 +117,7 @@ try {
   assert(helpOut.includes("crimes"), "--help did not mention `crimes`");
   assert(helpOut.includes("scan"), "--help did not list the `scan` command");
   assert(helpOut.includes("context"), "--help did not list the `context` command");
+  assert(helpOut.includes("hotspots"), "--help did not list the `hotspots` command");
 
   step("crimes scan (human, --no-color)");
   const scanOut = run(installedBin, ["scan", fixture, "--no-color"]).stdout;
@@ -182,6 +183,51 @@ try {
   );
   process.stdout.write(
     `  → ${ctxReport.findings.length} findings, ${ctxReport.likely_tests.length} likely tests, risk=${ctxReport.risk?.level}\n`,
+  );
+
+  step("crimes hotspots (human, --no-color, non-git fixture)");
+  const hotHumanOut = run(installedBin, ["hotspots", fixture, "--no-color"]).stdout;
+  assert(
+    hotHumanOut.includes("CRIMES HOTSPOTS"),
+    "human hotspots output missing CRIMES HOTSPOTS header",
+  );
+
+  step("crimes hotspots --format json");
+  const hotJsonOut = run(installedBin, [
+    "hotspots",
+    fixture,
+    "--format",
+    "json",
+  ]).stdout;
+  const hotReport = JSON.parse(hotJsonOut);
+  for (const key of ["schema_version", "since", "git_available", "hotspots"]) {
+    assert(key in hotReport, `hotspots JSON missing required key "${key}"`);
+  }
+  assert(
+    Array.isArray(hotReport.hotspots),
+    "hotspots JSON: hotspots is not an array",
+  );
+  assert(
+    hotReport.since === "90d",
+    `hotspots JSON: default since should be "90d", got "${hotReport.since}"`,
+  );
+  for (const h of hotReport.hotspots) {
+    for (const key of [
+      "file",
+      "change_count",
+      "finding_count",
+      "highest_severity",
+      "risk",
+    ]) {
+      assert(key in h, `hotspot row missing required key "${key}"`);
+    }
+    assert(
+      typeof h.risk === "number" && h.risk >= 0 && h.risk <= 1,
+      `hotspot risk should be in [0,1], got ${h.risk}`,
+    );
+  }
+  process.stdout.write(
+    `  → ${hotReport.hotspots.length} hotspots, git_available=${hotReport.git_available}\n`,
   );
 
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);

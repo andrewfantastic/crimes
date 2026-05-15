@@ -24,6 +24,8 @@ What works today:
 - `crimes scan --changed [--base <ref>]` — scan only files changed in the working tree, optionally also comparing against a Git base ref (`main`, `origin/main`, etc.)
 - `crimes context <file>` — agent-native single-file report (findings + likely tests + safe-editing notes)
 - `crimes context <file> --format json` — same payload, structured for agents
+- `crimes hotspots [path]` — Git churn × scan findings, ranked by aggregate change-risk
+- `crimes hotspots --since 90d --format json` — same data, structured for agents
 - Four detectors:
   - **Large function** ("God Function") — escalates to `high` at ≥2× the line threshold
   - **Large file** ("God File") — same severity ramp
@@ -36,7 +38,7 @@ What does **not** work yet:
 - Publishing to npm (`npx crimes` does not resolve)
 - Homebrew
 - Any LLM-assisted features
-- `crimes diff`, `crimes hotspots`, `crimes verdict` (planned)
+- `crimes diff`, `crimes verdict` (planned)
 
 See [PRD.md](./PRD.md) for the full roadmap.
 
@@ -201,6 +203,56 @@ via a relative path.
 fired, deduped. It is intentionally short and behavioural ("don't make this
 worse"), not a fix recipe.
 
+### `crimes hotspots [path]`
+
+Rank files by **change risk** using Git history × current scan findings.
+Default window is the last 90 days; pass `--since` to widen or narrow it.
+
+```bash
+crimes hotspots
+crimes hotspots --since 30d
+crimes hotspots --since 1y --format json
+crimes hotspots --all                # show every file, not just the top 20
+```
+
+`--since` accepts the compact form `90d` / `2w` / `6m` / `1y`, or anything
+`git log --since` understands (`"2 weeks ago"`, `"2026-01-01"`).
+
+The risk score is a 0–1 blend of churn and findings:
+
+```text
+risk = 0.6 × min(change_count / 20, 1)
+     + 0.4 × { high: 1.0, medium: 0.6, low: 0.3, none: 0 }[highest_severity]
+```
+
+Churn saturates at 20 commits in the window — beyond that, severity is the
+only signal that moves the score.
+
+In a **non-git directory**, `git_available` is `false`, `change_count` is `0`
+for every row, and risk collapses to the severity component alone (max `0.4`).
+The command still succeeds — it just produces a degraded ranking.
+
+JSON output is the stable contract:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "repo": { "name": "messy-ts-app", "root": "/path/to/repo" },
+  "since": "90d",
+  "git_available": true,
+  "hotspots": [
+    {
+      "file": "src/billing.ts",
+      "change_count": 14,
+      "latest_change": "2026-05-12T14:30:00+00:00",
+      "finding_count": 3,
+      "highest_severity": "high",
+      "risk": 0.82
+    }
+  ]
+}
+```
+
 More commands land in later milestones — see [PRD.md §22](./PRD.md) and
 [ROADMAP_STATUS.md](./ROADMAP_STATUS.md).
 
@@ -325,7 +377,7 @@ The `smoke` script is the canonical "does the published package actually work" c
 
 - **M0 — Repo foundation** ✅
 - **M1 — First working CLI** ✅ — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — scoring (partial), git churn / hotspots (planned)
+- **M2 — Risk model** — scoring (partial), `crimes hotspots` ✅ (git churn + finding-weighted risk), `scores.churn` on individual findings (planned)
 - **M3 — Agent context** — `crimes context <file>` ✅, related-files / cross-file analysis (planned)
 - **M4 — Diff and CI** — `crimes diff`, `--changed`, baseline, CI gates
 - **M5 — Public launch** — npm, crimes.sh, polish

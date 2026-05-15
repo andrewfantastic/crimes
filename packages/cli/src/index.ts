@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { registerContextCommand } from "./commands/context.js";
+import { registerHotspotsCommand } from "./commands/hotspots.js";
 import { registerScanCommand } from "./commands/scan.js";
 
 // Injected at build time by tsup from this package's package.json.
@@ -16,6 +17,7 @@ program
 
 registerScanCommand(program);
 registerContextCommand(program);
+registerHotspotsCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

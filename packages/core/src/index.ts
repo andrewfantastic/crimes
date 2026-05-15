@@ -22,5 +22,23 @@ export {
   UnknownGitRefError,
 } from "./git/changed-files.js";
 export type { ChangedFilesOptions } from "./git/changed-files.js";
+export type {
+  CollectChurnOptions,
+  CollectChurnResult,
+  FileChurn,
+} from "./git/churn.js";
+export {
+  collectChurn,
+  isGitRepo,
+  normaliseSince,
+  parseGitLog,
+} from "./git/churn.js";
+export { computeRisk, hotspots } from "./hotspots.js";
+export type {
+  HighestSeverity,
+  Hotspot,
+  HotspotsOptions,
+  HotspotsReport,
+} from "./hotspots.js";
 export { builtInDetectors, scan } from "./scan.js";
 export type { ScanOptions } from "./scan.js";

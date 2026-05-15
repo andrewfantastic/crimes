@@ -322,6 +322,64 @@ match on.
 
 ---
 
+## `HotspotsReport` (from `crimes hotspots --format json`)
+
+```ts
+interface HotspotsReport {
+  schema_version: "0.1.0";
+  repo: RepoInfo;
+  /** Echo of the `--since` value the user passed (e.g. "90d"). */
+  since: string;
+  /** False when the directory is not a git repository or `git` is unavailable. */
+  git_available: boolean;
+  hotspots: Hotspot[];
+}
+
+interface Hotspot {
+  /** Repo-relative path with forward slashes. */
+  file: string;
+  /** Commits in the `--since` window that touched this file. */
+  change_count: number;
+  /** ISO-8601 timestamp of the most recent commit. Absent when change_count is 0. */
+  latest_change?: string;
+  /** Number of `crimes scan` findings on this file. */
+  finding_count: number;
+  /** Worst severity present in findings. `"none"` when finding_count is 0. */
+  highest_severity: "none" | "low" | "medium" | "high";
+  /** Aggregate 0–1 change-risk score, rounded to 2 dp. */
+  risk: number;
+}
+```
+
+### Sorting
+
+`hotspots` is sorted:
+
+1. By `risk` descending
+2. Then `change_count` descending
+3. Then `highest_severity` descending (`high → medium → low → none`)
+4. Then `file` ascending — as a stable tie-breaker
+
+### `risk` formula (v0.1.0)
+
+```text
+risk = 0.6 × min(change_count / 20, 1)
+     + 0.4 × { high: 1.0, medium: 0.6, low: 0.3, none: 0 }[highest_severity]
+```
+
+Rounded to 2 decimal places. The 20-commit cap and the 0.6 / 0.4 weights are
+the **numeric formula** — they may change between minor releases. Treat
+`risk` as an **ordinal** signal for ranking, not an exact measurement (same
+contract as the per-finding `scores.*` fields).
+
+### Non-git directories
+
+When `git_available` is `false`, every row has `change_count: 0` and no
+`latest_change`. `risk` then collapses to the severity component only and is
+capped at `0.4`. The command does not fail — it degrades.
+
+---
+
 ## Stability guarantees
 
 Within a single `schema_version`:
