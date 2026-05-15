@@ -1,42 +1,21 @@
 :root {
-  color-scheme: light dark;
-  --fg: #0b0b0b;
-  --fg-strong: #000;
-  --bg: #fafaf7;
-  --bg-elev: #fff;
-  --muted: #4a4a48;
-  --hairline: rgba(11, 11, 11, 0.1);
-  --hairline-strong: rgba(11, 11, 11, 0.18);
-  --accent: #b91c1c;
-  --accent-soft: rgba(185, 28, 28, 0.08);
-  --code-bg: rgba(11, 11, 11, 0.05);
-  --code-fg: #0b0b0b;
-  --pill-bg: rgba(185, 28, 28, 0.1);
-  --output: #2b2b2b;
-  --json-key: #6e3a00;
-  --json-str: #1f5d2f;
-  --comment: #6b6b6b;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #ededed;
-    --fg-strong: #fff;
-    --bg: #0a0a0a;
-    --bg-elev: #131313;
-    --muted: #a3a3a3;
-    --hairline: rgba(255, 255, 255, 0.1);
-    --hairline-strong: rgba(255, 255, 255, 0.18);
-    --accent: #ef4444;
-    --accent-soft: rgba(239, 68, 68, 0.16);
-    --code-bg: rgba(255, 255, 255, 0.06);
-    --code-fg: #f5f5f5;
-    --pill-bg: rgba(239, 68, 68, 0.18);
-    --output: #d4d4d4;
-    --json-key: #f0b86b;
-    --json-str: #86c98a;
-    --comment: #9a9a9a;
-  }
+  color-scheme: dark;
+  --fg: #ededed;
+  --fg-strong: #fff;
+  --bg: #0a0a0a;
+  --bg-elev: #131313;
+  --muted: #a3a3a3;
+  --hairline: rgba(255, 255, 255, 0.1);
+  --hairline-strong: rgba(255, 255, 255, 0.18);
+  --accent: #ef4444;
+  --accent-soft: rgba(239, 68, 68, 0.16);
+  --code-bg: rgba(255, 255, 255, 0.06);
+  --code-fg: #f5f5f5;
+  --pill-bg: rgba(239, 68, 68, 0.18);
+  --output: #d4d4d4;
+  --json-key: #f0b86b;
+  --json-str: #86c98a;
+  --comment: #9a9a9a;
 }
 
 * {
@@ -509,8 +488,9 @@ td > code,
   }
 }
 
-/* ---- Roadmap list ---- */
+/* ---- Loop / roadmap lists ---- */
 
+.loop,
 .roadmap {
   list-style: none;
   padding: 0;
@@ -518,9 +498,25 @@ td > code,
   gap: 0.5rem;
 }
 
+.loop li,
 .roadmap li {
-  padding-left: 1.4rem;
+  padding-left: 1.6rem;
   position: relative;
+}
+
+.loop li::before {
+  content: counter(loop-counter);
+  counter-increment: loop-counter;
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.loop {
+  counter-reset: loop-counter;
 }
 
 .roadmap li::before {
@@ -530,6 +526,11 @@ td > code,
   top: 0;
   color: var(--accent);
   font-weight: 700;
+}
+
+.roadmap li.done::before {
+  content: "✓";
+  color: #86c98a;
 }
 
 /* ---- Strip ---- */
@@ -576,11 +577,6 @@ footer {
 
 .muted {
   color: var(--muted);
-}
-
-.muted em {
-  font-style: italic;
-  opacity: 0.85;
 }
 
 .footnote {

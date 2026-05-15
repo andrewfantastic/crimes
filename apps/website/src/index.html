@@ -6,9 +6,10 @@
     <title>crimes — a crime scene investigator for your codebase</title>
     <meta
       name="description"
-      content="crimes is an open-source CLI that investigates a codebase for maintainability risks, duplicated business rules, and patterns that confuse AI coding agents. Built for agents, readable by humans."
+      content="crimes is an open-source CLI that scans a codebase for change risk and agent risk — duplicated business rules, ambiguous sources of truth, and patterns that confuse AI coding agents. Built for agents, readable by humans."
     />
-    <meta name="theme-color" content="#0b0b0b" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="color-scheme" content="dark" />
     <meta property="og:title" content="crimes — built for agents, readable by humans" />
     <meta
       property="og:description"
@@ -32,16 +33,16 @@
         <a href="#agents">For agents</a>
         <a href="#detects">Detectors</a>
         <a href="#next">Roadmap</a>
-        <a class="external" href="https://github.com/crimes-sh/crimes">GitHub ↗</a>
+        <a class="external" href="https://github.com/andrewfantastic/crimes">GitHub ↗</a>
       </nav>
     </header>
 
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">pre-release · v0.0.1</span>
+          <span class="pill">v0.1.0</span>
           <span class="dot" aria-hidden="true">·</span>
-          <span>open source · MIT</span>
+          <span>open source · MIT · local · no cloud</span>
         </p>
         <h1>A crime scene investigator for your codebase.</h1>
         <p class="tagline">Built for agents, readable by humans.</p>
@@ -56,12 +57,12 @@
         <div class="cta-row">
           <a class="btn btn-primary" href="#install">Install</a>
           <a class="btn" href="#agents">Read the agent guide</a>
-          <a class="btn btn-ghost" href="https://github.com/crimes-sh/crimes">
+          <a class="btn btn-ghost" href="https://github.com/andrewfantastic/crimes">
             View on GitHub
           </a>
         </div>
 
-        <pre class="hero-snippet" aria-label="Example terminal session"><code><span class="prompt">$</span> <span class="cmd">crimes scan .</span>
+        <pre class="hero-snippet" aria-label="Example terminal session"><code><span class="prompt">$</span> <span class="cmd">npx crimes scan .</span>
 <span class="output">CRIME SCENE REPORT
 repo: messy-ts-app  ·  5 findings
 
@@ -83,34 +84,28 @@ Total 5  ·  high 1  medium 3  low 1</span></code></pre>
       <section id="install">
         <h2>Install</h2>
         <p>
-          The v0.0.1 tarball is built and smoke-tested in CI on every commit,
-          but the package is <strong>not yet published to npm</strong>. The
-          snippet below will work the moment publish lands.
+          <code>crimes</code> is published on
+          <a href="https://www.npmjs.com/package/crimes">npm</a> and requires
+          Node.js 18 or newer.
         </p>
 
-        <!-- SWAP-ON-PUBLISH-START: when crimes@0.0.1 is live on npm, remove
-             the "coming soon" comment and the "Until then…" paragraph. -->
-        <pre><code><span class="comment"># Coming soon on npm — one command, no config:</span>
+        <pre><code><span class="comment"># Global install</span>
 npm install -g crimes
 crimes scan .</code></pre>
 
-        <p>
-          Or, with <code>npx</code>:
-        </p>
-        <pre><code>npx crimes scan</code></pre>
+        <p>Or one-shot via <code>npx</code>:</p>
+        <pre><code>npx crimes scan .</code></pre>
 
         <p class="note">
-          Until the package is on the registry, clone
-          <a href="https://github.com/crimes-sh/crimes">the repo</a> and run
-          <code>pnpm install &amp;&amp; pnpm build &amp;&amp; pnpm scan:example</code>
-          from the repo root. Homebrew lands after npm.
+          <code>pnpm dlx crimes scan</code> and <code>bunx crimes scan</code>
+          also work. Homebrew lands after npm — see the
+          <a href="#next">roadmap</a>.
         </p>
-        <!-- SWAP-ON-PUBLISH-END -->
       </section>
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Three commands cover most of what <code>crimes</code> does today:</p>
+        <p>Five commands cover everything <code>crimes</code> does today:</p>
 
         <div class="qs">
           <div class="qs-row">
@@ -170,7 +165,8 @@ crimes scan --changed --base main --format json</code></pre>
           The wedge isn't "better linter". It's <em>local, open-source,
           agent-native codebase risk and context</em>. <code>crimes</code>
           ships two on-disk artefacts that AI coding agents pick up
-          automatically — there is nothing to install into a prompt.
+          automatically — <strong>there is nothing to install into a
+          prompt</strong>.
         </p>
 
         <div class="cards">
@@ -182,9 +178,10 @@ crimes scan --changed --base main --format json</code></pre>
             <p>
               A Claude Code skill that loads on demand. Tells Claude
               <em>when</em> to run <code>crimes</code>, <em>which</em>
-              command to use, and <em>how</em> to read the JSON. Discovered
-              automatically by Claude Code in any repo with a
-              <code>SKILL.md</code> under <code>.claude/skills/&lt;name&gt;/</code>.
+              command to use, and <em>how</em> to read the JSON.
+              Auto-discovered by Claude Code in any repo with a
+              <code>SKILL.md</code> under
+              <code>.claude/skills/&lt;name&gt;/</code>.
             </p>
             <ul class="card-list">
               <li>Pre-edit: <code>crimes context &lt;file&gt; --format json</code></li>
@@ -195,7 +192,7 @@ crimes scan --changed --base main --format json</code></pre>
 
           <article class="card">
             <header class="card-head">
-              <span class="card-tag">Codex / Cursor / Aider</span>
+              <span class="card-tag">Codex · Cursor · Aider · &nbsp;more</span>
               <h3><code>AGENTS.md</code></h3>
             </header>
             <p>
@@ -207,20 +204,30 @@ crimes scan --changed --base main --format json</code></pre>
             </p>
             <ul class="card-list">
               <li>Stable JSON makes <code>crimes</code> output safe to feed back into the agent loop</li>
-              <li>Same pre/post-edit workflow as Claude</li>
+              <li>Same pre / post-edit workflow as Claude</li>
               <li>Works with any agent that reads <code>AGENTS.md</code></li>
             </ul>
           </article>
         </div>
 
-        <h3 class="sub">Pre-edit / post-edit, in detail</h3>
-        <pre><code><span class="comment"># 1. Before editing a single file — get the briefing</span>
-crimes context src/billing/tax.ts --format json
-
-<span class="comment"># 2. Make the change</span>
-
-<span class="comment"># 3. After editing — re-scan only what you touched</span>
-crimes scan --changed --format json</code></pre>
+        <h3 class="sub">Recommended loop</h3>
+        <ol class="loop">
+          <li>
+            <strong>Before editing</strong> a specific file —
+            <code>crimes context &lt;file&gt; --format json</code>.
+            Read every <code>high</code> severity finding first.
+          </li>
+          <li>
+            <strong>After editing</strong> — re-scan only what you touched:
+            <code>crimes scan --changed --format json</code>. Diff the
+            findings against the pre-edit run.
+          </li>
+          <li>
+            <strong>Triaging the wider repo</strong> —
+            <code>crimes hotspots --format json</code> ranks files by an
+            aggregate of git churn and current findings.
+          </li>
+        </ol>
         <p>
           Decision rule: any <strong>new <code>severity: "high"</code>
           finding</strong> introduced by your edit is a blocker — fix it, or
@@ -305,7 +312,7 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
         <ul>
           <li>
             <a
-              href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md"
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md"
               ><code>docs/agent-usage.md</code></a
             >
             — pre-edit / post-edit workflow, shipped vs deferred, exit-code
@@ -313,14 +320,14 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
           </li>
           <li>
             <a
-              href="https://github.com/crimes-sh/crimes/blob/main/docs/json-schema.md"
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md"
               ><code>docs/json-schema.md</code></a
             >
             — every field of the wire format, required vs reserved
           </li>
           <li>
             <a
-              href="https://github.com/crimes-sh/crimes/blob/main/docs/fixtures/messy-ts-app.json"
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/fixtures/messy-ts-app.json"
               ><code>docs/fixtures/messy-ts-app.json</code></a
             >
             — the full pinned sample output, version-controlled
@@ -378,46 +385,50 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
       </section>
 
       <section id="next">
-        <h2>What's coming next</h2>
+        <h2>What's next</h2>
         <p>
           The PRD names the wedge plainly: ship a small number of excellent
           detectors, keep heuristics conservative, push out from there. The
           near-term roadmap, in roughly the order of leverage:
         </p>
         <ul class="roadmap">
-          <li>
-            <strong>Git churn × test gap on individual findings</strong> —
-            promote <code>likely_tests</code> into <code>scores.test_gap</code>
-            and surface "frequently changed + weakly tested" hotspots.
+          <li class="done">
+            <strong>v0.1.0 — shipped.</strong>
+            <code>crimes scan --changed</code>,
+            <code>crimes context</code>,
+            <code>crimes hotspots</code>,
+            <code>AGENTS.md</code> + Claude skill, npm Trusted Publishing
+            release automation, and this landing page.
           </li>
           <li>
-            <strong>Duplication detectors</strong> — exact and near-duplicate
-            blocks, repeated string literals, duplicated role / status / plan
-            checks.
+            <strong>v0.2.0 — diff-aware CI gate.</strong>
+            <code>crimes diff main...HEAD</code>,
+            <code>crimes verdict</code>, baseline / suppressions, and
+            <code>--fail-on new-high</code> so CI fails only on
+            <em>new</em> high-severity findings, not legacy debt.
           </li>
           <li>
-            <strong>Dependency structure</strong> — circular dependencies,
-            deep imports, config-driven layer violations.
+            <strong>v0.3.0 — richer risk model.</strong>
+            Per-finding <code>scores.churn</code> /
+            <code>scores.test_gap</code>, test proximity feeding into
+            <code>hotspots</code>, cross-file <code>related_files</code>,
+            and the first dependency-structure detectors (circular
+            dependencies, layer violations).
           </li>
           <li>
-            <strong>Diff-aware CI gate</strong> —
-            <code>crimes diff main...HEAD</code> + baseline support so CI
-            fails only on <em>new</em> high-severity findings, not legacy
-            debt.
-          </li>
-          <li>
-            <strong>Public launch</strong> — npm publish, GitHub Action
-            wrapper, Homebrew tap, standalone binaries.
+            <strong>Later.</strong> Homebrew tap, standalone macOS / Linux
+            / Windows binaries, duplication detectors, optional
+            LLM-assisted summaries.
           </li>
         </ul>
         <p>
           Live status:
           <a
-            href="https://github.com/crimes-sh/crimes/blob/main/ROADMAP_STATUS.md"
+            href="https://github.com/andrewfantastic/crimes/blob/main/ROADMAP_STATUS.md"
             ><code>ROADMAP_STATUS.md</code></a
           >
           · authoritative spec:
-          <a href="https://github.com/crimes-sh/crimes/blob/main/PRD.md"
+          <a href="https://github.com/andrewfantastic/crimes/blob/main/PRD.md"
             ><code>PRD.md</code></a
           >.
         </p>
@@ -426,10 +437,11 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
       <section id="oss" class="strip">
         <h2>Local, open-source, no cloud</h2>
         <p>
-          <code>crimes</code> is <a href="https://github.com/crimes-sh/crimes/blob/main/LICENSE">MIT-licensed</a>
+          <code>crimes</code> is
+          <a href="https://github.com/andrewfantastic/crimes/blob/main/LICENSE">MIT-licensed</a>
           and runs entirely on your machine. No accounts, no telemetry, no
-          SaaS dashboard. Core detectors are deterministic; any LLM-assisted
-          features in the future are optional and additive.
+          SaaS dashboard. Core detectors are deterministic; any
+          LLM-assisted features in the future are optional and additive.
         </p>
         <p>
           Detectors live in <code>packages/core</code>, language parsing in
@@ -442,19 +454,18 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
 
     <footer>
       <div class="foot-links">
-        <a href="https://github.com/crimes-sh/crimes">GitHub</a>
+        <a href="https://github.com/andrewfantastic/crimes">GitHub</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/crimes-sh/crimes/blob/main/PRD.md">PRD</a>
+        <a href="https://www.npmjs.com/package/crimes">npm</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/crimes-sh/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
+        <a href="https://github.com/andrewfantastic/crimes/blob/main/PRD.md">PRD</a>
         <span aria-hidden="true">·</span>
-        <a href="https://github.com/crimes-sh/crimes/blob/main/docs/json-schema.md">JSON schema</a>
+        <a href="https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
         <span aria-hidden="true">·</span>
-        <span class="muted">npm: <em>coming soon</em></span>
+        <a href="https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md">JSON schema</a>
       </div>
       <p class="footnote">
-        MIT licensed. GitHub URL is a placeholder until the public repo
-        goes live; this page will update when it does.
+        MIT licensed. Deterministic, local, agent-native.
       </p>
     </footer>
   </body>
