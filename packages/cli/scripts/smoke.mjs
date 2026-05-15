@@ -56,8 +56,13 @@ step("Sanity check");
 assert(expectedName === "crimes", `package name must be "crimes" (got "${expectedName}")`);
 assert(expectedBin === "crimes", `binary name must be "crimes" (got "${expectedBin}")`);
 
-step("Build CLI");
-run("pnpm", ["--filter", "crimes", "build"], { cwd: repoRoot });
+step("Build workspace");
+// Build every package, not just the CLI: tsup bundles `@crimes/core` and
+// `@crimes/reporter` into the CLI via `noExternal`, and esbuild resolves
+// them through their `exports` field — which points at `dist/index.js`.
+// `pnpm --filter crimes build` alone leaves those workspace deps unbuilt
+// and esbuild fails to resolve them on a fresh runner.
+run("pnpm", ["run", "build"], { cwd: repoRoot });
 
 step("npm pack");
 const packResult = run("npm", ["pack", "--json"], { cwd: cliDir });
