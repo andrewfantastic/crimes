@@ -33,11 +33,5 @@ coverage/
 # crimes state
 .crimes/
 
-# Product spec — kept locally, not tracked
-PRD.md
-
-# Roadmap snapshot — kept locally, not tracked
-ROADMAP_STATUS.md
-
 # npm pack output
 *.tgz
