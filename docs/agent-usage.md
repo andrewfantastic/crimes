@@ -12,7 +12,79 @@ This document covers:
 - What is guaranteed, what may change, and what is **not** implemented yet
 
 If you are looking for the wire format itself, read
-[`docs/json-schema.md`](./json-schema.md).
+[`docs/json-schema.md`](./json-schema.md). For the catalogue of bundled
+agent instructions (root `AGENTS.md`, Claude Code skill), see
+[`docs/skills.md`](./skills.md).
+
+---
+
+## Per-agent integration
+
+`crimes` ships with two on-disk artefacts that coding agents pick up
+automatically when they open a repo that contains them. You do not need to
+copy-paste anything into a prompt — they are loaded by the agent itself.
+
+### Claude Code
+
+A skill lives at [`.claude/skills/crimes/SKILL.md`](../.claude/skills/crimes/SKILL.md).
+Claude Code discovers any `SKILL.md` under `.claude/skills/<name>/` and
+loads it when the user invokes the matching skill (e.g. `/crimes` or when
+Claude judges the skill relevant). The skill is short by design: it tells
+Claude *when* to run `crimes`, *which* command to use, and *how* to read
+the JSON.
+
+Recommended Claude Code prompt fragments, if the user wants to add a
+project-level reminder in `CLAUDE.md`:
+
+> Before editing any file in this repo, run
+> `crimes context <file> --format json` and read every `high` severity
+> finding. After editing, re-run the same command or
+> `crimes scan --changed --format json` and treat any new `high` finding
+> as a blocker.
+
+The root [`AGENTS.md`](../AGENTS.md) covers install / build / test /
+architecture / safety rules — Claude Code reads `AGENTS.md` as well, so you
+get both layers (general agent rules + the on-demand skill).
+
+### Codex CLI (and Codex-style agents)
+
+[`AGENTS.md`](../AGENTS.md) at the repo root is the convention Codex CLI
+(and Aider, Cursor, Copilot Workspace, OpenAI agents, etc.) read on
+startup. It contains:
+
+- install / build / test commands,
+- the four shipped `crimes` commands and their flags,
+- project architecture and package boundaries,
+- coding style notes,
+- agent safety rules (no auto-publish, no shared-branch rewrites, no
+  silent auto-fix of findings).
+
+For Codex, the pre-edit / post-edit loop is the same as the rest of this
+document — invoke `crimes context <file> --format json` before touching a
+file, `crimes scan --changed --format json` after, and diff the findings.
+
+### Other agents (Cursor, Aider, Continue, etc.)
+
+Anything that reads `AGENTS.md` or `CLAUDE.md` will pick up the workflow
+without further configuration. For agents that read neither, point them at
+this document or copy the [Recommended workflow](#recommended-workflow)
+section into your project's agent-rules file.
+
+---
+
+## When to run which command
+
+| Situation                                                       | Command                                          |
+| --------------------------------------------------------------- | ------------------------------------------------ |
+| About to edit one specific file                                 | `crimes context <file> --format json`            |
+| About to refactor across a directory                            | `crimes scan <path> --format json`               |
+| Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
+| Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
+| Triaging "where in the repo is the most change-risk right now?" | `crimes hotspots --format json`                  |
+| Reviewing the whole repo from scratch                           | `crimes scan . --format json --all`              |
+
+If you only learn one command, learn `crimes context <file> --format json`
+— it is the cheapest, most file-specific entry point.
 
 ---
 
@@ -28,8 +100,8 @@ look likely to cover it, and short safe-editing notes:
 crimes context path/to/file --format json
 ```
 
-(While the package is unpublished, invoke it from this monorepo as
-`node packages/cli/dist/index.js context path/to/file --format json`.)
+If you are running against an unreleased checkout, invoke it from this
+monorepo as `node packages/cli/dist/index.js context path/to/file --format json`.
 
 The JSON shape is:
 
@@ -234,22 +306,26 @@ The brief above describes the workflow `crimes` is built around. Some of the
 commands the PRD calls out are **not yet implemented**, and you should not
 rely on them in agent instructions yet:
 
-| Command                              | Status                  |
-| ------------------------------------ | ----------------------- |
-| `crimes scan [path]`                 | ✅ shipped              |
-| `crimes scan --format json`          | ✅ shipped              |
-| `crimes scan --all`                  | ✅ shipped              |
-| `crimes scan --no-color`             | ✅ shipped              |
-| `crimes scan --changed`              | ✅ shipped              |
-| `crimes scan --changed --base <ref>` | ✅ shipped              |
-| `crimes context <file>`              | ✅ shipped              |
-| `crimes context <file> --format json`| ✅ shipped              |
-| `crimes diff main...HEAD`            | 🚧 not yet implemented  |
-| `crimes verdict`                     | 🚧 not yet implemented  |
-| `crimes hotspots`                    | 🚧 not yet implemented  |
-| `crimes explain <id>`                | 🚧 not yet implemented  |
-| `crimes init`                        | 🚧 not yet implemented  |
-| `crimes ask` / LLM-assisted modes    | 🚧 not yet implemented  |
+| Command                                | Status                  |
+| -------------------------------------- | ----------------------- |
+| `crimes scan [path]`                   | ✅ shipped              |
+| `crimes scan [path] --format json`     | ✅ shipped              |
+| `crimes scan --all`                    | ✅ shipped              |
+| `crimes scan --no-color`               | ✅ shipped              |
+| `crimes scan --changed`                | ✅ shipped              |
+| `crimes scan --changed --base <ref>`   | ✅ shipped              |
+| `crimes context <file>`                | ✅ shipped              |
+| `crimes context <file> --format json`  | ✅ shipped              |
+| `crimes hotspots [path]`               | ✅ shipped              |
+| `crimes hotspots [path] --since <window>` | ✅ shipped           |
+| `crimes hotspots [path] --format json` | ✅ shipped              |
+| `crimes diff main...HEAD`              | 🚧 not yet implemented  |
+| `crimes verdict`                       | 🚧 not yet implemented  |
+| `crimes baseline save`                 | 🚧 not yet implemented  |
+| `crimes ignore <id>`                   | 🚧 not yet implemented  |
+| `crimes explain <id>`                  | 🚧 not yet implemented  |
+| `crimes init`                          | 🚧 not yet implemented  |
+| `crimes ask` / LLM-assisted modes      | 🚧 not yet implemented  |
 
 Until those land, the pre/post-edit workflow works as plain
 `crimes scan <path> --format json` on the directory or file you are about to

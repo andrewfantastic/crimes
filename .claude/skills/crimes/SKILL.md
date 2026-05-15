@@ -1,0 +1,150 @@
+---
+name: crimes-codebase-risk
+description: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the `crimes` CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.
+---
+
+# crimes — codebase risk workflow
+
+`crimes` is a deterministic CLI (no LLM) that reports change risk and
+agent risk on a TS/JS repo. JSON output is the stable contract — prefer it
+over the human-readable rendering when you need to plan.
+
+This skill is short on purpose: run the right command at the right moment,
+read the JSON, act on it.
+
+## When to invoke
+
+Before **any** of these:
+
+- Editing a file you have not read in this session.
+- Editing a file > 200 lines.
+- Refactoring across multiple files.
+- Renaming a function, prop, or type used in more than one place.
+- Adding a new branch to existing logic in domain code (billing, auth,
+  permissions, scheduling, anything stateful).
+
+Skip when:
+
+- Pure greenfield code in a new file.
+- Doc-only changes.
+- The user has explicitly said "don't run crimes for this".
+
+## Commands
+
+`crimes` binary if installed; otherwise `node packages/cli/dist/index.js` from
+the monorepo root.
+
+### Before editing one specific file
+
+```bash
+crimes context <file> --format json
+```
+
+Reads:
+
+- `risk.level` — headline (`none | low | medium | high`)
+- `findings[]` — per-file findings, read every `high` first
+- `likely_tests[]` — run these after editing
+- `agent_guidance[]` — one short line per finding type that fired
+
+### Before a broad refactor
+
+```bash
+crimes scan <path> --format json
+```
+
+Reads:
+
+- `summary.high` / `summary.medium` / `summary.low`
+- Every finding with `severity: "high"`
+- `evidence[]` on each finding — concrete facts, treat as ground truth
+- `scores.agent_risk` — read these next; high means "easy to misread"
+
+### After editing (the post-edit gate)
+
+```bash
+# Re-run the same scope you scanned pre-edit
+crimes scan <path> --format json
+# OR, if you are mid-task and only touched files in the working tree
+crimes scan --changed --format json
+```
+
+Diff the findings against the pre-edit run.
+
+### Changed-files-only scope
+
+`crimes scan --changed` restricts to files changed in the working tree.
+With `--base <ref>` it also includes commits unique to the current branch:
+
+```bash
+crimes scan --changed --format json                     # working tree
+crimes scan --changed --base main --format json         # + branch commits
+crimes scan --changed --base origin/main --format json  # + unpushed commits
+```
+
+Requires a git repo. Outside a repo it exits 2 — fall back to a path-scoped
+`crimes scan <path>`.
+
+## Decision rules
+
+1. **A new `severity: "high"` finding introduced by your edit is a blocker.**
+   Either fix it before continuing, or surface it to the user with the
+   finding `id` and `charge` and an explicit reason for leaving it.
+2. **If `scores.agent_risk` rose on a touched file, slow down.** You may
+   have added a duplicate source of truth, a misleading name, or a hidden
+   side effect.
+3. **If `summary.high` / `summary.medium` went down, you are in a good
+   state.** Mention which findings you cleared.
+4. **Quote `evidence[]` strings back to the user** when explaining decisions
+   — they are deterministic facts (line ranges, AST observations), not LLM
+   opinion.
+
+## Auto-fix policy
+
+Do **not** auto-fix maintainability findings unless **all** of:
+
+- The user asked for the refactor (or accepted a proposal).
+- Intended behaviour is clear and you can articulate it in one sentence.
+- Relevant tests exist, OR you add them in the same change.
+- The change is scoped — no drive-by refactors in unrelated files.
+
+In particular: never split a "God Function" or restructure a "God File"
+silently while doing a bugfix. Surface the finding, propose, then act on
+user approval.
+
+## What `crimes` does not do
+
+- It is not a linter (no style/syntax rules).
+- It is not a security scanner.
+- It has no LSP, no watch mode, no editor integration.
+- It does not auto-fix. There is no `crimes --fix`.
+- These commands are **not yet implemented** and must not be invoked:
+  `crimes diff`, `crimes verdict`, `crimes baseline`, `crimes explain`,
+  `crimes init`, `crimes ask`.
+
+## Reading findings — five fields that matter
+
+| Field               | Use for                                                        |
+| ------------------- | -------------------------------------------------------------- |
+| `severity`          | Triage (`high → medium → low`)                                 |
+| `file` + `lines`    | Where to read first; `lines` is 1-based inclusive `[start,end]`|
+| `symbol`            | Function/method/class name when applicable                     |
+| `evidence[]`        | Concrete facts — quote these when explaining changes           |
+| `scores.agent_risk` | "Easy for an LLM to misread, duplicate, or break"              |
+
+Default sort is severity-first. If your task is "what should I read before
+editing", re-sort by `scores.agent_risk` instead.
+
+## Stability
+
+- `schema_version` at the top of every report is the source of truth.
+- While `schema_version === "0.1.0"`, the shape in
+  [`docs/json-schema.md`](../../../docs/json-schema.md) is stable.
+- Refuse to consume a report whose `schema_version` you do not recognise.
+
+## See also
+
+- [`AGENTS.md`](../../../AGENTS.md) — repo-level agent instructions.
+- [`docs/agent-usage.md`](../../../docs/agent-usage.md) — full pre/post-edit
+  workflow with examples.
+- [`docs/json-schema.md`](../../../docs/json-schema.md) — wire format.
