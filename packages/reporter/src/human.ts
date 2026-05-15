@@ -1,4 +1,10 @@
-import type { Finding, ScanReport, Severity } from "@crimes/core";
+import type {
+  ContextReport,
+  ContextRisk,
+  Finding,
+  ScanReport,
+  Severity,
+} from "@crimes/core";
 import pc from "picocolors";
 
 export interface HumanReportOptions {
@@ -119,4 +125,81 @@ function plainColour(): ColourFns {
   return new Proxy({} as ColourFns, {
     get: () => passthrough,
   });
+}
+
+export interface ContextHumanReportOptions {
+  /** Disable ANSI colour output. */
+  noColor?: boolean;
+}
+
+export function formatContextHumanReport(
+  report: ContextReport,
+  options: ContextHumanReportOptions = {},
+): string {
+  const colour = options.noColor ? plainColour() : pc;
+  const lines: string[] = [];
+
+  lines.push(colour.bold("CRIMES CONTEXT"));
+  lines.push(colour.dim(`file: ${report.file}`));
+  lines.push(`risk: ${riskLabel(report.risk, colour)}  ${riskCounts(report.risk, colour)}`);
+  lines.push("");
+
+  // Findings
+  if (report.findings.length === 0) {
+    lines.push(colour.green("No findings on this file. Suspiciously clean."));
+  } else {
+    lines.push(colour.bold("Findings"));
+    report.findings.forEach((finding, idx) => {
+      lines.push(...renderFinding(finding, idx + 1, colour));
+      lines.push("");
+    });
+    // Trim trailing blank from the last finding block.
+    if (lines[lines.length - 1] === "") lines.pop();
+  }
+
+  // Agent guidance
+  lines.push("");
+  lines.push(colour.bold("Agent guidance"));
+  if (report.agent_guidance.length === 0) {
+    lines.push(colour.dim("  (no specific guidance for this file)"));
+  } else {
+    for (const g of report.agent_guidance) {
+      lines.push(`  · ${g}`);
+    }
+  }
+
+  // Likely tests
+  lines.push("");
+  lines.push(colour.bold("Likely tests"));
+  if (report.likely_tests.length === 0) {
+    lines.push(colour.dim("  (no likely tests found by convention)"));
+  } else {
+    for (const t of report.likely_tests) {
+      lines.push(`  · ${colour.cyan(t)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function riskLabel(risk: ContextRisk, colour: ColourFns): string {
+  const upper = risk.level.toUpperCase();
+  switch (risk.level) {
+    case "high":
+      return colour.red(colour.bold(upper));
+    case "medium":
+      return colour.yellow(colour.bold(upper));
+    case "low":
+      return colour.dim(colour.bold(upper));
+    case "none":
+      return colour.green(colour.bold(upper));
+  }
+}
+
+function riskCounts(risk: ContextRisk, colour: ColourFns): string {
+  if (risk.total === 0) return colour.dim("(0 findings)");
+  return colour.dim(
+    `(${risk.total} finding${risk.total === 1 ? "" : "s"}: ` +
+      `${risk.high} high, ${risk.medium} medium, ${risk.low} low)`,
+  );
 }

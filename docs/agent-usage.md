@@ -18,17 +18,56 @@ If you are looking for the wire format itself, read
 
 ## Recommended workflow
 
-### 1. Pre-edit scan (before touching files)
+### 1. Pre-edit context (before touching a single file)
 
-Run a scoped scan on the file or directory you are about to edit. Pipe to
-`jq` or parse the JSON directly.
+When you are about to edit one specific file, prefer `crimes context` over
+a directory scan — it returns the per-file findings, the test files that
+look likely to cover it, and short safe-editing notes:
 
 ```bash
-crimes scan path/to/file-or-dir --format json
+crimes context path/to/file --format json
 ```
 
 (While the package is unpublished, invoke it from this monorepo as
-`node packages/cli/dist/index.js scan path/to/file-or-dir --format json`.)
+`node packages/cli/dist/index.js context path/to/file --format json`.)
+
+The JSON shape is:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "file": "src/billing.ts",
+  "risk": { "level": "high", "high": 1, "medium": 1, "low": 1, "total": 3 },
+  "findings": [ /* same Finding shape as scan */ ],
+  "likely_tests": ["src/billing.test.ts"],
+  "agent_guidance": [
+    "Prefer extracting pure helpers before adding more branches.",
+    "Avoid adding more direct clock access; inject time where possible."
+  ]
+}
+```
+
+How to use the fields:
+
+- **`risk.level`** is the headline (`none | low | medium | high`) — the worst
+  severity present on this file.
+- **`findings`** are the same Finding objects `crimes scan` would emit,
+  filtered to this file. Read every `high` first.
+- **`likely_tests`** is found by three deterministic conventions: same-basename
+  `.test.ts` / `.spec.ts` siblings, files under `__tests__/` matching the
+  basename, and test files that import the target via a relative path. Run
+  these tests after editing.
+- **`agent_guidance`** is one short line per finding type that fired, deduped.
+  It tells you what *not* to make worse (extract helpers before adding
+  branches; don't add more clock access; etc.) — not a full fix.
+
+### 1b. Pre-edit scan (before touching a directory)
+
+When the change spans more than one file, run a scoped scan instead:
+
+```bash
+crimes scan path/to/dir --format json
+```
 
 What to do with the result:
 
@@ -173,8 +212,9 @@ rely on them in agent instructions yet:
 | `crimes scan --format json`        | ✅ shipped              |
 | `crimes scan --all`                | ✅ shipped              |
 | `crimes scan --no-color`           | ✅ shipped              |
+| `crimes context <file>`            | ✅ shipped              |
+| `crimes context <file> --format json` | ✅ shipped           |
 | `crimes scan --changed`            | 🚧 not yet implemented  |
-| `crimes context <file>`            | 🚧 not yet implemented  |
 | `crimes diff main...HEAD`          | 🚧 not yet implemented  |
 | `crimes verdict`                   | 🚧 not yet implemented  |
 | `crimes hotspots`                  | 🚧 not yet implemented  |

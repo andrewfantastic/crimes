@@ -116,6 +116,7 @@ try {
   const helpOut = run(installedBin, ["--help"]).stdout;
   assert(helpOut.includes("crimes"), "--help did not mention `crimes`");
   assert(helpOut.includes("scan"), "--help did not list the `scan` command");
+  assert(helpOut.includes("context"), "--help did not list the `context` command");
 
   step("crimes scan (human, --no-color)");
   const scanOut = run(installedBin, ["scan", fixture, "--no-color"]).stdout;
@@ -136,6 +137,51 @@ try {
   );
   process.stdout.write(
     `  → schema ${report.schema_version}, ${report.summary.total} findings\n`,
+  );
+
+  step("crimes context (human, --no-color)");
+  const ctxHumanOut = run(installedBin, [
+    "context",
+    "src/billing.ts",
+    "--root",
+    fixture,
+    "--no-color",
+  ]).stdout;
+  assert(
+    ctxHumanOut.includes("CRIMES CONTEXT"),
+    "human context output missing CRIMES CONTEXT header",
+  );
+  assert(
+    ctxHumanOut.includes("src/billing.ts"),
+    "human context output should mention the file",
+  );
+
+  step("crimes context --format json");
+  const ctxJsonOut = run(installedBin, [
+    "context",
+    "src/billing.ts",
+    "--root",
+    fixture,
+    "--format",
+    "json",
+  ]).stdout;
+  const ctxReport = JSON.parse(ctxJsonOut);
+  for (const key of [
+    "schema_version",
+    "file",
+    "risk",
+    "findings",
+    "likely_tests",
+    "agent_guidance",
+  ]) {
+    assert(key in ctxReport, `context JSON missing required key "${key}"`);
+  }
+  assert(
+    ctxReport.file === "src/billing.ts",
+    `context.file should be "src/billing.ts", got "${ctxReport.file}"`,
+  );
+  process.stdout.write(
+    `  → ${ctxReport.findings.length} findings, ${ctxReport.likely_tests.length} likely tests, risk=${ctxReport.risk?.level}\n`,
   );
 
   process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);

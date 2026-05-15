@@ -1,4 +1,7 @@
-export { formatHumanReport } from "./human.js";
-export type { HumanReportOptions } from "./human.js";
-export { formatJsonReport } from "./json.js";
+export { formatContextHumanReport, formatHumanReport } from "./human.js";
+export type {
+  ContextHumanReportOptions,
+  HumanReportOptions,
+} from "./human.js";
+export { formatContextJsonReport, formatJsonReport } from "./json.js";
 export type { JsonReportOptions } from "./json.js";

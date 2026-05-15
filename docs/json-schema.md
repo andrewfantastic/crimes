@@ -255,6 +255,73 @@ that an agent should also read.
 
 ---
 
+---
+
+## `ContextReport` (output of `crimes context <file>`)
+
+`crimes context <file> --format json` emits a single JSON document — the
+`ContextReport`. It shares `schema_version` and the `Finding` shape with
+`ScanReport`, but is keyed to one file:
+
+```ts
+interface ContextReport {
+  schema_version: "0.1.0";
+  repo: { name: string; root: string; git_ref?: string };
+  /** Repo-relative path of the inspected file. */
+  file: string;
+  risk: ContextRisk;
+  /** Same Finding shape as ScanReport, filtered to `file`. */
+  findings: Finding[];
+  /** Repo-relative paths of test files likely covering `file`. Sorted. */
+  likely_tests: string[];
+  /** One short line per finding type that fired, deduped. Stable order. */
+  agent_guidance: string[];
+}
+
+interface ContextRisk {
+  /** Worst severity present in `findings`. `"none"` when there are none. */
+  level: "none" | "low" | "medium" | "high";
+  high: number;
+  medium: number;
+  low: number;
+  /** findings.length */
+  total: number;
+}
+```
+
+### `likely_tests`
+
+Discovered by three deterministic conventions, in this order:
+
+1. Sibling files with the same basename and a `.test.{ts,tsx,js,jsx,mjs,cjs}`
+   or `.spec.{...}` extension.
+2. Files under any `__tests__/` directory whose basename (with any
+   `.test`/`.spec` infix stripped) matches the target's basename.
+3. Test files (matching either of the above conventions) whose source
+   contains a relative-path import that resolves to the target file.
+
+The result is deduped and lexically sorted. No git history, no symbol
+resolution beyond a textual import-path match.
+
+### `agent_guidance`
+
+Static lookup keyed on `Finding.type`. One line per type that appears in
+`findings`, in the order they first appear. Current keys:
+
+| `Finding.type`    | Guidance                                                                |
+| ----------------- | ----------------------------------------------------------------------- |
+| `large_function`  | Prefer extracting pure helpers before adding more branches.             |
+| `large_file`      | Read the whole file before editing — propose splits in their own change. |
+| `direct_date`     | Avoid adding more direct clock access; inject time where possible.       |
+| `todo_density`    | Review TODOs before relying on comments as current intent.              |
+
+New detector `type`s may add new guidance lines without bumping
+`schema_version`. The **wording** of an existing guidance line is not part
+of the schema contract — treat it as advisory copy, not a stable string to
+match on.
+
+---
+
 ## Stability guarantees
 
 Within a single `schema_version`:

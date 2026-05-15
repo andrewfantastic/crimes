@@ -1,7 +1,7 @@
-import type { ScanReport } from "@crimes/core";
+import type { ContextReport, ScanReport } from "@crimes/core";
 import { describe, expect, it } from "vitest";
-import { formatHumanReport } from "./human.js";
-import { formatJsonReport } from "./json.js";
+import { formatContextHumanReport, formatHumanReport } from "./human.js";
+import { formatContextJsonReport, formatJsonReport } from "./json.js";
 
 const sampleReport: ScanReport = {
   schema_version: "0.1.0",
@@ -63,5 +63,105 @@ describe("formatJsonReport", () => {
     expect(parsed.schema_version).toBe("0.1.0");
     expect(parsed.findings).toHaveLength(2);
     expect(parsed.findings[0]!.id).toBe("crime_00001");
+  });
+});
+
+const sampleContext: ContextReport = {
+  schema_version: "0.1.0",
+  repo: { name: "demo", root: "/tmp/demo" },
+  file: "src/billing.ts",
+  risk: { level: "high", high: 1, medium: 1, low: 0, total: 2 },
+  findings: [
+    {
+      id: "crime_00001",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      confidence: 0.95,
+      file: "src/billing.ts",
+      symbol: "generateInvoice",
+      lines: [37, 240],
+      summary: "generateInvoice spans 204 lines.",
+      evidence: ["lines 37–240 (204 lines)"],
+      scores: { severity: 0.9, confidence: 0.95 },
+    },
+    {
+      id: "crime_00002",
+      type: "todo_density",
+      charge: "Unfinished Business",
+      severity: "medium",
+      confidence: 0.7,
+      file: "src/billing.ts",
+      lines: [5, 200],
+      summary: "10 TODO/FIXME markers.",
+      evidence: ["10× TODO"],
+      scores: { severity: 0.4, confidence: 0.7 },
+    },
+  ],
+  likely_tests: ["src/billing.test.ts", "src/__tests__/billing.test.ts"],
+  agent_guidance: [
+    "Prefer extracting pure helpers before adding more branches.",
+    "Review TODOs before relying on comments as current intent.",
+  ],
+};
+
+describe("formatContextJsonReport", () => {
+  it("includes every required key", () => {
+    const out = formatContextJsonReport(sampleContext);
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+
+    for (const key of [
+      "schema_version",
+      "file",
+      "risk",
+      "findings",
+      "likely_tests",
+      "agent_guidance",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+
+    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.file).toBe("src/billing.ts");
+  });
+
+  it("preserves arrays exactly", () => {
+    const out = formatContextJsonReport(sampleContext);
+    const parsed = JSON.parse(out) as ContextReport;
+    expect(parsed.likely_tests).toEqual([
+      "src/billing.test.ts",
+      "src/__tests__/billing.test.ts",
+    ]);
+    expect(parsed.agent_guidance).toHaveLength(2);
+    expect(parsed.findings).toHaveLength(2);
+  });
+});
+
+describe("formatContextHumanReport", () => {
+  it("renders the file, risk level, findings, guidance, and tests", () => {
+    const out = formatContextHumanReport(sampleContext, { noColor: true });
+
+    expect(out).toContain("src/billing.ts");
+    expect(out).toContain("HIGH");
+    expect(out).toContain("God Function");
+    expect(out).toContain("generateInvoice");
+    expect(out).toContain("crime_00001");
+    expect(out).toContain("Prefer extracting pure helpers");
+    expect(out).toContain("src/billing.test.ts");
+    expect(out).toContain("src/__tests__/billing.test.ts");
+  });
+
+  it("handles a clean file with no findings or tests", () => {
+    const clean: ContextReport = {
+      ...sampleContext,
+      risk: { level: "none", high: 0, medium: 0, low: 0, total: 0 },
+      findings: [],
+      likely_tests: [],
+      agent_guidance: [],
+    };
+    const out = formatContextHumanReport(clean, { noColor: true });
+    expect(out).toContain("src/billing.ts");
+    expect(out).toMatch(/no findings|clean|none/i);
+    expect(out).toMatch(/no .*test|tests: none|no likely tests/i);
   });
 });

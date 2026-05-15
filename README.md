@@ -21,6 +21,8 @@ What works today:
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` over any TypeScript / JavaScript directory
 - `crimes scan --format json` machine-readable output (stable, versioned via `schema_version`)
+- `crimes context <file>` — agent-native single-file report (findings + likely tests + safe-editing notes)
+- `crimes context <file> --format json` — same payload, structured for agents
 - Four detectors:
   - **Large function** ("God Function") — escalates to `high` at ≥2× the line threshold
   - **Large file** ("God File") — same severity ramp
@@ -33,7 +35,7 @@ What does **not** work yet:
 - Publishing to npm (`npx crimes` does not resolve)
 - Homebrew
 - Any LLM-assisted features
-- `crimes context`, `crimes diff`, `crimes hotspots`, `crimes verdict`, `crimes scan --changed` (planned)
+- `crimes diff`, `crimes hotspots`, `crimes verdict`, `crimes scan --changed` (planned)
 
 See [PRD.md](./PRD.md) for the full roadmap.
 
@@ -137,7 +139,45 @@ crimes scan --all          # show every finding, not just the top 10
 crimes scan --no-color     # plain output for pipes/CI
 ```
 
-That is the entire surface area today. More commands land in later milestones — see [PRD.md §22](./PRD.md).
+### `crimes context <file>`
+
+Inspect a single file. Returns the findings on that file, the test files
+that look likely to cover it, and short safe-editing notes for an agent —
+all deterministic, no LLM, no git history.
+
+```bash
+crimes context src/billing/tax.ts
+crimes context src/billing/tax.ts --format json
+crimes context src/billing/tax.ts --root ./packages/api  # explicit repo root
+```
+
+The JSON payload is the stable contract — agents should consume that:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "file": "src/billing.ts",
+  "risk": { "level": "high", "high": 1, "medium": 1, "low": 1, "total": 3 },
+  "findings": [ /* same Finding shape as `crimes scan` */ ],
+  "likely_tests": ["src/billing.test.ts", "src/__tests__/billing.test.ts"],
+  "agent_guidance": [
+    "Prefer extracting pure helpers before adding more branches.",
+    "Avoid adding more direct clock access; inject time where possible."
+  ]
+}
+```
+
+`likely_tests` is found by three deterministic conventions: same-basename
+`.test.ts` / `.spec.ts` / `.test.tsx` / `.spec.tsx` siblings, files under
+`__tests__/` matching the basename, and test files that import the target
+via a relative path.
+
+`agent_guidance` is a per-finding-type lookup — one line per detector that
+fired, deduped. It is intentionally short and behavioural ("don't make this
+worse"), not a fix recipe.
+
+More commands land in later milestones — see [PRD.md §22](./PRD.md) and
+[ROADMAP_STATUS.md](./ROADMAP_STATUS.md).
 
 ---
 
@@ -259,14 +299,14 @@ The `smoke` script is the canonical "does the published package actually work" c
 ## Roadmap (short version)
 
 - **M0 — Repo foundation** ✅
-- **M1 — First working CLI** — `crimes scan` with structural detectors (in progress)
-- **M2 — Risk model** — scoring, git churn, hotspots
-- **M3 — Agent context** — `crimes context <file>`
+- **M1 — First working CLI** ✅ — `crimes scan` with the structural-detector slice
+- **M2 — Risk model** — scoring (partial), git churn / hotspots (planned)
+- **M3 — Agent context** — `crimes context <file>` ✅, related-files / cross-file analysis (planned)
 - **M4 — Diff and CI** — `crimes diff`, `--changed`, baseline, CI gates
 - **M5 — Public launch** — npm, crimes.sh, polish
 - **M6 — Homebrew / standalone binaries**
 
-Full detail: [PRD.md](./PRD.md).
+Full detail: [PRD.md](./PRD.md). Live status: [ROADMAP_STATUS.md](./ROADMAP_STATUS.md).
 
 ---
 

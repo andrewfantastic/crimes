@@ -1,4 +1,4 @@
-import type { ScanReport } from "@crimes/core";
+import type { ContextReport, ScanReport } from "@crimes/core";
 
 export interface JsonReportOptions {
   /** Pretty-print with 2 spaces. Defaults to true. */
@@ -7,6 +7,14 @@ export interface JsonReportOptions {
 
 export function formatJsonReport(
   report: ScanReport,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(report, null, pretty ? 2 : 0);
+}
+
+export function formatContextJsonReport(
+  report: ContextReport,
   options: JsonReportOptions = {},
 ): string {
   const pretty = options.pretty ?? true;

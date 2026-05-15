@@ -1,5 +1,7 @@
 export { DEFAULT_CONFIG, loadConfig } from "./config.js";
 export type { CrimesConfig } from "./config.js";
+export { context } from "./context.js";
+export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
 export type { Detector, DetectorContext } from "./detector.js";
 export { directDateDetector } from "./detectors/direct-date.js";
 export { largeFileDetector } from "./detectors/large-file.js";

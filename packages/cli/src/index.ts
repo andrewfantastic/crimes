@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerContextCommand } from "./commands/context.js";
 import { registerScanCommand } from "./commands/scan.js";
 
 // Injected at build time by tsup from this package's package.json.
@@ -14,6 +15,7 @@ program
   .version(__CRIMES_VERSION__);
 
 registerScanCommand(program);
+registerContextCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
