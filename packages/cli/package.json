@@ -7,7 +7,7 @@
   "homepage": "https://crimes.sh",
   "repository": {
     "type": "git",
-    "url": "https://github.com/andrewfantastic/crimes.git",
+    "url": "git+https://github.com/andrewfantastic/crimes.git",
     "directory": "packages/cli"
   },
   "bugs": {
