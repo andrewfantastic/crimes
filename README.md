@@ -88,28 +88,23 @@ Running `pnpm scan:example` produces something like:
 
 ```
 CRIME SCENE REPORT
-repo: messy-ts-app  ·  6 findings
+repo: messy-ts-app  ·  5 findings
 
 HIGH severity (1)
-  1. src/billing.ts (generateInvoice)
+  1. src/billing.ts:37-240 (generateInvoice)
      Charge: God Function
-     Summary: generateInvoice is 75 lines long (threshold 60).
+     Summary: generateInvoice spans 204 lines — past the 60-line threshold for a single function. ...
      Evidence:
-       · 75 lines from 27 to 101
-       · 1.3× the configured threshold (60)
-       · defined as a function
-     id=crime_00001  confidence=0.75
+       · lines 37–240 (204 lines)
+       · 3.4× the configured 60-line threshold
+       · function declaration
+     id=crime_00001  confidence=0.95
+  ...
 
-MEDIUM severity (2)
-  2. src/todo.ts
-     Charge: Unfinished Business
-     Summary: 12 TODO/FIXME markers (387.1 per 1k LOC).
-     ...
-
-Total 6  ·  high 1  medium 2  low 3
+Total 5  ·  high 1  medium 3  low 1
 ```
 
-JSON output is the **stable product API** — its shape is documented inline in `packages/core/src/finding.ts` and versioned via `schema_version`.
+JSON output is the **stable product API** — see [`docs/json-schema.md`](./docs/json-schema.md) for the full schema and [`docs/agent-usage.md`](./docs/agent-usage.md) for the pre-edit / post-edit workflow.
 
 ---
 
@@ -162,46 +157,53 @@ Zero-config is the default. Drop a `crimes.config.json` at the repo root to over
 
 ---
 
-## For coding agents
+## Using `crimes` with coding agents
 
-If you are an AI coding agent (Claude Code, Cursor, Codex, Copilot Workspace, etc.) operating in a repo that uses `crimes`, prefer this workflow:
+If you are an AI coding agent (Claude Code, Cursor, Codex, Copilot Workspace, Aider, etc.) operating in a repo that uses `crimes`, the recommended workflow is **pre-edit / post-edit scans on the file or directory you are about to touch**:
 
 ```bash
-# Before editing anything in a file, get a structured risk report:
+# 1. Before editing — get a structured risk report
+crimes scan <path-to-file-or-dir> --format json
+
+# 2. Make your change
+
+# 3. After editing — re-scan the same path, diff the findings
 crimes scan <path-to-file-or-dir> --format json
 ```
+
+Decision rule: any **new `severity: "high"` finding** introduced by your edit should be treated as a blocker — fix it, or call it out explicitly to the user citing the finding `id` and `charge`.
 
 The JSON output is a stable contract:
 
 ```jsonc
 {
   "schema_version": "0.1.0",
-  "repo": { "name": "...", "root": "..." },
-  "summary": { "total": 6, "high": 1, "medium": 2, "low": 3 },
+  "repo": { "name": "messy-ts-app", "root": "/path/to/crimes/examples/messy-ts-app" },
+  "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
   "findings": [
     {
       "id": "crime_00001",
       "type": "large_function",
       "charge": "God Function",
       "severity": "high",
-      "confidence": 0.75,
+      "confidence": 0.95,
       "file": "src/billing.ts",
       "symbol": "generateInvoice",
-      "lines": [27, 101],
-      "summary": "...",
-      "evidence": ["75 lines from 27 to 101", "..."],
-      "scores": { "severity": 0.65, "confidence": 0.75, "agent_risk": 0.7 }
+      "lines": [37, 240],
+      "summary": "generateInvoice spans 204 lines — past the 60-line threshold...",
+      "evidence": ["lines 37–240 (204 lines)", "3.4× the configured 60-line threshold", "function declaration"],
+      "scores": { "severity": 0.9, "confidence": 0.95, "agent_risk": 0.95 },
+      "suggested_actions": [{ "kind": "extract_function", "description": "...", "risk": "low" }]
     }
   ]
 }
 ```
 
-Guidelines for agents:
+For the full schema and the complete pre/post-edit workflow:
 
-- Read findings with `severity: "high"` first.
-- Treat `evidence` as ground truth — it is generated from the AST, not heuristics.
-- `agent_risk` (when present) is a hint that the area is easy to misread.
-- Do not suppress findings without an explicit reason in your PR description.
+- 📄 [`docs/json-schema.md`](./docs/json-schema.md) — every field, what it means, what's reserved
+- 🤖 [`docs/agent-usage.md`](./docs/agent-usage.md) — pre-edit/post-edit workflow, how to read findings, what's shipped vs deferred
+- 🧪 [`docs/fixtures/messy-ts-app.json`](./docs/fixtures/messy-ts-app.json) — full example output
 
 ---
 

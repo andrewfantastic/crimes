@@ -44,7 +44,7 @@ export const directDateDetector: Detector = {
       scores: {
         severity: severityScoreFor(severity),
         confidence: 0.9,
-        agent_risk: Math.min(0.45 + (hits.length - 1) * 0.07, 0.85),
+        agent_risk: round(Math.min(0.45 + (hits.length - 1) * 0.07, 0.85)),
       },
       suggested_actions: [
         {
@@ -72,4 +72,8 @@ function pickSeverity(count: number): Severity {
 
 function severityScoreFor(s: Severity): number {
   return s === "high" ? 0.8 : s === "medium" ? 0.6 : 0.35;
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }

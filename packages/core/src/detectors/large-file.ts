@@ -36,7 +36,7 @@ export const largeFileDetector: Detector = {
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),
-        agent_risk: Math.min(0.45 + (ratio - 1) * 0.18, 0.9),
+        agent_risk: round(Math.min(0.45 + (ratio - 1) * 0.18, 0.9)),
       },
       suggested_actions: [
         {

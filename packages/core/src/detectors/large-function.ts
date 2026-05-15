@@ -42,7 +42,7 @@ export const largeFunctionDetector: Detector = {
         scores: {
           severity: severityScore(severity),
           confidence: round(confidence),
-          agent_risk: Math.min(0.55 + (ratio - 1) * 0.2, 0.95),
+          agent_risk: round(Math.min(0.55 + (ratio - 1) * 0.2, 0.95)),
         },
         suggested_actions: [
           {

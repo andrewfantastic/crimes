@@ -24,6 +24,9 @@ export const todoDensityDetector: Detector = {
     const ratio = density / threshold;
     const severity = pickSeverity(matches.length, ratio);
     const breakdown = countByMarker(matches);
+    const matchLines = matches.map((m) => lineOfOffset(ctx.source, m.index ?? 0));
+    const firstLine = matchLines[0]!;
+    const lastLine = matchLines[matchLines.length - 1]!;
 
     const finding: Finding = {
       id: "",
@@ -32,6 +35,7 @@ export const todoDensityDetector: Detector = {
       severity,
       confidence: 0.7,
       file: ctx.file,
+      lines: [firstLine, lastLine],
       summary:
         matches.length === 1
           ? `1 TODO/FIXME marker in this file.`
@@ -49,7 +53,7 @@ export const todoDensityDetector: Detector = {
         confidence: 0.7,
         // TODO markers are a weak signal — they describe intent gaps, not behavioural bugs.
         // Keep agent_risk modest unless the density is extreme.
-        agent_risk: Math.min(0.2 + Math.max(ratio - 1, 0) * 0.05, 0.55),
+        agent_risk: round(Math.min(0.2 + Math.max(ratio - 1, 0) * 0.05, 0.55)),
       },
       suggested_actions: [
         {
@@ -86,4 +90,16 @@ function pickSeverity(count: number, ratio: number): Severity {
 
 function severityScore(s: Severity): number {
   return s === "high" ? 0.6 : s === "medium" ? 0.4 : 0.2;
+}
+
+function lineOfOffset(source: string, offset: number): number {
+  let line = 1;
+  for (let i = 0; i < offset && i < source.length; i++) {
+    if (source.charCodeAt(i) === 10 /* \n */) line += 1;
+  }
+  return line;
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }

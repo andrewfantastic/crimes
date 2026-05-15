@@ -63,4 +63,17 @@ describe("todoDensityDetector", () => {
     const findings = await todoDensityDetector.run(makeCtx(src));
     expect(findings[0]!.severity).toBe("medium");
   });
+
+  it("reports line range spanning first to last marker", async () => {
+    const src = [
+      "export const a = 1;",
+      "// TODO: first",
+      "export const b = 2;",
+      "// FIXME: last",
+      "export const c = 3;",
+    ].join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.lines).toEqual([2, 4]);
+  });
 });

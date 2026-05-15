@@ -1,0 +1,164 @@
+{
+  "schema_version": "0.1.0",
+  "repo": {
+    "name": "messy-ts-app",
+    "root": "/path/to/crimes/examples/messy-ts-app"
+  },
+  "summary": {
+    "total": 5,
+    "high": 1,
+    "medium": 3,
+    "low": 1
+  },
+  "findings": [
+    {
+      "id": "crime_00001",
+      "type": "large_function",
+      "charge": "God Function",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "src/billing.ts",
+      "symbol": "generateInvoice",
+      "lines": [
+        37,
+        240
+      ],
+      "summary": "generateInvoice spans 204 lines — past the 60-line threshold for a single function. Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
+      "evidence": [
+        "lines 37–240 (204 lines)",
+        "3.4× the configured 60-line threshold",
+        "function declaration"
+      ],
+      "scores": {
+        "severity": 0.9,
+        "confidence": 0.95,
+        "agent_risk": 0.95
+      },
+      "suggested_actions": [
+        {
+          "kind": "extract_function",
+          "description": "Extract cohesive sections into named helpers so each responsibility can be read, tested, and edited in isolation.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00002",
+      "type": "direct_date",
+      "charge": "Temporal Recklessness",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        44,
+        260
+      ],
+      "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "5× Date.now(), 2× new Date()",
+        "lines: 44, 50, 79, 185, 225, 237, 260",
+        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.85
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00003",
+      "type": "direct_date",
+      "charge": "Temporal Recklessness",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/date.ts",
+      "lines": [
+        4,
+        22
+      ],
+      "summary": "5 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "2× Date.now(), 3× new Date()",
+        "lines: 4, 8, 13, 17, 22",
+        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.73
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00004",
+      "type": "todo_density",
+      "charge": "Unfinished Business",
+      "severity": "medium",
+      "confidence": 0.7,
+      "file": "src/todo.ts",
+      "lines": [
+        1,
+        32
+      ],
+      "summary": "14 TODO/FIXME markers (424.2 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
+      "evidence": [
+        "6× TODO, 4× FIXME, 2× HACK, 2× XXX",
+        "424.2 markers per 1k LOC (threshold 10)"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.7,
+        "agent_risk": 0.55
+      },
+      "suggested_actions": [
+        {
+          "kind": "triage_todos",
+          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00005",
+      "type": "todo_density",
+      "charge": "Unfinished Business",
+      "severity": "low",
+      "confidence": 0.7,
+      "file": "src/billing.ts",
+      "lines": [
+        170,
+        295
+      ],
+      "summary": "4 TODO/FIXME markers (13.5 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
+      "evidence": [
+        "1× FIXME, 1× HACK, 1× XXX, 1× TODO",
+        "13.5 markers per 1k LOC (threshold 10)"
+      ],
+      "scores": {
+        "severity": 0.2,
+        "confidence": 0.7,
+        "agent_risk": 0.22
+      },
+      "suggested_actions": [
+        {
+          "kind": "triage_todos",
+          "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
+          "risk": "low"
+        }
+      ]
+    }
+  ]
+}
