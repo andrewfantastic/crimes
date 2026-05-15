@@ -2,96 +2,109 @@
 
 > A crime scene investigator for your codebase. **Built for agents, readable by humans.**
 
-`crimes` is an open-source CLI that scans a repository for maintainability risks, code smells, duplicated business rules, weak test boundaries, and patterns that confuse AI coding agents.
+[![npm version](https://img.shields.io/npm/v/crimes.svg)](https://www.npmjs.com/package/crimes)
+[![license](https://img.shields.io/npm/l/crimes.svg)](./LICENSE)
+[![CI](https://github.com/andrewfantastic/crimes/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewfantastic/crimes/actions/workflows/ci.yml)
 
-It is **not** another linter. Linters catch local syntax and style issues. `crimes` answers a higher-value question:
+`crimes` is an open-source CLI that scans a repository for maintainability
+risks, code smells, duplicated business rules, weak test boundaries, and
+patterns that confuse AI coding agents.
 
-> _Where in this repo is future change most likely to go wrong, and what should a human or coding agent know before editing it?_
+It is **not** another linter. Linters catch local syntax and style issues.
+`crimes` answers a higher-value question:
 
-This README assumes you have never installed a Node.js CLI before, and it also gives a "for agents" section near the bottom. Pick whichever you are.
+> _Where in this repo is future change most likely to go wrong, and what
+> should a human or coding agent know before editing it?_
+
+- Website: **[crimes.sh](https://crimes.sh)**
+- npm: **[`crimes`](https://www.npmjs.com/package/crimes)**
+- Repo: **[`andrewfantastic/crimes`](https://github.com/andrewfantastic/crimes)**
+
+This README has a first-time-CLI-user path near the top and a “for agents”
+section near the bottom. Pick whichever you are.
 
 ---
 
-## Status
+## Install
 
-Pre-release `0.0.1`. Milestone 0 (repo foundation) and the first slice of Milestone 1 (`crimes scan` with four detectors) are implemented. The CLI is **not yet published to npm** — for now you run it from this monorepo.
+`crimes` is published on npm and requires **Node.js ≥ 18**.
 
-What works today:
+```bash
+# Global install
+npm install -g crimes
+crimes scan .
+
+# Or one-shot via npx
+npx crimes scan .
+```
+
+`pnpm dlx crimes scan` and `bunx crimes scan` also work.
+
+---
+
+## Quick start
+
+```bash
+# Scan the current directory (top 10 findings)
+crimes scan .
+
+# Stable JSON output — the product contract
+crimes scan . --format json
+
+# Show every finding, not just the top 10
+crimes scan . --all
+
+# Pre-edit briefing for one file (findings + likely tests + agent notes)
+crimes context src/billing/tax.ts --format json
+
+# Scan only files changed in the working tree (post-edit gate inside an agent loop)
+crimes scan --changed --format json
+crimes scan --changed --base main --format json   # + commits on this branch
+
+# Rank files by Git churn × current findings
+crimes hotspots --since 90d --format json
+```
+
+You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
+
+---
+
+## Status — `crimes@0.1.0`
+
+What ships today, all verified by a publish-tarball smoke test in CI:
 
 - `crimes --help` / `crimes --version`
-- `crimes scan [path]` over any TypeScript / JavaScript directory
-- `crimes scan --format json` machine-readable output (stable, versioned via `schema_version`)
-- `crimes scan --changed [--base <ref>]` — scan only files changed in the working tree, optionally also comparing against a Git base ref (`main`, `origin/main`, etc.)
-- `crimes context <file>` — agent-native single-file report (findings + likely tests + safe-editing notes)
-- `crimes context <file> --format json` — same payload, structured for agents
+- `crimes scan [path]` — directory scan, default top-10
+- `crimes scan [path] --format json` — stable JSON contract (`schema_version: "0.1.0"`)
+- `crimes scan --changed [--base <ref>]` — restrict to working-tree-changed files,
+  optionally also `<ref>...HEAD`
+- `crimes context <file>` — single-file findings + likely tests + safe-editing notes
+- `crimes context <file> --format json`
 - `crimes hotspots [path]` — Git churn × scan findings, ranked by aggregate change-risk
-- `crimes hotspots --since 90d --format json` — same data, structured for agents
-- Four detectors:
-  - **Large function** ("God Function") — escalates to `high` at ≥2× the line threshold
-  - **Large file** ("God File") — same severity ramp
-  - **TODO / FIXME density** ("Unfinished Business")
-  - **Direct `Date.now()` / `new Date()`** ("Temporal Recklessness")
-- A publish-tarball smoke test (`pnpm --filter crimes smoke`) that builds, packs, installs `crimes@0.0.1` into a clean temp directory, and exercises every shipped command and flag. Runs in CI on every commit, so the moment the package goes live `npx crimes scan` works.
+- `crimes hotspots [path] --since <window>` — `90d`, `2w`, `6m`, `1y`, or any `git log --since` string
+- `crimes hotspots [path] --format json`
+- Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
+- Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
+  [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
 
-What does **not** work yet:
+What does **not** ship yet (planned — see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
 
-- Publishing to npm (`npx crimes` does not resolve)
-- Homebrew
-- Any LLM-assisted features
-- `crimes diff`, `crimes verdict` (planned)
+- `crimes diff <base...head>` and `crimes verdict` (M4)
+- `crimes baseline save` and `crimes ignore <id>` (M4)
+- `crimes explain <id>` (M3)
+- `crimes init` (M0/M1 polish)
+- LLM-assisted features (`crimes ask`, suggestions)
+- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`
+- Homebrew tap and standalone binaries (M6)
 
-See [PRD.md](./PRD.md) for the full roadmap.
-
----
-
-## For first-time CLI users
-
-You need **Node.js 18 or newer** and **pnpm**.
-
-```bash
-# 1. Install Node, if you don't have it:
-#    https://nodejs.org  (LTS is fine)
-
-# 2. Install pnpm:
-npm install -g pnpm
-
-# 3. Clone and install
-git clone https://github.com/crimes-sh/crimes.git
-cd crimes
-pnpm install
-
-# 4. Build the workspace
-pnpm build
-
-# 5. Scan the bundled messy example
-pnpm scan:example
-```
-
-You should see a colourful "CRIME SCENE REPORT" printed to your terminal.
-
----
-
-## Quick start (existing Node devs)
-
-```bash
-pnpm install
-pnpm build
-node packages/cli/dist/index.js scan ./your-project
-node packages/cli/dist/index.js scan ./your-project --format json
-```
-
-Or scan the included fixture:
-
-```bash
-pnpm scan:example
-pnpm scan:example:json
-```
+See [`PRD.md`](./PRD.md) for the full spec.
 
 ---
 
 ## Example output
 
-Running `pnpm scan:example` produces something like:
+Running `pnpm scan:example` against the bundled fixture produces something
+like:
 
 ```
 CRIME SCENE REPORT
@@ -100,7 +113,7 @@ repo: messy-ts-app  ·  5 findings
 HIGH severity (1)
   1. src/billing.ts:37-240 (generateInvoice)
      Charge: God Function
-     Summary: generateInvoice spans 204 lines — past the 60-line threshold for a single function. ...
+     Summary: generateInvoice spans 204 lines — past the 60-line threshold...
      Evidence:
        · lines 37–240 (204 lines)
        · 3.4× the configured 60-line threshold
@@ -111,7 +124,10 @@ HIGH severity (1)
 Total 5  ·  high 1  medium 3  low 1
 ```
 
-JSON output is the **stable product API** — see [`docs/json-schema.md`](./docs/json-schema.md) for the full schema and [`docs/agent-usage.md`](./docs/agent-usage.md) for the pre-edit / post-edit workflow.
+JSON output is the **stable product API** — see
+[`docs/json-schema.md`](./docs/json-schema.md) for the full schema and
+[`docs/agent-usage.md`](./docs/agent-usage.md) for the pre-edit / post-edit
+workflow.
 
 ---
 
@@ -124,7 +140,9 @@ JSON output is the **stable product API** — see [`docs/json-schema.md`](./docs
 | `todo_density`      | Unfinished Business   | Flags files with high density of `TODO` / `FIXME` / `XXX` / `HACK` markers      |
 | `direct_date`       | Temporal Recklessness | Flags direct uses of `Date.now()` and `new Date()` in source files              |
 
-Every finding includes **evidence** (raw facts the detector observed) and **scores** (`severity`, `confidence`, optional `agent_risk`), so downstream tools can rank or filter without re-running heuristics.
+Every finding includes **evidence** (raw facts the detector observed) and
+**scores** (`severity`, `confidence`, `agent_risk`) so downstream tools can
+rank or filter without re-running heuristics.
 
 ---
 
@@ -144,11 +162,11 @@ crimes scan --no-color     # plain output for pipes/CI
 
 #### `crimes scan --changed`
 
-Scan only the files that have changed in the working tree (staged, unstaged,
-and untracked). With `--base <ref>`, also include everything that differs
-between `<ref>...HEAD`. This is the agent-native pre/post-edit loop: scan the
-files you are about to touch, make the change, then re-scan the same set and
-diff the findings.
+Scan only the files that have changed in the working tree (staged,
+unstaged, and untracked). With `--base <ref>`, also include everything that
+differs between `<ref>...HEAD`. This is the agent-native pre/post-edit
+loop: scan the files you are about to touch, make the change, then re-scan
+the same set and diff the findings.
 
 ```bash
 crimes scan --changed                       # working-tree changes vs HEAD
@@ -253,8 +271,8 @@ JSON output is the stable contract:
 }
 ```
 
-More commands land in later milestones — see [PRD.md §22](./PRD.md) and
-[ROADMAP_STATUS.md](./ROADMAP_STATUS.md).
+More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
+[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
 ---
 
@@ -278,19 +296,34 @@ Zero-config is the default. Drop a `crimes.config.json` at the repo root to over
 
 ## Using `crimes` with coding agents
 
-If you are an AI coding agent (Claude Code, Cursor, Codex, Copilot Workspace, Aider, etc.) operating in a repo that uses `crimes`, the recommended workflow is **pre-edit / post-edit scans on the file or directory you are about to touch**:
+`crimes` ships with two on-disk artefacts that AI coding agents pick up
+automatically. **There is nothing to install into a prompt** — point your
+agent at the repo and it loads them itself.
+
+| Agent                                            | What it reads                              |
+| ------------------------------------------------ | ------------------------------------------ |
+| Claude Code                                      | [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md) (+ `AGENTS.md`) |
+| Codex CLI, Cursor, Aider, Continue, Copilot Workspace | [`AGENTS.md`](./AGENTS.md)            |
+| Anything else                                    | [`docs/agent-usage.md`](./docs/agent-usage.md) — drop the workflow into your own rules file |
+
+The recommended loop is the same for every agent:
 
 ```bash
-# 1. Before editing — get a structured risk report
-crimes scan <path-to-file-or-dir> --format json
+# 1. Before editing — get a structured per-file briefing
+crimes context <file> --format json
 
 # 2. Make your change
 
-# 3. After editing — re-scan the same path, diff the findings
-crimes scan <path-to-file-or-dir> --format json
+# 3. After editing — re-scan only what you touched, diff the findings
+crimes scan --changed --format json
+
+# 4. For a wider triage — rank the whole repo by change-risk
+crimes hotspots --format json
 ```
 
-Decision rule: any **new `severity: "high"` finding** introduced by your edit should be treated as a blocker — fix it, or call it out explicitly to the user citing the finding `id` and `charge`.
+Decision rule: any **new `severity: "high"` finding** introduced by your
+edit should be treated as a blocker — fix it, or call it out explicitly to
+the user citing the finding `id` and `charge`.
 
 The JSON output is a stable contract:
 
@@ -322,6 +355,7 @@ For the full schema and the complete pre/post-edit workflow:
 
 - 📄 [`docs/json-schema.md`](./docs/json-schema.md) — every field, what it means, what's reserved
 - 🤖 [`docs/agent-usage.md`](./docs/agent-usage.md) — pre-edit/post-edit workflow, how to read findings, what's shipped vs deferred
+- 🧰 [`docs/skills.md`](./docs/skills.md) — what's bundled for Claude Code, Codex, and friends
 - 🧪 [`docs/fixtures/messy-ts-app.json`](./docs/fixtures/messy-ts-app.json) — full example output
 
 ---
@@ -331,7 +365,7 @@ For the full schema and the complete pre/post-edit workflow:
 ```
 crimes/
 ├── apps/
-│   └── website/              # crimes.sh static site (no framework — pure HTML + CSS)
+│   └── website/              # crimes.sh — static HTML/CSS, deployed via Vercel
 ├── packages/
 │   ├── cli/                  # crimes — Commander entrypoint, `crimes` binary (the published package)
 │   ├── core/                 # @crimes/core — detector engine, finding schema, built-in detectors
@@ -339,8 +373,12 @@ crimes/
 │   └── reporter/             # @crimes/reporter — human and JSON output formats
 ├── examples/
 │   └── messy-ts-app/         # intentionally crime-ridden fixture
-├── .github/workflows/ci.yml
+├── .claude/skills/crimes/    # Claude Code skill
+├── .github/workflows/        # ci.yml + release.yml (npm Trusted Publishing)
+├── docs/                     # agent-usage, json-schema, skills, releasing
+├── AGENTS.md                 # repo-level instructions for coding agents
 ├── PRD.md                    # product requirements document
+├── ROADMAP_STATUS.md         # what currently ships vs what is planned
 ├── README.md
 ├── CONTRIBUTING.md
 ├── LICENSE                   # MIT
@@ -354,6 +392,8 @@ crimes/
 ## Development
 
 ```bash
+git clone https://github.com/andrewfantastic/crimes.git
+cd crimes
 pnpm install                  # install everything
 pnpm build                    # build all packages (tsup)
 pnpm typecheck                # tsc --noEmit across the workspace
@@ -369,7 +409,27 @@ Build a single package:
 pnpm --filter @crimes/core build
 ```
 
-The `smoke` script is the canonical "does the published package actually work" check. It does an `npm pack`, installs the resulting tarball into a clean temp directory with `npm install`, and runs `--version`, `--help`, `scan`, and `scan --format json` against `examples/messy-ts-app`. CI runs it on every commit as the `publish-smoke` job.
+The `smoke` script is the canonical "does the published package actually
+work" check. It does an `npm pack`, installs the resulting tarball into a
+clean temp directory with `npm install`, and runs `--version`, `--help`,
+`scan`, `scan --format json`, `context`, and `hotspots` against
+`examples/messy-ts-app`. CI runs it on every commit as the
+`publish-smoke` job.
+
+---
+
+## Releasing
+
+Releases are automated. Cut a release by tagging:
+
+1. Bump `packages/cli/package.json` version on `main`.
+2. Push, then create a GitHub Release with tag `vX.Y.Z`.
+3. [`.github/workflows/release.yml`](./.github/workflows/release.yml)
+   publishes to npm via [Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
+   — no `NPM_TOKEN` required.
+4. Vercel auto-deploys [crimes.sh](https://crimes.sh) from `main`.
+
+Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md).
 
 ---
 
@@ -377,19 +437,20 @@ The `smoke` script is the canonical "does the published package actually work" c
 
 - **M0 — Repo foundation** ✅
 - **M1 — First working CLI** ✅ — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — scoring (partial), `crimes hotspots` ✅ (git churn + finding-weighted risk), `scores.churn` on individual findings (planned)
-- **M3 — Agent context** — `crimes context <file>` ✅, related-files / cross-file analysis (planned)
-- **M4 — Diff and CI** — `crimes diff`, `--changed`, baseline, CI gates
-- **M5 — Public launch** — npm, crimes.sh, polish
+- **M2 — Risk model** — `crimes hotspots` ✅; per-finding `scores.churn` / `test_gap` planned
+- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅; cross-file `related_files` planned
+- **M4 — Diff and CI** — `crimes scan --changed` ✅; `crimes diff` / `verdict` / baseline planned
+- **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅; full docs site planned
 - **M6 — Homebrew / standalone binaries**
 
-Full detail: [PRD.md](./PRD.md). Live status: [ROADMAP_STATUS.md](./ROADMAP_STATUS.md).
+Full detail: [`PRD.md`](./PRD.md). Live status: [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Good first issues will be tagged once the public repo exists.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Issues and PRs welcome on
+[github.com/andrewfantastic/crimes](https://github.com/andrewfantastic/crimes).
 
 ---
 

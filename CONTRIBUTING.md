@@ -5,7 +5,7 @@ Thanks for considering a contribution! `crimes` is intentionally small at the mo
 ## Quick setup
 
 ```bash
-git clone https://github.com/crimes-sh/crimes.git
+git clone https://github.com/andrewfantastic/crimes.git
 cd crimes
 pnpm install
 pnpm build
