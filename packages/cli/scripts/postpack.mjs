@@ -8,9 +8,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pkgPath = resolve(here, "..", "package.json");
 const backupPath = resolve(here, "..", ".package.json.original");
 
+// Write to stderr so we don't pollute `npm pack --json` output.
 if (existsSync(backupPath)) {
   renameSync(backupPath, pkgPath);
-  console.log("postpack: restored source package.json");
+  console.error("postpack: restored source package.json");
 } else {
-  console.warn("postpack: no backup found — package.json may be in stripped state");
+  console.error("postpack: no backup found — package.json may be in stripped state");
 }

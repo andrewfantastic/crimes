@@ -1,6 +1,6 @@
 {
   "name": "crimes",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   "license": "MIT",
   "author": "Andrew Mayfield",
@@ -10,7 +10,7 @@
     "crimes": "./dist/index.js"
   },
   "files": [
-    "dist",
+    "dist/index.js",
     "README.md",
     "LICENSE"
   ],
@@ -24,8 +24,12 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "start": "node dist/index.js",
+    "smoke": "node ./scripts/smoke.mjs",
     "prepack": "node ./scripts/prepack.mjs",
     "postpack": "node ./scripts/postpack.mjs"
+  },
+  "dependencies": {
+    "typescript": "^5.6.3"
   },
   "devDependencies": {
     "@crimes/core": "workspace:*",
@@ -33,7 +37,6 @@
     "@types/node": "^22.0.0",
     "commander": "^12.1.0",
     "tsup": "^8.3.5",
-    "typescript": "^5.6.3",
     "vitest": "^2.1.5"
   }
 }

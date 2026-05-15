@@ -1,0 +1,151 @@
+// Local publish smoke test for the `crimes` CLI.
+//
+// Pretends to be an end user:
+//   1. Builds the workspace.
+//   2. Packs the CLI into a tarball (`npm pack`).
+//   3. Installs that tarball into a clean temp directory (no workspace
+//      resolution magic, so this catches missing runtime deps).
+//   4. Runs `crimes --help`, `crimes --version`, `crimes scan`, and
+//      `crimes scan --format json` against examples/messy-ts-app.
+//   5. Asserts the JSON output conforms to the documented schema shape.
+//
+// Run with: `pnpm --filter crimes smoke` (or `pnpm -F crimes run smoke`).
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const cliDir = resolve(here, "..");
+const repoRoot = resolve(cliDir, "..", "..");
+const fixture = resolve(repoRoot, "examples", "messy-ts-app");
+
+const pkg = JSON.parse(readFileSync(resolve(cliDir, "package.json"), "utf8"));
+const expectedVersion = pkg.version;
+const expectedName = pkg.name;
+const expectedBin = Object.keys(pkg.bin)[0];
+
+function run(cmd, args, opts = {}) {
+  const result = spawnSync(cmd, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    ...opts,
+  });
+  if (result.status !== 0) {
+    process.stderr.write(result.stdout ?? "");
+    process.stderr.write(result.stderr ?? "");
+    throw new Error(
+      `command failed (${result.status}): ${cmd} ${args.join(" ")}`,
+    );
+  }
+  return result;
+}
+
+function step(label) {
+  process.stdout.write(`\n▸ ${label}\n`);
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(`smoke: assertion failed — ${message}`);
+  }
+}
+
+step("Sanity check");
+assert(expectedName === "crimes", `package name must be "crimes" (got "${expectedName}")`);
+assert(expectedBin === "crimes", `binary name must be "crimes" (got "${expectedBin}")`);
+
+step("Build CLI");
+run("pnpm", ["--filter", "crimes", "build"], { cwd: repoRoot });
+
+step("npm pack");
+const packResult = run("npm", ["pack", "--json"], { cwd: cliDir });
+const packed = JSON.parse(packResult.stdout)[0];
+const tarballName = packed.filename.replace(/^@.*\//, "").replace(/\//g, "-");
+const tarballPath = resolve(cliDir, tarballName);
+process.stdout.write(`  tarball: ${tarballName}\n`);
+process.stdout.write(`  packed size: ${(packed.size / 1024).toFixed(1)} KB\n`);
+process.stdout.write(`  unpacked size: ${(packed.unpackedSize / 1024).toFixed(1)} KB\n`);
+
+const filePaths = packed.files.map((f) => f.path).sort();
+process.stdout.write(`  files: ${filePaths.join(", ")}\n`);
+const expectedFiles = ["LICENSE", "README.md", "dist/index.js", "package.json"];
+for (const must of expectedFiles) {
+  assert(filePaths.includes(must), `tarball is missing ${must}`);
+}
+for (const path of filePaths) {
+  assert(
+    !path.endsWith(".map"),
+    `tarball should not ship sourcemaps (found ${path})`,
+  );
+  assert(
+    !path.startsWith("scripts/"),
+    `tarball should not ship dev scripts (found ${path})`,
+  );
+  assert(
+    !path.startsWith("src/"),
+    `tarball should not ship raw sources (found ${path})`,
+  );
+}
+
+step("Install tarball into temp dir");
+const tmp = mkdtempSync(join(tmpdir(), "crimes-smoke-"));
+let installRoot;
+try {
+  installRoot = tmp;
+  writeFileSync(
+    join(installRoot, "package.json"),
+    JSON.stringify({ name: "crimes-smoke", version: "0.0.0", private: true }, null, 2),
+  );
+  run("npm", ["install", "--no-audit", "--no-fund", "--silent", tarballPath], {
+    cwd: installRoot,
+  });
+  const installedBin = join(installRoot, "node_modules", ".bin", "crimes");
+  process.stdout.write(`  installed bin: ${installedBin}\n`);
+
+  step("crimes --version");
+  const versionOut = run(installedBin, ["--version"]).stdout.trim();
+  process.stdout.write(`  → ${versionOut}\n`);
+  assert(
+    versionOut === expectedVersion,
+    `--version printed "${versionOut}", expected "${expectedVersion}"`,
+  );
+
+  step("crimes --help");
+  const helpOut = run(installedBin, ["--help"]).stdout;
+  assert(helpOut.includes("crimes"), "--help did not mention `crimes`");
+  assert(helpOut.includes("scan"), "--help did not list the `scan` command");
+
+  step("crimes scan (human, --no-color)");
+  const scanOut = run(installedBin, ["scan", fixture, "--no-color"]).stdout;
+  assert(
+    scanOut.includes("CRIME SCENE REPORT"),
+    "human scan output missing CRIME SCENE REPORT header",
+  );
+
+  step("crimes scan --format json");
+  const jsonOut = run(installedBin, ["scan", fixture, "--format", "json"]).stdout;
+  const report = JSON.parse(jsonOut);
+  assert(typeof report.schema_version === "string", "missing schema_version");
+  assert(Array.isArray(report.findings), "findings is not an array");
+  assert(typeof report.summary?.total === "number", "summary.total missing");
+  assert(
+    report.findings.length === report.summary.total,
+    "summary.total disagrees with findings.length",
+  );
+  process.stdout.write(
+    `  → schema ${report.schema_version}, ${report.summary.total} findings\n`,
+  );
+
+  process.stdout.write(`\n✓ smoke test passed (crimes@${expectedVersion})\n`);
+} finally {
+  if (installRoot) rmSync(installRoot, { recursive: true, force: true });
+  // The packed tarball was created in cliDir by `npm pack`; remove it so we
+  // don't accidentally commit it or inflate subsequent runs.
+  for (const entry of readdirSync(cliDir)) {
+    if (entry.endsWith(".tgz")) {
+      rmSync(resolve(cliDir, entry), { force: true });
+    }
+  }
+}

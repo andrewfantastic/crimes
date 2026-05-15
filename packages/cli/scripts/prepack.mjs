@@ -22,6 +22,11 @@ copyFileSync(pkgPath, backupPath);
 
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 delete pkg.devDependencies;
+// Strip workspace-only scripts too. None of these run automatically for
+// consumers of the published tarball, and the files they reference
+// (./scripts/*.mjs, tsup, vitest, tsc) aren't shipped with the package.
+delete pkg.scripts;
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
-console.log("prepack: stripped devDependencies from packed package.json");
+// Write to stderr so we don't pollute `npm pack --json` output.
+console.error("prepack: stripped devDependencies and scripts from packed package.json");

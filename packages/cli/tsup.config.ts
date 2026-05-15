@@ -1,4 +1,12 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(resolve(here, "package.json"), "utf8"),
+) as { version: string };
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -7,16 +15,19 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: "node18",
-  // Bundle everything — workspace packages and external runtime deps —
-  // into a single self-contained file. The published `crimes` package
-  // has no runtime dependencies, so `npm install -g ./crimes-X.Y.Z.tgz`
-  // works without any further resolution. Node built-ins (`node:fs`,
-  // `node:path`, …) stay external by default under `platform: "node"`.
-  noExternal: [/.*/],
-  // Some bundled deps (commander, typescript) are CJS and assume CommonJS
-  // globals — `require`, `__filename`, `__dirname` — exist at runtime. The
-  // output is ESM, where they don't. We polyfill all three so esbuild's CJS
-  // interop wrapper and TypeScript's runtime probes work.
+  // Bundle workspace packages and small runtime deps (commander, fast-glob,
+  // picocolors) into a single self-contained file so the published `crimes`
+  // package has minimal install-time resolution. We deliberately externalise
+  // `typescript` — bundling the full TS compiler bloats the tarball from
+  // ~4MB to ~100KB (and ~25MB unpacked to ~250KB) for no runtime benefit.
+  // It is declared as a real dependency so `npm install -g crimes` resolves
+  // it. Everything not listed here stays external (node builtins,
+  // typescript), so be explicit when adding new runtime deps.
+  noExternal: [/^@crimes\//, "commander", "fast-glob", "picocolors"],
+  // Some bundled deps (commander) are CJS and assume CommonJS globals —
+  // `require`, `__filename`, `__dirname` — exist at runtime. The output is
+  // ESM, where they don't. We polyfill all three so esbuild's CJS interop
+  // wrapper works.
   banner: {
     js: [
       "#!/usr/bin/env node",
@@ -27,5 +38,8 @@ export default defineConfig({
       "const __filename = __fileURLToPath(import.meta.url);",
       "const __dirname = __pathDirname(__filename);",
     ].join("\n"),
+  },
+  define: {
+    __CRIMES_VERSION__: JSON.stringify(pkg.version),
   },
 });

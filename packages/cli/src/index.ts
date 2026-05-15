@@ -1,6 +1,9 @@
 import { Command } from "commander";
 import { registerScanCommand } from "./commands/scan.js";
 
+// Injected at build time by tsup from this package's package.json.
+declare const __CRIMES_VERSION__: string;
+
 const program = new Command();
 
 program
@@ -8,7 +11,7 @@ program
   .description(
     "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   )
-  .version("0.0.0");
+  .version(__CRIMES_VERSION__);
 
 registerScanCommand(program);
 
