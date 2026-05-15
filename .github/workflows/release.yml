@@ -1,0 +1,112 @@
+name: Release
+
+# Publishes the `crimes` npm package via npm Trusted Publishing (OIDC).
+#
+# Trigger: a GitHub Release is published. Tag the release `vX.Y.Z`
+# (matching `packages/cli/package.json` version) and click "Publish".
+# That fires `release.types: [published]`.
+#
+# One-time setup on npmjs.com — required before the first run of this
+# workflow will succeed:
+#
+#   1. Log in at https://www.npmjs.com as a maintainer of the `crimes`
+#      package.
+#   2. Navigate to: Package settings → Publishing access → Trusted
+#      Publishers → "Add Trusted Publisher".
+#   3. Configure:
+#        Provider:                 GitHub Actions
+#        Organization or user:     andrewfantastic
+#        Repository name:          crimes
+#        Workflow filename:        release.yml
+#        Environment (optional):   leave blank
+#
+# Once configured, no `NPM_TOKEN` is required — npm derives a short-lived
+# token from the workflow's OIDC token at publish time. See
+# https://docs.npmjs.com/trusted-publishers for the canonical reference.
+#
+# Safety:
+#   - `id-token: write` is the OIDC permission. Required for Trusted
+#     Publishing.
+#   - `contents: read` is the minimum needed to check out the repo.
+#   - No secrets are referenced in this file. If you ever need to add one,
+#     audit who can edit this workflow first — secrets become available to
+#     any job in this file.
+#   - Maintainer-controlled inputs (release tag name) are passed via
+#     `env:` rather than interpolated into `run:` to avoid script-injection
+#     edge cases.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-npm:
+    name: build · verify · publish (npm Trusted Publishing)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        # Version comes from `packageManager` in root package.json.
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          # Required so `npm publish` resolves to the public registry and
+          # so npm's OIDC client knows where to mint the publish token for.
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      # Canonical "does the published package actually work" check —
+      # builds, packs, installs the tarball in a clean temp dir, and runs
+      # every shipped command and flag against the bundled fixture.
+      - name: Smoke test (pack + install + run)
+        run: pnpm --filter crimes smoke
+
+      # Verify the GitHub Release tag matches the version we're about to
+      # publish. Catches "tagged v0.1.0 but forgot to bump
+      # packages/cli/package.json" before the unrecoverable `npm publish`.
+      - name: Verify release tag matches package.json version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PKG_VERSION="$(node -p "require('./packages/cli/package.json').version")"
+          EXPECTED="v${PKG_VERSION}"
+          echo "package.json version: ${PKG_VERSION}"
+          echo "release tag:          ${RELEASE_TAG}"
+          if [ "${RELEASE_TAG}" != "${EXPECTED}" ]; then
+            echo "::error::Release tag ${RELEASE_TAG} does not match packages/cli/package.json version ${PKG_VERSION} (expected ${EXPECTED})."
+            exit 1
+          fi
+
+      # `npm publish` from the CLI workspace.
+      # - `provenance` attaches an OIDC-signed build attestation; required
+      #   for Trusted Publishing.
+      # - `--access public` is the safe default for a public package.
+      - name: Publish to npm
+        working-directory: packages/cli
+        run: npm publish --provenance --access public
