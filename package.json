@@ -7,7 +7,7 @@
   "author": "Andrew Mayfield",
   "repository": {
     "type": "git",
-    "url": "https://github.com/crimes-sh/crimes.git"
+    "url": "https://github.com/andrewfantastic/crimes.git"
   },
   "packageManager": "pnpm@10.14.0",
   "engines": {
