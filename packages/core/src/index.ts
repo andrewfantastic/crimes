@@ -16,5 +16,11 @@ export type {
   SuggestedAction,
 } from "./finding.js";
 export { SCHEMA_VERSION } from "./finding.js";
+export {
+  getChangedFiles,
+  NotAGitRepoError,
+  UnknownGitRefError,
+} from "./git/changed-files.js";
+export type { ChangedFilesOptions } from "./git/changed-files.js";
 export { builtInDetectors, scan } from "./scan.js";
 export type { ScanOptions } from "./scan.js";

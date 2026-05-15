@@ -81,6 +81,34 @@ What to do with the result:
   detector thinks is safe. They are heuristics, not instructions — pick the
   ones that match the user's request.
 
+### 1c. Pre/post-edit on just the changed files
+
+`crimes scan --changed` restricts the scan to files changed in the working
+tree (staged, unstaged, and untracked), optionally including everything
+that differs between a base ref and `HEAD`. This is the cheapest scope when
+you are mid-task and do not need to re-scan an entire directory:
+
+```bash
+crimes scan --changed --format json                     # working tree only
+crimes scan --changed --base main --format json         # + commits on this branch
+crimes scan --changed --base origin/main --format json  # + commits not yet pushed
+```
+
+Semantics:
+
+- With no `--base`, staged, unstaged, and untracked files are all included.
+- With `--base <ref>`, the additional set is `<ref>...HEAD` — i.e. commits
+  unique to the current branch since it diverged from `<ref>`.
+- Deletions are skipped — the file is gone, so there is nothing to scan.
+- Non-source files in the changed set (Markdown, JSON, lockfiles, etc.)
+  are filtered out via the configured `include` / `exclude` patterns.
+- Outside a Git repository the command exits 2 with a clear error on
+  stderr; the JSON output is **not** produced. Agents should fall back to
+  a path-scoped `crimes scan <path>` when this happens.
+
+The output is the same `ScanReport` shape as `crimes scan` — same
+`schema_version`, same finding fields — just over a smaller set of files.
+
 ### 2. Make the edit
 
 Apply your change. `crimes` does not run during editing; it has no LSP and no
@@ -206,21 +234,22 @@ The brief above describes the workflow `crimes` is built around. Some of the
 commands the PRD calls out are **not yet implemented**, and you should not
 rely on them in agent instructions yet:
 
-| Command                            | Status                  |
-| ---------------------------------- | ----------------------- |
-| `crimes scan [path]`               | ✅ shipped              |
-| `crimes scan --format json`        | ✅ shipped              |
-| `crimes scan --all`                | ✅ shipped              |
-| `crimes scan --no-color`           | ✅ shipped              |
-| `crimes context <file>`            | ✅ shipped              |
-| `crimes context <file> --format json` | ✅ shipped           |
-| `crimes scan --changed`            | 🚧 not yet implemented  |
-| `crimes diff main...HEAD`          | 🚧 not yet implemented  |
-| `crimes verdict`                   | 🚧 not yet implemented  |
-| `crimes hotspots`                  | 🚧 not yet implemented  |
-| `crimes explain <id>`              | 🚧 not yet implemented  |
-| `crimes init`                      | 🚧 not yet implemented  |
-| `crimes ask` / LLM-assisted modes  | 🚧 not yet implemented  |
+| Command                              | Status                  |
+| ------------------------------------ | ----------------------- |
+| `crimes scan [path]`                 | ✅ shipped              |
+| `crimes scan --format json`          | ✅ shipped              |
+| `crimes scan --all`                  | ✅ shipped              |
+| `crimes scan --no-color`             | ✅ shipped              |
+| `crimes scan --changed`              | ✅ shipped              |
+| `crimes scan --changed --base <ref>` | ✅ shipped              |
+| `crimes context <file>`              | ✅ shipped              |
+| `crimes context <file> --format json`| ✅ shipped              |
+| `crimes diff main...HEAD`            | 🚧 not yet implemented  |
+| `crimes verdict`                     | 🚧 not yet implemented  |
+| `crimes hotspots`                    | 🚧 not yet implemented  |
+| `crimes explain <id>`                | 🚧 not yet implemented  |
+| `crimes init`                        | 🚧 not yet implemented  |
+| `crimes ask` / LLM-assisted modes    | 🚧 not yet implemented  |
 
 Until those land, the pre/post-edit workflow works as plain
 `crimes scan <path> --format json` on the directory or file you are about to

@@ -21,6 +21,7 @@ What works today:
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` over any TypeScript / JavaScript directory
 - `crimes scan --format json` machine-readable output (stable, versioned via `schema_version`)
+- `crimes scan --changed [--base <ref>]` — scan only files changed in the working tree, optionally also comparing against a Git base ref (`main`, `origin/main`, etc.)
 - `crimes context <file>` — agent-native single-file report (findings + likely tests + safe-editing notes)
 - `crimes context <file> --format json` — same payload, structured for agents
 - Four detectors:
@@ -35,7 +36,7 @@ What does **not** work yet:
 - Publishing to npm (`npx crimes` does not resolve)
 - Homebrew
 - Any LLM-assisted features
-- `crimes diff`, `crimes hotspots`, `crimes verdict`, `crimes scan --changed` (planned)
+- `crimes diff`, `crimes hotspots`, `crimes verdict` (planned)
 
 See [PRD.md](./PRD.md) for the full roadmap.
 
@@ -138,6 +139,30 @@ crimes scan --format json
 crimes scan --all          # show every finding, not just the top 10
 crimes scan --no-color     # plain output for pipes/CI
 ```
+
+#### `crimes scan --changed`
+
+Scan only the files that have changed in the working tree (staged, unstaged,
+and untracked). With `--base <ref>`, also include everything that differs
+between `<ref>...HEAD`. This is the agent-native pre/post-edit loop: scan the
+files you are about to touch, make the change, then re-scan the same set and
+diff the findings.
+
+```bash
+crimes scan --changed                       # working-tree changes vs HEAD
+crimes scan --changed --base main           # + commits on this branch
+crimes scan --changed --base origin/main    # + commits not yet on origin
+crimes scan --changed --format json
+```
+
+Notes:
+
+- Requires a Git repository. Run outside one and `crimes` exits with a clear
+  "not a git repository" error on stderr (exit code 2).
+- Deleted files are skipped — there is nothing on disk to scan.
+- Only JS/TS source files are scanned; non-source files in the changed set
+  (Markdown, JSON, lockfiles, etc.) are ignored via the configured
+  `include` / `exclude` patterns.
 
 ### `crimes context <file>`
 

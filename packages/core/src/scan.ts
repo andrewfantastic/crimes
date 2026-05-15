@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
@@ -10,6 +10,7 @@ import { largeFunctionDetector } from "./detectors/large-function.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
+import { getChangedFiles } from "./git/changed-files.js";
 
 export const builtInDetectors: Detector[] = [
   largeFileDetector,
@@ -25,6 +26,17 @@ export interface ScanOptions {
   config?: CrimesConfig;
   /** Override detectors. Defaults to all built-ins. */
   detectors?: Detector[];
+  /**
+   * Restrict the scan to files changed in the working tree (and, when
+   * `base` is also set, between `<base>...HEAD`). Requires `root` to be
+   * inside a Git repository.
+   */
+  changed?: boolean;
+  /**
+   * Optional Git ref to compare against, e.g. `"main"` or `"origin/main"`.
+   * Only meaningful when `changed` is true.
+   */
+  base?: string;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
@@ -32,11 +44,15 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const config = options.config ?? loadConfig(root);
   const detectors = options.detectors ?? builtInDetectors;
 
-  const files = await discoverFiles({
+  const allFiles = await discoverFiles({
     root,
     include: config.include,
     exclude: config.exclude,
   });
+
+  const files = options.changed
+    ? await restrictToChanged({ root, allFiles, base: options.base })
+    : allFiles;
 
   const findings: Finding[] = [];
 
@@ -73,6 +89,38 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
 
 function toRepoPath(p: string): string {
   return p.split(sep).join("/");
+}
+
+async function restrictToChanged(args: {
+  root: string;
+  allFiles: string[];
+  base?: string;
+}): Promise<string[]> {
+  const { root, allFiles, base } = args;
+  const changedAbs = await getChangedFiles({ root, base });
+
+  // `git rev-parse --show-toplevel` returns the canonicalised repo path
+  // (e.g. /private/var/folders/... on macOS). `discoverFiles` returns
+  // whatever path was passed in, which may still be the /var/... symlink.
+  // Compare on realpaths so the intersection works.
+  const changedReal = new Set<string>();
+  for (const abs of changedAbs) {
+    changedReal.add(await safeRealpath(abs));
+  }
+
+  const matches: string[] = [];
+  for (const abs of allFiles) {
+    if (changedReal.has(await safeRealpath(abs))) matches.push(abs);
+  }
+  return matches;
+}
+
+async function safeRealpath(p: string): Promise<string> {
+  try {
+    return await realpath(p);
+  } catch {
+    return p;
+  }
 }
 
 function sortFindings(findings: Finding[]): Finding[] {
