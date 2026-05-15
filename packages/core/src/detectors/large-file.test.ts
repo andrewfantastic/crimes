@@ -23,7 +23,8 @@ describe("largeFileDetector", () => {
     expect(findings).toEqual([]);
   });
 
-  it("flags files over the threshold", async () => {
+  it("flags very large files as high", async () => {
+    // 1200 lines vs 300-line default → ratio 4 → high.
     const findings = await largeFileDetector.run(makeCtx(1200));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.type).toBe("large_file");
@@ -32,10 +33,21 @@ describe("largeFileDetector", () => {
     expect(findings[0]!.evidence.length).toBeGreaterThan(0);
   });
 
-  it("escalates severity with file size", async () => {
-    const justOver = await largeFileDetector.run(makeCtx(400));
+  it("flags barely-over-threshold files as medium, not low", async () => {
+    // 400 lines vs 300-line default → ratio 1.33 → medium.
+    const findings = await largeFileDetector.run(makeCtx(400));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("escalates to high at >=2x threshold", async () => {
+    // 2000 lines → ratio 6.67 → high.
     const huge = await largeFileDetector.run(makeCtx(2000));
-    expect(justOver[0]!.severity).toBe("low");
     expect(huge[0]!.severity).toBe("high");
+  });
+
+  it("summary explains why large files are risky", async () => {
+    const findings = await largeFileDetector.run(makeCtx(800));
+    expect(findings[0]!.summary).toMatch(/coupling|context|edit/i);
   });
 });

@@ -30,14 +30,33 @@ describe("largeFunctionDetector", () => {
     expect(findings).toEqual([]);
   });
 
-  it("flags long functions and reports the symbol", async () => {
+  it("flags a barely-over-threshold function as medium", async () => {
+    // 70-line function vs default 60-line threshold → ratio 1.17 → medium.
     const findings = await largeFunctionDetector.run(
-      makeCtx([{ name: "generateInvoice", start: 10, end: 250 }]),
+      makeCtx([{ name: "borderline", start: 1, end: 70 }]),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("medium");
+    expect(findings[0]!.symbol).toBe("borderline");
+  });
+
+  it("flags a flagrant function as high", async () => {
+    // 250-line function → ratio 4.17 → high.
+    const findings = await largeFunctionDetector.run(
+      makeCtx([{ name: "generateInvoice", start: 10, end: 259 }]),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]!.symbol).toBe("generateInvoice");
     expect(findings[0]!.severity).toBe("high");
-    expect(findings[0]!.lines).toEqual([10, 250]);
+    expect(findings[0]!.lines).toEqual([10, 259]);
+  });
+
+  it("escalates to high at >=2x threshold", async () => {
+    // 120 lines is exactly 2x default 60-line threshold.
+    const findings = await largeFunctionDetector.run(
+      makeCtx([{ name: "twoX", start: 1, end: 120 }]),
+    );
+    expect(findings[0]!.severity).toBe("high");
   });
 
   it("names anonymous functions", async () => {
@@ -45,5 +64,12 @@ describe("largeFunctionDetector", () => {
       makeCtx([{ start: 1, end: 200 }]),
     );
     expect(findings[0]!.symbol).toBe("<anonymous>");
+  });
+
+  it("summary mentions why the size matters", async () => {
+    const findings = await largeFunctionDetector.run(
+      makeCtx([{ name: "f", start: 1, end: 200 }]),
+    );
+    expect(findings[0]!.summary).toMatch(/responsibilities|agent|edit/i);
   });
 });

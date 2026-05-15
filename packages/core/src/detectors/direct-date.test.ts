@@ -35,9 +35,33 @@ describe("directDateDetector", () => {
     expect(findings[0]!.summary).toMatch(/2 direct uses/);
   });
 
-  it("escalates to medium at 5+ uses", async () => {
-    const uses = Array.from({ length: 5 }, (_, i) => ({ kind: "now" as const, line: i + 1 }));
+  it("ranks a single use as low", async () => {
+    const findings = await directDateDetector.run(makeCtx([{ kind: "now", line: 5 }]));
+    expect(findings[0]!.severity).toBe("low");
+  });
+
+  it("ranks 2+ uses as medium — pattern, not accident", async () => {
+    const uses = Array.from({ length: 4 }, (_, i) => ({ kind: "now" as const, line: i + 1 }));
     const findings = await directDateDetector.run(makeCtx(uses));
     expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("escalates to high at 8+ uses", async () => {
+    const uses = Array.from({ length: 8 }, (_, i) => ({ kind: "now" as const, line: i + 1 }));
+    const findings = await directDateDetector.run(makeCtx(uses));
+    expect(findings[0]!.severity).toBe("high");
+  });
+
+  it("evidence separates Date.now() from new Date() counts", async () => {
+    const findings = await directDateDetector.run(
+      makeCtx([
+        { kind: "now", line: 1 },
+        { kind: "now", line: 2 },
+        { kind: "new", line: 3 },
+      ]),
+    );
+    const evidence = findings[0]!.evidence.join(" ");
+    expect(evidence).toContain("2× Date.now()");
+    expect(evidence).toContain("1× new Date()");
   });
 });

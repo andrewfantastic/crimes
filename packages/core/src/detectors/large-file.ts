@@ -14,7 +14,8 @@ export const largeFileDetector: Detector = {
 
     const ratio = lines / threshold;
     const severity = pickSeverity(ratio);
-    const confidence = Math.min(0.6 + (ratio - 1) * 0.2, 0.95);
+    const confidence = Math.min(0.7 + (ratio - 1) * 0.15, 0.95);
+    const fnCount = ctx.parsed.functions.length;
 
     const finding: Finding = {
       id: "", // filled in by scan.ts
@@ -24,21 +25,25 @@ export const largeFileDetector: Detector = {
       confidence: round(confidence),
       file: ctx.file,
       lines: [1, lines],
-      summary: `File is ${lines} lines long (threshold ${threshold}).`,
+      summary:
+        `File is ${lines} lines (threshold ${threshold}). Modules this large hide local ` +
+        `coupling: small edits can collide with code an agent never loaded into context.`,
       evidence: [
         `${lines} non-empty lines`,
-        `${ratio.toFixed(1)}× the configured threshold (${threshold})`,
+        `${ratio.toFixed(1)}× the configured ${threshold}-line threshold`,
+        `${fnCount} top-level function${fnCount === 1 ? "" : "s"} declared in this file`,
       ],
       scores: {
         severity: severityScore(severity),
         confidence: round(confidence),
-        agent_risk: Math.min(0.4 + (ratio - 1) * 0.15, 0.9),
+        agent_risk: Math.min(0.45 + (ratio - 1) * 0.18, 0.9),
       },
       suggested_actions: [
         {
           kind: "split_file",
           description:
-            "Split the file along clear responsibility boundaries; large files hide local coupling from both humans and agents.",
+            "Split along clear responsibility boundaries. Smaller modules give humans and agents " +
+            "a smaller surface to reason about per edit.",
           risk: "medium",
         },
       ],
@@ -49,9 +54,8 @@ export const largeFileDetector: Detector = {
 };
 
 function pickSeverity(ratio: number): Severity {
-  if (ratio >= 3) return "high";
-  if (ratio >= 1.75) return "medium";
-  return "low";
+  if (ratio >= 2) return "high";
+  return "medium";
 }
 
 function severityScore(s: Severity): number {

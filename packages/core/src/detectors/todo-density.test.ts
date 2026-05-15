@@ -3,8 +3,11 @@ import { DEFAULT_CONFIG } from "../config.js";
 import type { DetectorContext } from "../detector.js";
 import { todoDensityDetector } from "./todo-density.js";
 
-function makeCtx(source: string): DetectorContext {
-  const lineCount = source.split(/\r?\n/).length;
+function makeCtx(source: string, padLines = 0): DetectorContext {
+  // Pad the lineCount so the source represents a file of the requested size.
+  // padLines is the additional non-marker lines we want to claim the file has.
+  const sourceLines = source.split(/\r?\n/).length;
+  const lineCount = Math.max(sourceLines + padLines, sourceLines);
   return {
     file: "src/todo.ts",
     absolutePath: "/tmp/todo.ts",
@@ -31,9 +34,33 @@ describe("todoDensityDetector", () => {
     expect(evidence).toContain("HACK");
   });
 
-  it("escalates severity with marker count", async () => {
-    const many = Array.from({ length: 15 }, (_, i) => `// TODO: thing ${i}`).join("\n");
-    const findings = await todoDensityDetector.run(makeCtx(many));
+  it("ranks a handful of markers as low, not high", async () => {
+    // 5 markers in a 1000-line file: count<8, density 5/kloc < threshold 10
+    // After the floor check (count>=3) it fires at low.
+    const src = Array.from({ length: 5 }, (_, i) => `// TODO: thing ${i}`).join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src, 1000));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("low");
+  });
+
+  it("ranks moderately many markers as medium", async () => {
+    // 10 markers: count >= 8 → medium.
+    const src = Array.from({ length: 10 }, (_, i) => `// TODO: ${i}`).join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src, 500));
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("ranks extreme density as high only when both count and density are extreme", async () => {
+    // 25 markers in a 30-line file: count>=20 AND density~833/kloc → high.
+    const src = Array.from({ length: 25 }, (_, i) => `// TODO: ${i}`).join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src));
     expect(findings[0]!.severity).toBe("high");
+  });
+
+  it("does not rank elevated density as high when count is moderate", async () => {
+    // 14 markers in a small file — high density but moderate count → medium.
+    const src = Array.from({ length: 14 }, (_, i) => `// TODO: ${i}`).join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src));
+    expect(findings[0]!.severity).toBe("medium");
   });
 });
