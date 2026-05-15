@@ -35,3 +35,6 @@ coverage/
 
 # Product spec — kept locally, not tracked
 PRD.md
+
+# npm pack output
+*.tgz

@@ -33,20 +33,19 @@ importers:
   examples/messy-ts-app: {}
 
   packages/cli:
-    dependencies:
+    devDependencies:
       '@crimes/core':
         specifier: workspace:*
         version: link:../core
       '@crimes/reporter':
         specifier: workspace:*
         version: link:../reporter
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
-    devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      commander:
+        specifier: ^12.1.0
+        version: 12.1.0
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(postcss@8.5.14)(tsx@4.22.0)(typescript@5.9.3)
