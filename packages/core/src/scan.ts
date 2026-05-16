@@ -1,6 +1,8 @@
 import { readFile, realpath } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
+import type { FailOn } from "./baseline.js";
+import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
@@ -144,4 +146,23 @@ function summarise(findings: Finding[]): ScanSummary {
   const summary: ScanSummary = { total: findings.length, high: 0, medium: 0, low: 0 };
   for (const f of findings) summary[f.severity] += 1;
   return summary;
+}
+
+/**
+ * Annotate a {@link ScanReport} with the CI gate decision for
+ * `crimes scan --changed --fail-on`. Returns a new report carrying the
+ * threshold (`fail_on`) and a boolean (`failed`) that flips to `true` when
+ * at least one finding meets or exceeds the threshold.
+ *
+ * Pure — does not mutate the input. Reuses {@link severityAtLeast} so the
+ * threshold semantics match `crimes baseline check`.
+ */
+export function applyScanFailOn(
+  report: ScanReport,
+  failOn: FailOn,
+): ScanReport {
+  const failed = report.findings.some((f) =>
+    severityAtLeast(f.severity, failOn),
+  );
+  return { ...report, fail_on: failOn, failed };
 }

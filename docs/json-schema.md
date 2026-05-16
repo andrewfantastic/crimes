@@ -22,6 +22,10 @@ interface ScanReport {
   repo: RepoInfo;
   summary: ScanSummary;
   findings: Finding[];
+  /** Set only when `crimes scan --changed --fail-on <severity>` is used. */
+  fail_on?: "low" | "medium" | "high";
+  /** Set only when `fail_on` is set. True when ≥1 finding meets `fail_on`. */
+  failed?: boolean;
 }
 ```
 
@@ -64,6 +68,44 @@ interface ScanSummary {
 ```
 
 Counts by severity. `total` equals the sum of the three buckets.
+
+### `scan --changed --fail-on` gate fields
+
+`fail_on` and `failed` are **optional**, top-level, and **only set when the
+CLI runs `crimes scan --changed --fail-on <severity>`**. Both fields are
+absent from every other invocation of `crimes scan` — including
+`crimes scan` without `--changed` and `crimes scan --changed` without
+`--fail-on`. Adding optional fields is non-breaking under the
+[stability guarantees](#stability-guarantees) below, so the existing
+`ScanReport` contract is unchanged.
+
+```ts
+fail_on?: "low" | "medium" | "high";
+failed?: boolean;
+```
+
+- `fail_on` — the threshold the CLI gated on, echoed back verbatim. Use
+  this to confirm what the run was actually checking against.
+- `failed` — `true` when at least one `Finding` in `findings` has
+  `severity ≥ fail_on`, using the same `low < medium < high` ordering
+  as `crimes baseline check`. `false` otherwise (including when
+  `findings` is empty).
+
+The corresponding CLI behaviour:
+
+- `--fail-on` is **only valid** in combination with `--changed`. Passing
+  it on a plain `crimes scan` exits `2` (usage error). Pass `--changed
+  --fail-on <severity>` to opt into the gate.
+- `--fail-on` accepts `low | medium | high`. `low` fails on any
+  finding; `medium` fails on medium or high; `high` fails on high only
+  — same semantics as `crimes baseline check --fail-on`.
+- Exit `1` when `failed === true`; exit `0` when `failed === false`;
+  exit `2` for usage / environment errors (unknown threshold, not a
+  git repo, etc.).
+- The default `crimes scan` exit-code behaviour is **unchanged** when
+  `--fail-on` is not passed — it still always exits `0`.
+
+See [`docs/ci.md`](./ci.md) for the recommended CI integration.
 
 ### `findings`
 

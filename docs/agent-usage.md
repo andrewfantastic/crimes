@@ -168,6 +168,7 @@ you are mid-task and do not need to re-scan an entire directory:
 crimes scan --changed --format json                     # working tree only
 crimes scan --changed --base main --format json         # + commits on this branch
 crimes scan --changed --base origin/main --format json  # + commits not yet pushed
+crimes scan --changed --fail-on high --format json      # CI gate — exit 1 on a new high
 ```
 
 Semantics:
@@ -184,6 +185,25 @@ Semantics:
 
 The output is the same `ScanReport` shape as `crimes scan` — same
 `schema_version`, same finding fields — just over a smaller set of files.
+
+`--fail-on` (CI gate, opt-in):
+
+- Valid **only** in combination with `--changed`. Passing it on a plain
+  `crimes scan` exits `2` (usage error).
+- Accepts `low | medium | high`. `low` fails on any finding; `medium`
+  fails on medium or high; `high` fails on high only.
+- When set, the `ScanReport` JSON gains two optional top-level fields:
+  `fail_on` (the threshold the run gated on) and `failed` (a boolean
+  that flips to `true` when at least one finding in the changed set
+  meets the threshold). Both fields are **absent** when `--fail-on`
+  isn't passed — `crimes scan --changed` without the flag is unchanged.
+- Exit `1` when `failed` is `true`; exit `0` otherwise. The human
+  output ends with an `OK:` / `FAILED:` line summarising the gate.
+
+Decision rule for agents: when `failed` is `true` after your edit,
+treat it the same as a new high-severity finding in `crimes diff` — fix
+or surface the cause before completing the task. See
+[`docs/ci.md`](./ci.md) for the CI-side equivalent of this gate.
 
 ### 1d. Comparing two committed refs (`crimes diff`)
 
@@ -540,6 +560,7 @@ rely on them in agent instructions yet:
 | `crimes scan --no-color`               | ✅ shipped              |
 | `crimes scan --changed`                | ✅ shipped              |
 | `crimes scan --changed --base <ref>`   | ✅ shipped              |
+| `crimes scan --changed --fail-on <severity>` | ✅ shipped (`0.2.0`) |
 | `crimes context <file>`                | ✅ shipped              |
 | `crimes context <file> --format json`  | ✅ shipped              |
 | `crimes hotspots [path]`               | ✅ shipped              |
@@ -586,11 +607,37 @@ summary at the end of a task.
 
 ## Exit codes
 
-Today `crimes scan` always exits `0`, even when findings are present.
-"Fail the build on new high-severity findings" lands in a later milestone
-along with baseline support. Until then, gate on the JSON yourself:
+Default `crimes scan` is **advisory** — it always exits `0`, regardless of
+findings. The same goes for `crimes diff`, `crimes context`, `crimes
+hotspots`, and `crimes verdict` (without `--fail-on`).
+
+Three commands have an opt-in **gating** mode:
+
+| Command                                                          | Exit `1` when …                                                                  |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `crimes scan --changed --fail-on low\|medium\|high`              | A finding in the changed set meets the severity threshold.                       |
+| `crimes baseline check --fail-on low\|medium\|high` (default `medium`) | A **new** finding (vs the saved baseline) meets the severity threshold.    |
+| `crimes verdict --fail-on worse\|new-high\|new-medium`           | The configured verdict / severity threshold is hit.                              |
+
+All three share the same exit-code contract:
+
+| Exit | Meaning                                                                       |
+| ---- | ----------------------------------------------------------------------------- |
+| `0`  | Command succeeded; no blocking findings under the configured `--fail-on`.     |
+| `1`  | Blocking findings present — the CI gate.                                      |
+| `2`  | Usage / environment error — bad flag, missing baseline, not a git repo, etc.  |
+
+`0` and `1` always emit JSON on stdout when `--format json` is set. `2`
+writes a human-readable error to stderr and emits no JSON, so consumers
+can distinguish "gate failed" from "command broke" without parsing.
+
+If you want to gate on a command that doesn't have `--fail-on` (e.g.
+`crimes diff` today, or plain `crimes scan`), gate on the JSON yourself:
 
 ```bash
 crimes scan . --format json \
   | jq -e '.summary.high == 0' >/dev/null
 ```
+
+See [`docs/ci.md`](./ci.md) for the CI-side recipes built on these
+exit codes.

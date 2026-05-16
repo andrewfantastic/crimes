@@ -80,10 +80,17 @@ With `--base <ref>` it also includes commits unique to the current branch:
 crimes scan --changed --format json                     # working tree
 crimes scan --changed --base main --format json         # + branch commits
 crimes scan --changed --base origin/main --format json  # + unpushed commits
+crimes scan --changed --fail-on high --format json      # CI gate — exit 1 on new high
 ```
 
 Requires a git repo. Outside a repo it exits 2 — fall back to a path-scoped
 `crimes scan <path>`.
+
+`--fail-on low|medium|high` is the opt-in gate for the changed set. Only
+valid with `--changed`; passing it alone exits 2. When set, the JSON
+gains `fail_on` (the threshold) and `failed` (boolean) at the top level,
+and the command exits 1 when at least one finding in the changed set
+meets the threshold.
 
 ### Branch-level review (`crimes diff`)
 
@@ -225,6 +232,23 @@ user approval.
 - These commands are **not yet implemented** and must not be invoked:
   `crimes diff --fail-on new-high`, `crimes ignore`, `crimes explain`,
   `crimes init`, `crimes ask`.
+
+## CI integration
+
+Three deterministic gating modes, see [`../../../docs/ci.md`](../../../docs/ci.md):
+
+- **Mode A — changed-files gate:** `crimes scan --changed --fail-on high`
+  (narrow, ignores untouched legacy debt).
+- **Mode B — baseline gate:** `crimes baseline check --fail-on medium`
+  (after committing `.crimes/baseline.json`; fails only on new debt).
+- **Mode C — branch verdict gate:** `crimes verdict --base origin/main
+  --fail-on new-high` (PR-comment summary that flips to a hard gate on
+  any new high finding).
+
+Uniform exit-code contract across all three: `0` passes, `1` is the gate
+failing, `2` is a usage / environment error (bad flag, missing baseline,
+not a git repo). A GitHub Actions example lives at
+[`../../../examples/github-actions/crimes.yml`](../../../examples/github-actions/crimes.yml).
 
 ## Reading findings — five fields that matter
 

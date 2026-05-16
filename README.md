@@ -78,6 +78,8 @@ What ships today, all verified by a publish-tarball smoke test in CI:
 - `crimes scan [path] --format json` — stable JSON contract (`schema_version: "0.1.0"`)
 - `crimes scan --changed [--base <ref>]` — restrict to working-tree-changed files,
   optionally also `<ref>...HEAD`
+- `crimes scan --changed --fail-on low|medium|high` — exit `1` when a changed-set
+  finding meets the threshold (the canonical changed-files CI gate)
 - `crimes context <file>` — single-file findings + likely tests + safe-editing notes
 - `crimes context <file> --format json`
 - `crimes hotspots [path]` — Git churn × scan findings, ranked by aggregate change-risk
@@ -124,6 +126,10 @@ Landing in `crimes@0.2.0`:
   `crimes` on legacy code without fixing everything first, then fail CI
   only on findings introduced after the snapshot. See
   [Commands → `crimes baseline`](#crimes-baseline) below.
+- **`crimes scan --changed --fail-on low|medium|high`** ✅ — exits non-zero
+  when a finding in the changed-files set meets the threshold. The narrow,
+  changed-files-only CI gate. JSON output gains `fail_on` / `failed` when
+  the flag is set; `crimes scan` without `--changed` is unaffected.
 - **`--fail-on new-high`** flag for `crimes diff` — exits non-zero on any
   new `severity: "high"` finding. (Planned.)
 - **`crimes verdict`** ✅ — one-line "did this branch help or hurt?"
@@ -218,10 +224,12 @@ loop: scan the files you are about to touch, make the change, then re-scan
 the same set and diff the findings.
 
 ```bash
-crimes scan --changed                       # working-tree changes vs HEAD
-crimes scan --changed --base main           # + commits on this branch
-crimes scan --changed --base origin/main    # + commits not yet on origin
+crimes scan --changed                                   # working-tree changes vs HEAD
+crimes scan --changed --base main                       # + commits on this branch
+crimes scan --changed --base origin/main                # + commits not yet on origin
 crimes scan --changed --format json
+crimes scan --changed --fail-on high                    # CI gate — exit 1 on a new high
+crimes scan --changed --fail-on medium --format json    # CI gate, with JSON output
 ```
 
 Notes:
@@ -232,6 +240,12 @@ Notes:
 - Only JS/TS source files are scanned; non-source files in the changed set
   (Markdown, JSON, lockfiles, etc.) are ignored via the configured
   `include` / `exclude` patterns.
+- `--fail-on low|medium|high` is **only** valid in combination with
+  `--changed`. Passing it on a plain `crimes scan` exits `2` (usage
+  error). When set, the JSON output adds `fail_on` and `failed` at the
+  top level; exit `1` means "at least one finding in the changed set
+  meets the threshold", exit `0` means it doesn't. See
+  [`docs/ci.md`](./docs/ci.md) for the full CI integration recipe.
 
 ### `crimes context <file>`
 
@@ -545,6 +559,35 @@ Full schema: [`docs/json-schema.md`](./docs/json-schema.md#verdictreport-output-
 
 More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
 [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
+
+---
+
+## CI
+
+`crimes` is designed to run in CI. Three gating modes are supported, all
+deterministic and JSON-first:
+
+| Mode                 | Command                                                       | When to use                                                                       |
+| -------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Changed-files gate   | `crimes scan --changed --fail-on high`                        | Repo already clean, or you only want to gate the diff itself.                     |
+| Baseline gate        | `crimes baseline check --fail-on medium`                      | Legacy repo — snapshot `.crimes/baseline.json`, then fail only on **new** debt.   |
+| Branch verdict gate  | `crimes verdict --base origin/main --fail-on new-high`        | PR summary signal that flips to a hard gate on any new high finding.              |
+
+A copy-paste GitHub Actions workflow lives at
+[`examples/github-actions/crimes.yml`](./examples/github-actions/crimes.yml).
+The full integration guide — gating semantics, exit codes, known limits —
+is in [`docs/ci.md`](./docs/ci.md).
+
+Exit codes for every gating command are uniform:
+
+| Exit | Meaning                                                                      |
+| ---- | ---------------------------------------------------------------------------- |
+| `0`  | Command succeeded; no blocking findings under the configured `--fail-on`.    |
+| `1`  | The configured `--fail-on` threshold was met. Treat as a CI gate failure.    |
+| `2`  | Usage / environment error — bad flag, missing baseline, not a git repo, etc. |
+
+Without `--fail-on`, `crimes scan`, `crimes diff`, and `crimes verdict`
+are **advisory** — always exit `0`, regardless of findings.
 
 ---
 

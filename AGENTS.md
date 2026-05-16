@@ -81,6 +81,8 @@ crimes scan . --all                       # show every finding (not just top 10)
 crimes scan --changed --format json                     # working tree vs HEAD
 crimes scan --changed --base main --format json         # + commits on this branch
 crimes scan --changed --base origin/main --format json  # + commits not yet pushed
+crimes scan --changed --fail-on high                    # CI gate — exit 1 on a new high
+crimes scan --changed --fail-on medium --format json    # JSON gains `fail_on` + `failed`
 
 # Single-file context (findings + likely tests + safe-editing notes)
 crimes context <file> --format json
@@ -224,6 +226,9 @@ These are non-negotiable inside this repo:
 - [`docs/agent-usage.md`](./docs/agent-usage.md) — pre/post-edit workflow
   for agents (this file's deep cousin).
 - [`docs/json-schema.md`](./docs/json-schema.md) — wire format reference.
+- [`docs/ci.md`](./docs/ci.md) — three recommended CI modes
+  (changed-files / baseline / branch verdict), exit-code contract, and
+  the GitHub Actions recipe.
 - [`docs/skills.md`](./docs/skills.md) — what's bundled for Claude Code and
   Codex.
 - [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) — what currently ships vs what

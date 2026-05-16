@@ -77,7 +77,7 @@ export type {
   HotspotsOptions,
   HotspotsReport,
 } from "./hotspots.js";
-export { builtInDetectors, scan } from "./scan.js";
+export { applyScanFailOn, builtInDetectors, scan } from "./scan.js";
 export type { ScanOptions } from "./scan.js";
 export {
   judgeVerdict,

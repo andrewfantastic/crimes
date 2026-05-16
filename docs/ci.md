@@ -1,0 +1,233 @@
+# Using `crimes` in CI
+
+`crimes` is built for CI. Every gating command exits non-zero on the
+threshold you opt into, prints JSON when asked, and is deterministic — no
+LLM, no network, no state outside `.crimes/`. This page documents the three
+recommended CI integration modes and the ready-to-copy GitHub Actions
+example that ships with the repo.
+
+For the wire format, see [`docs/json-schema.md`](./json-schema.md). For the
+agent-loop equivalent of the same commands (pre-edit / post-edit), see
+[`docs/agent-usage.md`](./agent-usage.md).
+
+---
+
+## Advisory vs gating
+
+Every shipped command runs in one of two modes. Pick whichever fits the
+contract you want with your team.
+
+- **Advisory** — always exits `0`. Use when the team should see the
+  report but not be blocked on it. Examples: `crimes scan`, `crimes diff`,
+  `crimes verdict` (the **default** of all three).
+- **Gating** — exits `1` when a configured threshold is met, `2` on
+  usage / environment errors, `0` otherwise. Examples: `crimes baseline
+  check --fail-on …`, `crimes verdict --fail-on …`, and
+  `crimes scan --changed --fail-on …`.
+
+Mixing advisory and gating commands in the same job is fine — e.g. run
+`crimes verdict --format json` for the PR comment and `crimes baseline
+check --fail-on medium` to block the merge.
+
+---
+
+## Three recommended modes
+
+Pick **one** of the three. They are not mutually exclusive but they answer
+different questions, and running all three in the same job is rarely worth
+the latency.
+
+### Mode A — Changed-files gate
+
+Use after agents or humans edit code in the working tree, and you want a
+narrow gate that only inspects what the change actually touched. This is
+the cheapest scope — it skips legacy files entirely.
+
+```bash
+crimes scan --changed --fail-on high
+```
+
+Behaviour:
+
+- Scans only files changed in the working tree, plus (with `--base`)
+  commits unique to the current branch. See `crimes scan --changed --help`.
+- Exits `1` when any finding in the changed set has severity ≥ the
+  threshold. The threshold accepts `low | medium | high`.
+- Exits `0` otherwise.
+- Exits `2` on usage errors — including `--fail-on` passed without
+  `--changed`, an unknown threshold, or running outside a git repo.
+- JSON output gains two extra top-level fields when `--fail-on` is set:
+  `fail_on` (the threshold) and `failed` (the boolean gate result). The
+  rest of the `ScanReport` shape is unchanged.
+
+When to reach for it:
+
+- A pre-commit hook on a developer machine, or a CI job that runs on
+  every push and only cares about the new diff.
+- An agent loop where you want the agent to fail fast on its own diff
+  before handing off to the user.
+
+Known limits:
+
+- It scans only files in the changed set, so it can miss pre-existing
+  high findings in untouched files. That's the point — use Mode B if you
+  want a baseline-aware view that pins legacy debt instead.
+- File renames register as a fix + new pair, same as `git diff` without
+  `--find-renames`.
+
+### Mode B — Baseline gate
+
+Use for legacy repos with existing debt. Snapshot the current findings
+once, commit `.crimes/baseline.json`, then gate CI on findings absent from
+that snapshot — pre-existing debt stays out of the way.
+
+```bash
+# One-time adoption, on a clean branch:
+crimes baseline save
+git add .crimes/baseline.json
+git commit -m "Add crimes baseline"
+
+# On every PR:
+crimes baseline check --fail-on medium
+```
+
+Behaviour:
+
+- Loads `<repo>/.crimes/baseline.json`, runs a full repo scan, and
+  partitions the result into `new` / `fixed` / `unchanged` by stable
+  fingerprint (`<type>::<file>::<symbol-or-empty>`). Small line shifts
+  from unrelated edits don't register as fix + new.
+- `--fail-on` accepts `low | medium | high`. Default is `medium`.
+- Exits `1` when at least one **new** finding has severity ≥ the
+  threshold. Pre-existing findings — even high — do not affect the gate.
+- Exits `2` on missing or malformed baseline, or a bad flag.
+- Exits `0` otherwise.
+
+When to reach for it:
+
+- Adopting `crimes` on an existing codebase that already has findings
+  you don't want to chase before turning the gate on.
+- A team that wants "never get worse than the last green build" rather
+  than "never have any findings at all".
+
+Known limits:
+
+- The baseline is repo-wide. If you want per-directory thresholds today,
+  run `crimes baseline check` from a subdirectory or split the repo.
+- Renames register as a fix + new pair, same as `crimes diff`.
+- Two findings with identical `(type, file, symbol)` collide on one
+  fingerprint — rare in practice (nested helpers with the same name).
+
+### Mode C — Branch verdict
+
+Use for a one-line "did this branch make the repo cleaner, worse,
+unchanged, or mixed?" summary suitable for a PR comment or a status check
+display name. Advisory by default — opt into a gate with `--fail-on`.
+
+```bash
+# Advisory PR comment (always exits 0):
+crimes verdict --base origin/main --format json
+
+# Gating: fail the build on any new high-severity finding.
+crimes verdict --base origin/main --fail-on new-high
+```
+
+Behaviour:
+
+- Built on top of `crimes diff` — same archive-into-temp scanning, same
+  fingerprint-based matching. Working-tree-safe.
+- Default base picks `origin/main` first, then `main`. Pass `--base
+  <ref>` to override.
+- `--fail-on` values: `worse` (verdict is `worse`), `new-high` (any new
+  finding has severity `high`), `new-medium` (any new finding has
+  severity `medium` or `high`).
+- Exits `1` when the threshold is met.
+- Exits `2` on usage / environment errors (not a git repo, no resolvable
+  default base, bad flag).
+- Exits `0` otherwise — including when no `--fail-on` is passed.
+
+When to reach for it:
+
+- A PR summary check that says "this branch removed 2 high findings and
+  introduced 1 medium" without blocking the merge.
+- A nightly run that posts a cleanliness trend to Slack — feed
+  `summary.new_weighted` / `summary.fixed_weighted` into a chart.
+
+Known limits:
+
+- Severity weights are `high = 3`, `medium = 2`, `low = 1`. They are
+  ordinal — treat the exact numbers as advisory; they may shift between
+  minor releases.
+- Like `crimes diff`, file renames register as a fix + new pair.
+
+---
+
+## Exit codes (all gating commands)
+
+| Exit | Meaning                                                                      |
+| ---- | ---------------------------------------------------------------------------- |
+| `0`  | Command succeeded; no blocking findings under the configured `--fail-on`.    |
+| `1`  | The configured `--fail-on` threshold was met. Treat as a CI gate failure.    |
+| `2`  | Usage / environment error — bad flag, missing baseline, not a git repo, etc. |
+
+`0` and `1` always emit JSON to stdout when `--format json` is set. `2`
+writes a short human-readable error line to stderr and emits no JSON, so
+callers can distinguish "gate failed" from "command broke" without
+parsing the body.
+
+---
+
+## GitHub Actions
+
+A copy-paste example lives at
+[`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml).
+Drop it under `.github/workflows/crimes.yml` in your repo to wire up the
+default Mode C (`crimes verdict --base origin/main --fail-on new-high`)
+gate. Commented alternatives in the same file show the Mode A and Mode B
+swaps.
+
+Three things are easy to get wrong, and the example handles them:
+
+1. **Fetch enough history.** `actions/checkout` defaults to a shallow
+   clone (`fetch-depth: 1`), which means `origin/main` won't resolve from
+   a PR build. The example sets `fetch-depth: 0`. If you'd rather keep
+   the clone shallow, fetch the base ref explicitly:
+
+   ```yaml
+   - run: git fetch --depth=1 origin ${{ github.base_ref || 'main' }}
+   ```
+
+2. **Install Node ≥ 18.** `crimes` requires it. The example pins Node 20.
+
+3. **Use the published binary, not the source.** `npm install -g crimes`
+   is the production path. The example does that; don't replace it with
+   a checkout-and-build unless you're testing an unreleased branch.
+
+---
+
+## Picking a mode
+
+Quick decision tree:
+
+- **Brand-new repo, or repo that already has zero findings** → Mode A.
+  Smallest blast radius and the easiest to explain to contributors.
+- **Existing repo with pre-existing findings you don't want to chase
+  yet** → Mode B. Snapshot, commit, gate forward.
+- **You want a PR-comment trend signal, not a hard merge gate** → Mode C
+  without `--fail-on`. Add `--fail-on new-high` later if you want it to
+  start blocking.
+
+You can run Mode C **and** Mode A or B in the same workflow — Mode C as
+advisory copy in the PR description, Mode A or B as the actual gate. The
+JSON outputs share `schema_version` and are stable across minor releases.
+
+---
+
+## See also
+
+- [`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml) —
+  copy-paste GitHub Actions workflow.
+- [`docs/json-schema.md`](./json-schema.md) — wire format for every
+  command's JSON output.
+- [`docs/agent-usage.md`](./agent-usage.md) — the same gating commands
+  used inside an agent loop instead of CI.

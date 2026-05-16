@@ -1,6 +1,16 @@
 import { resolve } from "node:path";
-import { NotAGitRepoError, scan, UnknownGitRefError } from "@crimes/core";
-import { formatHumanReport, formatJsonReport } from "@crimes/reporter";
+import {
+  applyScanFailOn,
+  NotAGitRepoError,
+  scan,
+  UnknownGitRefError,
+} from "@crimes/core";
+import type { FailOn } from "@crimes/core";
+import {
+  formatHumanReport,
+  formatJsonReport,
+  formatScanFailOnLine,
+} from "@crimes/reporter";
 import type { Command } from "commander";
 
 interface ScanCommandOptions {
@@ -9,6 +19,13 @@ interface ScanCommandOptions {
   noColor: boolean;
   changed: boolean;
   base?: string;
+  failOn?: string;
+}
+
+const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
+
+function isFailOn(value: string): value is FailOn {
+  return VALID_FAIL_ON.has(value as FailOn);
 }
 
 export function registerScanCommand(program: Command): void {
@@ -28,6 +45,10 @@ export function registerScanCommand(program: Command): void {
       "--base <ref>",
       "Git ref to compare against when --changed is set, e.g. main or origin/main",
     )
+    .option(
+      "--fail-on <severity>",
+      "with --changed, exit non-zero when a finding meets this severity: low | medium | high",
+    )
     .action(async (path: string | undefined, options: ScanCommandOptions) => {
       const root = resolve(path ?? process.cwd());
       const format = options.format;
@@ -43,6 +64,22 @@ export function registerScanCommand(program: Command): void {
       if (options.base && !options.changed) {
         process.stderr.write(
           `crimes: --base only applies when --changed is set.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (options.failOn !== undefined && !options.changed) {
+        process.stderr.write(
+          `crimes: --fail-on only applies when --changed is set.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (options.failOn !== undefined && !isFailOn(options.failOn)) {
+        process.stderr.write(
+          `crimes: unknown --fail-on "${options.failOn}". Expected "low", "medium", or "high".\n`,
         );
         process.exit(2);
         return;
@@ -67,17 +104,35 @@ export function registerScanCommand(program: Command): void {
         throw error;
       }
 
+      const failOn =
+        options.failOn !== undefined && options.changed
+          ? (options.failOn as FailOn)
+          : undefined;
+      const gatedReport =
+        failOn !== undefined ? applyScanFailOn(report, failOn) : report;
+
       if (format === "json") {
-        process.stdout.write(formatJsonReport(report) + "\n");
+        process.stdout.write(formatJsonReport(gatedReport) + "\n");
       } else {
         process.stdout.write(
-          formatHumanReport(report, {
+          formatHumanReport(gatedReport, {
             showAll: options.all,
             noColor: options.noColor || !process.stdout.isTTY,
           }) + "\n",
         );
+        if (failOn !== undefined) {
+          process.stdout.write(
+            formatScanFailOnLine(gatedReport, {
+              noColor: options.noColor || !process.stdout.isTTY,
+            }) + "\n",
+          );
+        }
       }
 
-      // Don't exit non-zero on findings yet — that's a Milestone 4 (CI gate) concern.
+      // Default `crimes scan` keeps the always-exit-0 behaviour; the gate
+      // only fires when the user opted in with --changed --fail-on.
+      if (failOn !== undefined && gatedReport.failed === true) {
+        process.exit(1);
+      }
     });
 }

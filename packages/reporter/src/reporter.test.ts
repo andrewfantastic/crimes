@@ -9,6 +9,7 @@ import {
   formatContextHumanReport,
   formatDiffReport,
   formatHumanReport,
+  formatScanFailOnLine,
   formatVerdictReport,
 } from "./human.js";
 import {
@@ -380,5 +381,31 @@ describe("formatVerdictJsonReport", () => {
     });
     expect(parsed.summary.new_weighted).toBe(5);
     expect(parsed.summary.fixed_weighted).toBe(2);
+  });
+});
+
+describe("formatScanFailOnLine", () => {
+  it("emits an OK line when the gate passes", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      fail_on: "high",
+      failed: false,
+    };
+    const out = formatScanFailOnLine(report, { noColor: true });
+    expect(out).toContain("OK");
+    expect(out).toContain('"high"');
+    expect(out).not.toContain("FAILED");
+  });
+
+  it("emits a FAILED line when the gate trips", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      fail_on: "medium",
+      failed: true,
+    };
+    const out = formatScanFailOnLine(report, { noColor: true });
+    expect(out).toContain("FAILED");
+    expect(out).toContain('"medium"');
+    expect(out).not.toMatch(/^OK/);
   });
 });

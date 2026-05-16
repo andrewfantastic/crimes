@@ -5,6 +5,7 @@ export {
   formatDiffReport,
   formatHotspotsReport,
   formatHumanReport,
+  formatScanFailOnLine,
   formatVerdictReport,
 } from "./human.js";
 export type {
@@ -13,6 +14,7 @@ export type {
   DiffHumanReportOptions,
   HotspotsHumanReportOptions,
   HumanReportOptions,
+  ScanFailOnLineOptions,
   VerdictHumanReportOptions,
 } from "./human.js";
 export {

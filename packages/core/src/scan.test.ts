@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
+import type { Finding, ScanReport } from "./finding.js";
+import { SCHEMA_VERSION } from "./finding.js";
 import { NotAGitRepoError } from "./git/changed-files.js";
-import { scan } from "./scan.js";
+import { applyScanFailOn, scan } from "./scan.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -158,5 +160,93 @@ describe("scan", () => {
       expect(files).toContain("new.ts");
       expect(files).not.toContain("README.md");
     });
+  });
+});
+
+function makeFinding(
+  severity: Finding["severity"],
+  i = 1,
+): Finding {
+  return {
+    id: `crime_${String(i).padStart(5, "0")}`,
+    type: "large_function",
+    charge: "God Function",
+    severity,
+    confidence: 0.9,
+    file: `src/file${i}.ts`,
+    symbol: `fn${i}`,
+    lines: [1, 100],
+    summary: "spans 100 lines",
+    evidence: [],
+    scores: { severity: 0.9, confidence: 0.9 },
+  };
+}
+
+function makeReport(findings: Finding[]): ScanReport {
+  const summary = { total: findings.length, high: 0, medium: 0, low: 0 };
+  for (const f of findings) summary[f.severity] += 1;
+  return {
+    schema_version: SCHEMA_VERSION,
+    repo: { name: "fixture", root: "/tmp/fixture" },
+    summary,
+    findings,
+  };
+}
+
+describe("applyScanFailOn", () => {
+  it("does not mutate the input report", () => {
+    const original = makeReport([makeFinding("high")]);
+    const snapshot = JSON.parse(JSON.stringify(original));
+    applyScanFailOn(original, "high");
+    expect(original).toEqual(snapshot);
+  });
+
+  it("sets fail_on and failed when findings meet the threshold", () => {
+    const report = makeReport([makeFinding("high")]);
+    const gated = applyScanFailOn(report, "high");
+    expect(gated.fail_on).toBe("high");
+    expect(gated.failed).toBe(true);
+  });
+
+  it("threshold 'low' fails on any finding", () => {
+    const report = makeReport([makeFinding("low")]);
+    expect(applyScanFailOn(report, "low").failed).toBe(true);
+  });
+
+  it("threshold 'medium' (default) fails on medium and high, not low", () => {
+    expect(applyScanFailOn(makeReport([makeFinding("low")]), "medium").failed).toBe(
+      false,
+    );
+    expect(
+      applyScanFailOn(makeReport([makeFinding("medium")]), "medium").failed,
+    ).toBe(true);
+    expect(
+      applyScanFailOn(makeReport([makeFinding("high")]), "medium").failed,
+    ).toBe(true);
+  });
+
+  it("threshold 'high' only fails on high findings", () => {
+    expect(
+      applyScanFailOn(makeReport([makeFinding("medium")]), "high").failed,
+    ).toBe(false);
+    expect(
+      applyScanFailOn(makeReport([makeFinding("high")]), "high").failed,
+    ).toBe(true);
+  });
+
+  it("returns failed=false when the report has no findings", () => {
+    const gated = applyScanFailOn(makeReport([]), "low");
+    expect(gated.failed).toBe(false);
+    expect(gated.fail_on).toBe("low");
+  });
+
+  it("preserves the rest of the report unchanged", () => {
+    const findings = [makeFinding("high", 1), makeFinding("low", 2)];
+    const report = makeReport(findings);
+    const gated = applyScanFailOn(report, "medium");
+    expect(gated.schema_version).toBe(report.schema_version);
+    expect(gated.repo).toEqual(report.repo);
+    expect(gated.summary).toEqual(report.summary);
+    expect(gated.findings).toEqual(report.findings);
   });
 });

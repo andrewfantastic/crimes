@@ -121,6 +121,39 @@ function summaryLine(report: ScanReport, colour: ColourFns): string {
   );
 }
 
+export interface ScanFailOnLineOptions {
+  /** Disable ANSI colour output. */
+  noColor?: boolean;
+}
+
+/**
+ * Render the trailing OK / FAILED gate line that `crimes scan --changed
+ * --fail-on <severity>` prints after the standard human report.
+ *
+ * Requires `report.fail_on` to be set — i.e. the report was produced via
+ * {@link applyScanFailOn} from `@crimes/core`. The line is intentionally
+ * short and self-contained so it reads cleanly inside CI logs.
+ */
+export function formatScanFailOnLine(
+  report: ScanReport,
+  options: ScanFailOnLineOptions = {},
+): string {
+  const colour = options.noColor ? plainColour() : pc;
+  const failOn = report.fail_on ?? "medium";
+  if (report.failed) {
+    return colour.red(
+      colour.bold(
+        `FAILED: at least one finding at or above "${failOn}" severity in the changed set.`,
+      ),
+    );
+  }
+  return colour.green(
+    colour.bold(
+      `OK: no findings at or above "${failOn}" severity in the changed set.`,
+    ),
+  );
+}
+
 function groupBySeverity(findings: Finding[]): Record<Severity, Finding[]> {
   const groups: Record<Severity, Finding[]> = { high: [], medium: [], low: [] };
   for (const f of findings) groups[f.severity].push(f);

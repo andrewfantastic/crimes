@@ -69,4 +69,14 @@ export interface ScanReport {
   };
   summary: ScanSummary;
   findings: Finding[];
+  /**
+   * Severity threshold the CLI gated on. Only set when the user passed
+   * `--changed --fail-on <severity>` to `crimes scan`. Absent otherwise.
+   */
+  fail_on?: Severity;
+  /**
+   * True when at least one finding in `findings` has severity ≥ `fail_on`.
+   * Only set when `fail_on` is set. Drives the non-zero exit on the gate.
+   */
+  failed?: boolean;
 }

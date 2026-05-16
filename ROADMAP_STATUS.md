@@ -19,7 +19,7 @@ mirror, not a planning doc.
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
 | M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
 | M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅, `crimes baseline save` / `crimes baseline check` ✅, `crimes verdict` ✅; `--fail-on new-high` on `diff` is the remaining **0.2.0** work |
+| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes scan --changed --fail-on <severity>` ✅, `crimes diff <base...head>` ✅, `crimes baseline save` / `crimes baseline check` ✅, `crimes verdict` ✅, [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅; `--fail-on new-high` on `diff` is the remaining **0.2.0** work |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -117,6 +117,20 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
   worse | new-high | new-medium`. Severity weights are `high = 3`,
   `medium = 2`, `low = 1`. Schema (`VerdictReport`) documented in
   [`docs/json-schema.md`](./docs/json-schema.md#verdictreport-output-of-crimes-verdict).
+- ✅ **`crimes scan --changed --fail-on low|medium|high`** — the
+  changed-files-only CI gate. Only valid in combination with
+  `--changed`; passing it on a plain `crimes scan` exits `2`. When set,
+  the JSON output gains two optional top-level fields (`fail_on`,
+  `failed`) — both absent on the default advisory `scan` path so the
+  existing contract is unchanged. Exit `1` when at least one finding
+  in the changed set meets the threshold; exit `0` otherwise. Schema
+  delta documented in
+  [`docs/json-schema.md`](./docs/json-schema.md#scan---changed---fail-on-gate-fields).
+- ✅ **CI integration docs** — [`docs/ci.md`](./docs/ci.md) covers the
+  three recommended gating modes (changed-files, baseline, branch
+  verdict) and the shared exit-code contract.
+  [`examples/github-actions/crimes.yml`](./examples/github-actions/crimes.yml)
+  is the copy-paste workflow that ships with the repo.
 
 ### Planned for the rest of 0.2.0
 
@@ -125,10 +139,6 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
 
 ### Planned docs
 
-- **CI recipe** — concrete GitHub Actions snippet for failing PRs on
-  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`,
-  `crimes verdict --fail-on new-high`, or `crimes baseline check`),
-  plus the baseline alternative for legacy repos.
 - **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅,
   `BaselineCheckReport` ✅, `VerdictReport` ✅ — all documented under
   the same `schema_version` discipline as `ScanReport`.
@@ -170,7 +180,53 @@ integrations have a stable target.
   string literals, duplicated role / status / plan checks.
 - **Test-proximity-as-risk** feeding into `hotspots` and per-finding
   `test_gap` scoring.
+- **Frontend agent-risk detectors:** UI / UX findings that predict fragile
+  edits, design-system drift, or user-facing regressions. This is not a
+  taste engine or visual-design grader; findings must stay deterministic,
+  evidence-backed, and tied to change risk.
 - **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).
+
+### Frontend / UI risk candidates
+
+These are worth exploring if they stay inside the core `crimes` thesis:
+**where is future change likely to go wrong, and what should a human or
+agent know before editing?** They should not become generic aesthetic lint
+rules, and they should avoid duplicating tools like axe, Lighthouse,
+Storybook, Chromatic, ESLint, or design-token linters.
+
+- **Design Token Escape:** hard-coded colors, spacing, shadows, radii,
+  z-indexes, or breakpoints in app components when local tokens or theme
+  variables already exist. Agent value: discourages one-off UI patches that
+  bypass the design system.
+- **Duplicate Component Shape:** repeated JSX / template structures for
+  buttons, cards, forms, modals, tables, empty states, and similar shared UI.
+  Agent value: points agents toward existing primitives before they create
+  another near-copy.
+- **Accessible Interaction Risk:** clickable non-buttons, icon-only controls
+  without accessible labels, custom controls without obvious keyboard
+  affordances, or dialogs without focus-management signals. Agent value:
+  flags UI surfaces that are easy to regress during small edits.
+- **Responsive Fragility:** fixed widths, viewport-scaled typography,
+  absolute-positioned copy over dynamic content, hard-coded grid columns
+  without mobile alternatives, or tables/cards without an overflow strategy.
+  Agent value: tells agents when a visual change needs mobile inspection.
+- **Copy / IA Drift:** inconsistent labels for the same action or domain
+  concept, duplicated empty-state copy, hard-coded plan / role / status text,
+  or UI copy that appears to encode business rules. Agent value: surfaces
+  ambiguous sources of truth before another label or rule is duplicated.
+- **Visual Regression Review Hint:** not a screenshot engine, but a detector
+  that says "this changed UI file deserves visual review" when churn,
+  responsive complexity, lack of stories/tests, and component centrality line
+  up. Agent value: recommends Playwright / Storybook / screenshot checks at
+  the right time.
+
+Initial frontend detector priority, if this track is promoted:
+
+1. **Design Token Escape** — easiest to make deterministic and low-noise.
+2. **Accessible Interaction Risk** — high practical value, but keep it to
+   agent-risk signals rather than a full accessibility scanner.
+3. **Duplicate Component Shape** — larger implementation surface, but likely
+   strong differentiation once near-duplicate JSX detection is in place.
 
 ### Distribution (later)
 
