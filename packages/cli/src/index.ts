@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
 import { registerDiffCommand } from "./commands/diff.js";
 import { registerHotspotsCommand } from "./commands/hotspots.js";
@@ -20,6 +21,7 @@ registerScanCommand(program);
 registerContextCommand(program);
 registerHotspotsCommand(program);
 registerDiffCommand(program);
+registerBaselineCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

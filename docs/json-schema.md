@@ -492,6 +492,129 @@ crimes diff origin/main...HEAD --format json \
 
 ---
 
+## `Baseline` (on-disk shape of `.crimes/baseline.json`)
+
+`crimes baseline save` writes a single JSON document to
+`<root>/.crimes/baseline.json`. The file is **intended to be committed** — it
+pins the set of pre-existing findings that future `crimes baseline check`
+runs should ignore. The schema is versioned by the same `schema_version` as
+`ScanReport`.
+
+```ts
+interface Baseline {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal "baseline". */
+  report_type: "baseline";
+  /** ISO-8601 timestamp at which the baseline was written. */
+  created_at: string;
+  /** Version of `crimes` that wrote the file. Optional. */
+  crimes_version?: string;
+  /** Best-effort repo identity. `root` is machine-specific — informational only. */
+  repo?: { name: string; root: string };
+  /** Severity counts at the moment the baseline was written. */
+  summary: ScanSummary;
+  /** Every finding present at capture time, trimmed to identity-only fields. */
+  findings: BaselineEntry[];
+}
+
+interface BaselineEntry {
+  /** Same `<type>::<file>::<symbol-or-empty>` as `fingerprintFinding`. */
+  fingerprint: string;
+  type: string;
+  charge: string;
+  severity: "low" | "medium" | "high";
+  file: string;
+  symbol?: string;
+}
+```
+
+### Why this shape
+
+The baseline only needs enough per-finding data to (a) match a future scan
+via the same fingerprint logic `crimes diff` uses, and (b) render a useful
+`fixed_findings` list when the offending file no longer exists. Concretely
+this means **no** `lines`, `evidence`, `summary`, `scores`,
+`suggested_actions`, or per-scan `id` is persisted — those drift between
+scans or become meaningless after the underlying code is gone.
+
+### How `crimes baseline check` matches findings
+
+By the exact same fingerprint logic as
+[`crimes diff`](#diffreport-output-of-crimes-diff-basehead): the stable
+`<type>::<file>::<symbol-or-empty>` identity. Small line shifts from
+unrelated edits do not register as fix + new. The known limitations are
+the same too: file renames register as a fix + new pair, and two findings
+with identical `(type, file, symbol)` collide on one fingerprint.
+
+---
+
+## `BaselineCheckReport` (output of `crimes baseline check`)
+
+```ts
+interface BaselineCheckReport {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal "baseline_check". */
+  report_type: "baseline_check";
+  repo: { name: string; root: string };
+  /** Absolute path to the baseline file that was loaded. */
+  baseline_path: string;
+  /** Threshold the run used to decide `failed`. */
+  fail_on: "low" | "medium" | "high";
+  /** True when at least one new finding has severity ≥ `fail_on`. */
+  failed: boolean;
+  summary: BaselineCheckSummary;
+  /** Full `Finding` objects from the current scan not present in the baseline. */
+  new_findings: Finding[];
+  /** Baseline entries with no matching fingerprint in the current scan. */
+  fixed_findings: BaselineEntry[];
+  /** Current-scan findings matched by fingerprint to a baseline entry. */
+  unchanged_findings: Finding[];
+}
+
+interface BaselineCheckSummary {
+  total_baseline: number;
+  total_current: number;
+  new: number;
+  fixed: number;
+  unchanged: number;
+  new_by_severity: { high: number; medium: number; low: number };
+}
+```
+
+### `fail_on` semantics
+
+| Value      | A new finding fails when its severity is …       |
+| ---------- | ------------------------------------------------ |
+| `"low"`    | low, medium, or high                             |
+| `"medium"` | medium or high _(default)_                       |
+| `"high"`   | high only                                        |
+
+`failed` is the AND of "at least one new finding" and "the worst new
+severity meets the threshold". `fixed_findings` and `unchanged_findings`
+never influence `failed` — only forward debt blocks CI.
+
+### Exit codes
+
+| Exit | Meaning                                                                       |
+| ---- | ----------------------------------------------------------------------------- |
+| `0`  | `failed: false` — no new findings at or above `fail_on`.                      |
+| `1`  | `failed: true` — at least one new finding at or above `fail_on`.              |
+| `2`  | Usage / environment error — missing baseline, malformed baseline, bad flags.  |
+
+The JSON output is produced on stdout for exit `0` and `1`. Exit `2`
+writes a single human-readable error line to stderr and emits no JSON.
+
+### Why `fixed_findings` is `BaselineEntry[]`, not `Finding[]`
+
+Unlike `DiffReport`, where both refs are scanned and the full `Finding`
+shape is available on both sides, the baseline file only stores the
+trimmed `BaselineEntry` per finding. A finding can be reported as "fixed"
+even when the offending code has been deleted entirely — at which point
+the original `lines`, `evidence`, and `scores` no longer make sense to
+serialise.
+
+---
+
 ## Stability guarantees
 
 Within a single `schema_version`:

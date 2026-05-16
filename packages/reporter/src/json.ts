@@ -1,4 +1,6 @@
 import type {
+  Baseline,
+  BaselineCheckReport,
   ContextReport,
   DiffReport,
   HotspotsReport,
@@ -36,6 +38,22 @@ export function formatHotspotsJsonReport(
 
 export function formatDiffJsonReport(
   report: DiffReport,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(report, null, pretty ? 2 : 0);
+}
+
+export function formatBaselineJsonReport(
+  baseline: Baseline,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(baseline, null, pretty ? 2 : 0);
+}
+
+export function formatBaselineCheckJsonReport(
+  report: BaselineCheckReport,
   options: JsonReportOptions = {},
 ): string {
   const pretty = options.pretty ?? true;

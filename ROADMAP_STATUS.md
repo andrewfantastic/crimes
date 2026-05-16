@@ -19,7 +19,7 @@ mirror, not a planning doc.
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
 | M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
 | M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅; `verdict` / baseline / `--fail-on new-high` are the remaining **0.2.0** work |
+| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅, `crimes baseline save` / `crimes baseline check` ✅; `verdict` / `--fail-on new-high` on `diff` are the remaining **0.2.0** work |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -99,6 +99,15 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
   `<type>::<file>::<symbol-or-empty>` so small line shifts from unrelated
   edits don't register as fix + new. JSON shape documented in
   [`docs/json-schema.md`](./docs/json-schema.md#diffreport-output-of-crimes-diff-basehead).
+- ✅ **`crimes baseline save` / `crimes baseline check`** — snapshot the
+  current findings to `.crimes/baseline.json` (intended to be committed)
+  and gate future scans against that baseline. The same fingerprint
+  identity as `crimes diff` does the matching, and `--fail-on
+  low|medium|high` (default `medium`) controls the severity threshold
+  that flips `failed: true` (exit `1`). Exit `2` is reserved for missing
+  / malformed baselines and bad flags. Schemas (`Baseline`,
+  `BaselineCheckReport`) documented in
+  [`docs/json-schema.md`](./docs/json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson).
 
 ### Planned for the rest of 0.2.0
 
@@ -107,22 +116,16 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
 - **`crimes verdict`** — branch-level "did this branch make the repo
   better or worse?" summary. Built on top of `crimes diff` for the
   current branch vs. its merge base.
-- **`crimes baseline save`** — snapshot the current set of findings into
-  `.crimes/baseline.json` so teams can adopt `crimes` on legacy code
-  without fixing everything immediately.
-- **`crimes baseline check`** — compare the current scan against the
-  saved baseline; fail only on findings that are not in the baseline.
-  Pairs with `--fail-on new-high` for the "fail CI on new high crimes,
-  ignore legacy debt" workflow.
 
 ### Planned docs
 
 - **CI recipe** — concrete GitHub Actions snippet for failing PRs on
-  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`),
-  plus the baseline alternative for legacy repos.
-- **JSON schema docs** — `DiffReport` ✅ documented; `VerdictReport` and
-  `Baseline` shapes still to come, under the same `schema_version`
-  discipline as `ScanReport`.
+  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`
+  or `crimes baseline check`), plus the baseline alternative for legacy
+  repos.
+- **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅, `BaselineCheckReport` ✅
+  documented; `VerdictReport` still to come, under the same
+  `schema_version` discipline as `ScanReport`.
 
 ### Out of scope for 0.2.0
 

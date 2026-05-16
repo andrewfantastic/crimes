@@ -1,0 +1,157 @@
+import { resolve } from "node:path";
+import {
+  BaselineNotFoundError,
+  checkBaseline,
+  MalformedBaselineError,
+  saveBaseline,
+} from "@crimes/core";
+import type { FailOn } from "@crimes/core";
+import {
+  formatBaselineCheckJsonReport,
+  formatBaselineCheckReport,
+  formatBaselineJsonReport,
+  formatBaselineSaveReport,
+} from "@crimes/reporter";
+import type { Command } from "commander";
+
+// Injected at build time by tsup from the CLI package's package.json. Shared
+// with `index.ts` via the same `define` block — re-declared here because each
+// TS file compiles independently against the ambient declaration.
+declare const __CRIMES_VERSION__: string;
+
+interface BaselineSaveOptions {
+  format: "human" | "json";
+  noColor: boolean;
+}
+
+interface BaselineCheckCommandOptions {
+  format: "human" | "json";
+  noColor: boolean;
+  failOn: string;
+}
+
+const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
+
+function isFailOn(value: string): value is FailOn {
+  return VALID_FAIL_ON.has(value as FailOn);
+}
+
+export function registerBaselineCommand(program: Command): void {
+  const baseline = program
+    .command("baseline")
+    .description(
+      "Snapshot current findings to .crimes/baseline.json, or check against it.",
+    );
+
+  baseline
+    .command("save")
+    .description(
+      "Run a scan and write the current findings to .crimes/baseline.json.",
+    )
+    .argument("[path]", "directory to scan (defaults to current directory)")
+    .option("--format <format>", "output format: human | json", "human")
+    .option("--no-color", "disable ANSI colour output")
+    .action(async (path: string | undefined, options: BaselineSaveOptions) => {
+      const root = resolve(path ?? process.cwd());
+      const format = options.format;
+
+      if (format !== "human" && format !== "json") {
+        process.stderr.write(
+          `crimes: unknown --format "${String(format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const result = await saveBaseline({
+        root,
+        crimesVersion: __CRIMES_VERSION__,
+      });
+
+      if (format === "json") {
+        process.stdout.write(
+          formatBaselineJsonReport(result.baseline) + "\n",
+        );
+        return;
+      }
+
+      process.stdout.write(
+        formatBaselineSaveReport(result.baseline, result.path, {
+          noColor: options.noColor || !process.stdout.isTTY,
+        }) + "\n",
+      );
+    });
+
+  baseline
+    .command("check")
+    .description(
+      "Compare the current scan against .crimes/baseline.json and fail on new findings.",
+    )
+    .argument("[path]", "directory to scan (defaults to current directory)")
+    .option("--format <format>", "output format: human | json", "human")
+    .option("--no-color", "disable ANSI colour output")
+    .option(
+      "--fail-on <severity>",
+      "minimum severity that causes a non-zero exit code: low | medium | high",
+      "medium",
+    )
+    .action(
+      async (
+        path: string | undefined,
+        options: BaselineCheckCommandOptions,
+      ) => {
+        const root = resolve(path ?? process.cwd());
+        const format = options.format;
+
+        if (format !== "human" && format !== "json") {
+          process.stderr.write(
+            `crimes: unknown --format "${String(format)}". Expected "human" or "json".\n`,
+          );
+          process.exit(2);
+          return;
+        }
+
+        if (!isFailOn(options.failOn)) {
+          process.stderr.write(
+            `crimes: unknown --fail-on "${options.failOn}". Expected "low", "medium", or "high".\n`,
+          );
+          process.exit(2);
+          return;
+        }
+
+        let report;
+        try {
+          report = await checkBaseline({
+            root,
+            failOn: options.failOn,
+          });
+        } catch (error) {
+          if (
+            error instanceof BaselineNotFoundError ||
+            error instanceof MalformedBaselineError
+          ) {
+            process.stderr.write(`crimes: ${error.message}\n`);
+            process.exit(2);
+            return;
+          }
+          throw error;
+        }
+
+        if (format === "json") {
+          process.stdout.write(
+            formatBaselineCheckJsonReport(report) + "\n",
+          );
+        } else {
+          process.stdout.write(
+            formatBaselineCheckReport(report, {
+              noColor: options.noColor || !process.stdout.isTTY,
+            }) + "\n",
+          );
+        }
+
+        if (report.failed) {
+          process.exit(1);
+        }
+      },
+    );
+}

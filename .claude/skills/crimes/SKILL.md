@@ -111,6 +111,40 @@ Read on the JSON:
 Findings are matched by stable fingerprint `<type>::<file>::<symbol-or-empty>`,
 not the per-scan `id` — small line shifts do not register as fix+new.
 
+### Baseline gate (`crimes baseline`)
+
+When the repo has a committed `.crimes/baseline.json`, run the same gate
+CI uses:
+
+```bash
+crimes baseline check --format json
+crimes baseline check --fail-on high --format json   # stricter
+```
+
+To adopt `crimes` on a legacy repo, snapshot the current findings once
+and commit the file — pre-existing debt is then pinned and won't block
+future CI runs:
+
+```bash
+crimes baseline save
+git add .crimes/baseline.json && git commit -m "Add crimes baseline"
+```
+
+Read on the JSON:
+
+- `failed` — the gate. `true` means at least one new finding meets the
+  `--fail-on` threshold (exit `1`). `false` means no regression (exit `0`).
+  Exit `2` is reserved for missing / malformed baseline files.
+- `new_findings[]` — full Finding shape; treat exactly like
+  `crimes diff`'s `new_findings`.
+- `fixed_findings[]` — minimal `BaselineEntry` (no `lines` / `evidence`,
+  since the offending code may be gone). Mention which charges cleared.
+- `unchanged_findings[]` — pre-existing debt the baseline pins. Don't
+  relitigate them in the diff conversation.
+
+`--fail-on` values: `low` (any new finding fails), `medium` (medium or
+high; the default), `high` (only new high findings fail).
+
 ## Decision rules
 
 1. **A new `severity: "high"` finding introduced by your edit is a blocker.**
@@ -145,7 +179,7 @@ user approval.
 - It has no LSP, no watch mode, no editor integration.
 - It does not auto-fix. There is no `crimes --fix`.
 - These commands are **not yet implemented** and must not be invoked:
-  `crimes diff --fail-on new-high`, `crimes verdict`, `crimes baseline`,
+  `crimes diff --fail-on new-high`, `crimes verdict`, `crimes ignore`,
   `crimes explain`, `crimes init`, `crimes ask`.
 
 ## Reading findings — five fields that matter

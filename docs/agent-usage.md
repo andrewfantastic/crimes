@@ -81,6 +81,8 @@ section into your project's agent-rules file.
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
 | Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
+| Gating CI on "no new debt vs the saved baseline"                | `crimes baseline check --format json`            |
+| Adopting `crimes` on a legacy repo (snapshot, then commit)      | `crimes baseline save`                           |
 | Triaging "where in the repo is the most change-risk right now?" | `crimes hotspots --format json`                  |
 | Reviewing the whole repo from scratch                           | `crimes scan . --format json --all`              |
 
@@ -240,6 +242,85 @@ Decision rule, same as the rest of the workflow: a new `severity:
 "high"` finding in `new_findings` is a blocker unless the user
 explicitly accepts the risk.
 
+### 1e. Gating CI on the saved baseline (`crimes baseline`)
+
+When the repo has a committed `.crimes/baseline.json`, the agent loop can
+run the same gate CI uses:
+
+```bash
+crimes baseline check --format json
+crimes baseline check --fail-on high --format json   # stricter gate
+```
+
+`crimes baseline save` writes the snapshot; `crimes baseline check`
+compares the current scan to that snapshot and fails on findings absent
+from the baseline. Adoption flow:
+
+```bash
+crimes baseline save               # one-time per repo
+git add .crimes/baseline.json
+git commit -m "Add crimes baseline"
+# … later, on every PR …
+crimes baseline check
+```
+
+The JSON shape:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "baseline_check",
+  "repo": { "name": "...", "root": "..." },
+  "baseline_path": "/abs/path/to/.crimes/baseline.json",
+  "fail_on": "medium",
+  "failed": false,
+  "summary": {
+    "total_baseline": 5, "total_current": 5,
+    "new": 0, "fixed": 0, "unchanged": 5,
+    "new_by_severity": { "high": 0, "medium": 0, "low": 0 }
+  },
+  "new_findings": [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* BaselineEntry — fingerprint + identity fields */ ],
+  "unchanged_findings": [ /* same Finding shape as crimes scan */ ]
+}
+```
+
+How to use the fields:
+
+- **`failed`** is the gate. `true` → at least one new finding meets the
+  `--fail-on` threshold; exit `1`. `false` → exit `0`.
+- **`new_findings[]`** carry the full `Finding` shape. Quote `evidence`
+  and `lines` when explaining what's new vs the baseline.
+- **`fixed_findings[]`** are `BaselineEntry` records (fingerprint + type
+  + charge + severity + file + symbol). Mention which charges this
+  branch retired. The minimal shape is intentional — once a finding is
+  fixed, its old `lines` / `evidence` no longer make sense.
+- **`unchanged_findings[]`** are the legacy debt the baseline pins.
+  Don't relitigate them in the conversation — they were already
+  accepted when the baseline was committed.
+
+`--fail-on` thresholds:
+
+| Value      | A new finding fails when its severity is …       |
+| ---------- | ------------------------------------------------ |
+| `"low"`    | low, medium, or high                             |
+| `"medium"` | medium or high _(default)_                       |
+| `"high"`   | high only                                        |
+
+Exit codes:
+
+| Exit | Meaning                                                                       |
+| ---- | ----------------------------------------------------------------------------- |
+| `0`  | No new findings at or above `--fail-on`.                                      |
+| `1`  | At least one new finding at or above `--fail-on` — blocking.                  |
+| `2`  | Missing or malformed `.crimes/baseline.json`, or a bad flag.                  |
+
+Findings are matched by the same stable fingerprint
+`<type>::<file>::<symbol-or-empty>` as `crimes diff` — small line shifts
+don't register as fix + new. See
+[`docs/json-schema.md`](./json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson)
+for the full schema and known limitations.
+
 ### 2. Make the edit
 
 Apply your change. `crimes` does not run during editing; it has no LSP and no
@@ -380,9 +461,12 @@ rely on them in agent instructions yet:
 | `crimes hotspots [path] --format json` | ✅ shipped              |
 | `crimes diff <base...head>`            | ✅ shipped (`0.2.0`)    |
 | `crimes diff <base...head> --format json` | ✅ shipped (`0.2.0`) |
+| `crimes baseline save [path]`          | ✅ shipped (`0.2.0`)    |
+| `crimes baseline check [path]`         | ✅ shipped (`0.2.0`)    |
+| `crimes baseline check --fail-on <severity>` | ✅ shipped (`0.2.0`) |
+| `crimes baseline check --format json`  | ✅ shipped (`0.2.0`)    |
 | `crimes diff --fail-on new-high`       | 🚧 planned (`0.2.0`)    |
 | `crimes verdict`                       | 🚧 planned (`0.2.0`)    |
-| `crimes baseline save` / `baseline check` | 🚧 planned (`0.2.0`) |
 | `crimes ignore <id>`                   | 🚧 not yet implemented  |
 | `crimes explain <id>`                  | 🚧 not yet implemented  |
 | `crimes init`                          | 🚧 not yet implemented  |

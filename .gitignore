@@ -31,7 +31,10 @@ coverage/
 .env.*.local
 
 # crimes state
-.crimes/
+# `.crimes/baseline.json` is intended to be committed — it pins the set of
+# pre-existing findings that `crimes baseline check` ignores. Only regenerable
+# cache state belongs here.
+.crimes/cache/
 
 # npm pack output
 *.tgz

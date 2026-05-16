@@ -94,6 +94,12 @@ crimes hotspots --since 30d --format json
 # Working-tree-safe — exports each ref via `git archive` into a temp dir.
 crimes diff main...HEAD --format json
 crimes diff origin/main...HEAD --format json
+
+# Pin pre-existing findings, then fail CI only on new ones.
+# `.crimes/baseline.json` is intended to be committed.
+crimes baseline save                                   # snapshot, write the file
+crimes baseline check --format json                    # gate on default `--fail-on medium`
+crimes baseline check --fail-on high --format json     # stricter — only new high findings fail
 ```
 
 If you are running against a checkout that has not been published to npm
@@ -101,7 +107,7 @@ yet (e.g. an unreleased version on `main`), prefix everything above with
 `node packages/cli/dist/index.js` after running `pnpm build`.
 
 **Not yet implemented** — do not invoke or reference these in generated docs:
-`crimes diff --fail-on new-high`, `crimes verdict`, `crimes baseline`,
+`crimes diff --fail-on new-high`, `crimes verdict`, `crimes ignore`,
 `crimes explain`, `crimes init`, `crimes ask`. See
 [`docs/agent-usage.md`](./docs/agent-usage.md) for the full shipped/deferred
 matrix and [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.

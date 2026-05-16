@@ -87,6 +87,12 @@ What ships today, all verified by a publish-tarball smoke test in CI:
   Git refs (e.g. `main...HEAD`, `origin/main...HEAD`). Working-tree-safe —
   scans each ref via `git archive` into a temp dir.
 - `crimes diff <base...head> --format json`
+- `crimes baseline save [path]` — snapshot the current findings to
+  `.crimes/baseline.json`. **The baseline file is intended to be committed.**
+- `crimes baseline check [path]` — re-scan and fail only on findings absent
+  from the saved baseline. `--fail-on low|medium|high` (default `medium`)
+  sets the severity threshold; exit `1` blocks CI, exit `2` is reserved for
+  missing / malformed baseline files and bad flags.
 - Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
@@ -109,15 +115,15 @@ Landing in `crimes@0.2.0`:
 - **`crimes diff <base...head>`** ✅ — new, fixed, and unchanged findings
   between two Git refs. Working-tree-safe (`git archive` into a temp
   dir). See [Commands → `crimes diff`](#crimes-diff-basehead) above.
+- **`crimes baseline save` / `crimes baseline check`** ✅ — snapshot
+  current findings into `.crimes/baseline.json` so teams can adopt
+  `crimes` on legacy code without fixing everything first, then fail CI
+  only on findings introduced after the snapshot. See
+  [Commands → `crimes baseline`](#crimes-baseline) below.
 - **`--fail-on new-high`** flag for `crimes diff` — exits non-zero on any
   new `severity: "high"` finding. (Planned.)
 - **`crimes verdict`** — one-line "did this branch help or hurt?"
   summary, built on `crimes diff` against the current merge base.
-- **`crimes baseline save`** — snapshot current findings into
-  `.crimes/baseline.json` so teams can adopt `crimes` on legacy code
-  without fixing everything first.
-- **`crimes baseline check`** — fail only on findings not in the saved
-  baseline (the "ignore legacy debt, gate on new debt" workflow).
 - **CI recipe** — copy-paste GitHub Actions snippet for failing PRs on
   new high-severity crimes.
 - **JSON schema docs** — `DiffReport` ✅ documented; `VerdictReport` and
@@ -367,6 +373,89 @@ crimes diff origin/main...HEAD --format json \
   | jq -e '.summary.new == 0' >/dev/null
 ```
 
+### `crimes baseline`
+
+Pin pre-existing findings so CI only fails on **new** crimes. The intended
+adoption path for legacy repos: `crimes baseline save` once, commit
+`.crimes/baseline.json`, then run `crimes baseline check` in CI on every
+PR. New high-severity findings introduced by the branch fail the build;
+the legacy debt stays out of the way.
+
+```bash
+# 1. Snapshot the current state. Run this once when adopting `crimes`.
+crimes baseline save
+
+# 2. Commit `.crimes/baseline.json` to the repo.
+git add .crimes/baseline.json && git commit -m "Add crimes baseline"
+
+# 3. Run on every PR. Exit 0 = no regression, exit 1 = blocking new findings.
+crimes baseline check
+crimes baseline check --fail-on high          # ignore new medium/low findings
+crimes baseline check --format json           # the stable contract
+```
+
+Shape of `.crimes/baseline.json` (always carries `schema_version` and
+`report_type: "baseline"`):
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "baseline",
+  "created_at": "2026-05-16T12:00:00.000Z",
+  "crimes_version": "0.2.0",
+  "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
+  "findings": [
+    {
+      "fingerprint": "large_function::src/billing.ts::generateInvoice",
+      "type": "large_function",
+      "charge": "God Function",
+      "severity": "high",
+      "file": "src/billing.ts",
+      "symbol": "generateInvoice"
+    }
+    // ...
+  ],
+  "repo": { "name": "messy-ts-app", "root": "/abs/path/to/repo" }
+}
+```
+
+`crimes baseline check` re-scans the repo, matches findings against the
+saved baseline by stable fingerprint (`<type>::<file>::<symbol-or-empty>`,
+the same identity `crimes diff` uses), and emits a `BaselineCheckReport`:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "baseline_check",
+  "repo": { "name": "messy-ts-app", "root": "/abs/path/to/repo" },
+  "baseline_path": "/abs/path/to/repo/.crimes/baseline.json",
+  "fail_on": "medium",
+  "failed": false,
+  "summary": {
+    "total_baseline": 5,
+    "total_current": 5,
+    "new": 0,
+    "fixed": 0,
+    "unchanged": 5,
+    "new_by_severity": { "high": 0, "medium": 0, "low": 0 }
+  },
+  "new_findings": [],
+  "fixed_findings": [],
+  "unchanged_findings": [ /* same Finding shape as crimes scan */ ]
+}
+```
+
+Exit codes:
+
+| Exit | Meaning                                                                       |
+| ---- | ----------------------------------------------------------------------------- |
+| `0`  | No new findings at or above `--fail-on` — branch is clean against baseline.   |
+| `1`  | At least one new finding at or above `--fail-on` — the CI gate.               |
+| `2`  | Missing or malformed baseline, bad `--format` / `--fail-on` flag.             |
+
+Full schema, fingerprint semantics, and known limitations:
+[`docs/json-schema.md`](./docs/json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson).
+
 More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
 [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
@@ -535,7 +624,7 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
 - **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
 - **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0` in progress); **`verdict` / `baseline save` / `baseline check` / `--fail-on new-high` are the remaining `0.2.0` work**
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0` in progress); **`verdict` and `--fail-on new-high` on `crimes diff` are the remaining `0.2.0` work**
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

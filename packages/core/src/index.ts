@@ -1,3 +1,24 @@
+export {
+  BASELINE_RELATIVE_PATH,
+  BaselineNotFoundError,
+  checkBaseline,
+  classifyAgainstBaseline,
+  loadBaseline,
+  MalformedBaselineError,
+  saveBaseline,
+  severityAtLeast,
+  toBaselineEntry,
+} from "./baseline.js";
+export type {
+  Baseline,
+  BaselineCheckReport,
+  BaselineCheckSummary,
+  BaselineEntry,
+  CheckBaselineOptions,
+  FailOn,
+  SaveBaselineOptions,
+  SaveBaselineResult,
+} from "./baseline.js";
 export { DEFAULT_CONFIG, loadConfig } from "./config.js";
 export type { CrimesConfig } from "./config.js";
 export { context } from "./context.js";
