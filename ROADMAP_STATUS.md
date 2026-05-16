@@ -371,6 +371,13 @@ small enough surface area; they are not the headline.
   truth, orphaned destinations, or fragmented workflows. This extends the
   agent-risk thesis into product taxonomy: can a human or agent tell what a
   thing is called, where it belongs, and which implementation owns it?
+- **Petty crimes:** small, evidence-backed maintainability irritants that
+  make humans or agents hesitate, guess, or copy the wrong thing. Candidate
+  detectors include commented-out code, logic-bearing comments,
+  name/behaviour mismatch, repeated domain literals, and weak tests. See
+  [`PETTY_CRIMES_PLAN.md`](./PETTY_CRIMES_PLAN.md). This must stay out of
+  style-lint territory: no tabs-vs-spaces, import-order, or generic
+  formatting rules.
 - **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).
 
 ### Frontend / UI risk candidates
