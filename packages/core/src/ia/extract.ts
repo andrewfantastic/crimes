@@ -213,6 +213,26 @@ const DEFERRED_HINT_RE =
   /\b(deferred|not implemented|not yet implemented|planned|coming soon|future|unimplemented|todo:|v\d+(?:\.\d+){1,2})\b/i;
 
 /**
+ * Patterns that look like local filesystem paths to a naive parser but
+ * are actually server-rewritten GitHub-relative URLs. README files
+ * routinely link to `../../issues`, `../../pull/42`, `../../wiki`,
+ * etc. — those resolve on github.com once the README is rendered there,
+ * not on disk. Flagging them as broken local links is a false positive
+ * that erodes trust in `docs_code_drift`.
+ *
+ * The list mirrors the path segments GitHub itself rewrites: issues,
+ * pulls, discussions, wiki, actions, releases, projects, security,
+ * sponsors, compare, blob/<ref>/…, tree/<ref>/…, commit/<sha>,
+ * commits, raw/<ref>/…. Allow trailing path / query / fragment.
+ *
+ * Sources of truth (GitHub URL routes):
+ *   - https://docs.github.com/en/repositories
+ *   - https://docs.github.com/en/repositories/working-with-files/using-files/working-with-non-code-files#about-relative-links
+ */
+const GITHUB_RELATIVE_RE =
+  /^\.\.\/\.\.\/(?:issues|pull|pulls|discussions|wiki|actions|releases|projects|security|sponsors|compare|blob|tree|commit|commits|raw)(?:[\/?#].*)?$/i;
+
+/**
  * Parse a markdown document into headings, local links, and code-fenced
  * commands. Conservative -- anything ambiguous is skipped rather than
  * mis-extracted.
@@ -296,6 +316,10 @@ function isLocalLink(target: string): boolean {
   for (const prefix of NONLOCAL_PREFIXES) {
     if (target.startsWith(prefix)) return false;
   }
+  // GitHub-relative URLs (`../../issues`, `../../pull/42`, …) look local
+  // but are rewritten server-side. Treat them as non-local so
+  // `docs_code_drift` doesn't try to resolve them against disk.
+  if (GITHUB_RELATIVE_RE.test(target)) return false;
   return true;
 }
 

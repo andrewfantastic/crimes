@@ -1,23 +1,110 @@
+import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
 import type { Detector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
+
+/**
+ * Per-shape size policy. `domain` reads the configured threshold so
+ * existing `crimes.config.json` setups keep working; the other shapes
+ * use fixed values reflecting what looks normal for that surface.
+ *
+ *   shape           | threshold | sev @ thr | sev @ 2× thr
+ *   ----------------+-----------+-----------+-------------
+ *   domain          | config    | medium    | high
+ *   route_handler   | 100       | medium    | high
+ *   react_component | 200       | medium    | high
+ *   page_export    | 200       | medium    | high
+ *   test_callback  | 200       | low       | medium
+ *   unknown        |  80       | medium    | high
+ */
+interface ShapePolicy {
+  threshold: number;
+  /** Severity assigned at `ratio < 2`. */
+  severityAtThreshold: Severity;
+  /** Severity assigned at `ratio >= 2`. */
+  severityAtTwoX: Severity;
+  /** Human label used inside `summary` and `evidence`. */
+  label: string;
+  /** Lower agent-risk weighting (test callbacks shouldn't dominate). */
+  agentRiskScale: number;
+}
+
+const FIXED_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = {
+  test_callback: {
+    threshold: 200,
+    severityAtThreshold: "low",
+    severityAtTwoX: "medium",
+    label: "test callback",
+    agentRiskScale: 0.6,
+  },
+  react_component: {
+    threshold: 200,
+    severityAtThreshold: "medium",
+    severityAtTwoX: "high",
+    label: "React component",
+    agentRiskScale: 0.85,
+  },
+  page_export: {
+    threshold: 200,
+    severityAtThreshold: "medium",
+    severityAtTwoX: "high",
+    label: "page component",
+    agentRiskScale: 0.85,
+  },
+  route_handler: {
+    threshold: 100,
+    severityAtThreshold: "medium",
+    severityAtTwoX: "high",
+    label: "route handler",
+    agentRiskScale: 1,
+  },
+  unknown: {
+    threshold: 80,
+    severityAtThreshold: "medium",
+    severityAtTwoX: "high",
+    label: "function",
+    agentRiskScale: 1,
+  },
+};
+
+function policyFor(shape: FunctionShape, domainThreshold: number): ShapePolicy {
+  if (shape === "domain") {
+    return {
+      threshold: domainThreshold,
+      severityAtThreshold: "medium",
+      severityAtTwoX: "high",
+      label: "domain function",
+      agentRiskScale: 1,
+    };
+  }
+  // `FIXED_POLICIES` is a complete `Record<Exclude<FunctionShape, "domain">, …>`
+  // so the lookup always succeeds, but strict index access types it as
+  // possibly undefined. Falling back to the `unknown` policy keeps the
+  // signature total without weakening the runtime guarantee.
+  return FIXED_POLICIES[shape] ?? FIXED_POLICIES.unknown;
+}
 
 export const largeFunctionDetector: Detector = {
   id: "large_function",
   name: "Large Function",
-  description: "Flags functions and methods whose body exceeds a configurable line threshold.",
+  description:
+    "Flags functions whose body exceeds a per-shape line threshold " +
+    "(domain code, React components, route handlers, page exports, " +
+    "and test callbacks each carry their own budget).",
 
   run(ctx) {
-    const threshold = ctx.config.thresholds.largeFunctionLines;
+    const domainThreshold = ctx.config.thresholds.largeFunctionLines;
     const findings: Finding[] = [];
 
     for (const fn of ctx.parsed.functions) {
       const length = fn.endLine - fn.startLine + 1;
-      if (length <= threshold) continue;
+      const policy = policyFor(fn.shape, domainThreshold);
+      if (length <= policy.threshold) continue;
 
-      const ratio = length / threshold;
-      const severity = pickSeverity(ratio);
+      const ratio = length / policy.threshold;
+      const severity =
+        ratio >= 2 ? policy.severityAtTwoX : policy.severityAtThreshold;
       const confidence = Math.min(0.8 + (ratio - 1) * 0.1, 0.95);
-      const symbol = fn.name ?? "<anonymous>";
+      const symbol = symbolFor(fn);
 
       findings.push({
         id: "",
@@ -28,28 +115,22 @@ export const largeFunctionDetector: Detector = {
         file: ctx.file,
         symbol,
         lines: [fn.startLine, fn.endLine],
-        summary:
-          `${symbol} spans ${length} lines — past the ${threshold}-line threshold for a single ` +
-          `function. Bodies this size usually mix unrelated responsibilities, and an agent ` +
-          `editing one section often misses interactions in another.`,
-        evidence: [
-          `lines ${fn.startLine}–${fn.endLine} (${length} lines)`,
-          `${ratio.toFixed(1)}× the configured ${threshold}-line threshold`,
-          fn.kind === "method"
-            ? `class method — invariants are likely shared with sibling methods`
-            : `${fn.kind.replace("_", " ")} declaration`,
-        ],
+        summary: buildSummary({ symbol, length, policy }),
+        evidence: buildEvidence({ fn, length, policy, ratio }),
         scores: {
           severity: severityScore(severity),
           confidence: round(confidence),
-          agent_risk: round(Math.min(0.55 + (ratio - 1) * 0.2, 0.95)),
+          agent_risk: round(
+            Math.min(
+              0.55 * policy.agentRiskScale + (ratio - 1) * 0.2,
+              0.95,
+            ),
+          ),
         },
         suggested_actions: [
           {
             kind: "extract_function",
-            description:
-              "Extract cohesive sections into named helpers so each responsibility can be read, " +
-              "tested, and edited in isolation.",
+            description: suggestedActionFor(fn.shape),
             risk: "low",
           },
         ],
@@ -60,12 +141,88 @@ export const largeFunctionDetector: Detector = {
   },
 };
 
-function pickSeverity(ratio: number): Severity {
-  // The threshold itself draws the line. Anything past it is at least medium —
-  // the function has already opted into "too big" territory. Flagrant cases
-  // (≥2× threshold) escalate to high.
-  if (ratio >= 2) return "high";
-  return "medium";
+function symbolFor(fn: ParsedFunction): string {
+  if (fn.name) return fn.name;
+  if (fn.shape === "test_callback") {
+    // Test callbacks are usually anonymous arrows; surface the callee
+    // (e.g. `describe`) so the human report has something to call them.
+    const calleeEvidence = fn.shapeEvidence?.find((e) =>
+      e.startsWith("callback passed to "),
+    );
+    if (calleeEvidence) {
+      const m = /callback passed to ([a-zA-Z_$][\w$]*)\(/.exec(calleeEvidence);
+      if (m) return `${m[1]} callback`;
+    }
+  }
+  return "<anonymous>";
+}
+
+function buildSummary(args: {
+  symbol: string;
+  length: number;
+  policy: ShapePolicy;
+}): string {
+  const { symbol, length, policy } = args;
+  const subject =
+    symbol === "<anonymous>" ? `An anonymous ${policy.label}` : symbol;
+  return (
+    `${subject} is ${length} lines long ` +
+    `(${policy.label} threshold ${policy.threshold}). ` +
+    "Bodies this size usually mix unrelated responsibilities, and an " +
+    "agent editing one section often misses interactions in another."
+  );
+}
+
+function buildEvidence(args: {
+  fn: ParsedFunction;
+  length: number;
+  policy: ShapePolicy;
+  ratio: number;
+}): string[] {
+  const { fn, length, policy, ratio } = args;
+  const evidence: string[] = [
+    `lines ${fn.startLine}–${fn.endLine} (${length} lines)`,
+    `${ratio.toFixed(1)}× the ${policy.label} threshold (${policy.threshold} lines)`,
+  ];
+  evidence.push(
+    fn.kind === "method"
+      ? "class method — invariants are likely shared with sibling methods"
+      : `${fn.kind.replace("_", " ")} declaration`,
+  );
+  // Append the shape evidence the parser captured so a reader can
+  // verify why this size budget was applied. For domain and unknown
+  // shapes there's usually no additional evidence — skip the line.
+  if (fn.shapeEvidence && fn.shapeEvidence.length > 0) {
+    evidence.push(`shape: ${policy.label} (${fn.shapeEvidence.join("; ")})`);
+  }
+  return evidence;
+}
+
+function suggestedActionFor(shape: FunctionShape): string {
+  switch (shape) {
+    case "react_component":
+    case "page_export":
+      return (
+        "Extract markup-only sections into named sub-components and " +
+        "pure data helpers so the rendering, data, and effect concerns " +
+        "can be read in isolation."
+      );
+    case "route_handler":
+      return (
+        "Extract request parsing, authorisation, and persistence into " +
+        "named helpers so the handler reads as a flow of named steps."
+      );
+    case "test_callback":
+      return (
+        "Split the suite into focused describe blocks or per-scenario " +
+        "tests so each behaviour is independently runnable and diffable."
+      );
+    default:
+      return (
+        "Extract cohesive sections into named helpers so each " +
+        "responsibility can be read, tested, and edited in isolation."
+      );
+  }
 }
 
 function severityScore(s: Severity): number {

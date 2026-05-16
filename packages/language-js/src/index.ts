@@ -4,6 +4,7 @@ export { parseFile } from "./parse.js";
 export type {
   DateUse,
   FunctionKind,
+  FunctionShape,
   NavLiteral,
   NavLiteralEntry,
   ParsedFile,

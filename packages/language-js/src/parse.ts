@@ -8,11 +8,58 @@ export type FunctionKind =
   | "function_expression"
   | "constructor";
 
+/**
+ * Coarse semantic shape of a function, used by `largeFunctionDetector` to
+ * pick a size threshold appropriate to the shape:
+ *
+ * - **`domain`** — a plain named function/method/arrow. Uses the
+ *   configured `thresholds.largeFunctionLines` (default 60). The
+ *   historical and most aggressive bucket.
+ * - **`test_callback`** — a function passed as an argument to a known
+ *   test-framework call (`describe`, `it`, `beforeAll`, …). High
+ *   threshold + low severity at threshold — 60-line test blocks are
+ *   not a smell.
+ * - **`react_component`** — a PascalCase function whose body contains
+ *   JSX. High threshold; UI rendering doesn't compress like domain
+ *   logic.
+ * - **`page_export`** — the default export of a route file
+ *   (Next.js Pages or App Router page / layout / template / default).
+ *   High threshold; conventional surface area.
+ * - **`route_handler`** — a named export with an HTTP-verb name
+ *   (`GET`, `POST`, …) under an App Router route directory, or the
+ *   default export under `pages/api/**` (Pages Router API). Medium
+ *   threshold (100).
+ * - **`unknown`** — an anonymous function/arrow that didn't match any
+ *   of the above. Sits at a slightly relaxed threshold (80) so real
+ *   god-functions hiding inside callbacks still surface.
+ */
+export type FunctionShape =
+  | "domain"
+  | "test_callback"
+  | "react_component"
+  | "page_export"
+  | "route_handler"
+  | "unknown";
+
 export interface ParsedFunction {
   name: string | undefined;
   kind: FunctionKind;
   startLine: number;
   endLine: number;
+  /**
+   * Coarse semantic classification — see {@link FunctionShape}.
+   * Detectors consume this to pick a size threshold appropriate to
+   * the shape; agents reading the JSON consume the resulting
+   * `Finding.evidence` line that names the shape.
+   */
+  shape: FunctionShape;
+  /**
+   * Short, machine-friendly evidence strings explaining *why* the
+   * shape was picked (e.g. `"argument of describe(...)"`,
+   * `"default export under app/billing/page.tsx"`). Detectors quote
+   * these verbatim into `Finding.evidence`.
+   */
+  shapeEvidence?: string[];
 }
 
 export interface DateUse {
@@ -111,6 +158,75 @@ const TITLE_HOOK_CALLEES = new Set([
   "setDocumentTitle",
 ]);
 
+/**
+ * Test-framework callees whose argument functions should be classified as
+ * `test_callback`. Includes Mocha/Jest/Vitest equivalents, focus / skip
+ * variants, and hooks (`beforeAll`, etc.).
+ */
+const TEST_CALLEES: ReadonlySet<string> = new Set([
+  "describe",
+  "fdescribe",
+  "xdescribe",
+  "it",
+  "fit",
+  "xit",
+  "test",
+  "ftest",
+  "xtest",
+  "suite",
+  "context",
+  "beforeAll",
+  "beforeEach",
+  "afterAll",
+  "afterEach",
+  "before",
+  "after",
+]);
+
+/**
+ * HTTP verbs that an App Router route handler may export. Matched
+ * case-sensitively because the framework expects exactly these casings.
+ */
+const HTTP_VERBS: ReadonlySet<string> = new Set([
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+  "HEAD",
+]);
+
+/**
+ * Matches an App Router file under `app/` or `src/app/`. Used to gate
+ * the `route_handler` and `page_export` shapes — the AST patterns alone
+ * (named export with HTTP-verb name, default export with a component
+ * body) aren't enough to distinguish framework files from coincidental
+ * matches in normal source code.
+ */
+const APP_ROUTER_DIR_RE = /(?:^|[\\/])(?:src[\\/])?app[\\/]/;
+
+/**
+ * Matches an App Router conventional file: `page.tsx`, `layout.tsx`,
+ * `template.tsx`, `default.tsx`, `error.tsx`, `loading.tsx`,
+ * `not-found.tsx`, with `.ts` / `.jsx` / `.js` variants accepted.
+ */
+const APP_ROUTER_PAGE_FILE_RE =
+  /(?:^|[\\/])(page|layout|template|default|error|loading|not-found)\.(?:tsx|ts|jsx|js|mjs|cjs)$/i;
+
+/**
+ * Matches a Pages Router file: any `.{tsx,jsx}` under `pages/` or
+ * `src/pages/` that isn't under `pages/api/` (API routes use a default
+ * export but render no JSX). Excludes `_app.tsx` / `_document.tsx` too —
+ * they are page exports but commonly tiny, so classification doesn't
+ * help; they fall through to `domain`.
+ */
+const PAGES_ROUTER_PAGE_RE =
+  /(?:^|[\\/])(?:src[\\/])?pages[\\/](?!api[\\/])[^\s]*\.(?:tsx|jsx|ts|js)$/i;
+
+const PAGES_ROUTER_API_RE =
+  /(?:^|[\\/])(?:src[\\/])?pages[\\/]api[\\/].*\.(?:ts|tsx|js|jsx|mjs|cjs)$/i;
+
 export function parseFile(input: ParseInput): ParsedFile {
   const ext = extname(input.absolutePath).toLowerCase();
   const scriptKind = pickScriptKind(ext);
@@ -129,7 +245,7 @@ export function parseFile(input: ParseInput): ParsedFile {
   let defaultExport: string | undefined;
 
   const visit = (node: ts.Node): void => {
-    collectFunction(node, sourceFile, functions);
+    collectFunction(node, sourceFile, functions, input.absolutePath);
     collectDateUse(node, sourceFile, dateUses);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     ts.forEachChild(node, visit);
@@ -172,21 +288,22 @@ function collectFunction(
   node: ts.Node,
   sourceFile: ts.SourceFile,
   out: ParsedFunction[],
+  absolutePath: string,
 ): void {
   if (ts.isFunctionDeclaration(node)) {
-    pushFunction(node, sourceFile, out, "function", node.name?.text);
+    pushFunction(node, sourceFile, out, "function", node.name?.text, absolutePath);
   } else if (ts.isMethodDeclaration(node)) {
-    pushFunction(node, sourceFile, out, "method", methodName(node));
+    pushFunction(node, sourceFile, out, "method", methodName(node), absolutePath);
   } else if (ts.isConstructorDeclaration(node)) {
-    pushFunction(node, sourceFile, out, "constructor", "constructor");
+    pushFunction(node, sourceFile, out, "constructor", "constructor", absolutePath);
   } else if (
     ts.isArrowFunction(node) ||
     ts.isFunctionExpression(node)
   ) {
     const kind: FunctionKind = ts.isArrowFunction(node) ? "arrow" : "function_expression";
-    pushFunction(node, sourceFile, out, kind, inferAssignedName(node));
+    pushFunction(node, sourceFile, out, kind, inferAssignedName(node), absolutePath);
   } else if (ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) {
-    pushFunction(node, sourceFile, out, "method", methodName(node));
+    pushFunction(node, sourceFile, out, "method", methodName(node), absolutePath);
   }
 }
 
@@ -196,15 +313,257 @@ function pushFunction(
   out: ParsedFunction[],
   kind: FunctionKind,
   name: string | undefined,
+  absolutePath: string,
 ): void {
   const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
-  out.push({
+  const { shape, shapeEvidence } = classifyShape({
+    node,
+    kind,
+    name,
+    absolutePath,
+  });
+  const entry: ParsedFunction = {
     name,
     kind,
     startLine: startLine + 1,
     endLine: endLine + 1,
-  });
+    shape,
+  };
+  if (shapeEvidence && shapeEvidence.length > 0) {
+    entry.shapeEvidence = shapeEvidence;
+  }
+  out.push(entry);
+}
+
+/**
+ * Decide the {@link FunctionShape} for a parsed function. Rules are
+ * evaluated in priority order — first match wins. The classification is
+ * conservative: anything ambiguous falls through to `"domain"` (named) or
+ * `"unknown"` (anonymous), so we never miss a real god-function that
+ * happens to share AST shape with a test callback.
+ */
+function classifyShape(args: {
+  node: ts.Node;
+  kind: FunctionKind;
+  name: string | undefined;
+  absolutePath: string;
+}): { shape: FunctionShape; shapeEvidence: string[] } {
+  const { node, kind, name, absolutePath } = args;
+
+  // 1. test_callback: the function is an argument to a known test-framework
+  //    call. Arrow / function_expression only — a named declaration isn't a
+  //    callback. Hooks (`beforeAll`, …) and focus/skip variants are all
+  //    treated equally.
+  const testCallee = testCalleeOfParent(node);
+  if (testCallee) {
+    return {
+      shape: "test_callback",
+      shapeEvidence: [`callback passed to ${testCallee}(...)`],
+    };
+  }
+
+  // 2. route_handler — two flavours:
+  //    (a) App Router: named export with HTTP-verb name under
+  //        `(src/)?app/**` (typically `route.ts`).
+  //    (b) Pages Router API: default export under `(src/)?pages/api/**`.
+  if (
+    name &&
+    HTTP_VERBS.has(name) &&
+    hasExportModifier(node) &&
+    !hasDefaultModifierOnDeclaration(node) &&
+    APP_ROUTER_DIR_RE.test(absolutePath)
+  ) {
+    return {
+      shape: "route_handler",
+      shapeEvidence: [
+        `named export "${name}"`,
+        `App Router route file`,
+      ],
+    };
+  }
+  if (
+    isDefaultExportFunction(node) &&
+    PAGES_ROUTER_API_RE.test(absolutePath)
+  ) {
+    return {
+      shape: "route_handler",
+      shapeEvidence: ["default export", "Pages Router API route"],
+    };
+  }
+
+  // 3. page_export: default export under a conventional page file —
+  //    App Router (`app/**/page.tsx` etc.) or Pages Router (`pages/**`
+  //    excluding `pages/api/`).
+  if (isDefaultExportFunction(node)) {
+    if (
+      APP_ROUTER_DIR_RE.test(absolutePath) &&
+      APP_ROUTER_PAGE_FILE_RE.test(absolutePath)
+    ) {
+      return {
+        shape: "page_export",
+        shapeEvidence: ["default export", "App Router page file"],
+      };
+    }
+    if (PAGES_ROUTER_PAGE_RE.test(absolutePath)) {
+      return {
+        shape: "page_export",
+        shapeEvidence: ["default export", "Pages Router page file"],
+      };
+    }
+  }
+
+  // 4. react_component: PascalCase name AND body contains JSX. Live
+  //    outside route directories (page_export already handled). Methods
+  //    and constructors can't be React components.
+  if (
+    name &&
+    isPascalCase(name) &&
+    (kind === "function" ||
+      kind === "arrow" ||
+      kind === "function_expression") &&
+    bodyContainsJsx(node)
+  ) {
+    return {
+      shape: "react_component",
+      shapeEvidence: [`PascalCase name "${name}"`, "body returns JSX"],
+    };
+  }
+
+  // 5. domain — anything with a name that didn't match a more specific
+  //    rule. The default bucket, including methods, constructors, and
+  //    accessors.
+  if (name) {
+    return { shape: "domain", shapeEvidence: [] };
+  }
+
+  // 6. unknown — anonymous arrow / function expression. Falls back to a
+  //    slightly relaxed threshold so god-functions hiding inside callbacks
+  //    still surface, but ordinary inline anonymous helpers don't.
+  return { shape: "unknown", shapeEvidence: [] };
+}
+
+/**
+ * If `node` is an argument to a call whose callee identifier (or property
+ * accessor tail, e.g. `vi.describe`) is in the test-framework set, return
+ * that callee name. Otherwise `undefined`.
+ */
+function testCalleeOfParent(node: ts.Node): string | undefined {
+  const parent = node.parent;
+  if (!parent || !ts.isCallExpression(parent)) return undefined;
+  // Confirm the function is one of the call's arguments, not its callee.
+  let isArgument = false;
+  for (const arg of parent.arguments) {
+    if (arg === node) {
+      isArgument = true;
+      break;
+    }
+  }
+  if (!isArgument) return undefined;
+  const callee = parent.expression;
+  if (ts.isIdentifier(callee) && TEST_CALLEES.has(callee.text)) {
+    return callee.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.name) &&
+    TEST_CALLEES.has(callee.name.text)
+  ) {
+    return callee.name.text;
+  }
+  return undefined;
+}
+
+/**
+ * True when the node carries an `export` modifier — either directly (for
+ * `FunctionDeclaration` / `ClassDeclaration`) or via the enclosing
+ * `VariableStatement` (for arrow / function expressions assigned to
+ * exported `const`s).
+ */
+function hasExportModifier(node: ts.Node): boolean {
+  if (!ts.canHaveModifiers(node)) {
+    // Walk up to the nearest declaration with modifiers (typically the
+    // `VariableStatement` two levels up for `export const X = ...`).
+    let p: ts.Node | undefined = node.parent;
+    while (p) {
+      if (ts.canHaveModifiers(p)) {
+        const m = ts.getModifiers(p);
+        if (m?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword)) {
+          return true;
+        }
+        return false;
+      }
+      p = p.parent;
+    }
+    return false;
+  }
+  const m = ts.getModifiers(node);
+  return m?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+}
+
+/**
+ * True when the node itself is `export default function …` /
+ * `export default class …` (a declaration with both modifiers).
+ */
+function hasDefaultModifierOnDeclaration(node: ts.Node): boolean {
+  if (!ts.canHaveModifiers(node)) return false;
+  const m = ts.getModifiers(node);
+  return m?.some((mod) => mod.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+}
+
+/**
+ * True when the function is the value of an `export default` —
+ * either `export default function Foo() {}` (declaration with both
+ * modifiers) or `export default <expr>` (ExportAssignment over a
+ * function/class/arrow). The latter is common with framework files like
+ * `pages/api/foo.ts` (`export default function handler() {}` or
+ * `export default async function handler() {}`).
+ */
+function isDefaultExportFunction(node: ts.Node): boolean {
+  if (hasDefaultModifierOnDeclaration(node)) return true;
+  const parent = node.parent;
+  if (parent && ts.isExportAssignment(parent) && !parent.isExportEquals) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Cheap PascalCase check: first character is uppercase ASCII, no
+ * leading underscores, doesn't match an HTTP verb (those are
+ * already-handled route handler names, not components).
+ */
+function isPascalCase(name: string): boolean {
+  if (name.length === 0) return false;
+  const first = name.charCodeAt(0);
+  if (first < 65 || first > 90) return false; // 'A'..'Z'
+  // Exclude all-caps acronym-only names (`API`, `URL`) — they aren't
+  // components in practice. Allow PascalCase with internal caps.
+  if (name === name.toUpperCase()) return false;
+  return true;
+}
+
+/**
+ * Walk the function's body looking for any JSX node. Returns `true` on
+ * the first hit. Conservative and short-circuiting — a function with one
+ * JSX return is enough to flip the shape, and we don't need to count.
+ */
+function bodyContainsJsx(node: ts.Node): boolean {
+  let found = false;
+  const visit = (n: ts.Node): void => {
+    if (found) return;
+    if (
+      ts.isJsxElement(n) ||
+      ts.isJsxSelfClosingElement(n) ||
+      ts.isJsxFragment(n)
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(n, visit);
+  };
+  ts.forEachChild(node, visit);
+  return found;
 }
 
 function methodName(

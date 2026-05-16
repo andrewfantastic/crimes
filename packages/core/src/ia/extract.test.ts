@@ -114,6 +114,41 @@ describe("parseMarkdown", () => {
     expect(doc.links[2]!.isLocal).toBe(false);
   });
 
+  it("treats GitHub-relative URLs as non-local (issues, pulls, etc.)", () => {
+    // These look like filesystem paths but are rewritten by GitHub when a
+    // README is rendered on github.com. Flagging them as broken local
+    // links would erode trust in docs_code_drift.
+    const doc = parseMarkdown(
+      [
+        "[Issues](../../issues)",
+        "[Open issue](../../issues/new?title=foo)",
+        "[PR 42](../../pull/42)",
+        "[Pull requests](../../pulls)",
+        "[Wiki](../../wiki/Home)",
+        "[Releases](../../releases/tag/v1.0.0)",
+        "[Actions](../../actions/workflows/ci.yml)",
+        "[Compare](../../compare/main...HEAD)",
+        "[Blob link](../../blob/main/PRD.md)",
+        "[Tree link](../../tree/main/docs)",
+        "[Discussions](../../discussions/123)",
+      ].join("\n") + "\n",
+      "x.md",
+    );
+    expect(doc.links).toHaveLength(11);
+    for (const link of doc.links) {
+      expect(link.isLocal).toBe(false);
+    }
+  });
+
+  it("does not mistake a real relative link starting with ../../ for a GitHub URL", () => {
+    // `../../docs/foo.md` is a legitimate filesystem path two directories
+    // up — the allowlist must only match the GitHub-specific path
+    // segments (issues, pulls, wiki, …).
+    const doc = parseMarkdown("[Local](../../docs/foo.md)\n", "x.md");
+    expect(doc.links).toHaveLength(1);
+    expect(doc.links[0]!.isLocal).toBe(true);
+  });
+
   it("ignores link-shaped text inside inline backtick code spans", () => {
     const doc = parseMarkdown(
       "Example: `[label](path)` describes link syntax.\n",
