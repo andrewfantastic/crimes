@@ -178,7 +178,13 @@ interface Finding {
   evidence: string[];
   scores: FindingScores;
   suggested_actions?: SuggestedAction[];
-  /** Reserved — not yet populated. */
+  /**
+   * Other repo-relative files that contributed evidence to this finding.
+   * Populated by the IA detectors (`missing_agent_context`,
+   * `route_metadata_drift`, `duplicated_navigation_source`,
+   * `concept_alias_drift`, `docs_code_drift`). Absent on structural
+   * findings.
+   */
   related_files?: string[];
 }
 ```
@@ -199,9 +205,16 @@ Populated when the detector has the data:
 - `suggested_actions` — set for every built-in detector in v0.1.0, but
   optional in the schema.
 
+Populated on cross-file findings:
+
+- `related_files` — populated by the five IA detectors
+  (`missing_agent_context`, `route_metadata_drift`,
+  `duplicated_navigation_source`, `concept_alias_drift`,
+  `docs_code_drift`). Absent on structural findings (`large_file`,
+  `large_function`, `todo_density`, `direct_date`).
+
 Reserved (declared in the schema, deferred to later milestones):
 
-- `related_files` — cross-file context, e.g. nearby tests, similar functions
 - `scores.blast_radius`, `scores.churn`, `scores.test_gap` — see below
 
 ### `id`
@@ -346,7 +359,14 @@ Populated by cross-file detectors (the information-architecture
 detectors listed above). For each IA finding, `file` is the canonical
 anchor (route file, nav source, doc, or alias-group anchor) and
 `related_files` lists the other repo-relative paths that contributed
-evidence.
+evidence. Paths are repo-relative POSIX strings, deduped, and sorted
+deterministically.
+
+The human reporter renders `related_files` as an "Also touches:" block
+under each finding (capped at 5 entries with the rest summarised), so
+JSON consumers and human readers see the same set of paths without the
+JSON contract changing. Treat each entry as "also read this before
+editing" — same scope as the finding itself.
 
 Reserved by the file-local detectors. They do not populate it today;
 treat absence as "no cross-file context for this finding".

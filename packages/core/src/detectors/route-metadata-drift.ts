@@ -34,8 +34,13 @@ export const routeMetadataDriftDetector: Detector = {
   },
 };
 
-/** Cap how many evidence strings we attach -- keep the report readable. */
-const MAX_EVIDENCE = 6;
+/**
+ * Cap how many evidence strings we attach -- keep the report readable.
+ * Sized to fit route path + file + component + up to ~2 titles + up to ~3
+ * nav labels (the common worst case) without dropping a nav source that
+ * `related_files` will still surface.
+ */
+const MAX_EVIDENCE = 8;
 
 function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
   // Tokenised concept bags from each labeled source.

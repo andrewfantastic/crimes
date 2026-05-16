@@ -100,6 +100,8 @@
               "Baseline snapshot to pin legacy debt and gate on new findings",
               "One-line branch verdict — cleaner, worse, unchanged, or mixed",
               "Churn × findings hotspots",
+              "Information architecture detectors: Missing Agent Context, Route Metadata Drift, Duplicated Navigation Source, Concept Alias Drift, Docs-Code Drift",
+              "Cross-file related_files for IA findings",
               "Stable, versioned JSON output for AI agents",
               "Claude Code skill and AGENTS.md integration",
               "GitHub Actions example for PR gating"
@@ -195,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.2.0 · branch &amp; PR safety</span>
+          <span class="pill">v0.2.0 shipped · v0.3.0 IA crimes on <code>main</code></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -625,7 +627,9 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
 
       <section id="detects">
         <h2>What it detects today</h2>
-        <div class="detector-table" role="table" aria-label="Shipped detectors">
+
+        <h3 class="sub">Structural detectors · shipped in v0.1.0</h3>
+        <div class="detector-table" role="table" aria-label="Structural detectors shipped in v0.1.0">
           <div class="row head" role="row">
             <span role="columnheader">Detector</span>
             <span role="columnheader">Charge</span>
@@ -664,6 +668,116 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
             </span>
           </div>
         </div>
+
+        <h3 class="sub">Information architecture detectors · coming in v0.3.0 (on <code>main</code> today)</h3>
+        <p>
+          <strong>IA crimes</strong> surface deterministic evidence that
+          the repo tells <em>multiple competing stories about the same
+          product concept</em> — what something is called, where it lives,
+          which implementation owns it. No LLM, no API key, no network.
+          Every finding cites concrete files, lines, and string literals;
+          cross-file findings populate <code>related_files</code> and
+          render as an "Also touches:" block in the human report.
+        </p>
+        <div class="detector-table" role="table" aria-label="Information architecture detectors on main, coming in v0.3.0">
+          <div class="row head" role="row">
+            <span role="columnheader">Detector</span>
+            <span role="columnheader">Charge</span>
+            <span role="columnheader">What it flags</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>missing_agent_context</code></span>
+            <span role="cell"><strong>Missing Agent Context</strong></span>
+            <span role="cell">
+              Repos that declare a <code>bin</code> in
+              <code>package.json</code> but ship no <code>AGENTS.md</code>,
+              no <code>CLAUDE.md</code>, and no
+              <code>.claude/skills/*/SKILL.md</code>.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>route_metadata_drift</code></span>
+            <span role="cell"><strong>Route Metadata Drift</strong></span>
+            <span role="cell">
+              Route path, file location, default-export component,
+              <code>&lt;title&gt;</code>, <code>metadata.title</code>, and
+              nav labels describe the same destination with competing
+              concept tokens (≥3-source quorum).
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>duplicated_navigation_source</code></span>
+            <span role="cell"><strong>Duplicated Navigation Source</strong></span>
+            <span role="cell">
+              A single internal destination (e.g.
+              <code>/settings/billing</code>) appears in two or more
+              nav-like sources with different non-empty labels.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>concept_alias_drift</code></span>
+            <span role="cell"><strong>Concept Alias Drift</strong></span>
+            <span role="cell">
+              Multiple aliases from a seeded concept group
+              (<code>team</code> / <code>workspace</code> /
+              <code>org</code>; <code>plan</code> /
+              <code>subscription</code> / <code>tier</code>) appear across
+              the product surface, each in ≥2 distinct directories.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><code>docs_code_drift</code></span>
+            <span role="cell"><strong>Docs-Code Drift</strong></span>
+            <span role="cell">
+              A markdown doc under <code>docs/</code> (or a root-level
+              <code>*.md</code>) contains a local link that does not
+              resolve to a file on disk.
+            </span>
+          </div>
+        </div>
+
+        <h4 class="sub">Example IA findings (from the bundled fixture)</h4>
+        <pre><code><span class="comment"># Concept Alias Drift</span>
+alias group: tenant
+aliases found: account, organisation, team, workspace
+"account" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx
+"team" in 2 file(s): docs/teams.md, src/routes/team/index.tsx
+"workspace" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx
+
+<span class="comment"># Route Metadata Drift</span>
+route path: /settings/billing
+file: src/routes/settings/billing.tsx
+component: PricingPage
+metadata.title: Plans
+&lt;title&gt;: Subscription
+nav label in src/nav/registry.ts: Plans
+
+<span class="comment"># Duplicated Navigation Source</span>
+destination: /settings/billing
+src/nav/registry.ts label: Plans
+src/nav/sidebar.ts label: Billing
+
+<span class="comment"># Missing Agent Context</span>
+no AGENTS.md found at repo root
+no CLAUDE.md found at repo root
+no .claude/skills/*/SKILL.md present
+package.json declares bin(s): messy — agents have no way to discover commands
+
+<span class="comment"># Docs-Code Drift</span>
+docs/teams.md:5 → ./setup.md (not found)</code></pre>
+
+        <p class="note">
+          Built for humans and coding agents. IA findings phrase summaries
+          as "appears to" / "may" — they are
+          <strong>ambiguity signals</strong>, not claims of semantic truth.
+          Long-form reference (quorum rules, false-positive notes,
+          suggested fixes):
+          <a
+            href="https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md"
+            ><code>docs/finding-types/ia.md</code></a
+          >.
+        </p>
+
         <p class="note">
           Every finding includes <strong>evidence</strong> (raw facts the
           detector observed) and <strong>scores</strong>
@@ -818,22 +932,26 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
           </li>
           <li>
             <strong>v0.3.0 — information architecture crimes.</strong>
-            Detectors for repo structure drift that confuses humans and
-            coding agents: <strong>Concept Alias Drift</strong>
-            (<code>organization</code> / <code>workspace</code> /
-            <code>team</code> / <code>account</code> for the same
-            concept), <strong>Route Metadata Drift</strong> (route, nav
-            label, page title, breadcrumb, and component name disagree),
+            On <code>main</code> today, awaiting an npm tag.
+            Five detectors for repo structure drift that confuses humans
+            and coding agents: <strong>Missing Agent Context</strong>,
+            <strong>Route Metadata Drift</strong>,
             <strong>Duplicated Navigation Source</strong>,
-            <strong>Orphaned Destination</strong>, and
-            <strong>Parallel Destination</strong>. Source-of-truth
-            ambiguity that linters and security scanners don't look for,
-            and that agents repeatedly trip over when picking the wrong
-            vocabulary or the wrong copy of nav. Candidate slice —
-            subject to revisit during planning. Supporting work
+            <strong>Concept Alias Drift</strong>, and
+            <strong>Docs-Code Drift</strong>. Cross-file
+            <code>related_files</code> is now populated by IA findings
+            and renders as an "Also touches:" block in the human report.
+            Long-form reference:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md"
+              ><code>docs/finding-types/ia.md</code></a
+            >. Still deferred from this slice:
+            <strong>Orphaned Destination</strong>,
+            <strong>Parallel Destination</strong>,
+            <strong>Permission IA Drift</strong>, and
+            <strong>Action Label Drift</strong>. Supporting work
             (per-finding <code>scores.churn</code> /
-            <code>scores.test_gap</code>, cross-file
-            <code>related_files</code>, <code>crimes explain</code>,
+            <code>scores.test_gap</code>, <code>crimes explain</code>,
             <code>crimes ignore</code>, <code>crimes diff --fail-on
             new-high</code>) slots in around the IA detectors.
           </li>

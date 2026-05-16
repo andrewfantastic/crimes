@@ -475,8 +475,9 @@ Bad:
 
 ## Information architecture findings
 
-`crimes@0.3.0` adds five **information architecture** detectors that
-look for ambiguous sources of truth across the repo:
+`crimes@0.3.0` (release candidate on `main`; not yet tagged on npm)
+adds five **information architecture** detectors that look for
+ambiguous sources of truth across the repo:
 
 | `Finding.type`                  | Charge                       | Reads                                                                                  |
 | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
@@ -491,7 +492,18 @@ finding on the most useful single path (the route file, the
 lexicographically first nav source, the alias-group anchor, the doc),
 and `related_files` lists the other repo-relative paths that
 contributed evidence. Treat `related_files` as "also read these before
-editing" — same scope as the finding itself.
+editing" — same scope as the finding itself. The human reporter renders
+those paths as an "Also touches:" block under each finding (capped at 5
+with the rest summarised), so a grep-friendly run still surfaces every
+file an agent needs to read.
+
+**Why this matters for agents.** Without IA findings, an agent asked
+to "rename the billing page" or "update the team copy" picks the file
+it greps first and leaves every other source of truth stale. IA
+findings make that ambiguity visible **before** the edit — every
+`related_files` entry is a place where the same concept lives under a
+different label, in a different file, with a different vocabulary.
+Read them before choosing which one is canonical.
 
 Each `agent_guidance` line is keyed on `Finding.type`:
 

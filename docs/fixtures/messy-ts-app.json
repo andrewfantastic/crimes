@@ -237,7 +237,8 @@
         "component: PricingPage",
         "metadata.title: Plans",
         "<title>: Subscription",
-        "nav label in src/nav/registry.ts: Plans"
+        "nav label in src/nav/registry.ts: Plans",
+        "nav label in src/nav/sidebar.ts: Billing"
       ],
       "scores": {
         "severity": 0.6,

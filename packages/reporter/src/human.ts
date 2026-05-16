@@ -27,6 +27,8 @@ export interface HumanReportOptions {
 
 const DEFAULT_TOP_N = 10;
 
+const RELATED_FILES_DISPLAY_CAP = 5;
+
 export function formatHumanReport(
   report: ScanReport,
   options: HumanReportOptions = {},
@@ -90,6 +92,19 @@ function renderFinding(finding: Finding, n: number, colour: ColourFns): string[]
     out.push(`     ${colour.bold("Evidence:")}`);
     for (const ev of finding.evidence) {
       out.push(`       · ${colour.dim(ev)}`);
+    }
+  }
+  if (finding.related_files && finding.related_files.length > 0) {
+    const shown = finding.related_files.slice(0, RELATED_FILES_DISPLAY_CAP);
+    const hidden = finding.related_files.length - shown.length;
+    out.push(`     ${colour.bold("Also touches:")}`);
+    for (const rel of shown) {
+      out.push(`       · ${colour.cyan(rel)}`);
+    }
+    if (hidden > 0) {
+      out.push(
+        `       ${colour.dim(`… and ${hidden} more (see JSON output)`)}`,
+      );
     }
   }
   out.push(

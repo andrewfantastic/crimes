@@ -80,6 +80,71 @@ describe("formatHumanReport", () => {
     const out = formatHumanReport(empty, { noColor: true });
     expect(out).toContain("No crimes detected");
   });
+
+  it("does not render an 'Also touches' block when related_files is absent or empty", () => {
+    const out = formatHumanReport(sampleReport, { noColor: true });
+    expect(out).not.toContain("Also touches");
+
+    const empty: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          related_files: [],
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const outEmpty = formatHumanReport(empty, { noColor: true });
+    expect(outEmpty).not.toContain("Also touches");
+  });
+
+  it("renders 'Also touches' for findings with related_files", () => {
+    const withRelated: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          related_files: ["src/nav/registry.ts", "src/nav/sidebar.ts"],
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const out = formatHumanReport(withRelated, { noColor: true });
+    expect(out).toContain("Also touches:");
+    expect(out).toContain("src/nav/registry.ts");
+    expect(out).toContain("src/nav/sidebar.ts");
+    expect(out).not.toContain("more (see JSON output)");
+  });
+
+  it("caps the 'Also touches' block at 5 entries and notes overflow", () => {
+    const many = [
+      "src/a.ts",
+      "src/b.ts",
+      "src/c.ts",
+      "src/d.ts",
+      "src/e.ts",
+      "src/f.ts",
+      "src/g.ts",
+    ];
+    const withRelated: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          related_files: many,
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const out = formatHumanReport(withRelated, { noColor: true });
+    expect(out).toContain("Also touches:");
+    expect(out).toContain("src/a.ts");
+    expect(out).toContain("src/e.ts");
+    expect(out).not.toContain("src/f.ts");
+    expect(out).not.toContain("src/g.ts");
+    expect(out).toContain("and 2 more (see JSON output)");
+  });
 });
 
 describe("formatJsonReport", () => {
@@ -107,6 +172,25 @@ describe("formatJsonReport", () => {
       expect(parsed).toHaveProperty(key);
     }
     expect(parsed.report_type).toBe("scan");
+  });
+
+  it("preserves related_files exactly when present on a finding", () => {
+    const withRelated: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          related_files: ["src/nav/registry.ts", "src/nav/sidebar.ts"],
+        },
+        sampleReport.findings[1]!,
+      ],
+    };
+    const parsed = JSON.parse(formatJsonReport(withRelated)) as ScanReport;
+    expect(parsed.findings[0]!.related_files).toEqual([
+      "src/nav/registry.ts",
+      "src/nav/sidebar.ts",
+    ]);
+    expect(parsed.findings[1]!.related_files).toBeUndefined();
   });
 });
 

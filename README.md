@@ -69,13 +69,15 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.2.0` release candidate
+## Status — `crimes@0.3.0` in development
 
-`packages/cli/package.json` is pinned at `0.2.0`. Everything below ships
-from `main` today and is verified by the publish-tarball smoke test in
-CI on every commit. The next GitHub Release tagged `v0.2.0` will cut
-the npm publish via Trusted Publishing. Last published: `crimes@0.1.0`
-(2026-05-15).
+`packages/cli/package.json` is pinned at `0.2.0` (the release candidate
+awaiting tag). Everything below — including the new information
+architecture (IA) detectors that headline `0.3.0` — already ships from
+`main` and is verified by the publish-tarball smoke test in CI on every
+commit. Last published: `crimes@0.1.0` (2026-05-15). The next GitHub
+Release tagged `v0.2.0` cuts the npm publish via Trusted Publishing;
+`v0.3.0` follows once the IA slice has soaked.
 
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` — directory scan, default top-10
@@ -103,7 +105,11 @@ the npm publish via Trusted Publishing. Last published: `crimes@0.1.0`
   worse, unchanged, or mixed?" — built on top of `crimes diff`. Default
   base is `origin/main`, then `main`. Advisory by default; opt into a
   blocking gate with `--fail-on worse | new-high | new-medium`.
-- Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
+- Structural detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
+- IA detectors (current `main`, shipping in `0.3.0`): **Missing Agent
+  Context**, **Route Metadata Drift**, **Duplicated Navigation Source**,
+  **Concept Alias Drift**, **Docs-Code Drift** — see
+  [`docs/finding-types/ia.md`](./docs/finding-types/ia.md)
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
 - CI integration: three gating modes documented in
@@ -174,7 +180,7 @@ the full list):
 ## What's next — `crimes@0.3.0`
 
 **Theme: information architecture crimes.** `0.2.0` made `crimes`
-useful for branches, PRs, CI, and agent loops. `0.3.0` should make it
+useful for branches, PRs, CI, and agent loops. `0.3.0` makes it
 better at detecting **source-of-truth and concept drift** — the places
 where a repo gives humans and coding agents conflicting stories about
 what things are called, where they live, which implementation owns
@@ -182,25 +188,44 @@ them, and how users move through the product. This is the
 agent-confusion-risk wedge taken seriously: deterministic, evidence-backed
 findings that linters and security scanners don't look for.
 
-Likely candidate slice (subject to revisit during planning, full
-detail in [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
+Shipped to `main` for the `0.3.0` release candidate (not yet published
+to npm — pinned at `0.2.0`):
 
-- **Concept Alias Drift** — `organization` / `workspace` / `team` /
-  `account` for the same concept across code, routes, copy, and docs.
-- **Route Metadata Drift** — route path, nav label, page title,
-  breadcrumb, and component name disagree.
-- **Duplicated Navigation Source** — the same destination repeated
-  across nav arrays, route registries, sitemap data, and sidebars.
+- **Missing Agent Context** — repos that declare a `bin` in
+  `package.json` but ship no `AGENTS.md`, no `CLAUDE.md`, and no
+  `.claude/skills/*/SKILL.md`.
+- **Route Metadata Drift** — route path, file location, default-export
+  component, page title, metadata title, and nav labels disagree
+  (≥3-source quorum).
+- **Duplicated Navigation Source** — the same internal destination
+  appears in two or more nav-like sources with different non-empty
+  labels.
+- **Concept Alias Drift** — multiple aliases from a seeded concept group
+  (`team`/`workspace`/`org`, `plan`/`tier`/`subscription`, etc.) appear
+  across the product surface, each in ≥2 distinct directories.
+- **Docs-Code Drift** — local links in `docs/**/*.md` (and root-level
+  `*.md`) that do not resolve on disk.
+
+Cross-file `related_files` is now populated by the IA detectors and
+rendered as an "Also touches:" block in the human report. Long-form
+reference (quorum rules, false-positive notes, suggested fixes):
+[`docs/finding-types/ia.md`](./docs/finding-types/ia.md).
+
+Still deferred from the IA slice (candidates for `0.3.x` / `0.4.0`):
+
 - **Orphaned Destination** — pages / routes / screens unreachable from
   primary navigation.
 - **Parallel Destination** — `/billing` vs `/settings/billing` vs
   `/account/subscription` for the same user intent.
+- **Permission IA Drift** — nav, route guards, docs, and policy code
+  describe access using different roles.
+- **Action Label Drift** — "Delete" / "Remove" / "Archive" for the same
+  operation across UI copy and code.
 
 Supporting work — per-finding scores (`scores.churn` / `scores.test_gap`
-/ `scores.blast_radius`), cross-file `related_files`, `crimes explain`,
-`crimes ignore` + suppressions, `crimes init`, and `crimes diff
---fail-on new-high` — slots in around the IA detectors but is no longer
-the headline theme.
+/ `scores.blast_radius`), `crimes explain`, `crimes ignore` +
+suppressions, `crimes init`, and `crimes diff --fail-on new-high` —
+slots in around the IA detectors but is no longer the headline theme.
 
 ---
 
@@ -236,12 +261,32 @@ workflow.
 
 ## What it finds (today)
 
+### Structural detectors (shipped in `0.1.0`)
+
 | Detector            | Charge                | What it does                                                                    |
 | ------------------- | --------------------- | ------------------------------------------------------------------------------- |
 | `large_file`        | God File              | Flags files over a line threshold (default 300)                                 |
 | `large_function`    | God Function          | Flags functions / methods / arrows over a body-line threshold (default 60)     |
 | `todo_density`      | Unfinished Business   | Flags files with high density of `TODO` / `FIXME` / `XXX` / `HACK` markers      |
 | `direct_date`       | Temporal Recklessness | Flags direct uses of `Date.now()` and `new Date()` in source files              |
+
+### Information architecture detectors (shipping in `0.3.0`, currently on `main`)
+
+| Detector                        | Charge                       | What it does                                                                                                                          |
+| ------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `missing_agent_context`         | Missing Agent Context        | Repos with a `bin` in `package.json` but no `AGENTS.md`, no `CLAUDE.md`, and no `.claude/skills/*/SKILL.md`                            |
+| `route_metadata_drift`          | Route Metadata Drift         | Route path, file, default-export component, page title, metadata title, and nav-source labels disagree for the same destination       |
+| `duplicated_navigation_source`  | Duplicated Navigation Source | The same internal destination appears in two or more nav-like sources with different non-empty labels                                 |
+| `concept_alias_drift`           | Concept Alias Drift          | Multiple aliases from a seeded concept group (`team`/`workspace`/`org`, `plan`/`tier`/`subscription`, etc.) appear across the product surface |
+| `docs_code_drift`               | Docs-Code Drift              | A markdown doc under `docs/` (or a root-level `*.md`) contains a local link that does not resolve to a file on disk                   |
+
+IA crimes surface **deterministic evidence that the repo tells multiple
+stories about the same product concept** — what something is called,
+where it lives, which implementation owns it. No LLM, no API key, no
+network access. See [`docs/finding-types/ia.md`](./docs/finding-types/ia.md)
+for the long-form reference (quorum rules, false-positive notes, suggested
+fixes) and the `related_files` field on every IA finding for the other
+paths that contributed evidence.
 
 Every finding includes **evidence** (raw facts the detector observed) and
 **scores** (`severity`, `confidence`, `agent_risk`) so downstream tools can
