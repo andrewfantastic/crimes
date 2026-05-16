@@ -24,10 +24,10 @@
         50,
         253
       ],
-      "summary": "generateInvoice spans 204 lines — past the 60-line threshold for a single function. Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
+      "summary": "generateInvoice is 204 lines long (domain function threshold 60). Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
       "evidence": [
         "lines 50–253 (204 lines)",
-        "3.4× the configured 60-line threshold",
+        "3.4× the domain function threshold (60 lines)",
         "function declaration"
       ],
       "scores": {

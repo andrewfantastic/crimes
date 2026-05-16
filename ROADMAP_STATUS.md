@@ -6,14 +6,14 @@ mirror, not a planning doc.
 
 - **Last published version:** `crimes@0.2.0` (npm) ✅ shipped — _branch
   and PR safety for humans and coding agents_.
-- **Release candidate on `main`:** `crimes@0.3.0` — _information
-  architecture crimes_. `packages/cli/package.json` is bumped to
-  `0.3.0`; the IA concept index and the first five IA detectors
-  (Missing Agent Context, Route Metadata Drift, Duplicated Navigation
-  Source, Concept Alias Drift, Docs-Code Drift) ship on `main`. Smoke
-  test + local verification pass. Awaiting the GitHub Release tagged
-  `v0.3.0` that will fire
-  [`.github/workflows/release.yml`](./.github/workflows/release.yml).
+- **Shipped on `main` (awaiting npm release):** `crimes@0.3.0` —
+  _information architecture crimes_ — and `crimes@0.4.0` — _agent
+  context quality and signal-to-noise_. `packages/cli/package.json` is
+  bumped to `0.4.0`. Both bodies of work ship from `main` and pass the
+  publish-tarball smoke test. A GitHub Release tagged `v0.4.0` will
+  fire [`.github/workflows/release.yml`](./.github/workflows/release.yml)
+  and cut both shipped milestones to npm at once. Release notes draft:
+  [`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md).
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
 - **Website:** [crimes.sh](https://crimes.sh) — live, deployed from this
@@ -24,8 +24,8 @@ mirror, not a planning doc.
 | ----------------------------- | --------------------------------------------------------------------------------------- |
 | M0 — Repo foundation          | ✅ done (shipped in 0.1.0)                                                              |
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
-| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to 0.4.0+ |
-| M3 — Agent context            | 🟢 expanded — `crimes context` + `AGENTS.md` + Claude skill (0.1.0); cross-file `related_files` populated by IA findings (0.3.0) |
+| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to 0.5.0+. `0.4.0` adds shallow-clone awareness via `history_limited`. |
+| M3 — Agent context            | 🟢 expanded again in `0.4.0` — `crimes context` + `AGENTS.md` + Claude skill (0.1.0); cross-file `related_files` on IA findings (0.3.0); deterministic neighbourhood `related_files`, monorepo-root auto-detection, shape-aware `large_function`, top-level `agent_guidance` ordering, and empty-field reasons (0.4.0). |
 | M4 — Diff and CI              | 🟢 0.2.0 shipped — `scan --changed [--base]` ✅, `scan --changed --fail-on` ✅, `diff` ✅, `baseline save` / `baseline check` ✅, `verdict` ✅, [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅. `diff --fail-on new-high` and per-finding ignore / suppressions still deferred. |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
@@ -313,9 +313,9 @@ Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 
 ---
 
-## 🎯 Next target — `crimes@0.4.0` (tentative)
+## 🟢 Release candidate — `crimes@0.4.0`
 
-**Theme (recommended, revised after 0.3.0 real-repo trials): _agent context quality and signal-to-noise_.**
+**Theme: agent context quality and signal-to-noise.**
 
 > **Implementation plan:
 > [`AGENT_CONTEXT_QUALITY_PLAN.md`](./AGENT_CONTEXT_QUALITY_PLAN.md).**
@@ -324,39 +324,121 @@ Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 > live there. This section is the status mirror.
 
 Real-repo trials of `0.3.0` with Claude Code and Codex CLI surfaced
-two coupled gaps that overshadow the next detector: (1) `crimes
-context` does not yet tell agents what _else_ to read before editing
-the target file (no domain neighbourhood), and (2) several existing
-detectors are noisy enough on production repos (React pages, route
+two coupled gaps: (1) `crimes context` did not tell agents what _else_
+to read before editing the target file, and (2) several existing
+detectors were noisy enough on production repos (React pages, route
 handlers, test callbacks, GitHub-relative README links, shallow git
-clones, nested-package roots) that agents start to discount the
-report. The wedge — _local, open-source, agent-native_ — is strongest
-when it tells agents what else to read, and weakest when its
-findings cause agents to ignore the report. `0.4.0` raises the
-context floor and lowers the noise ceiling _before_ adding more
-detectors.
+clones, nested-package roots) that agents started to discount the
+report. `0.4.0` raises the context floor and lowers the noise ceiling
+_before_ adding more detectors — no new detectors ship in this
+release.
 
-Three candidates were considered for the next-release headline:
+### ✅ Completed in `0.4.0` (on `main`)
 
-| Candidate | Pitch | Why not now |
-| --------- | ----- | ----------- |
-| **A. Deeper IA coverage** — ship `orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift` | Stays in the `0.3.0` lane and keeps the IA momentum visible. | Pre-empted by real-repo feedback: "no more detectors before fixing noise". Three of the four also need machinery that does not exist yet (near-duplicate scoring, policy / route-guard discovery). |
-| **B. Repo risk scoring** — populate `scores.churn`, `scores.test_gap`, and `scores.blast_radius` on every finding, ranked aggregate-first | Closes the M2 milestone and makes hotspot ranking more honest. | Touches every detector and the scoring contract; bigger than one minor release. Still on the long-term roadmap. |
-| **C. Suppressions and config** — `crimes init` + `crimes.config.json` plumbing, `crimes ignore <id>` + `.crimes/suppressions.json`, optional `crimes explain <id>` | Closes the M4 polish gap. | Demand for suppressions is mostly demand to silence noisy findings. Fixing the noise at source (shape-aware thresholds, GitHub-link allowlist, shallow-clone annotation) removes most of that demand. Slips to **0.5.0**. |
-| **D. Agent context quality and signal-to-noise** ✅ — monorepo / nested-package root detection for `context`, deterministic neighbourhood-related-file discovery, shape-aware `large_function`, `docs_code_drift` GitHub-relative allowlist, `_test.ts` likely-test detection, `scan --changed` `changed_files`, `hotspots` shallow-clone annotation, empty-field self-explanation, docs honesty pass | Directly addresses the two highest-leverage gaps surfaced by Claude / Codex trials of `0.3.0` on real repos. No new detectors; every change raises the trust ratio of findings that already ship. | — |
+- **Monorepo / nested-package root detection for `crimes context`** —
+  `findNearestPackageRoot` walks up from the target file to the nearest
+  enclosing `package.json` and uses that as the scan root. Explicit
+  `--root` still wins. Output paths are normalised against the chosen
+  root so `crimes context examples/messy-ts-app/src/foo.ts` from the
+  monorepo root and `crimes context src/foo.ts` from inside the
+  package produce equivalent reports.
+- **Deterministic neighbourhood `related_files` on `ContextReport`** —
+  new
+  [`packages/core/src/context-related-files.ts`](./packages/core/src/context-related-files.ts)
+  ranks up to 10 files an agent should read before editing the target,
+  using four heuristics: IA finding passthrough (`related to <charge>`),
+  shared IA path tokens, domain-prefix filename matches, and same-
+  directory siblings. Each entry carries a `reason` string and an
+  ordinal `score`. Files already in `likely_tests` are excluded.
+- **Shape-aware `large_function`** — `ParsedFunction` carries a new
+  `shape: FunctionShape` (`domain | test_callback | react_component |
+  page_export | route_handler | unknown`) computed during AST parsing.
+  Per-shape thresholds (60/200@low/200/200/100/80) replace the single
+  60-line cut-off. Test callbacks no longer dominate scans; React pages
+  and route handlers get appropriate budgets; `generateInvoice`'s
+  fixture finding still flags at high.
+- **`_test.ts` / `_spec.ts` likely-test discovery** — Go-style suffix
+  conventions (`foo_test.ts`, `foo_spec.ts`) join the existing
+  `.test.ts` / `.spec.ts` / `__tests__/` rules.
+- **`docs_code_drift` GitHub-relative link allowlist** — `../../issues`,
+  `../../pull/N`, `../../wiki/Home`, `../../blob/main/PRD.md`, and
+  the rest of the GitHub-rewritten path set are no longer flagged as
+  broken local links. Real `../../docs/foo.md` paths still resolve.
+- **`ScanReport.changed_files`** — `crimes scan --changed --format json`
+  now emits a top-level array listing every file the resolver returned,
+  sorted and deduplicated, **including** files with zero findings
+  (touched markdown, lockfiles, etc.). Plain `crimes scan` omits the
+  field.
+- **`HotspotsReport.history_limited` + `history_limited_reason`** —
+  detected via `git rev-parse --is-shallow-repository`. The human
+  reporter prints `(history limited: …)` on the same line as the
+  existing not-a-git-repo notice. Agents should downweight rankings
+  when the flag is set.
+- **Top-level `agent_guidance` ordering in `ContextReport`** —
+  serialised JSON now places `agent_guidance` ahead of `findings` so
+  agents read the actionable summary first. Same wording as 0.3.0.
+- **Neighbourhood guidance line** — when a target file has no findings
+  but does have related files, `agent_guidance` gains a single line
+  pointing the agent at the neighbourhood instead of being empty.
+- **Empty-field self-explanation** — `agent_guidance_reason`,
+  `related_files_reason`, and `likely_tests_reason` are each set
+  **only when** the matching array is empty. Distinguishes "we
+  searched and found nothing" from "we didn't search".
 
-**Rationale.** `0.3.0` ships ambiguity signals that explicitly *want*
-to fire on some legitimate aliases (see Concept Alias Drift's
-false-positive notes). Live trials showed the next painful experience
-isn't "I can't suppress this finding" — it's "I don't trust this
-finding." Suppressions paper over noise; `0.4.0` removes it. Once
-the existing detectors are reliable, suppressions and config (the
-previous `C` candidate) become the right `0.5.0` headline — they
-unblock declarative inputs that the deferred IA detectors (A) need.
+All additions land additively under the same
+`schema_version: "0.1.0"`. **No schema bump.** No CLI behaviour
+regressions. JSON consumers that read by key name (the recommended
+pattern) are unaffected by the `agent_guidance` reordering.
 
-Candidates A, B, and C remain on the long-term roadmap. Specific
-sub-items may slip into `0.4.0` opportunistically if they land with a
-small enough surface area; they are not the headline.
+### Deferred from `0.4.0`
+
+Tracked for `0.5.0` or later. **Do not** document them as shipped.
+
+- **`crimes init` + `crimes.config.json` plumbing** — moves to
+  `0.5.0` alongside suppressions.
+- **`crimes ignore <id>` + `.crimes/suppressions.json`** — moves to
+  `0.5.0`. The noise-reduction work in `0.4.0` removed most of the
+  underlying demand.
+- **More IA detectors** — `orphaned_destination`,
+  `parallel_destination`, `permission_ia_drift`, `action_label_drift`,
+  command-drift variant of `docs_code_drift`. Pre-empted by the "no
+  more detectors before fixing noise" feedback.
+- **Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`** —
+  M2 work; large surface area, deferred again.
+- **`crimes diff --fail-on new-high`** — finish the M4 CI-gate trio.
+- **`crimes explain <id>`** — long-form per-finding rationale.
+- **`crimes ask` / LLM-assisted modes** — `v1+`.
+- **Homebrew tap + standalone binaries** — deferred until the CLI
+  surface stabilises further.
+- **Importer / importee detection in `related_files`** — would require
+  walking every file's imports. Deferred; the four shipped heuristics
+  cover the common cases.
+- **CLI breadcrumb when the auto-detected package root differs from
+  cwd** — the auto-detection works silently. A one-line stderr note
+  was suggested in the plan; deferred.
+- **`pnpm-workspace.yaml` / `turbo.json` as additional monorepo
+  markers** — `package.json` alone covers >95% of cases.
+
+---
+
+## 🎯 Next target — `crimes@0.5.0` (tentative)
+
+**Theme (recommended): suppressions, config plumbing, and `crimes
+explain`.** The 0.4.0 release made existing detectors quieter and more
+trustworthy; 0.5.0 closes the M4 polish gap with the work that was
+deferred from 0.2.0 and 0.4.0:
+
+- **`crimes init`** writes a starter `crimes.config.json` with sensible
+  defaults (matching the documented zero-config shape).
+- **`crimes ignore <id> --reason "…"`** appends to
+  `.crimes/suppressions.json`; fingerprints are the same
+  `<type>::<file>::<symbol-or-empty>` `crimes diff` already uses.
+- **`crimes explain <id>`** prints the long-form rationale per finding
+  type — what the detector observed, why it matters, what to do.
+- **Optional richer per-finding scores** — `scores.churn` and
+  `scores.test_gap` if the implementation surface stays small enough.
+
+The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ---
 
