@@ -50,6 +50,8 @@ interface ScanReport {
   fail_on?: "low" | "medium" | "high";
   /** Set only when `fail_on` is set. True when ≥1 finding meets `fail_on`. */
   failed?: boolean;
+  /** Set only when `crimes scan --changed` was used. See below. */
+  changed_files?: string[];
 }
 ```
 
@@ -138,6 +140,33 @@ The corresponding CLI behaviour:
   `--fail-on` is not passed — it still always exits `0`.
 
 See [`docs/ci.md`](./ci.md) for the recommended CI integration.
+
+### `scan --changed` `changed_files` field
+
+`changed_files` is **optional**, top-level, and **only set when the CLI
+runs `crimes scan --changed`** (with or without `--base`, with or
+without `--fail-on`). Plain `crimes scan` omits the field. Adding an
+optional field is non-breaking under the
+[stability guarantees](#stability-guarantees).
+
+```ts
+changed_files?: string[];
+```
+
+- Lists **every** file the `--changed` resolver returned — including
+  files that produced **zero** findings (e.g. a touched `README.md`,
+  `package.json`, or a `.ts` file the detectors had nothing to say
+  about). The point is that an agent re-running `crimes scan --changed`
+  after an edit can confirm which files it actually touched even when
+  the diff is clean.
+- Paths are **repo-relative POSIX** (`/`-separated). Sorted
+  alphabetically and deduplicated.
+- When the working tree has no changes, the array is **present and
+  empty** — that's "we looked and found nothing", not "we didn't look".
+- The set is the same one `crimes scan --changed` resolves to drive
+  the scan — staged + unstaged + untracked working-tree changes, plus
+  `<base>...HEAD` when `--base` is set. Deletions are skipped (git
+  reports them but the path no longer exists on disk).
 
 ### `findings`
 
@@ -580,6 +609,10 @@ interface HotspotsReport {
   since: string;
   /** False when the directory is not a git repository or `git` is unavailable. */
   git_available: boolean;
+  /** True when commit history is truncated (e.g. shallow clone). See below. */
+  history_limited?: boolean;
+  /** Short reason string. Only set when `history_limited` is true. */
+  history_limited_reason?: string;
   hotspots: Hotspot[];
 }
 
@@ -625,6 +658,36 @@ contract as the per-finding `scores.*` fields).
 When `git_available` is `false`, every row has `change_count: 0` and no
 `latest_change`. `risk` then collapses to the severity component only and is
 capped at `0.4`. The command does not fail — it degrades.
+
+### Shallow clones (`history_limited`)
+
+When the working tree is a shallow clone (`git rev-parse
+--is-shallow-repository` returns `true`), older commits aren't present
+locally — `git log` only sees the slice the clone fetched. Hotspot
+counts under-report churn in that case. `crimes hotspots` annotates
+this with two optional top-level fields:
+
+```ts
+history_limited?: boolean;
+history_limited_reason?: string;
+```
+
+- **Only set when `git_available` is `true` AND the shallow probe
+  returned `true`.** Plain non-git directories already surface via
+  `git_available: false`; the two flags are mutually exclusive in
+  practice.
+- **`history_limited_reason`** is short, human-readable advisory copy
+  (e.g. `"repository is a shallow clone; older commits are
+  unavailable, so churn counts only reflect history present locally"`).
+  Treat the wording as advisory — match on the boolean flag, not the
+  string.
+- Common in CI runners that default to `--depth=1` clones. Pass
+  `fetch-depth: 0` (or equivalent) in your workflow to deepen the
+  clone and clear the flag.
+
+The human report prints the same notice on its second line, alongside
+the existing "not a git repo" warning. JSON consumers should branch on
+`history_limited` and downweight the ranking accordingly.
 
 ---
 

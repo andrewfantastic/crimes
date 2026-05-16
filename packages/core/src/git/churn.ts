@@ -37,6 +37,21 @@ export interface CollectChurnResult {
    * false or the window contains no commits.
    */
   files: FileChurn[];
+  /**
+   * True when the working tree is a shallow clone (commit history is
+   * truncated). Older commits are unavailable to `git log`, so the churn
+   * counts only reflect history present locally. Treat hotspot rankings
+   * as advisory in this case.
+   *
+   * Detected via `git rev-parse --is-shallow-repository`. Absent /
+   * `undefined` when `gitAvailable` is false.
+   */
+  historyLimited?: boolean;
+  /**
+   * Short, human-readable explanation of why history is limited. Only
+   * set when `historyLimited` is true.
+   */
+  historyLimitedReason?: string;
 }
 
 /**
@@ -161,6 +176,11 @@ function runGit(root: string, args: string[]): Promise<SpawnResult> {
  * Run `git log` over the window and return per-file churn. Resolves with
  * `gitAvailable: false` (and an empty file list) for non-git directories or
  * when the `git` binary is missing.
+ *
+ * Also probes `git rev-parse --is-shallow-repository` so callers can
+ * annotate degraded rankings as `history_limited`. Probing is best-effort;
+ * a probe failure is treated as "not shallow" rather than as the whole
+ * churn collection failing.
  */
 export async function collectChurn(
   options: CollectChurnOptions,
@@ -173,15 +193,43 @@ export async function collectChurn(
   const sinceArg = normaliseSince(since);
 
   try {
-    const result = await runGit(root, [
-      "log",
-      `--since=${sinceArg}`,
-      `--pretty=format:${COMMIT_MARKER} %cI`,
-      "--name-only",
-      "--no-merges",
+    const [log, shallow] = await Promise.all([
+      runGit(root, [
+        "log",
+        `--since=${sinceArg}`,
+        `--pretty=format:${COMMIT_MARKER} %cI`,
+        "--name-only",
+        "--no-merges",
+      ]),
+      probeShallow(root),
     ]);
-    return { gitAvailable: true, files: parseGitLog(result.stdout) };
+    const result: CollectChurnResult = {
+      gitAvailable: true,
+      files: parseGitLog(log.stdout),
+    };
+    if (shallow) {
+      result.historyLimited = true;
+      result.historyLimitedReason =
+        "repository is a shallow clone; older commits are unavailable, so churn counts only reflect history present locally";
+    }
+    return result;
   } catch {
     return { gitAvailable: false, files: [] };
+  }
+}
+
+/**
+ * Best-effort `git rev-parse --is-shallow-repository` probe. Returns
+ * `true` only when git explicitly answers `true`. Any error (older git,
+ * detached environments, etc.) returns `false` — callers should treat
+ * "we couldn't tell" the same as "not shallow" rather than masking
+ * findings.
+ */
+async function probeShallow(root: string): Promise<boolean> {
+  try {
+    const result = await runGit(root, ["rev-parse", "--is-shallow-repository"]);
+    return result.stdout.trim() === "true";
+  } catch {
+    return false;
   }
 }

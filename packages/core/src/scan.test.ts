@@ -226,6 +226,66 @@ describe("scan", () => {
       expect(files).toContain("new.ts");
       expect(files).not.toContain("README.md");
     });
+
+    describe("changed_files", () => {
+      it("is omitted on plain (non-changed) scans", async () => {
+        const root = await makeRepo({ "x.ts": "export const x = 1;\n" });
+        const report = await scan({ root });
+        expect(report.changed_files).toBeUndefined();
+      });
+
+      it("lists every git-reported change, including files with no findings", async () => {
+        const root = await makeRepo({ "untouched.ts": "// stable\n" });
+        await git(root, "init", "--initial-branch=main", "--quiet");
+        await git(root, "add", "-A");
+        await git(root, "commit", "-m", "init", "--quiet");
+
+        // Three new files: a TS source with findings, a TS source with
+        // none, and a non-source file the scan would skip entirely.
+        await writeFile(join(root, "new-big.ts"), bigSource(), "utf8");
+        await writeFile(join(root, "clean.ts"), "export const k = 1;\n", "utf8");
+        await writeFile(join(root, "README.md"), "# hi\n", "utf8");
+
+        const report = await scan({ root, changed: true });
+        expect(report.changed_files).toBeDefined();
+        const changed = report.changed_files!;
+        expect(changed).toContain("new-big.ts");
+        expect(changed).toContain("clean.ts");
+        expect(changed).toContain("README.md");
+        // Sorted and deduplicated.
+        expect([...changed]).toEqual([...changed].slice().sort());
+        expect(new Set(changed).size).toBe(changed.length);
+        // The clean.ts file produced no findings but still appears in
+        // changed_files — that's the whole point of the field.
+        const findingFiles = new Set(report.findings.map((f) => f.file));
+        expect(findingFiles.has("clean.ts")).toBe(false);
+      });
+
+      it("is present and empty when the working tree is clean", async () => {
+        const root = await makeRepo({ "x.ts": "export const x = 1;\n" });
+        await git(root, "init", "--initial-branch=main", "--quiet");
+        await git(root, "add", "-A");
+        await git(root, "commit", "-m", "init", "--quiet");
+
+        const report = await scan({ root, changed: true });
+        expect(report.changed_files).toEqual([]);
+      });
+
+      it("includes commits unique to <base>...HEAD when --base is set", async () => {
+        const root = await makeRepo({ "x.ts": "// initial\n" });
+        await git(root, "init", "--initial-branch=main", "--quiet");
+        await git(root, "add", "-A");
+        await git(root, "commit", "-m", "init", "--quiet");
+
+        await git(root, "checkout", "-b", "feature", "--quiet");
+        await writeFile(join(root, "feature.ts"), "export const f = 1;\n", "utf8");
+        await git(root, "add", "-A");
+        await git(root, "commit", "-m", "feature", "--quiet");
+
+        const report = await scan({ root, changed: true, base: "main" });
+        expect(report.changed_files).toContain("feature.ts");
+      });
+    });
   });
 });
 

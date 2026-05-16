@@ -90,6 +90,13 @@ section into your project's agent-rules file.
 If you only learn one command, learn `crimes context <file> --format json`
 — it is the cheapest, most file-specific entry point.
 
+`crimes hotspots` uses git history to rank files by change-risk; on a
+shallow clone (common in CI runners that default to `--depth=1`) the
+report sets an optional top-level **`history_limited: true`** plus a
+short `history_limited_reason`. When you see those, treat the ranking
+as advisory — older commits are missing from the local copy. Deepen
+the clone (`fetch-depth: 0` in GitHub Actions) to clear the flag.
+
 ---
 
 ## Recommended workflow
@@ -215,6 +222,28 @@ Semantics:
 
 The output is the same `ScanReport` shape as `crimes scan` — same
 `schema_version`, same finding fields — just over a smaller set of files.
+
+`crimes scan --changed` also populates a top-level **`changed_files`**
+array on the JSON output, listing every file the resolver returned
+(repo-relative POSIX, sorted, deduped) — **including files that
+produced zero findings** (a touched `README.md`, a `package.json`
+bump, a `.ts` file the detectors had nothing to say about). The field
+is absent on plain `crimes scan`. Read it when you need to confirm
+what your edit actually touched, even when the report is clean:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "scan",
+  "summary": { "total": 0, "high": 0, "medium": 0, "low": 0 },
+  "findings": [],
+  "changed_files": [
+    "README.md",
+    "src/billing.ts",
+    "src/billing.test.ts"
+  ]
+}
+```
 
 `--fail-on` (CI gate, opt-in):
 

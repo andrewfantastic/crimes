@@ -81,4 +81,14 @@ export interface ScanReport {
    * Only set when `fail_on` is set. Drives the non-zero exit on the gate.
    */
   failed?: boolean;
+  /**
+   * Repo-relative POSIX paths of every file the `--changed` resolver
+   * returned (working-tree + optional `<base>...HEAD`). Always present —
+   * and possibly empty — when `crimes scan --changed` was used; absent
+   * for plain directory scans. Includes files that produced **zero**
+   * findings (e.g. a touched `README.md` or a `.json`), so an agent can
+   * confirm which files it actually touched even when the diff is
+   * clean. Sorted, deduplicated.
+   */
+  changed_files?: string[];
 }

@@ -37,6 +37,16 @@ export interface HotspotsReport {
    * to the severity component only.
    */
   git_available: boolean;
+  /**
+   * True when the working tree is a shallow clone — commit history is
+   * truncated, so churn counts only reflect the slice of history present
+   * locally. Agents should treat hotspot rankings as advisory in this
+   * case. Absent / `undefined` when `git_available` is false (the
+   * detection requires git in the first place).
+   */
+  history_limited?: boolean;
+  /** Short reason string. Only set when `history_limited` is true. */
+  history_limited_reason?: string;
   hotspots: Hotspot[];
 }
 
@@ -171,7 +181,7 @@ export async function hotspots(
     return a.file.localeCompare(b.file);
   });
 
-  return {
+  const report: HotspotsReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "hotspots",
     repo: { name: basename(root), root },
@@ -179,4 +189,11 @@ export async function hotspots(
     git_available: churn.gitAvailable,
     hotspots: filtered,
   };
+  if (churn.historyLimited) {
+    report.history_limited = true;
+    if (churn.historyLimitedReason) {
+      report.history_limited_reason = churn.historyLimitedReason;
+    }
+  }
+  return report;
 }

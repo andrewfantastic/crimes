@@ -328,6 +328,13 @@ export function formatHotspotsReport(
         "  (not a git repo — ranking by findings only; no churn signal)",
       ),
     );
+  } else if (report.history_limited) {
+    // Same warning line position as the not-a-git-repo notice — agents
+    // and humans look here first when the ranking feels off.
+    const reason =
+      report.history_limited_reason ??
+      "shallow clone — older commits are unavailable";
+    lines.push(colour.yellow(`  (history limited: ${reason})`));
   }
 
   lines.push("");

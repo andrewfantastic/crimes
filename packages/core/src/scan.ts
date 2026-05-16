@@ -86,9 +86,19 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     exclude: config.exclude,
   });
 
-  const files = options.changed
-    ? await restrictToChanged({ root, allFiles, base: options.base })
-    : allFiles;
+  let changedAll: string[] | undefined;
+  let files: string[];
+  if (options.changed) {
+    const restricted = await restrictToChanged({
+      root,
+      allFiles,
+      base: options.base,
+    });
+    files = restricted.scanFiles;
+    changedAll = restricted.allChangedRepoPaths;
+  } else {
+    files = allFiles;
+  }
 
   // Build the IA index over the FULL discovered file set, not just the
   // changed slice -- IA findings are cross-file by definition. `--changed`
@@ -120,7 +130,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const sorted = sortFindings(findings);
   assignIds(sorted);
 
-  return {
+  const report: ScanReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "scan",
     repo: {
@@ -130,6 +140,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     summary: summarise(sorted),
     findings: sorted,
   };
+  if (changedAll !== undefined) {
+    report.changed_files = changedAll;
+  }
+  return report;
 }
 
 async function safelyBuildPettyIndex(args: {
@@ -164,11 +178,29 @@ async function safelyBuildIaIndex(args: {
   }
 }
 
+interface RestrictToChangedResult {
+  /**
+   * Absolute paths that the detectors should actually process —
+   * intersection of `allFiles` (discoverable source files) with the set
+   * of files git reports as changed. Realpath-normalised on both sides
+   * so macOS `/var` vs `/private/var` lines up.
+   */
+  scanFiles: string[];
+  /**
+   * Every changed file git returned, normalised to repo-relative POSIX
+   * paths and sorted. Includes files that aren't in the discoverable
+   * source set (markdown, JSON, lockfiles, etc.) — surfaced verbatim in
+   * `ScanReport.changed_files` so an agent can confirm what it touched
+   * even when the diff is clean.
+   */
+  allChangedRepoPaths: string[];
+}
+
 async function restrictToChanged(args: {
   root: string;
   allFiles: string[];
   base?: string;
-}): Promise<string[]> {
+}): Promise<RestrictToChangedResult> {
   const { root, allFiles, base } = args;
   const changedAbs = await getChangedFiles({ root, base });
 
@@ -181,11 +213,25 @@ async function restrictToChanged(args: {
     changedReal.add(await safeRealpath(abs));
   }
 
-  const matches: string[] = [];
+  const scanFiles: string[] = [];
   for (const abs of allFiles) {
-    if (changedReal.has(await safeRealpath(abs))) matches.push(abs);
+    if (changedReal.has(await safeRealpath(abs))) scanFiles.push(abs);
   }
-  return matches;
+
+  // Repo-relative POSIX list of every change git reported — even files
+  // outside the discoverable source set. This is the `changed_files`
+  // ScanReport field; sort + dedupe so the output is deterministic.
+  const rootReal = await safeRealpath(root);
+  const seenRepoPaths = new Set<string>();
+  for (const abs of changedAbs) {
+    const real = await safeRealpath(abs);
+    const rel = toRepoPath(relative(rootReal, real));
+    if (rel.length === 0) continue;
+    seenRepoPaths.add(rel);
+  }
+  const allChangedRepoPaths = [...seenRepoPaths].sort();
+
+  return { scanFiles, allChangedRepoPaths };
 }
 
 async function safeRealpath(p: string): Promise<string> {

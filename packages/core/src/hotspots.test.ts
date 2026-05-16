@@ -83,6 +83,57 @@ describe("hotspots", () => {
     expect(big_row!.risk).toBeGreaterThan(0);
   });
 
+  it("does not flag history_limited in a normal (non-shallow) git repo", { timeout: 30000 }, async () => {
+    const root = await makeRepo({});
+    await initGitRepo(root);
+    await writeFile(join(root, "x.ts"), "export const x = 1;\n", "utf8");
+    await git(root, ["add", "-A"]);
+    await git(root, ["commit", "-m", "init", "--no-verify"]);
+
+    const report = await hotspots({ root });
+    expect(report.git_available).toBe(true);
+    expect(report.history_limited).toBeUndefined();
+    expect(report.history_limited_reason).toBeUndefined();
+  });
+
+  it("annotates history_limited when the working tree is a shallow clone", { timeout: 60000 }, async () => {
+    // Build an upstream repo with two commits, push it to a bare repo
+    // alongside, then shallow-clone --depth=1 into a third dir. The
+    // shallow clone is the directory under test.
+    const upstream = await makeRepo({});
+    await initGitRepo(upstream);
+    await writeFile(join(upstream, "a.ts"), "export const a = 1;\n", "utf8");
+    await git(upstream, ["add", "-A"]);
+    await git(upstream, ["commit", "-m", "first", "--no-verify"]);
+    await writeFile(join(upstream, "b.ts"), "export const b = 2;\n", "utf8");
+    await git(upstream, ["add", "-A"]);
+    await git(upstream, ["commit", "-m", "second", "--no-verify"]);
+
+    const bare = await mkdtemp(join(tmpdir(), "crimes-hotspots-bare-"));
+    await git(bare, ["clone", "--bare", upstream, "."]);
+
+    const shallowDir = await mkdtemp(
+      join(tmpdir(), "crimes-hotspots-shallow-"),
+    );
+    await git(shallowDir, [
+      "clone",
+      "--depth=1",
+      `file://${bare}`,
+      ".",
+    ]);
+    // Configure the shallow clone so subsequent `git log` etc. work
+    // without prompting for identity (the clone inherits no global config
+    // in CI sandboxes).
+    await git(shallowDir, ["config", "user.email", "test@crimes.sh"]);
+    await git(shallowDir, ["config", "user.name", "Crimes Test"]);
+    await git(shallowDir, ["config", "commit.gpgsign", "false"]);
+
+    const report = await hotspots({ root: shallowDir });
+    expect(report.git_available).toBe(true);
+    expect(report.history_limited).toBe(true);
+    expect(report.history_limited_reason).toMatch(/shallow clone/i);
+  });
+
   it("uses git history to rank files when run inside a git repo", { timeout: 30000 }, async () => {
     const root = await makeRepo({});
     await initGitRepo(root);

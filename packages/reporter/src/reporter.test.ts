@@ -698,6 +698,26 @@ describe("formatHotspotsReport", () => {
     expect(out).toContain("not a git repo");
   });
 
+  it("warns when history is limited (shallow clone)", () => {
+    const out = formatHotspotsReport(
+      {
+        ...sampleHotspots,
+        history_limited: true,
+        history_limited_reason:
+          "repository is a shallow clone; older commits are unavailable",
+      },
+      { noColor: true },
+    );
+    expect(out).toContain("history limited");
+    expect(out).toContain("shallow clone");
+  });
+
+  it("does not warn about history when git is available and history is not limited", () => {
+    const out = formatHotspotsReport(sampleHotspots, { noColor: true });
+    expect(out).not.toContain("history limited");
+    expect(out).not.toContain("not a git repo");
+  });
+
   it("shows an empty-state line when no hotspots are returned", () => {
     const out = formatHotspotsReport(
       { ...sampleHotspots, hotspots: [] },
