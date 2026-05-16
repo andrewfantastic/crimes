@@ -1,0 +1,242 @@
+import type { Detector } from "../detector.js";
+import type { Finding } from "../finding.js";
+import { tokenise, tokenisePath } from "../ia/tokenise.js";
+import type {
+  IaIndex,
+  IaLabelSignal,
+  IaRouteSignal,
+} from "../ia/types.js";
+
+/**
+ * Fires when a single route's vocabulary appears to drift across the
+ * places that describe it: the route path itself, the file/component
+ * name, the page title / metadata, and any nav entry that points at it.
+ *
+ * The detector emits per route file, anchored on the route file's own
+ * path -- so the finding shows up alongside the route in `crimes context`.
+ */
+export const routeMetadataDriftDetector: Detector = {
+  id: "route_metadata_drift",
+  name: "Route Metadata Drift",
+  description:
+    "Flags routes whose path, file/component name, page title, and nav " +
+    "labels appear to describe the destination differently.",
+
+  run(ctx) {
+    if (!ctx.ia) return [];
+
+    // Each route file fires at most one finding -- when ctx.file is that
+    // route file. Other files in the scan return nothing.
+    const route = ctx.ia.routes.find((r) => r.file === ctx.file);
+    if (!route) return [];
+
+    return analyseRoute(route, ctx.ia);
+  },
+};
+
+/** Cap how many evidence strings we attach -- keep the report readable. */
+const MAX_EVIDENCE = 6;
+
+function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
+  // Tokenised concept bags from each labeled source.
+  const sources: { origin: string; tokens: string[]; quote: string }[] = [];
+
+  const routeTokens = tokenise(route.routePath);
+  if (routeTokens.length > 0) {
+    sources.push({
+      origin: "route_path",
+      tokens: routeTokens,
+      quote: route.routePath,
+    });
+  }
+
+  const fileTokens = tokenisePath(route.file);
+  if (fileTokens.length > 0) {
+    sources.push({
+      origin: "file_path",
+      tokens: fileTokens,
+      quote: route.file,
+    });
+  }
+
+  if (route.componentName) {
+    const compTokens = tokenise(route.componentName);
+    if (compTokens.length > 0) {
+      sources.push({
+        origin: "component",
+        tokens: compTokens,
+        quote: route.componentName,
+      });
+    }
+  }
+
+  // Titles & labels from the route file itself.
+  const labelSignals = ia.files[route.file]?.labels ?? [];
+  for (const label of labelSignals) {
+    const tks = tokenise(label.value);
+    if (tks.length === 0) continue;
+    sources.push({
+      origin: `label:${labelKindShort(label)}`,
+      tokens: tks,
+      quote: label.value,
+    });
+  }
+
+  // Nav entries pointing to this route, from any nav source in the index.
+  const navHits = findNavEntriesFor(route.routePath, ia);
+  for (const nav of navHits) {
+    if (!nav.entry.label) continue;
+    const tks = tokenise(nav.entry.label);
+    if (tks.length === 0) continue;
+    sources.push({
+      origin: `nav:${nav.file}`,
+      tokens: tks,
+      quote: nav.entry.label,
+    });
+  }
+
+  // Need at least 3 distinct sources to have a chance of drift.
+  if (sources.length < 3) return [];
+
+  // Generic routes (only stop-word tokens after normalisation) are not
+  // candidates -- "/", "/settings", "/app", layout-only paths, etc.
+  if (routeTokens.length === 0) return [];
+
+  // Compute the set of distinct concept tokens contributed by each source.
+  // We define "distinct concept" as the minimal token set after dropping
+  // tokens that appear in EVERY source (those are the shared spine, not
+  // drift). A source contributes drift if its remaining set is non-empty
+  // and not equal to any other source's set.
+  const everyTokens = intersectAll(sources.map((s) => new Set(s.tokens)));
+  const distinctTokenSets = new Set<string>();
+  for (const src of sources) {
+    const minus = src.tokens.filter((t) => !everyTokens.has(t));
+    if (minus.length === 0) continue;
+    distinctTokenSets.add(minus.sort().join("|"));
+  }
+
+  if (distinctTokenSets.size < 3) return [];
+
+  const evidence: string[] = [];
+  evidence.push(`route path: ${route.routePath}`);
+  evidence.push(`file: ${route.file}`);
+  if (route.componentName) evidence.push(`component: ${route.componentName}`);
+
+  for (const label of labelSignals) {
+    if (evidence.length >= MAX_EVIDENCE) break;
+    evidence.push(`${labelKindLong(label)}: ${label.value}`);
+  }
+
+  for (const nav of navHits) {
+    if (evidence.length >= MAX_EVIDENCE) break;
+    if (!nav.entry.label) continue;
+    evidence.push(`nav label in ${nav.file}: ${nav.entry.label}`);
+  }
+
+  const related = Array.from(
+    new Set([
+      route.file,
+      ...navHits.map((n) => n.file),
+    ]),
+  )
+    .filter((f) => f !== route.file)
+    .sort();
+
+  // Confidence climbs with the number of disagreeing sources.
+  const confidence = Math.min(0.6 + (distinctTokenSets.size - 3) * 0.05, 0.8);
+
+  const finding: Finding = {
+    id: "",
+    type: "route_metadata_drift",
+    charge: "Route Metadata Drift",
+    severity: "medium",
+    confidence,
+    file: route.file,
+    summary:
+      `Route ${route.routePath} appears to be labelled in ${distinctTokenSets.size} ` +
+      "competing ways across its path, file, component, page title, and nav " +
+      "entries. An agent editing one label may leave the others out of sync.",
+    evidence,
+    scores: {
+      severity: 0.6,
+      confidence,
+      agent_risk: Math.min(0.65 + (distinctTokenSets.size - 3) * 0.05, 0.85),
+    },
+    suggested_actions: [
+      {
+        kind: "align_route_metadata",
+        description:
+          "Choose the canonical name for this destination and align route " +
+          "metadata, nav labels, and page/component names.",
+        risk: "low",
+      },
+    ],
+    related_files: related.length > 0 ? related : undefined,
+  };
+
+  return [finding];
+}
+
+function findNavEntriesFor(
+  routePath: string,
+  ia: IaIndex,
+): { file: string; entry: { destination?: string; label?: string } }[] {
+  const hits: { file: string; entry: { destination?: string; label?: string } }[] = [];
+  const normTarget = normaliseDestination(routePath);
+  for (const source of ia.navSources) {
+    for (const literal of source.entries) {
+      for (const entry of literal.entries) {
+        if (!entry.destination) continue;
+        if (normaliseDestination(entry.destination) === normTarget) {
+          hits.push({ file: source.file, entry });
+        }
+      }
+    }
+  }
+  return hits;
+}
+
+function normaliseDestination(dest: string): string {
+  return dest.toLowerCase().replace(/\/+$/, "");
+}
+
+function labelKindShort(label: IaLabelSignal): string {
+  switch (label.kind) {
+    case "jsx_title":
+      return "title";
+    case "metadata_title":
+      return "metadata.title";
+    case "document_title":
+      return "document.title";
+    case "use_title":
+      return "useTitle";
+    case "jsx_label":
+      return label.source ?? "jsx";
+  }
+}
+
+function labelKindLong(label: IaLabelSignal): string {
+  switch (label.kind) {
+    case "jsx_title":
+      return "<title>";
+    case "metadata_title":
+      return "metadata.title";
+    case "document_title":
+      return "document.title";
+    case "use_title":
+      return `${label.source ?? "useTitle"}()`;
+    case "jsx_label":
+      return `<${label.source ?? "Component"} label>`;
+  }
+}
+
+function intersectAll(sets: Set<string>[]): Set<string> {
+  if (sets.length === 0) return new Set();
+  const out = new Set(sets[0]);
+  for (let i = 1; i < sets.length; i++) {
+    for (const v of out) {
+      if (!sets[i]!.has(v)) out.delete(v);
+    }
+  }
+  return out;
+}

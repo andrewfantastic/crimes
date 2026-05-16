@@ -213,15 +213,27 @@ report; do not persist it across scans.
 
 ### `type`
 
-Machine identifier for the detector that produced the finding. Stable. v0.1.0
-emits the following values:
+Machine identifier for the detector that produced the finding. Stable. New
+`type` values may be added without bumping `schema_version`; consumers
+should treat unknown values defensively. The currently shipped values are:
 
-| `type`             | Charge                  | Symbol set? | What it flags                                                        |
-| ------------------ | ----------------------- | ----------- | -------------------------------------------------------------------- |
-| `large_file`       | `God File`              | no          | Files over `thresholds.largeFileLines` (default 300)                  |
-| `large_function`   | `God Function`          | yes         | Functions/methods/arrows over `thresholds.largeFunctionLines` (60)    |
-| `todo_density`     | `Unfinished Business`   | no          | High `TODO/FIXME/XXX/HACK` density vs `thresholds.todoDensityPerKLoc` |
-| `direct_date`      | `Temporal Recklessness` | no          | Direct `Date.now()` or `new Date()` usage                             |
+| `type`                          | Charge                       | Symbol set? | What it flags                                                                                  |
+| ------------------------------- | ---------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| `large_file`                    | `God File`                   | no          | Files over `thresholds.largeFileLines` (default 300)                                            |
+| `large_function`                | `God Function`               | yes         | Functions/methods/arrows over `thresholds.largeFunctionLines` (60)                              |
+| `todo_density`                  | `Unfinished Business`        | no          | High `TODO/FIXME/XXX/HACK` density vs `thresholds.todoDensityPerKLoc`                            |
+| `direct_date`                   | `Temporal Recklessness`      | no          | Direct `Date.now()` or `new Date()` usage                                                       |
+| `missing_agent_context`         | `Missing Agent Context`      | no          | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md`      |
+| `route_metadata_drift`          | `Route Metadata Drift`       | no          | One route's path, file, component name, page title, and nav labels appear to use competing names |
+| `duplicated_navigation_source`  | `Duplicated Navigation Source` | no        | Same destination declared in multiple nav-like source files with different labels                |
+| `concept_alias_drift`           | `Concept Alias Drift`        | no          | A seeded alias group (e.g. `team` / `workspace` / `organisation`) spans multiple directories on product surface |
+| `docs_code_drift`               | `Docs-Code Drift`            | no          | Markdown document references a local file that does not exist on disk                            |
+
+Information-architecture findings (`missing_agent_context`,
+`route_metadata_drift`, `duplicated_navigation_source`,
+`concept_alias_drift`, `docs_code_drift`) are cross-file: their `file`
+field anchors the finding on the most useful single path, and
+`related_files` lists the other files involved.
 
 ### `charge`
 
@@ -311,21 +323,33 @@ interface SuggestedAction {
 }
 ```
 
-`kind` values shipped in v0.1.0:
+Currently shipped `kind` values (additive; new kinds may appear without
+bumping `schema_version`):
 
 - `extract_function` — break up a large function into named helpers
 - `split_file` — split a large file along responsibility boundaries
 - `triage_todos` — convert TODO markers into tracked issues or remove them
 - `inject_clock` — replace direct `Date` usage with an injected clock
+- `add_agent_context` — add `AGENTS.md` or a Claude skill so agents can discover repo conventions
+- `align_route_metadata` — align route path, file/component name, page title, and nav labels around one canonical name
+- `consolidate_nav_source` — make one nav file the canonical source of truth for a destination
+- `consolidate_concept` — pick or document the canonical term, and use aliases deliberately rather than accidentally
+- `fix_doc_link` — update the docs or restore the referenced file so agents do not follow stale instructions
 
-These are deterministic — one per detector kind. They are **suggestions**, not
-instructions; pick the ones that match the user's request.
+These are deterministic — typically one per detector kind. They are
+**suggestions**, not instructions; pick the ones that match the user's
+request.
 
 ### `related_files`
 
-Reserved. Once `crimes` ships cross-file analysis (e.g. nearby tests,
-duplicates, alternate sources of truth), this will list repo-relative paths
-that an agent should also read.
+Populated by cross-file detectors (the information-architecture
+detectors listed above). For each IA finding, `file` is the canonical
+anchor (route file, nav source, doc, or alias-group anchor) and
+`related_files` lists the other repo-relative paths that contributed
+evidence.
+
+Reserved by the file-local detectors. They do not populate it today;
+treat absence as "no cross-file context for this finding".
 
 ---
 
@@ -384,12 +408,17 @@ resolution beyond a textual import-path match.
 Static lookup keyed on `Finding.type`. One line per type that appears in
 `findings`, in the order they first appear. Current keys:
 
-| `Finding.type`    | Guidance                                                                |
-| ----------------- | ----------------------------------------------------------------------- |
-| `large_function`  | Prefer extracting pure helpers before adding more branches.             |
-| `large_file`      | Read the whole file before editing — propose splits in their own change. |
-| `direct_date`     | Avoid adding more direct clock access; inject time where possible.       |
-| `todo_density`    | Review TODOs before relying on comments as current intent.              |
+| `Finding.type`                  | Guidance                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `large_function`                | Prefer extracting pure helpers before adding more branches.                                                |
+| `large_file`                    | Read the whole file before editing — propose splits in their own change.                                   |
+| `direct_date`                   | Avoid adding more direct clock access; inject time where possible.                                         |
+| `todo_density`                  | Review TODOs before relying on comments as current intent.                                                 |
+| `missing_agent_context`         | Agents may miss project-specific commands, architecture rules, and safety checks.                          |
+| `route_metadata_drift`          | The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels. |
+| `duplicated_navigation_source`  | Multiple files declare this destination; updating only one will leave the others stale.                    |
+| `concept_alias_drift`           | Other files describe this concept under a different name; read them before renaming or extending.          |
+| `docs_code_drift`               | Docs reference local files that no longer exist — update the docs in the same PR.                          |
 
 New detector `type`s may add new guidance lines without bumping
 `schema_version`. The **wording** of an existing guidance line is not part

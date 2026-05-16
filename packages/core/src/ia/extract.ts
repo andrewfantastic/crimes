@@ -269,9 +269,13 @@ export function parseMarkdown(source: string, file: RepoPath): IaDocSignal {
       continue;
     }
 
+    // Strip inline backtick spans before matching link syntax -- otherwise
+    // examples like `[label](path)` inside inline code register as a link.
+    const stripped = line.replace(/`[^`\n]*`/g, "");
+
     MD_LINK_RE.lastIndex = 0;
     let linkMatch: RegExpExecArray | null;
-    while ((linkMatch = MD_LINK_RE.exec(line)) !== null) {
+    while ((linkMatch = MD_LINK_RE.exec(stripped)) !== null) {
       const target = linkMatch[2]!;
       const isLocal = isLocalLink(target);
       links.push({

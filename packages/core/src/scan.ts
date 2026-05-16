@@ -6,9 +6,14 @@ import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { directDateDetector } from "./detectors/direct-date.js";
+import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
+import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
+import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -17,10 +22,18 @@ import { buildIaIndex } from "./ia/build.js";
 import type { IaIndex } from "./ia/types.js";
 
 export const builtInDetectors: Detector[] = [
+  // Structural / file-local detectors (run first; they make up the bulk of
+  // findings on most repos and don't depend on cross-file analysis).
   largeFileDetector,
   largeFunctionDetector,
   todoDensityDetector,
   directDateDetector,
+  // Information-architecture detectors (cross-file; require ctx.ia).
+  missingAgentContextDetector,
+  routeMetadataDriftDetector,
+  duplicatedNavigationSourceDetector,
+  conceptAliasDriftDetector,
+  docsCodeDriftDetector,
 ];
 
 export interface ScanOptions {

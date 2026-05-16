@@ -60,6 +60,16 @@ const GUIDANCE: Record<string, string> = {
     "Avoid adding more direct clock access; inject time where possible.",
   todo_density:
     "Review TODOs before relying on comments as current intent.",
+  missing_agent_context:
+    "Agents may miss project-specific commands, architecture rules, and safety checks.",
+  route_metadata_drift:
+    "The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels.",
+  duplicated_navigation_source:
+    "Multiple files declare this destination; updating only one will leave the others stale.",
+  concept_alias_drift:
+    "Other files describe this concept under a different name; read them before renaming or extending.",
+  docs_code_drift:
+    "Docs reference local files that no longer exist — update the docs in the same PR.",
 };
 
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -136,9 +146,19 @@ async function runDetectorsOnTarget(args: {
     });
     findings.push(...detectorFindings);
   }
-  sortFindings(findings);
-  assignIds(findings);
-  return findings;
+
+  // `crimes context <file>` must only show findings that are *about*
+  // <file>. IA detectors fire at scan time using a deterministic anchor
+  // file (e.g. the lex-first source file in the repo), which may not be
+  // the target. Keep only findings whose `.file` or `.related_files`
+  // reference the target.
+  const relevant = findings.filter(
+    (f) => f.file === file || (f.related_files ?? []).includes(file),
+  );
+
+  sortFindings(relevant);
+  assignIds(relevant);
+  return relevant;
 }
 
 async function safelyBuildIaIndex(args: {

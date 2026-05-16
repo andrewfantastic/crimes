@@ -5,6 +5,9 @@
   "description": "Intentionally messy TypeScript app used as a fixture for the crimes scanner.",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "messy": "src/billing.ts"
+  },
   "scripts": {
     "scan": "crimes scan"
   }

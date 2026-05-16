@@ -6,9 +6,9 @@
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 5,
+    "total": 6,
     "high": 1,
-    "medium": 3,
+    "medium": 4,
     "low": 1
   },
   "findings": [
@@ -45,6 +45,33 @@
     },
     {
       "id": "crime_00002",
+      "type": "missing_agent_context",
+      "charge": "Missing Agent Context",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "summary": "Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.",
+      "evidence": [
+        "no AGENTS.md found at repo root",
+        "no CLAUDE.md found at repo root",
+        "no .claude/skills/*/SKILL.md present",
+        "package.json declares bin(s): messy — agents have no way to discover commands"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.8
+      },
+      "suggested_actions": [
+        {
+          "kind": "add_agent_context",
+          "description": "Add AGENTS.md or a Claude skill so coding agents can discover repo conventions before editing.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00003",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -74,7 +101,7 @@
       ]
     },
     {
-      "id": "crime_00003",
+      "id": "crime_00004",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -104,7 +131,7 @@
       ]
     },
     {
-      "id": "crime_00004",
+      "id": "crime_00005",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -133,7 +160,7 @@
       ]
     },
     {
-      "id": "crime_00005",
+      "id": "crime_00006",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",

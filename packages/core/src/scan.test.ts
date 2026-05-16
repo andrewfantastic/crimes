@@ -71,6 +71,43 @@ describe("scan", () => {
     expect(report.findings).toEqual([]);
   });
 
+  it("emits IA findings end-to-end when ctx.ia signal supports them", async () => {
+    // A repo with two nav files that disagree on a destination label, and a
+    // package.json declaring a bin but no AGENTS.md / CLAUDE.md / skill.
+    const root = await makeRepo({
+      "package.json": JSON.stringify({
+        name: "drift-fixture",
+        bin: { drift: "src/index.ts" },
+      }),
+      "src/index.ts": "export const ok = 1;\n",
+      "src/nav/sidebar.ts": `
+        export const sidebar = [
+          { href: "/settings/billing", label: "Billing" },
+          { href: "/team", label: "Team" },
+        ];
+      `,
+      "src/nav/registry.ts": `
+        export const registry = [
+          { href: "/settings/billing", label: "Plans" },
+          { href: "/team", label: "Team" },
+        ];
+      `,
+    });
+    const report = await scan({ root });
+    const iaTypes = report.findings
+      .map((f) => f.type)
+      .filter(
+        (t) =>
+          t === "missing_agent_context" ||
+          t === "duplicated_navigation_source" ||
+          t === "route_metadata_drift" ||
+          t === "concept_alias_drift" ||
+          t === "docs_code_drift",
+      );
+    expect(iaTypes).toContain("missing_agent_context");
+    expect(iaTypes).toContain("duplicated_navigation_source");
+  });
+
   it("passes a populated IA index into detector contexts", async () => {
     const seen: { hasIa: boolean; routes: string[] }[] = [];
     const sniffer = {

@@ -114,6 +114,14 @@ describe("parseMarkdown", () => {
     expect(doc.links[2]!.isLocal).toBe(false);
   });
 
+  it("ignores link-shaped text inside inline backtick code spans", () => {
+    const doc = parseMarkdown(
+      "Example: `[label](path)` describes link syntax.\n",
+      "x.md",
+    );
+    expect(doc.links).toEqual([]);
+  });
+
   it("captures the first command line of a fenced block", () => {
     const doc = parseMarkdown(
       "```bash\n$ crimes scan\n# subsequent comment\n```\n",
