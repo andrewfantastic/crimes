@@ -69,6 +69,16 @@ jobs:
           # so npm's OIDC client knows where to mint the publish token for.
           registry-url: "https://registry.npmjs.org"
 
+      # Node 22 LTS ships with npm 10.9.x. npm Trusted Publishing for the
+      # *publish* step (the OIDC-for-auth exchange against the registry,
+      # distinct from sigstore provenance signing) requires npm ≥ 11.5.1.
+      # Without this upgrade the CLI signs provenance happily but sends an
+      # unauthenticated PUT to the registry and the registry 404s.
+      - name: Upgrade npm (Trusted Publishing requires ≥ 11.5.1)
+        run: |
+          npm install -g npm@latest
+          npm --version
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
