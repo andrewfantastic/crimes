@@ -80,6 +80,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
 
   return {
     schema_version: SCHEMA_VERSION,
+    report_type: "scan",
     repo: {
       name: basename(root),
       root,

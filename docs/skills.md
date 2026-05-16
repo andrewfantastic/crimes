@@ -23,8 +23,9 @@ Covers:
 - Install commands (`npm install -g crimes`, plus the contributor
   `pnpm install` / `pnpm build` flow for working on the monorepo itself)
 - Build / typecheck / test (`pnpm ci`, per-package filters)
-- The shipped `crimes` commands (`scan`, `scan --changed [--base <ref>]`,
-  `context`, `hotspots`) and their JSON flags
+- The shipped `crimes` commands (`scan` with `--changed [--base <ref>]
+  [--fail-on …]`, `context`, `hotspots`, `diff`, `baseline save` /
+  `baseline check`, `verdict`) and their JSON flags
 - Project architecture and package boundaries
 - Coding style notes
 - Safety rules for agents — no auto-publish, no shared-branch rewrites,
@@ -85,11 +86,13 @@ reasonable drop-in.
 - A Cursor-specific rules file (`.cursorrules`).
 - A Continue config preset.
 - A Copilot Workspace `.github/copilot-instructions.md`.
-- A GitHub Action that runs `crimes scan` on PRs (waits on `--changed` +
-  baseline support → Milestone 4 in [`PRD.md`](../PRD.md)).
 
 These are not blockers — `AGENTS.md` is read by most of those tools — but
 PRs adding agent-specific presets are welcome.
+
+A copy-paste **GitHub Actions workflow** already ships at
+[`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml)
+(see [`docs/ci.md`](./ci.md) for the three gating modes).
 
 ---
 

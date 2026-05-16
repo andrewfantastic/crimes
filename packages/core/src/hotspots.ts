@@ -26,6 +26,8 @@ export interface Hotspot {
 
 export interface HotspotsReport {
   schema_version: typeof SCHEMA_VERSION;
+  /** Discriminator. Always the literal `"hotspots"`. */
+  report_type: "hotspots";
   repo: { name: string; root: string };
   /** Echoed `--since` (normalised form not exposed — we keep the user input). */
   since: string;
@@ -171,6 +173,7 @@ export async function hotspots(
 
   return {
     schema_version: SCHEMA_VERSION,
+    report_type: "hotspots",
     repo: { name: basename(root), root },
     since,
     git_available: churn.gitAvailable,

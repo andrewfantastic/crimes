@@ -69,9 +69,11 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.1.0`
+## Status — current `main` (release candidate: `crimes@0.2.0`)
 
-What ships today, all verified by a publish-tarball smoke test in CI:
+`crimes@0.1.0` is the latest tag on npm. Everything below ships from
+`main` today and is verified by the publish-tarball smoke test in CI on
+every commit; the next release will cut it as `crimes@0.2.0`.
 
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` — directory scan, default top-10
@@ -264,6 +266,7 @@ The JSON payload is the stable contract — agents should consume that:
 ```jsonc
 {
   "schema_version": "0.1.0",
+  "report_type": "context",
   "file": "src/billing.ts",
   "risk": { "level": "high", "high": 1, "medium": 1, "low": 1, "total": 3 },
   "findings": [ /* same Finding shape as `crimes scan` */ ],
@@ -318,6 +321,7 @@ JSON output is the stable contract:
 ```jsonc
 {
   "schema_version": "0.1.0",
+  "report_type": "hotspots",
   "repo": { "name": "messy-ts-app", "root": "/path/to/repo" },
   "since": "90d",
   "git_available": true,
@@ -645,6 +649,7 @@ The JSON output is a stable contract:
 ```jsonc
 {
   "schema_version": "0.1.0",
+  "report_type": "scan",
   "repo": { "name": "messy-ts-app", "root": "/path/to/crimes/examples/messy-ts-app" },
   "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
   "findings": [

@@ -20,6 +20,7 @@ describe("context", () => {
     const report = await context({ root, file: "src/x.ts" });
 
     expect(report.schema_version).toBe("0.1.0");
+    expect(report.report_type).toBe("context");
     expect(report.file).toBe("src/x.ts");
     expect(report.repo.root).toBe(root);
   });

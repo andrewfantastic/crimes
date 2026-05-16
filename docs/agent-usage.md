@@ -112,6 +112,7 @@ The JSON shape is:
 ```jsonc
 {
   "schema_version": "0.1.0",
+  "report_type": "context",
   "file": "src/billing.ts",
   "risk": { "level": "high", "high": 1, "medium": 1, "low": 1, "total": 3 },
   "findings": [ /* same Finding shape as scan */ ],
@@ -506,6 +507,7 @@ path sanitised:
 ```jsonc
 {
   "schema_version": "0.1.0",
+  "report_type": "scan",
   "repo": {
     "name": "messy-ts-app",
     "root": "/path/to/crimes/examples/messy-ts-app"

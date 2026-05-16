@@ -48,6 +48,7 @@ describe("scan", () => {
     const report = await scan({ root });
 
     expect(report.schema_version).toBe("0.1.0");
+    expect(report.report_type).toBe("scan");
     expect(report.repo.root).toBe(root);
     expect(report.summary.total).toBe(report.findings.length);
     expect(report.findings.length).toBeGreaterThan(0);
@@ -187,6 +188,7 @@ function makeReport(findings: Finding[]): ScanReport {
   for (const f of findings) summary[f.severity] += 1;
   return {
     schema_version: SCHEMA_VERSION,
+    report_type: "scan",
     repo: { name: "fixture", root: "/tmp/fixture" },
     summary,
     findings,

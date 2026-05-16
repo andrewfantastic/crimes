@@ -62,6 +62,8 @@ export interface ScanSummary {
 
 export interface ScanReport {
   schema_version: typeof SCHEMA_VERSION;
+  /** Discriminator. Always the literal `"scan"`. */
+  report_type: "scan";
   repo: {
     name: string;
     root: string;

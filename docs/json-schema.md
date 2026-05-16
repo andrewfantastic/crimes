@@ -1,24 +1,48 @@
 # `crimes` JSON output schema
 
-`crimes scan --format json` emits a single JSON document — the `ScanReport`.
-This document is the **stable product API**. Treat it as a public contract:
+Every `crimes` command that supports `--format json` emits a single JSON
+document. The shape varies per command, but every document carries the
+same two top-level discriminator keys — **`schema_version`** and
+**`report_type`** — so consumers can route on a single field.
+
+This page is the **stable product API**. Treat it as a public contract:
 any breaking change to a field name, type, or required-ness will bump
 `schema_version`.
 
-This page documents the schema as of `schema_version: "0.1.0"`. The source
-of truth in code is
-[`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
+Documented as of `schema_version: "0.1.0"`. The source of truth in code
+is [`packages/core/src/finding.ts`](../packages/core/src/finding.ts).
 
 For how an agent should _use_ this output, see
 [`agent-usage.md`](./agent-usage.md).
 
+## Contents
+
+| Report                                                            | `report_type`     | Emitted by                                            |
+| ----------------------------------------------------------------- | ----------------- | ----------------------------------------------------- |
+| [`ScanReport`](#scanreport-output-of-crimes-scan)                 | `"scan"`          | `crimes scan`, `crimes scan --changed [--fail-on]`    |
+| [`Finding`](#finding)                                             | _(embedded)_      | every report that lists findings                      |
+| [`ContextReport`](#contextreport-output-of-crimes-context-file)   | `"context"`       | `crimes context <file>`                               |
+| [`HotspotsReport`](#hotspotsreport-output-of-crimes-hotspots)     | `"hotspots"`      | `crimes hotspots`                                     |
+| [`DiffReport`](#diffreport-output-of-crimes-diff-basehead)        | `"diff"`          | `crimes diff <base...head>`                           |
+| [`Baseline`](#baseline-on-disk-shape-of-crimesbaselinejson)       | `"baseline"`      | `crimes baseline save` (on-disk file)                 |
+| [`BaselineCheckReport`](#baselinecheckreport-output-of-crimes-baseline-check) | `"baseline_check"` | `crimes baseline check`                       |
+| [`VerdictReport`](#verdictreport-output-of-crimes-verdict)        | `"verdict"`       | `crimes verdict`                                      |
+| [Gate fields](#scan---changed---fail-on-gate-fields)              | _(optional)_      | `crimes scan --changed --fail-on …`                   |
+| [Stability guarantees](#stability-guarantees)                     |                   |                                                       |
+
 ---
 
-## Top-level shape
+## `ScanReport` (output of `crimes scan`)
+
+The default report. Emitted by every form of `crimes scan` — directory
+scans, `--changed`, and the `--changed --fail-on` gate (which adds
+two extra top-level fields documented below).
 
 ```ts
 interface ScanReport {
   schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"scan"`. */
+  report_type: "scan";
   repo: RepoInfo;
   summary: ScanSummary;
   findings: Finding[];
@@ -36,6 +60,14 @@ breaking change to the shape of `Finding`, `ScanSummary`, or `RepoInfo`.
 
 Consumers should refuse to parse a report whose `schema_version` they do not
 recognise.
+
+### `report_type`
+
+Discriminator literal. Always `"scan"` for `crimes scan` output. Every
+report type that `crimes` emits carries one — `"scan"`, `"context"`,
+`"hotspots"`, `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"` —
+so consumers can route on a single field instead of pattern-matching on
+the body. Always present, always a string literal.
 
 ### `repo`
 
@@ -308,6 +340,8 @@ that an agent should also read.
 ```ts
 interface ContextReport {
   schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"context"`. */
+  report_type: "context";
   repo: { name: string; root: string; git_ref?: string };
   /** Repo-relative path of the inspected file. */
   file: string;
@@ -369,6 +403,8 @@ match on.
 ```ts
 interface HotspotsReport {
   schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"hotspots"`. */
+  report_type: "hotspots";
   repo: RepoInfo;
   /** Echo of the `--since` value the user passed (e.g. "90d"). */
   since: string;
@@ -462,12 +498,10 @@ interface DiffSummary {
 ### `report_type`
 
 A discriminator literal so consumers can route on the report kind when
-multiple shapes are piped together. `ScanReport`, `ContextReport`, and
-`HotspotsReport` do not currently carry `report_type` — they are
-disambiguated by their distinctive top-level keys (`findings`, `file`,
-`hotspots`). `DiffReport` adds the field defensively because its body
-contains keys (`new_findings`, `fixed_findings`, `unchanged_findings`)
-that future report types might also want to use.
+multiple shapes are piped together. Always `"diff"` for `crimes diff`
+output. Every `crimes` report carries one (`"scan"`, `"context"`,
+`"hotspots"`, `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`) —
+see the [Contents](#contents) table for the full mapping.
 
 ### How findings are matched (fingerprinting)
 

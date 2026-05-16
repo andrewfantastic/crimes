@@ -1,5 +1,6 @@
 {
   "schema_version": "0.1.0",
+  "report_type": "scan",
   "repo": {
     "name": "messy-ts-app",
     "root": "/path/to/crimes/examples/messy-ts-app"

@@ -31,6 +31,8 @@ export interface ContextRisk {
 
 export interface ContextReport {
   schema_version: typeof SCHEMA_VERSION;
+  /** Discriminator. Always the literal `"context"`. */
+  report_type: "context";
   repo: { name: string; root: string };
   /** Repo-relative path to the inspected file, forward slashes. */
   file: string;
@@ -89,6 +91,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
 
   return {
     schema_version: SCHEMA_VERSION,
+    report_type: "context",
     repo: { name: basename(root), root },
     file: fileRel,
     risk,

@@ -1,26 +1,36 @@
 import type {
+  Baseline,
+  BaselineCheckReport,
   ContextReport,
   DiffReport,
+  HotspotsReport,
   ScanReport,
   VerdictReport,
 } from "@crimes/core";
 import { describe, expect, it } from "vitest";
 import {
+  formatBaselineCheckReport,
+  formatBaselineSaveReport,
   formatContextHumanReport,
   formatDiffReport,
+  formatHotspotsReport,
   formatHumanReport,
   formatScanFailOnLine,
   formatVerdictReport,
 } from "./human.js";
 import {
+  formatBaselineCheckJsonReport,
+  formatBaselineJsonReport,
   formatContextJsonReport,
   formatDiffJsonReport,
+  formatHotspotsJsonReport,
   formatJsonReport,
   formatVerdictJsonReport,
 } from "./json.js";
 
 const sampleReport: ScanReport = {
   schema_version: "0.1.0",
+  report_type: "scan",
   repo: { name: "demo", root: "/tmp/demo" },
   summary: { total: 2, high: 1, medium: 1, low: 0 },
   findings: [
@@ -77,13 +87,32 @@ describe("formatJsonReport", () => {
     const out = formatJsonReport(sampleReport);
     const parsed = JSON.parse(out) as ScanReport;
     expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.report_type).toBe("scan");
     expect(parsed.findings).toHaveLength(2);
     expect(parsed.findings[0]!.id).toBe("crime_00001");
+  });
+
+  it("includes top-level discriminator keys agents rely on", () => {
+    const parsed = JSON.parse(formatJsonReport(sampleReport)) as Record<
+      string,
+      unknown
+    >;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "repo",
+      "summary",
+      "findings",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.report_type).toBe("scan");
   });
 });
 
 const sampleContext: ContextReport = {
   schema_version: "0.1.0",
+  report_type: "context",
   repo: { name: "demo", root: "/tmp/demo" },
   file: "src/billing.ts",
   risk: { level: "high", high: 1, medium: 1, low: 0, total: 2 },
@@ -128,6 +157,8 @@ describe("formatContextJsonReport", () => {
 
     for (const key of [
       "schema_version",
+      "report_type",
+      "repo",
       "file",
       "risk",
       "findings",
@@ -138,6 +169,7 @@ describe("formatContextJsonReport", () => {
     }
 
     expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.report_type).toBe("context");
     expect(parsed.file).toBe("src/billing.ts");
   });
 
@@ -407,5 +439,239 @@ describe("formatScanFailOnLine", () => {
     expect(out).toContain("FAILED");
     expect(out).toContain('"medium"');
     expect(out).not.toMatch(/^OK/);
+  });
+});
+
+const sampleHotspots: HotspotsReport = {
+  schema_version: "0.1.0",
+  report_type: "hotspots",
+  repo: { name: "demo", root: "/tmp/demo" },
+  since: "90d",
+  git_available: true,
+  hotspots: [
+    {
+      file: "src/billing.ts",
+      change_count: 14,
+      latest_change: "2026-05-12T14:30:00+00:00",
+      finding_count: 3,
+      highest_severity: "high",
+      risk: 0.82,
+    },
+    {
+      file: "src/clean.ts",
+      change_count: 1,
+      finding_count: 0,
+      highest_severity: "none",
+      risk: 0.03,
+    },
+  ],
+};
+
+describe("formatHotspotsReport", () => {
+  it("renders the CRIMES HOTSPOTS header, since window, and per-file rows", () => {
+    const out = formatHotspotsReport(sampleHotspots, { noColor: true });
+    expect(out).toContain("CRIMES HOTSPOTS");
+    expect(out).toContain("since 90d");
+    expect(out).toContain("src/billing.ts");
+    expect(out).toContain("14 changes");
+    expect(out).toContain("highest high");
+  });
+
+  it("warns when git is unavailable", () => {
+    const out = formatHotspotsReport(
+      { ...sampleHotspots, git_available: false },
+      { noColor: true },
+    );
+    expect(out).toContain("not a git repo");
+  });
+
+  it("shows an empty-state line when no hotspots are returned", () => {
+    const out = formatHotspotsReport(
+      { ...sampleHotspots, hotspots: [] },
+      { noColor: true },
+    );
+    expect(out).toContain("No hotspots");
+  });
+});
+
+describe("formatHotspotsJsonReport", () => {
+  it("includes every required key", () => {
+    const parsed = JSON.parse(
+      formatHotspotsJsonReport(sampleHotspots),
+    ) as Record<string, unknown>;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "repo",
+      "since",
+      "git_available",
+      "hotspots",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.report_type).toBe("hotspots");
+  });
+
+  it("round-trips hotspot rows", () => {
+    const parsed = JSON.parse(
+      formatHotspotsJsonReport(sampleHotspots),
+    ) as HotspotsReport;
+    expect(parsed.hotspots).toHaveLength(2);
+    expect(parsed.hotspots[0]!.risk).toBe(0.82);
+    expect(parsed.hotspots[0]!.latest_change).toBe(
+      "2026-05-12T14:30:00+00:00",
+    );
+  });
+});
+
+const sampleBaseline: Baseline = {
+  schema_version: "0.1.0",
+  report_type: "baseline",
+  created_at: "2026-05-16T12:00:00.000Z",
+  crimes_version: "0.2.0",
+  repo: { name: "demo", root: "/tmp/demo" },
+  summary: { total: 2, high: 1, medium: 1, low: 0 },
+  findings: [
+    {
+      fingerprint: "large_function::src/billing.ts::generateInvoice",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      file: "src/billing.ts",
+      symbol: "generateInvoice",
+    },
+    {
+      fingerprint: "todo_density::src/todo.ts::",
+      type: "todo_density",
+      charge: "Unfinished Business",
+      severity: "medium",
+      file: "src/todo.ts",
+    },
+  ],
+};
+
+describe("formatBaselineSaveReport", () => {
+  it("renders the save header and the recorded counts", () => {
+    const out = formatBaselineSaveReport(
+      sampleBaseline,
+      "/abs/path/to/.crimes/baseline.json",
+      { noColor: true },
+    );
+    expect(out).toContain("CRIMES BASELINE SAVED");
+    expect(out).toContain("/abs/path/to/.crimes/baseline.json");
+    expect(out).toContain("Recorded 2 findings");
+    expect(out).toContain("high 1");
+    expect(out).toContain("medium 1");
+  });
+});
+
+describe("formatBaselineJsonReport", () => {
+  it("includes the baseline discriminator keys", () => {
+    const parsed = JSON.parse(
+      formatBaselineJsonReport(sampleBaseline),
+    ) as Record<string, unknown>;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "created_at",
+      "summary",
+      "findings",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.report_type).toBe("baseline");
+  });
+});
+
+const sampleBaselineCheck: BaselineCheckReport = {
+  schema_version: "0.1.0",
+  report_type: "baseline_check",
+  repo: { name: "demo", root: "/tmp/demo" },
+  baseline_path: "/abs/path/to/.crimes/baseline.json",
+  fail_on: "medium",
+  failed: true,
+  summary: {
+    total_baseline: 2,
+    total_current: 3,
+    new: 1,
+    fixed: 0,
+    unchanged: 2,
+    new_by_severity: { high: 1, medium: 0, low: 0 },
+  },
+  new_findings: [
+    {
+      id: "crime_00001",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      confidence: 0.9,
+      file: "src/new.ts",
+      symbol: "huge",
+      lines: [1, 90],
+      summary: "huge spans 90 lines.",
+      evidence: ["90 lines"],
+      scores: { severity: 0.9, confidence: 0.9 },
+    },
+  ],
+  fixed_findings: [],
+  unchanged_findings: [],
+};
+
+describe("formatBaselineCheckReport", () => {
+  it("renders headers, severity buckets, and a FAILED gate line", () => {
+    const out = formatBaselineCheckReport(sampleBaselineCheck, {
+      noColor: true,
+    });
+    expect(out).toContain("CRIMES BASELINE CHECK");
+    expect(out).toContain("fail-on: medium");
+    expect(out).toContain("New crimes: 1");
+    expect(out).toContain("Fixed crimes: 0");
+    expect(out).toContain("Unchanged crimes: 2");
+    expect(out).toContain("FAILED:");
+    expect(out).toContain('"medium"');
+  });
+
+  it("renders an OK gate line when no new findings meet the threshold", () => {
+    const out = formatBaselineCheckReport(
+      {
+        ...sampleBaselineCheck,
+        failed: false,
+        new_findings: [],
+        summary: {
+          ...sampleBaselineCheck.summary,
+          new: 0,
+          new_by_severity: { high: 0, medium: 0, low: 0 },
+        },
+      },
+      { noColor: true },
+    );
+    expect(out).toContain("OK:");
+    expect(out).not.toContain("FAILED:");
+  });
+});
+
+describe("formatBaselineCheckJsonReport", () => {
+  it("includes every required key and the gate fields", () => {
+    const parsed = JSON.parse(
+      formatBaselineCheckJsonReport(sampleBaselineCheck),
+    ) as Record<string, unknown>;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "repo",
+      "baseline_path",
+      "fail_on",
+      "failed",
+      "summary",
+      "new_findings",
+      "fixed_findings",
+      "unchanged_findings",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.report_type).toBe("baseline_check");
+    expect(parsed.fail_on).toBe("medium");
+    expect(parsed.failed).toBe(true);
   });
 });
