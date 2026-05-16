@@ -4,15 +4,15 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.1.0` (npm, 2026-05-15) ✅ shipped
+- **Last published version:** `crimes@0.2.0` (npm) ✅ shipped — _branch
+  and PR safety for humans and coding agents_.
 - **Release candidate on `main`:** `crimes@0.3.0` — _information
-  architecture crimes_. The IA concept index and the first five IA
-  detectors (Missing Agent Context, Route Metadata Drift, Duplicated
-  Navigation Source, Concept Alias Drift, Docs-Code Drift) ship on
-  `main`. `packages/cli/package.json` is still pinned at `0.2.0` — the
-  version bump is the separate `docs/releasing.md` step. The earlier
-  `0.2.0` slice (branch and PR safety) is still awaiting its GitHub
-  Release that will fire
+  architecture crimes_. `packages/cli/package.json` is bumped to
+  `0.3.0`; the IA concept index and the first five IA detectors
+  (Missing Agent Context, Route Metadata Drift, Duplicated Navigation
+  Source, Concept Alias Drift, Docs-Code Drift) ship on `main`. Smoke
+  test + local verification pass. Awaiting the GitHub Release tagged
+  `v0.3.0` that will fire
   [`.github/workflows/release.yml`](./.github/workflows/release.yml).
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
@@ -24,9 +24,9 @@ mirror, not a planning doc.
 | ----------------------------- | --------------------------------------------------------------------------------------- |
 | M0 — Repo foundation          | ✅ done (shipped in 0.1.0)                                                              |
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
-| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
-| M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟢 0.2.0 RC — `scan --changed [--base]` ✅, `scan --changed --fail-on` ✅, `diff` ✅, `baseline save` / `baseline check` ✅, `verdict` ✅, [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅. `diff --fail-on new-high` and per-finding ignore/suppressions deferred to **0.3.0**. |
+| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to 0.4.0+ |
+| M3 — Agent context            | 🟢 expanded — `crimes context` + `AGENTS.md` + Claude skill (0.1.0); cross-file `related_files` populated by IA findings (0.3.0) |
+| M4 — Diff and CI              | 🟢 0.2.0 shipped — `scan --changed [--base]` ✅, `scan --changed --fail-on` ✅, `diff` ✅, `baseline save` / `baseline check` ✅, `verdict` ✅, [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅. `diff --fail-on new-high` and per-finding ignore / suppressions still deferred. |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -82,7 +82,7 @@ commit (`pnpm --filter crimes smoke`). Each command also accepts
 
 ---
 
-## 🟢 Release candidate — `crimes@0.2.0`
+## ✅ Shipped in `crimes@0.2.0`
 
 **Theme: branch and PR safety for humans and coding agents.**
 
@@ -143,30 +143,29 @@ the same `schema_version` as `crimes scan`.
   `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`) under the
   same `schema_version`. Consumers can route on a single field.
 
-### Deferred from `0.2.0`
+### Deferred from `0.2.0` (and still deferred after `0.3.0`)
 
-The following are explicitly **not in `0.2.0`** and are tracked for later
-versions. Don't document them as shipped.
+The following are explicitly **not in `0.2.0` or `0.3.0`** and remain
+tracked for later versions. Don't document them as shipped.
 
-- **`crimes diff --fail-on new-high`** — exit non-zero when the head ref
-  introduces any new `severity: "high"` finding. Deferred to `0.3.0`.
-  Until then, gate on JSON (`jq -e '.summary.new == 0'`) or use
-  `crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
-  high` / `crimes baseline check`.
+- **`crimes diff --fail-on new-high`** — exit non-zero when the head
+  ref introduces any new `severity: "high"` finding. Until it lands,
+  gate on JSON (`jq -e '.summary.new == 0'`) or use
+  `crimes verdict --fail-on new-high` / `crimes scan --changed
+  --fail-on high` / `crimes baseline check`.
 - **`crimes ignore <id>`** + `.crimes/suppressions.json` per-finding
-  suppressions — deferred to `0.3.0`. The baseline workflow covers the
-  "don't fail on legacy debt" use case for `0.2.0`.
-- **`crimes explain <id>`** — long-form per-finding rationale. Deferred
-  to `0.3.0`.
-- **`crimes init` + config plumbing** — bootstrap a `crimes.config.json`
-  with sensible architecture rules. Deferred to `0.3.0`.
+  suppressions. The baseline workflow covers the "don't fail on legacy
+  debt" use case in the meantime.
+- **`crimes explain <id>`** — long-form per-finding rationale.
+- **`crimes init` + config plumbing** — bootstrap a
+  `crimes.config.json` with sensible architecture rules.
 - **`crimes ask` / LLM-assisted modes** — `v1+`.
 - **Dependency-graph detectors** — circular dependencies, deep imports,
   layer violations driven by `architecture.layers` config. `0.4.0+`.
 - **Duplication detectors** — exact and near-duplicate blocks, repeated
   string literals, duplicated role / status / plan checks. `0.4.0+`.
 - **Homebrew tap + standalone macOS / Linux / Windows binaries** —
-  deferred until the CLI surface stabilises (post-`0.3.0`).
+  deferred until the CLI surface stabilises.
 
 ---
 
@@ -224,6 +223,9 @@ shared piece of nav.
 - **Cross-file `related_files`** — populated by the IA detectors and
   rendered as an "Also touches:" block (capped at 5, with overflow
   noted) in the human reporter. JSON output is unchanged.
+- **Route Metadata Drift evidence cap raised from 6 → 8** so both nav
+  labels in a multi-source drift fit alongside the route path / file /
+  component / title evidence without losing data to truncation.
 - **Public fixture demonstrates all five IA finding types.** The
   bundled [`examples/messy-ts-app`](./examples/messy-ts-app) fixture
   emits at least one finding from each of the five IA detectors. The
@@ -233,7 +235,9 @@ shared piece of nav.
 - **Long-form IA reference docs.**
   [`docs/finding-types/ia.md`](./docs/finding-types/ia.md) covers each
   shipped detector: what it reads, example evidence, why it matters,
-  suggested fixes, and a "false positives" section.
+  suggested fixes, and a "false positives" section. Wired into
+  [`docs/agent-usage.md`](./docs/agent-usage.md) and
+  [`docs/json-schema.md`](./docs/json-schema.md).
 
 The new `Finding.type` values land additively under the same
 `schema_version: "0.1.0"`. No schema bump. The CLI surface
@@ -284,9 +288,11 @@ IA detectors still on the long-term roadmap:
 - **`action_label_drift`** — semantic drift in action and object
   labels ("Delete" / "Remove" / "Archive"; "User" / "Member" /
   "Seat").
+- **Command-drift variant of `docs_code_drift`** — docs that
+  reference a CLI command the published `bin` no longer implements.
+  Needs deterministic command-registration scanning.
 
-Supporting work that did **not** ship in `0.3.0` and is tracked for
-`0.3.x` / `0.4.0`:
+Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 
 - **Richer per-finding scores (M2):** `scores.churn`,
   `scores.test_gap`, and `scores.blast_radius` on every finding.
@@ -296,6 +302,35 @@ Supporting work that did **not** ship in `0.3.0` and is tracked for
 - **`crimes diff --fail-on new-high`** — finish the M4 CI-gate trio.
 - **`crimes init` + config plumbing** — bootstrap
   `crimes.config.json` with sensible defaults.
+
+---
+
+## 🎯 Next target — `crimes@0.4.0` (tentative)
+
+**Theme (recommended): suppressions and config.**
+
+Three candidates were considered for the next-release headline:
+
+| Candidate | Pitch | Why not yet |
+| --------- | ----- | ----------- |
+| **A. Deeper IA coverage** — ship `orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift` | Stays in the `0.3.0` lane and keeps the IA momentum visible. | Three of the four detectors need machinery that does not exist yet (near-duplicate scoring, policy / route-guard discovery). Pushing for them in `0.4.0` risks shipping noisy heuristics that erode trust in the IA findings that just landed. |
+| **B. Repo risk scoring** — populate `scores.churn`, `scores.test_gap`, and `scores.blast_radius` on every finding, ranked aggregate-first | Closes the M2 milestone and makes hotspot ranking more honest. | Most of the underlying signals (git churn, test-proximity heuristics, fan-in/fan-out) need careful per-detector contracts so the new scores don't break existing JSON consumers. Worth doing — but the foundational work is bigger than one minor release, and IA findings already give users actionable signal without scores being populated. |
+| **C. Suppressions and config** ✅ — `crimes init` + `crimes.config.json` plumbing, `crimes ignore <id>` + `.crimes/suppressions.json`, optional `crimes explain <id>` | Directly unlocks adoption of the IA detectors on real repos: teams will hit legitimate alias choices (compat shims, multi-tenancy boundaries) that they want to silence without disabling the detector globally. Config plumbing also makes `architecture.layers` rules feasible later. | Closes the M4 polish gap that has been deferred since `0.2.0`. |
+
+**Rationale.** `0.3.0` ships ambiguity signals that explicitly *want*
+to fire on some legitimate aliases (see Concept Alias Drift's
+false-positive notes). Without per-finding suppressions or a config
+file to tune detector thresholds, the next painful experience for
+adopters is "I cannot scope this finding to ignore." Suppressions are
+the bottleneck. Config plumbing also unblocks later detectors that
+need declarative inputs (`architecture.layers`, custom IA seed
+groups), which is the lowest-cost way to enable the deferred IA
+detectors when they do ship.
+
+Both candidates A and B remain on the long-term roadmap and may slip
+into `0.4.0` opportunistically if any specific detector (e.g.
+`scores.churn`) lands with a small enough surface area. They are not
+the headline.
 
 ---
 

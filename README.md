@@ -69,15 +69,14 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.3.0` in development
+## Status — `crimes@0.3.0`
 
-`packages/cli/package.json` is pinned at `0.2.0` (the release candidate
-awaiting tag). Everything below — including the new information
-architecture (IA) detectors that headline `0.3.0` — already ships from
-`main` and is verified by the publish-tarball smoke test in CI on every
-commit. Last published: `crimes@0.1.0` (2026-05-15). The next GitHub
-Release tagged `v0.2.0` cuts the npm publish via Trusted Publishing;
-`v0.3.0` follows once the IA slice has soaked.
+`packages/cli/package.json` is bumped to `0.3.0`. Everything below —
+including the information architecture (IA) detectors that headline
+`0.3.0` — ships from `main` and is verified by the publish-tarball
+smoke test in CI on every commit. Last published to npm: `crimes@0.2.0`.
+The next GitHub Release tagged `v0.3.0` cuts the npm publish via
+Trusted Publishing.
 
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` — directory scan, default top-10
@@ -105,11 +104,13 @@ Release tagged `v0.2.0` cuts the npm publish via Trusted Publishing;
   worse, unchanged, or mixed?" — built on top of `crimes diff`. Default
   base is `origin/main`, then `main`. Advisory by default; opt into a
   blocking gate with `--fail-on worse | new-high | new-medium`.
-- Structural detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
-- IA detectors (current `main`, shipping in `0.3.0`): **Missing Agent
+- Structural detectors (since `0.1.0`): **God Function**, **God File**,
+  **Unfinished Business**, **Temporal Recklessness**
+- Information architecture detectors (new in `0.3.0`): **Missing Agent
   Context**, **Route Metadata Drift**, **Duplicated Navigation Source**,
   **Concept Alias Drift**, **Docs-Code Drift** — see
-  [`docs/finding-types/ia.md`](./docs/finding-types/ia.md)
+  [`docs/finding-types/ia.md`](./docs/finding-types/ia.md). No LLM, no
+  API key, no network access required.
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
 - CI integration: three gating modes documented in
@@ -160,24 +161,23 @@ Shipped in `crimes@0.2.0`:
   `BaselineCheckReport`, `VerdictReport`) live in
   [`docs/json-schema.md`](./docs/json-schema.md).
 
-Deferred from `0.2.0` (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for
-the full list):
+Deferred from `0.2.0` and still deferred after `0.3.0` (see
+[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for the full list):
 
 - **`crimes diff --fail-on new-high`** — gate on JSON or use
   `crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
-  high` / `crimes baseline check` until this lands. Target: `0.3.0`.
-- **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json` —
-  target: `0.3.0`.
-- **`crimes explain <id>`** — long-form rationale. Target: `0.3.0`.
-- **`crimes init`** + config plumbing — target: `0.3.0`.
+  high` / `crimes baseline check` until this lands.
+- **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json`.
+- **`crimes explain <id>`** — long-form rationale.
+- **`crimes init`** + config plumbing.
 - **`crimes ask`** / LLM-assisted modes — `v1+`.
 - **Dependency-graph detectors** (circular deps, layer violations) —
   target: `0.4.0+`.
 - **Duplication detectors** — target: `0.4.0+`.
 - **Homebrew tap + standalone binaries** — deferred until the CLI
-  surface stabilises (post-`0.3.0`).
+  surface stabilises.
 
-## What's next — `crimes@0.3.0`
+## Shipped in `crimes@0.3.0`
 
 **Theme: information architecture crimes.** `0.2.0` made `crimes`
 useful for branches, PRs, CI, and agent loops. `0.3.0` makes it
@@ -188,8 +188,7 @@ them, and how users move through the product. This is the
 agent-confusion-risk wedge taken seriously: deterministic, evidence-backed
 findings that linters and security scanners don't look for.
 
-Shipped to `main` for the `0.3.0` release candidate (not yet published
-to npm — pinned at `0.2.0`):
+Shipped in `crimes@0.3.0`:
 
 - **Missing Agent Context** — repos that declare a `bin` in
   `package.json` but ship no `AGENTS.md`, no `CLAUDE.md`, and no
@@ -209,9 +208,13 @@ to npm — pinned at `0.2.0`):
 Cross-file `related_files` is now populated by the IA detectors and
 rendered as an "Also touches:" block in the human report. Long-form
 reference (quorum rules, false-positive notes, suggested fixes):
-[`docs/finding-types/ia.md`](./docs/finding-types/ia.md).
+[`docs/finding-types/ia.md`](./docs/finding-types/ia.md). IA detectors
+phrase summaries as "appears to" / "may" — they are **ambiguity
+signals**, not claims of semantic truth. No LLM, no API key, no network
+access required to produce these findings.
 
-Still deferred from the IA slice (candidates for `0.3.x` / `0.4.0`):
+Deferred from `0.3.0` (tracked for later versions — **do not document
+them as shipped**):
 
 - **Orphaned Destination** — pages / routes / screens unreachable from
   primary navigation.
@@ -221,11 +224,13 @@ Still deferred from the IA slice (candidates for `0.3.x` / `0.4.0`):
   describe access using different roles.
 - **Action Label Drift** — "Delete" / "Remove" / "Archive" for the same
   operation across UI copy and code.
+- **Command-drift variant of Docs-Code Drift** — docs that reference a
+  CLI command the `bin` no longer implements.
 
-Supporting work — per-finding scores (`scores.churn` / `scores.test_gap`
-/ `scores.blast_radius`), `crimes explain`, `crimes ignore` +
-suppressions, `crimes init`, and `crimes diff --fail-on new-high` —
-slots in around the IA detectors but is no longer the headline theme.
+Supporting work also deferred — per-finding scores (`scores.churn` /
+`scores.test_gap` / `scores.blast_radius`), `crimes explain`,
+`crimes ignore` + `.crimes/suppressions.json`, `crimes init`, and
+`crimes diff --fail-on new-high`.
 
 ---
 
@@ -520,7 +525,7 @@ Shape of `.crimes/baseline.json` (always carries `schema_version` and
   "schema_version": "0.1.0",
   "report_type": "baseline",
   "created_at": "2026-05-16T12:00:00.000Z",
-  "crimes_version": "0.2.0",
+  "crimes_version": "0.3.0",
   "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
   "findings": [
     {
@@ -850,9 +855,9 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 
 - **M0 — Repo foundation** ✅ (`0.1.0`)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
-- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`); `--fail-on new-high` on `crimes diff` and per-finding `crimes ignore` deferred to `0.3.0`
+- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` deferred to `0.4.0+`
+- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` ✅ on IA findings (`0.3.0`)
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`); `--fail-on new-high` on `crimes diff` and per-finding `crimes ignore` still deferred
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

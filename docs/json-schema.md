@@ -607,7 +607,8 @@ temp directories are cleaned up before the report is returned.
 ### Exit codes
 
 `crimes diff` is **advisory** — it exits `0` even when new findings are
-present. `--fail-on new-high` is deferred to `0.3.0`. For a hard CI
+present. `--fail-on new-high` is still deferred (tracked for a future
+release; not in `0.3.0`). For a hard CI
 gate today, use one of `crimes verdict --fail-on new-high`,
 `crimes scan --changed --fail-on high`, or
 `crimes baseline check --fail-on …` — all three share the same exit-code

@@ -475,9 +475,8 @@ Bad:
 
 ## Information architecture findings
 
-`crimes@0.3.0` (release candidate on `main`; not yet tagged on npm)
-adds five **information architecture** detectors that look for
-ambiguous sources of truth across the repo:
+`crimes@0.3.0` adds five **information architecture** detectors that
+look for ambiguous sources of truth across the repo:
 
 | `Finding.type`                  | Charge                       | Reads                                                                                  |
 | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
@@ -637,15 +636,17 @@ rely on them in agent instructions yet:
 | `crimes verdict --base <ref>`          | ✅ shipped (`0.2.0`)    |
 | `crimes verdict --format json`         | ✅ shipped (`0.2.0`)    |
 | `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
-| `crimes diff --fail-on new-high`       | 🚧 deferred to `0.3.0`  |
-| `crimes ignore <id>`                   | 🚧 deferred to `0.3.0`  |
-| `crimes explain <id>`                  | 🚧 deferred to `0.3.0`  |
-| `crimes init`                          | 🚧 deferred to `0.3.0`  |
+| IA findings: `missing_agent_context`, `route_metadata_drift`, `duplicated_navigation_source`, `concept_alias_drift`, `docs_code_drift` | ✅ shipped (`0.3.0`) |
+| `Finding.related_files` populated on IA findings (human-rendered as "Also touches:") | ✅ shipped (`0.3.0`) |
+| `crimes diff --fail-on new-high`       | 🚧 deferred (v0.4.0 candidate) |
+| `crimes ignore <id>`                   | 🚧 deferred (v0.4.0 candidate) |
+| `crimes explain <id>`                  | 🚧 deferred (v0.4.0 candidate) |
+| `crimes init`                          | 🚧 deferred (v0.4.0 candidate) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
-Until the deferred items land in `0.3.0`, the pre/post-edit workflow
-works as plain `crimes scan <path> --format json` on the directory or
-file you are about to touch, `crimes diff <base...head>` for branch-level
+Until the deferred items land, the pre/post-edit workflow works as
+plain `crimes scan <path> --format json` on the directory or file you
+are about to touch, `crimes diff <base...head>` for branch-level
 review, and `crimes verdict` for the one-line "did this branch help or
 hurt?" summary at the end of a task. For a hard CI gate, use any of
 `crimes scan --changed --fail-on`, `crimes baseline check --fail-on`,
@@ -659,10 +660,13 @@ or `crimes verdict --fail-on` — see [`docs/ci.md`](./ci.md).
   `schema_version === "0.1.0"`, the shape documented in
   [`json-schema.md`](./json-schema.md) is stable.
 - Optional score fields (`scores.blast_radius`, `scores.churn`,
-  `scores.test_gap`) and `related_files` are **reserved** — they are documented
-  in the schema but only populated when later milestones add the underlying
-  signals (git history, cross-file analysis). Treat their absence as "not
-  computed", not "zero".
+  `scores.test_gap`) are **reserved** — they are documented in the
+  schema but only populated when later milestones add the underlying
+  signals (git history, cross-file analysis). Treat their absence as
+  "not computed", not "zero".
+- `related_files` is populated by the IA detectors (since `0.3.0`).
+  Treat its absence on a structural finding as "no cross-file context
+  for this finding".
 - Breaking changes to the wire format will bump `schema_version`. Agents
   should refuse to consume output whose `schema_version` they don't know.
 

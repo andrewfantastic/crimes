@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (v0.3.0 release candidate on main; latest published v0.1.0; package.json pinned at v0.2.0)
+## Commands (v0.3.0 — release candidate; latest published v0.2.0)
 
 Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings
@@ -82,13 +82,13 @@ Copy-paste GitHub Actions workflow ships in the repo at
 - `direct_date` (charge: Temporal Recklessness) — `Date.now()` / `new Date()`
   used directly in domain code
 
-## Information architecture detectors on main (shipping in v0.3.0)
+## Information architecture detectors (new in v0.3.0)
 
-These five IA detectors run on `main` today and ship with the v0.3.0
-tag. They are deterministic: **no LLM, no API key, and no network
-access** is required. Every finding cites concrete files, line numbers,
-and string literals; cross-file findings populate `related_files` and
-render as an "Also touches:" block in the human report.
+These five IA detectors are new in v0.3.0. They are deterministic:
+**no LLM, no API key, and no network access** is required. Every
+finding cites concrete files, line numbers, and string literals;
+cross-file findings populate `related_files` and render as an "Also
+touches:" block in the human report.
 
 - `missing_agent_context` (charge: Missing Agent Context) — repos that
   declare a `bin` in `package.json` but ship no `AGENTS.md`,
@@ -133,16 +133,16 @@ Recommended loop for any agent:
 4. Triaging the repo:       `crimes hotspots --format json`
 5. Any new `severity: "high"` finding introduced by the edit is a blocker.
 
-## Shipped in v0.3.0 — information architecture crimes (release candidate on main)
+## Shipped in v0.3.0 — information architecture crimes
 
 v0.2.0 made crimes useful for branches, PRs, CI, and agent loops.
 v0.3.0 is focused on detecting repo structure drift that confuses
 humans, coding agents, teams, and customers — source-of-truth and
 concept drift across code, routes, navigation, copy, docs, and
-ownership. The five IA detectors listed under "Information
-architecture detectors on main" above are the headline slice. The
-work is on `main`, verified by CI, and awaiting an npm tag (the CLI
-package is currently pinned at v0.2.0).
+ownership. The five IA detectors listed above are the headline slice.
+`packages/cli/package.json` is bumped to `0.3.0`; the npm publish
+fires once the GitHub Release tagged `v0.3.0` triggers the release
+workflow.
 
 ## IA candidates deferred from v0.3.0
 
@@ -164,13 +164,26 @@ Do not invoke or document them as available.
 - `action_label_drift` (charge: Action Label Drift) — the same action
   or object is labelled differently across UI copy and code
   ("Delete" / "Remove" / "Archive"; "User" / "Member" / "Seat").
+- Command-drift variant of `docs_code_drift` — docs that reference a
+  CLI command the published `bin` no longer implements. Needs
+  deterministic command-registration scanning that is not yet shipped.
+
+## Next-target candidate — v0.4.0: suppressions and config (tentative)
+
+Recommended headline for the next release: `crimes init` +
+`crimes.config.json` plumbing, `crimes ignore <id>` +
+`.crimes/suppressions.json`, and the long-deferred
+`crimes explain <id>` and `crimes diff --fail-on new-high`. Unlocks
+adoption of the IA detectors on real repos by letting teams
+scope-silence legitimate alias choices without disabling a detector
+globally. Not yet implemented.
 
 ## Not shipped yet — do not invoke or document as available
 
-- `crimes diff --fail-on new-high` — deferred to v0.3.x / v0.4.0.
-- `crimes ignore <id>` + `.crimes/suppressions.json` — deferred to v0.3.x / v0.4.0.
-- `crimes explain <id>` — deferred to v0.3.x / v0.4.0.
-- `crimes init` + config plumbing — deferred to v0.3.x / v0.4.0.
+- `crimes diff --fail-on new-high` — deferred.
+- `crimes ignore <id>` + `.crimes/suppressions.json` — deferred (v0.4.0 candidate).
+- `crimes explain <id>` — deferred (v0.4.0 candidate).
+- `crimes init` + config plumbing — deferred (v0.4.0 candidate).
 - Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred to v0.4.0+.
 - `crimes ask` / LLM-assisted features — v1+.
 - Dependency-graph + duplication detectors — v0.4.0+.

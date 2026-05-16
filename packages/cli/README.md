@@ -6,13 +6,18 @@
 [![license](https://img.shields.io/npm/l/crimes.svg)](https://github.com/andrewfantastic/crimes/blob/main/LICENSE)
 
 `crimes` is an open-source CLI that scans a repository for maintainability
-risks, code smells, duplicated business rules, weak test boundaries, and
-patterns that confuse AI coding agents.
+risks, code smells, duplicated business rules, weak test boundaries,
+information-architecture drift, and patterns that confuse AI coding
+agents.
 
 It is **not** another linter. It answers a higher-value question:
 
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
+
+**`0.3.0` headline:** information architecture crimes — deterministic
+evidence that the repo tells multiple competing stories about the same
+product concept. No LLM, no API key, no network access required.
 
 - Website: **[crimes.sh](https://crimes.sh)**
 - Repo: **[github.com/andrewfantastic/crimes](https://github.com/andrewfantastic/crimes)**
@@ -74,12 +79,33 @@ workflow.
 
 ## Detectors in this release
 
+### Structural detectors (since `0.1.0`)
+
 | Detector            | Charge                | What it flags                                                              |
 | ------------------- | --------------------- | -------------------------------------------------------------------------- |
 | `large_function`    | God Function          | Functions / methods / arrows over a body-line threshold (default 60)        |
 | `large_file`        | God File              | Files over a line threshold (default 300)                                  |
 | `todo_density`      | Unfinished Business   | High density of `TODO` / `FIXME` / `XXX` / `HACK` markers                   |
 | `direct_date`       | Temporal Recklessness | Direct uses of `Date.now()` and `new Date()` in source files                |
+
+### Information architecture detectors (new in `0.3.0`)
+
+| Detector                        | Charge                       | What it flags                                                                                                                       |
+| ------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `missing_agent_context`         | Missing Agent Context        | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md`                                            |
+| `route_metadata_drift`          | Route Metadata Drift         | Route path, file, default-export component, `<title>`, `metadata.title`, and nav labels describe the same destination differently   |
+| `duplicated_navigation_source`  | Duplicated Navigation Source | One internal destination appears in ≥2 nav-like sources with different non-empty labels                                              |
+| `concept_alias_drift`           | Concept Alias Drift          | Multiple aliases from a seeded concept group (`team`/`workspace`/`org`, `plan`/`subscription`/`tier`, …) share the product surface  |
+| `docs_code_drift`               | Docs-Code Drift              | A markdown doc under `docs/` (or root-level `*.md`) contains a local link that does not resolve on disk                              |
+
+IA findings populate `related_files` with the other paths that
+contributed evidence, and the human reporter renders them as an "Also
+touches:" block (capped at 5). Long-form reference (quorum rules,
+false-positive notes, suggested fixes):
+[`docs/finding-types/ia.md`](https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md).
+
+IA findings phrase summaries as "appears to" / "may" — they are
+**ambiguity signals**, not claims of semantic truth.
 
 Every finding includes **evidence** (raw facts the detector observed) and
 **scores** (`severity`, `confidence`, `agent_risk`).

@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.2.0",
+            "softwareVersion": "0.3.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.2.0 shipped · v0.3.0 IA crimes on <code>main</code></span>
+          <span class="pill">v0.3.0 · information architecture crimes</span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -669,7 +669,7 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
           </div>
         </div>
 
-        <h3 class="sub">Information architecture detectors · coming in v0.3.0 (on <code>main</code> today)</h3>
+        <h3 class="sub">Information architecture detectors · new in v0.3.0</h3>
         <p>
           <strong>IA crimes</strong> surface deterministic evidence that
           the repo tells <em>multiple competing stories about the same
@@ -679,7 +679,7 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
           cross-file findings populate <code>related_files</code> and
           render as an "Also touches:" block in the human report.
         </p>
-        <div class="detector-table" role="table" aria-label="Information architecture detectors on main, coming in v0.3.0">
+        <div class="detector-table" role="table" aria-label="Information architecture detectors new in v0.3.0">
           <div class="row head" role="row">
             <span role="columnheader">Detector</span>
             <span role="columnheader">Charge</span>
@@ -916,7 +916,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             release automation, and this landing page.
           </li>
           <li class="done">
-            <strong>v0.2.0 — branch &amp; PR safety (release candidate).</strong>
+            <strong>v0.2.0 — branch &amp; PR safety.</strong>
             <code>crimes diff main...HEAD</code>,
             <code>crimes baseline save</code> /
             <code>crimes baseline check</code>,
@@ -930,36 +930,47 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             with a copy-paste GitHub Actions workflow, and a
             <code>report_type</code> discriminator on every JSON report.
           </li>
-          <li>
+          <li class="done">
             <strong>v0.3.0 — information architecture crimes.</strong>
-            On <code>main</code> today, awaiting an npm tag.
-            Five detectors for repo structure drift that confuses humans
-            and coding agents: <strong>Missing Agent Context</strong>,
+            Five new detectors for repo structure drift that confuses
+            humans and coding agents:
+            <strong>Missing Agent Context</strong>,
             <strong>Route Metadata Drift</strong>,
             <strong>Duplicated Navigation Source</strong>,
             <strong>Concept Alias Drift</strong>, and
             <strong>Docs-Code Drift</strong>. Cross-file
             <code>related_files</code> is now populated by IA findings
-            and renders as an "Also touches:" block in the human report.
+            and renders as an "Also touches:" block in the human
+            report. Deterministic — no LLM, no API key, no network.
             Long-form reference:
             <a
               href="https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md"
               ><code>docs/finding-types/ia.md</code></a
-            >. Still deferred from this slice:
+            >. Deferred from this slice:
             <strong>Orphaned Destination</strong>,
             <strong>Parallel Destination</strong>,
             <strong>Permission IA Drift</strong>, and
-            <strong>Action Label Drift</strong>. Supporting work
-            (per-finding <code>scores.churn</code> /
-            <code>scores.test_gap</code>, <code>crimes explain</code>,
-            <code>crimes ignore</code>, <code>crimes diff --fail-on
-            new-high</code>) slots in around the IA detectors.
+            <strong>Action Label Drift</strong>.
           </li>
           <li>
-            <strong>Later.</strong> Dependency-graph detectors (circular
-            deps, layer violations), duplication detectors, frontend /
-            UI agent-risk detectors, Homebrew tap, standalone macOS /
-            Linux / Windows binaries, and optional LLM-assisted
+            <strong>Next (tentative) — v0.4.0: suppressions &amp;
+            config.</strong> <code>crimes init</code> +
+            <code>crimes.config.json</code> plumbing,
+            <code>crimes ignore &lt;id&gt;</code> +
+            <code>.crimes/suppressions.json</code>, and the long-deferred
+            <code>crimes explain &lt;id&gt;</code> and
+            <code>crimes diff --fail-on new-high</code>. Unblocks teams
+            adopting the IA detectors who hit legitimate alias choices
+            they want to scope-silence without disabling the detector
+            globally.
+          </li>
+          <li>
+            <strong>Later.</strong> Deeper IA detectors (Orphaned /
+            Parallel / Permission / Action), per-finding risk scores
+            (churn, test-gap, blast-radius), dependency-graph detectors
+            (circular deps, layer violations), duplication detectors,
+            frontend / UI agent-risk detectors, Homebrew tap, standalone
+            macOS / Linux / Windows binaries, and optional LLM-assisted
             summaries.
           </li>
         </ul>
