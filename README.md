@@ -87,17 +87,47 @@ What ships today, all verified by a publish-tarball smoke test in CI:
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
 
-What does **not** ship yet (planned — see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
-
-- `crimes diff <base...head>` and `crimes verdict` (M4)
-- `crimes baseline save` and `crimes ignore <id>` (M4)
-- `crimes explain <id>` (M3)
-- `crimes init` (M0/M1 polish)
-- LLM-assisted features (`crimes ask`, suggestions)
-- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`
-- Homebrew tap and standalone binaries (M6)
-
 See [`PRD.md`](./PRD.md) for the full spec.
+
+---
+
+## What's next — `crimes@0.2.0`
+
+**Theme: branch and PR safety for humans and coding agents.**
+
+`0.1.0` answered "what does this repo / file look like right now?".
+`0.2.0` extends the same workflow to **change sets** — what a branch or
+PR introduces vs. what was already there — so the same `crimes` you run
+locally can gate a PR in CI.
+
+Planned for `crimes@0.2.0`:
+
+- **`crimes diff <base...head>`** — new, fixed, and unchanged findings
+  between two Git refs. `--fail-on new-high` exits non-zero on any new
+  `severity: "high"` finding.
+- **`crimes verdict`** — one-line "did this branch help or hurt?"
+  summary, built on `crimes diff` against the current merge base.
+- **`crimes baseline save`** — snapshot current findings into
+  `.crimes/baseline.json` so teams can adopt `crimes` on legacy code
+  without fixing everything first.
+- **`crimes baseline check`** — fail only on findings not in the saved
+  baseline (the "ignore legacy debt, gate on new debt" workflow).
+- **CI recipe** — copy-paste GitHub Actions snippet for failing PRs on
+  new high-severity crimes.
+- **JSON schema docs** — `DiffReport`, `VerdictReport`, and `Baseline`
+  shapes added to [`docs/json-schema.md`](./docs/json-schema.md) under
+  the same `schema_version` discipline as `ScanReport`.
+
+Deferred to later versions (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
+
+- Richer per-finding risk model — `scores.churn`, `scores.test_gap`,
+  `scores.blast_radius` (target: `0.3.0`)
+- Cross-file `related_files`, `crimes explain <id>`, `crimes init`
+  (target: `0.3.0`)
+- Dependency-graph detectors and duplication detectors (target: `0.4.0`+)
+- LLM-assisted features (`crimes ask`) — `v1+`
+- Homebrew tap and standalone binaries (M6) — deferred until the CLI
+  surface stabilises
 
 ---
 
@@ -435,13 +465,13 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 
 ## Roadmap (short version)
 
-- **M0 — Repo foundation** ✅
-- **M1 — First working CLI** ✅ — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — `crimes hotspots` ✅; per-finding `scores.churn` / `test_gap` planned
-- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅; cross-file `related_files` planned
-- **M4 — Diff and CI** — `crimes scan --changed` ✅; `crimes diff` / `verdict` / baseline planned
-- **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅; full docs site planned
-- **M6 — Homebrew / standalone binaries**
+- **M0 — Repo foundation** ✅ (`0.1.0`)
+- **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
+- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
+- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`); **`crimes diff` / `verdict` / `baseline save` / `baseline check` are the `0.2.0` focus**
+- **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
+- **M6 — Homebrew / standalone binaries** — deferred
 
 Full detail: [`PRD.md`](./PRD.md). Live status: [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 

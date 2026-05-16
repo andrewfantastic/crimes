@@ -4,8 +4,9 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Current release target:** `crimes@0.1.0`
-- **Last published version:** `crimes@0.0.1` (npm, 2026-05-15)
+- **Active development target:** `crimes@0.2.0` — _branch and PR safety
+  for humans and coding agents_
+- **Last published version:** `crimes@0.1.0` (npm, 2026-05-15) ✅ shipped
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan` both work today.
 - **Website:** [crimes.sh](https://crimes.sh) — live, deployed from this
@@ -14,17 +15,17 @@ mirror, not a planning doc.
 
 | Milestone                     | Status                                                                                  |
 | ----------------------------- | --------------------------------------------------------------------------------------- |
-| M0 — Repo foundation          | ✅ done                                                                                  |
-| M1 — First working CLI        | ✅ done                                                                                  |
+| M0 — Repo foundation          | ✅ done (shipped in 0.1.0)                                                              |
+| M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
 | M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
 | M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` shipped; `diff` / `verdict` pending  |
-| M5 — Public launch            | 🟡 partial — npm + crimes.sh live; release automation in this slice                      |
+| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` shipped; `diff` / `verdict` / baseline are the **0.2.0 focus** |
+| M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
 ---
 
-## What ships in `crimes@0.1.0`
+## ✅ Shipped in `crimes@0.1.0` (2026-05-15)
 
 Everything below is verified by the publish-smoke test in CI on every
 commit (`pnpm --filter crimes smoke`). Each command also accepts
@@ -74,68 +75,111 @@ commit (`pnpm --filter crimes smoke`). Each command also accepts
 
 ---
 
-## Partial — not finished in 0.1.0
+## 🎯 Active target — `crimes@0.2.0`
 
-- **Full risk model (M2).** Only `severity`, `confidence`, and `agent_risk`
-  are populated on individual findings today. `scores.blast_radius`,
-  `scores.churn`, and `scores.test_gap` are reserved in the schema but not
-  computed per finding. `crimes hotspots` already blends churn × severity at
-  the file level — promoting that into per-finding scores is the next step.
-- **CI release automation (M5).** Trusted Publishing workflow ships in this
-  slice. Changesets / automated changelog generation is not wired up;
-  release notes are hand-written on the GitHub Release.
-- **Docs maturity (M5).** Core docs are accurate against the shipped CLI,
-  but there is no dedicated `/docs` subtree on the website yet — the
-  landing page links into the GitHub markdown files. Astro + Starlight is
-  the planned successor.
+**Theme: branch and PR safety for humans and coding agents.**
+
+`0.1.0` gave humans and agents a per-file / per-directory snapshot of
+codebase risk. `0.2.0` extends that to **change sets** — what a branch or
+PR introduces vs. what was already there — so the same workflow can run
+inside CI and an agent loop on every commit, not just on demand.
+
+The wedge is unchanged: deterministic, local, JSON-first. No LLM in the
+core path. The only new artefacts on disk are `.crimes/baseline.json` and
+the `diff` / `verdict` JSON shapes — all versioned by the same
+`schema_version` as `crimes scan`.
+
+### Planned commands
+
+- **`crimes diff <base...head>`** — report **new**, **fixed**, and
+  **unchanged** crimes between two Git refs. JSON-first; the diff shape is
+  documented alongside the scan schema.
+  - `--fail-on new-high` exits non-zero when the head ref introduces any
+    new `severity: "high"` finding (the canonical CI gate).
+- **`crimes verdict`** — branch-level "did this branch make the repo
+  better or worse?" summary. Built on top of `crimes diff` for the
+  current branch vs. its merge base.
+- **`crimes baseline save`** — snapshot the current set of findings into
+  `.crimes/baseline.json` so teams can adopt `crimes` on legacy code
+  without fixing everything immediately.
+- **`crimes baseline check`** — compare the current scan against the
+  saved baseline; fail only on findings that are not in the baseline.
+  Pairs with `--fail-on new-high` for the "fail CI on new high crimes,
+  ignore legacy debt" workflow.
+
+### Planned docs
+
+- **CI recipe** — concrete GitHub Actions snippet for failing PRs on
+  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`),
+  plus the baseline alternative for legacy repos.
+- **JSON schema docs** — extend [`docs/json-schema.md`](./docs/json-schema.md)
+  to cover the `DiffReport`, `VerdictReport`, and `Baseline` shapes. Same
+  `schema_version` discipline as `ScanReport`.
+
+### Out of scope for 0.2.0
+
+These are deferred to later versions on purpose — the 0.2.0 cut stays
+narrow so the diff/verdict/baseline trio can land cleanly and CI
+integrations have a stable target.
+
+- `crimes ignore <id>` + `.crimes/suppressions.json` — defer to `0.3.0`.
+  The baseline workflow covers the "don't fail on legacy" use case for
+  0.2.0; per-finding suppressions are an orthogonal feature.
+- `crimes explain <id>` — defer to `0.3.0`.
+- `crimes init` and config plumbing — defer to `0.3.0`.
 
 ---
 
-## Not yet — planned for later milestones
+## 🚧 Planned for later versions
 
-- `crimes diff <base...head>` — new vs fixed findings between two refs (M4)
-- `crimes verdict` — branch-level "better / worse" summary (M4)
-- `crimes baseline save` + `.crimes/baseline.json` (M4)
-- `crimes ignore <id>` + `.crimes/suppressions.json` (M4)
-- `crimes explain <id>` — long-form per-finding rationale (M3)
-- `crimes ask "..."` — heuristic / LLM-assisted question answering (v1+)
-- Dependency graph: circular dependencies, deep imports, layer violations
-  (M1 deferred → M2/M3)
-- Duplication detectors: exact and near-duplicate blocks, repeated string
-  literals, duplicated role / status / plan checks (M1 deferred)
-- Test-gap scoring on individual findings (M2)
-- Cross-file `related_files` on every finding (M3)
-- Homebrew tap and standalone binaries (M6)
+### `0.3.0` candidates
+
+- **Richer risk model (M2):** per-finding `scores.churn`, `scores.test_gap`,
+  `scores.blast_radius`. Promote the file-level signal `crimes hotspots`
+  already blends into per-finding scores so the default scan ranking
+  matches the PRD's "aggregate risk first" intent end-to-end.
+- **Cross-file `related_files` on every finding (M3).**
+- **`crimes explain <id>`** — long-form per-finding rationale (M3).
+- **`crimes init`** + config plumbing — bootstrap a `crimes.config.json`
+  with sensible architecture rules so the layer-violation detector can
+  ship.
+- **`crimes ignore <id>`** + `.crimes/suppressions.json` (M4 polish).
+
+### `0.4.0`+ candidates
+
+- **Dependency graph detectors:** circular dependencies, deep imports,
+  layer violations driven by `architecture.layers` config.
+- **Duplication detectors:** exact and near-duplicate blocks, repeated
+  string literals, duplicated role / status / plan checks.
+- **Test-proximity-as-risk** feeding into `hotspots` and per-finding
+  `test_gap` scoring.
+- **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).
+
+### Distribution (later)
+
+- Homebrew tap and standalone binaries (M6) — deferred until the CLI
+  surface stabilises through 0.2.0 and 0.3.0.
 
 ---
 
-## Recommended next versions
+## Why this slice for 0.2.0
 
-- **`0.1.0` (this release):** `crimes scan --changed` + `crimes context` +
-  `crimes hotspots` + `AGENTS.md` / Claude skill + npm Trusted Publishing
-  release automation + crimes.sh landing page polish.
-- **`0.2.0`:** `crimes diff <base...head>`, `crimes verdict`,
-  `crimes baseline save`, `crimes ignore <id>`, and a `--fail-on new-high`
-  CI gate. This is the M4 "diff and CI" bundle.
-- **`0.3.0`:** Richer risk model — per-finding `scores.churn` and
-  `scores.test_gap`, test proximity signal feeding into `hotspots`,
-  cross-file `related_files`, and the first dependency-structure
-  detectors (circular dependencies, layer violations).
-
----
-
-## Next concrete step (post-0.1.0)
-
-In rough leverage order — these unlock the most product value:
+In rough leverage order — these unlock the most product value once
+`crimes scan` is in users' hands:
 
 1. **`crimes diff base...HEAD` + baseline (M4)** so CI can fail only on
-   **new** high findings without drowning teams in legacy debt.
-2. **Per-finding `scores.churn` and `scores.test_gap` (M2)** so the
-   default scan ranking matches the PRD's "aggregate risk first" intent
-   beyond the surface level.
-3. **Cross-file `related_files` (M3)** — promote the per-file
-   `likely_tests` signal onto every `Finding`, plus near-duplicate
-   detection to surface alternate sources of truth.
-4. **`crimes init` and config plumbing (M0/M1 polish)** — bootstrap a
-   `crimes.config.json` with sensible architecture rules so the
-   layer-violation detector can ship.
+   **new** high findings without drowning teams in legacy debt. This is
+   the single highest-impact feature still missing from the PRD's M4
+   bundle, and the one most CI integrations are waiting on.
+2. **`crimes verdict`** because it turns the same diff signal into a
+   one-line "did this branch help or hurt?" answer that fits a PR
+   comment or an agent's end-of-task summary.
+3. **CI docs** because shipping `--fail-on new-high` without a copy-paste
+   GitHub Actions recipe leaves users to guess at the integration.
+4. **Baseline docs in the JSON schema** so the new on-disk artefact
+   (`.crimes/baseline.json`) is treated as a stable contract from day
+   one — same versioning discipline as `ScanReport`.
+
+After 0.2.0, the next bottleneck shifts back to **detector signal**: the
+richer per-finding scores and cross-file relationships that `0.3.0`
+targets.
