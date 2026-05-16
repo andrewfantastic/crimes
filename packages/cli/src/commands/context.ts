@@ -36,8 +36,12 @@ export function registerContextCommand(program: Command): void {
         return;
       }
 
-      const root = resolve(options.root ?? process.cwd());
-      const absoluteFile = isAbsolute(file) ? file : resolve(root, file);
+      // Existence check uses the explicit root if set, otherwise cwd —
+      // this is just so we fail fast on a typo'd path. The real scan-root
+      // selection (nearest enclosing package.json) happens inside
+      // `context()` so the JSON paths line up with that scan scope.
+      const lookupRoot = resolve(options.root ?? process.cwd());
+      const absoluteFile = isAbsolute(file) ? file : resolve(lookupRoot, file);
 
       if (!existsSync(absoluteFile)) {
         process.stderr.write(`crimes: file not found: ${file}\n`);
@@ -45,7 +49,15 @@ export function registerContextCommand(program: Command): void {
         return;
       }
 
-      const report = await context({ root, file: absoluteFile });
+      // Forward `--root` only when the user explicitly set it. Passing
+      // `undefined` lets core's auto package-root detection win — that's
+      // what makes `crimes context examples/pkg/src/foo.ts` from a
+      // monorepo root produce the same findings as running it from
+      // inside `examples/pkg`.
+      const report = await context({
+        ...(options.root !== undefined ? { root: options.root } : {}),
+        file: absoluteFile,
+      });
 
       if (format === "json") {
         process.stdout.write(formatContextJsonReport(report) + "\n");

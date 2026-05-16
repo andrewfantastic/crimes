@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync } from "node:fs";
+import { readFile, realpath } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
@@ -13,7 +14,14 @@ import { builtInDetectors } from "./scan.js";
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
   file: string;
-  /** Repo root. Defaults to cwd. */
+  /**
+   * Explicit scan root. When omitted, `context()` walks up from the target
+   * file to the nearest enclosing `package.json` and uses that directory as
+   * the root; this makes `crimes context <nested-package-file>` work the
+   * same from the monorepo root as from inside the nested package. When
+   * provided, the value wins unconditionally — `--root` is the user
+   * override and `context()` does not climb above it.
+   */
   root?: string;
   /** Override config explicitly. */
   config?: CrimesConfig;
@@ -73,15 +81,107 @@ const GUIDANCE: Record<string, string> = {
 };
 
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-const TEST_EXT = /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/;
+
+/**
+ * Matches every test-file naming convention `findLikelyTests` honours:
+ *
+ *   foo.test.ts / foo.spec.ts           — Jest / Vitest infix convention
+ *   foo_test.ts / foo_spec.ts           — Go-style underscore suffix
+ *
+ * Used both to recognise candidate test files and to strip the suffix back
+ * to a target basename for matching. Keep the two halves of the alternation
+ * symmetric so `stripTestSuffix` stays a simple `.replace(TEST_EXT, "")`.
+ */
+const TEST_EXT =
+  /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|cjs)$/;
+
+/**
+ * Walk upward from `start` (a directory path) looking for an enclosing
+ * `package.json`. Returns the absolute path of the directory that contains
+ * it, or `undefined` if none is found before the filesystem root.
+ *
+ * The walk is bounded by the filesystem root — there is no separate stop
+ * condition, so callers that want to confine the search to a specific
+ * subtree should resolve `start` and check against that subtree themselves.
+ *
+ * Callers should pass an already-canonicalised (realpath'd) directory so
+ * the returned root matches the canonical form of any sibling absolute
+ * paths the caller will compare against — `context()` realpaths the
+ * target file before calling in, which keeps all comparisons consistent.
+ */
+export async function findNearestPackageRoot(
+  start: string,
+): Promise<string | undefined> {
+  let dir = resolve(start);
+  // Guard against `parse(dir).root === dir` looping forever on filesystem root.
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (existsSync(join(dir, "package.json"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir || parent === parse(dir).root) {
+      // Final check at the filesystem root before giving up.
+      if (existsSync(join(parent, "package.json"))) return parent;
+      return undefined;
+    }
+    dir = parent;
+  }
+}
+
+async function safeRealpath(p: string): Promise<string> {
+  try {
+    return await realpath(p);
+  } catch {
+    return p;
+  }
+}
+
+/**
+ * Resolve the scan root for a `context()` call.
+ *
+ *   1. If the caller passed an explicit `--root`, honour it verbatim.
+ *   2. Otherwise, walk up from the target file's directory to the nearest
+ *      enclosing `package.json` and use that directory.
+ *   3. If no `package.json` exists above the target, fall back to
+ *      `process.cwd()` — the historical default.
+ *
+ * Step 2 is the fix for "monorepo root: `crimes context
+ * examples/pkg/src/foo.ts` returns no findings". The target file lives
+ * inside a workspace package with its own `package.json`; we want the
+ * scan to be scoped to that package, not the whole monorepo.
+ */
+async function resolveContextRoot(args: {
+  targetAbs: string;
+  explicitRoot: string | undefined;
+}): Promise<string> {
+  if (args.explicitRoot !== undefined) {
+    // Canonicalise so it lines up with the realpath'd targetAbs.
+    return safeRealpath(resolve(args.explicitRoot));
+  }
+  const packageRoot = await findNearestPackageRoot(dirname(args.targetAbs));
+  if (packageRoot) return packageRoot;
+  return safeRealpath(resolve(process.cwd()));
+}
 
 export async function context(options: ContextOptions): Promise<ContextReport> {
-  const root = resolve(options.root ?? process.cwd());
+  const cwd = resolve(process.cwd());
+  const initialRoot = resolve(options.root ?? cwd);
+  const targetInput = isAbsolute(options.file)
+    ? resolve(options.file)
+    : resolve(initialRoot, options.file);
+  // Canonicalise the target path so symlinked temp dirs (macOS /var vs
+  // /private/var) line up with the discovered package root, which is also
+  // canonicalised. Without this, `relative(root, targetAbs)` produces
+  // `../../private/var/...` paths on darwin temp dirs.
+  const targetAbs = await safeRealpath(targetInput);
+
+  const root = await resolveContextRoot({
+    targetAbs,
+    explicitRoot: options.root,
+  });
   const config = options.config ?? loadConfig(root);
   const detectors = options.detectors ?? builtInDetectors;
 
-  const fileRel = toRepoRelative(root, options.file);
-  const targetAbs = resolve(root, fileRel);
+  const fileRel = toRepoRelative(root, targetAbs);
 
   const allFiles = await discoverFiles({
     root,
@@ -209,18 +309,21 @@ async function findLikelyTests(args: {
     const rel = toRepoPath(relative(root, abs));
     const b = basename(rel);
 
-    // Sibling .test/.spec files matching the basename
+    // Sibling files matching one of the test-naming conventions
+    // (`foo.test.ts`, `foo.spec.tsx`, `foo_test.ts`, `foo_spec.ts`).
     if (TEST_EXT.test(b)) {
-      const noTest = b.replace(TEST_EXT, "");
+      const noTest = stripTestSuffix(b);
       if (noTest === targetBaseNoExt) {
         result.add(rel);
         continue;
       }
     }
 
-    // Files under any __tests__ directory matching the basename
+    // Files under any __tests__ directory matching the basename. Same
+    // suffix-stripping rules — covers `__tests__/foo.test.ts` AND
+    // `__tests__/foo_test.ts`.
     if (rel.split("/").includes("__tests__")) {
-      const noTest = b.replace(TEST_EXT, "");
+      const noTest = stripTestSuffix(b);
       if (noTest === targetBaseNoExt) {
         result.add(rel);
       }
@@ -251,6 +354,16 @@ async function findLikelyTests(args: {
 
 function isTestFile(rel: string): boolean {
   return TEST_EXT.test(basename(rel)) || rel.split("/").includes("__tests__");
+}
+
+/**
+ * Strip a test-naming suffix from a basename to recover the "subject under
+ * test" basename. Symmetric with {@link TEST_EXT} — `foo.test.ts` returns
+ * `foo`, `foo_test.ts` returns `foo`. Returns the input unchanged when it
+ * doesn't match either convention.
+ */
+function stripTestSuffix(basenameWithExt: string): string {
+  return basenameWithExt.replace(TEST_EXT, "");
 }
 
 function importsTarget(args: {
