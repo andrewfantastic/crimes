@@ -22,7 +22,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@crimes/language-js": "workspace:*"
+    "@crimes/language-js": "workspace:*",
+    "fast-glob": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
