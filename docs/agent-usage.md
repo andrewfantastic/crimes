@@ -720,11 +720,11 @@ rely on them in agent instructions yet:
 | `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
 | IA findings: `missing_agent_context`, `route_metadata_drift`, `duplicated_navigation_source`, `concept_alias_drift`, `docs_code_drift` | ✅ shipped (`0.3.0`) |
 | `Finding.related_files` populated on IA findings (human-rendered as "Also touches:") | ✅ shipped (`0.3.0`) |
-| Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch`, `magic_domain_literal_scatter`, `weak_test_signal`, `option_bag_junk_drawer`, `return_shape_roulette`, `negative_flag_maze` | ✅ shipped (on `main`) |
-| `crimes diff --fail-on new-high`       | 🚧 deferred (v0.4.0 candidate) |
-| `crimes ignore <id>`                   | 🚧 deferred (v0.4.0 candidate) |
-| `crimes explain <id>`                  | 🚧 deferred (v0.4.0 candidate) |
-| `crimes init`                          | 🚧 deferred (v0.4.0 candidate) |
+| Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch`, `magic_domain_literal_scatter`, `weak_test_signal`, `option_bag_junk_drawer`, `return_shape_roulette`, `negative_flag_maze` | ✅ shipped (`0.3.0`) |
+| `crimes diff --fail-on new-high`       | 🚧 deferred (v0.5.0 candidate) |
+| `crimes ignore <id>`                   | 🚧 deferred (v0.5.0 candidate) |
+| `crimes explain <id>`                  | 🚧 deferred (v0.5.0 candidate) |
+| `crimes init`                          | 🚧 deferred (v0.5.0 candidate) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
 Until the deferred items land, the pre/post-edit workflow works as
