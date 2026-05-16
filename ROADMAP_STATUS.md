@@ -307,30 +307,48 @@ Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 
 ## 🎯 Next target — `crimes@0.4.0` (tentative)
 
-**Theme (recommended): suppressions and config.**
+**Theme (recommended, revised after 0.3.0 real-repo trials): _agent context quality and signal-to-noise_.**
+
+> **Implementation plan:
+> [`AGENT_CONTEXT_QUALITY_PLAN.md`](./AGENT_CONTEXT_QUALITY_PLAN.md).**
+> Scope, root-detection fix, neighbourhood discovery, shape-aware
+> `large_function`, schema additions, and prompt sequence for `0.4.0`
+> live there. This section is the status mirror.
+
+Real-repo trials of `0.3.0` with Claude Code and Codex CLI surfaced
+two coupled gaps that overshadow the next detector: (1) `crimes
+context` does not yet tell agents what _else_ to read before editing
+the target file (no domain neighbourhood), and (2) several existing
+detectors are noisy enough on production repos (React pages, route
+handlers, test callbacks, GitHub-relative README links, shallow git
+clones, nested-package roots) that agents start to discount the
+report. The wedge — _local, open-source, agent-native_ — is strongest
+when it tells agents what else to read, and weakest when its
+findings cause agents to ignore the report. `0.4.0` raises the
+context floor and lowers the noise ceiling _before_ adding more
+detectors.
 
 Three candidates were considered for the next-release headline:
 
-| Candidate | Pitch | Why not yet |
+| Candidate | Pitch | Why not now |
 | --------- | ----- | ----------- |
-| **A. Deeper IA coverage** — ship `orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift` | Stays in the `0.3.0` lane and keeps the IA momentum visible. | Three of the four detectors need machinery that does not exist yet (near-duplicate scoring, policy / route-guard discovery). Pushing for them in `0.4.0` risks shipping noisy heuristics that erode trust in the IA findings that just landed. |
-| **B. Repo risk scoring** — populate `scores.churn`, `scores.test_gap`, and `scores.blast_radius` on every finding, ranked aggregate-first | Closes the M2 milestone and makes hotspot ranking more honest. | Most of the underlying signals (git churn, test-proximity heuristics, fan-in/fan-out) need careful per-detector contracts so the new scores don't break existing JSON consumers. Worth doing — but the foundational work is bigger than one minor release, and IA findings already give users actionable signal without scores being populated. |
-| **C. Suppressions and config** ✅ — `crimes init` + `crimes.config.json` plumbing, `crimes ignore <id>` + `.crimes/suppressions.json`, optional `crimes explain <id>` | Directly unlocks adoption of the IA detectors on real repos: teams will hit legitimate alias choices (compat shims, multi-tenancy boundaries) that they want to silence without disabling the detector globally. Config plumbing also makes `architecture.layers` rules feasible later. | Closes the M4 polish gap that has been deferred since `0.2.0`. |
+| **A. Deeper IA coverage** — ship `orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift` | Stays in the `0.3.0` lane and keeps the IA momentum visible. | Pre-empted by real-repo feedback: "no more detectors before fixing noise". Three of the four also need machinery that does not exist yet (near-duplicate scoring, policy / route-guard discovery). |
+| **B. Repo risk scoring** — populate `scores.churn`, `scores.test_gap`, and `scores.blast_radius` on every finding, ranked aggregate-first | Closes the M2 milestone and makes hotspot ranking more honest. | Touches every detector and the scoring contract; bigger than one minor release. Still on the long-term roadmap. |
+| **C. Suppressions and config** — `crimes init` + `crimes.config.json` plumbing, `crimes ignore <id>` + `.crimes/suppressions.json`, optional `crimes explain <id>` | Closes the M4 polish gap. | Demand for suppressions is mostly demand to silence noisy findings. Fixing the noise at source (shape-aware thresholds, GitHub-link allowlist, shallow-clone annotation) removes most of that demand. Slips to **0.5.0**. |
+| **D. Agent context quality and signal-to-noise** ✅ — monorepo / nested-package root detection for `context`, deterministic neighbourhood-related-file discovery, shape-aware `large_function`, `docs_code_drift` GitHub-relative allowlist, `_test.ts` likely-test detection, `scan --changed` `changed_files`, `hotspots` shallow-clone annotation, empty-field self-explanation, docs honesty pass | Directly addresses the two highest-leverage gaps surfaced by Claude / Codex trials of `0.3.0` on real repos. No new detectors; every change raises the trust ratio of findings that already ship. | — |
 
 **Rationale.** `0.3.0` ships ambiguity signals that explicitly *want*
 to fire on some legitimate aliases (see Concept Alias Drift's
-false-positive notes). Without per-finding suppressions or a config
-file to tune detector thresholds, the next painful experience for
-adopters is "I cannot scope this finding to ignore." Suppressions are
-the bottleneck. Config plumbing also unblocks later detectors that
-need declarative inputs (`architecture.layers`, custom IA seed
-groups), which is the lowest-cost way to enable the deferred IA
-detectors when they do ship.
+false-positive notes). Live trials showed the next painful experience
+isn't "I can't suppress this finding" — it's "I don't trust this
+finding." Suppressions paper over noise; `0.4.0` removes it. Once
+the existing detectors are reliable, suppressions and config (the
+previous `C` candidate) become the right `0.5.0` headline — they
+unblock declarative inputs that the deferred IA detectors (A) need.
 
-Both candidates A and B remain on the long-term roadmap and may slip
-into `0.4.0` opportunistically if any specific detector (e.g.
-`scores.churn`) lands with a small enough surface area. They are not
-the headline.
+Candidates A, B, and C remain on the long-term roadmap. Specific
+sub-items may slip into `0.4.0` opportunistically if they land with a
+small enough surface area; they are not the headline.
 
 ---
 
