@@ -183,7 +183,7 @@ interface Finding {
    * Populated by the IA detectors (`missing_agent_context`,
    * `route_metadata_drift`, `duplicated_navigation_source`,
    * `concept_alias_drift`, `docs_code_drift`). Absent on structural
-   * findings.
+   * and petty findings.
    */
   related_files?: string[];
 }
@@ -210,8 +210,10 @@ Populated on cross-file findings:
 - `related_files` — populated by the five IA detectors
   (`missing_agent_context`, `route_metadata_drift`,
   `duplicated_navigation_source`, `concept_alias_drift`,
-  `docs_code_drift`). Absent on structural findings (`large_file`,
-  `large_function`, `todo_density`, `direct_date`).
+  `docs_code_drift`). Absent on structural and petty findings
+  (`large_file`, `large_function`, `todo_density`, `direct_date`,
+  `commented_out_code`, `logic_in_comments`,
+  `name_behavior_mismatch`).
 
 Reserved (declared in the schema, deferred to later milestones):
 
@@ -236,6 +238,9 @@ should treat unknown values defensively. The currently shipped values are:
 | `large_function`                | `God Function`               | yes         | Functions/methods/arrows over `thresholds.largeFunctionLines` (60)                              |
 | `todo_density`                  | `Unfinished Business`        | no          | High `TODO/FIXME/XXX/HACK` density vs `thresholds.todoDensityPerKLoc`                            |
 | `direct_date`                   | `Temporal Recklessness`      | no          | Direct `Date.now()` or `new Date()` usage                                                       |
+| `commented_out_code`            | `Commented-Out Corpse`       | no          | Comment blocks or consecutive line comments that appear to contain disabled source code          |
+| `logic_in_comments`             | `Logic in the Alibi`         | no          | Comments that appear to carry business rules or safety constraints not represented nearby        |
+| `name_behavior_mismatch`        | `False Identity`             | yes         | Safe-sounding function names whose bodies appear to perform side effects                         |
 | `missing_agent_context`         | `Missing Agent Context`      | no          | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md`      |
 | `route_metadata_drift`          | `Route Metadata Drift`       | no          | One route's path, file, component name, page title, and nav labels appear to use competing names |
 | `duplicated_navigation_source`  | `Duplicated Navigation Source` | no        | Same destination declared in multiple nav-like source files with different labels                |
@@ -525,6 +530,9 @@ Static lookup keyed on `Finding.type`. One line per type that appears in
 | `large_file`                    | Read the whole file before editing — propose splits in their own change.                                   |
 | `direct_date`                   | Avoid adding more direct clock access; inject time where possible.                                         |
 | `todo_density`                  | Review TODOs before relying on comments as current intent.                                                 |
+| `commented_out_code`            | Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.    |
+| `logic_in_comments`             | Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.  |
+| `name_behavior_mismatch`        | Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.   |
 | `missing_agent_context`         | Agents may miss project-specific commands, architecture rules, and safety checks.                          |
 | `route_metadata_drift`          | The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels. |
 | `duplicated_navigation_source`  | Multiple files declare this destination; updating only one will leave the others stale.                    |

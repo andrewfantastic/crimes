@@ -254,7 +254,7 @@ HIGH severity (1)
      id=crime_00001  confidence=0.95
   ...
 
-Total 5  ·  high 1  medium 3  low 1
+Total 14  ·  high 1  medium 11  low 2
 ```
 
 JSON output is the **stable product API** — see
@@ -274,6 +274,19 @@ workflow.
 | `large_function`    | God Function          | Flags functions / methods / arrows over a body-line threshold (default 60)     |
 | `todo_density`      | Unfinished Business   | Flags files with high density of `TODO` / `FIXME` / `XXX` / `HACK` markers      |
 | `direct_date`       | Temporal Recklessness | Flags direct uses of `Date.now()` and `new Date()` in source files              |
+
+### Petty crimes (on `main`)
+
+| Detector                 | Charge               | What it does                                                                 |
+| ------------------------ | -------------------- | ---------------------------------------------------------------------------- |
+| `commented_out_code`     | Commented-Out Corpse | Flags disabled code left behind in comments                                  |
+| `logic_in_comments`      | Logic in the Alibi   | Flags comments that appear to carry business rules not encoded nearby         |
+| `name_behavior_mismatch` | False Identity       | Flags safe-sounding function names whose bodies perform side effects          |
+
+Petty crimes are small, evidence-backed maintainability irritants that make
+future edits easier to misread. They are not style rules; anything best
+handled by ESLint/Biome stays out of scope. See
+[`docs/finding-types/petty.md`](./docs/finding-types/petty.md).
 
 ### Information architecture detectors (shipping in `0.3.0`, currently on `main`)
 
@@ -759,9 +772,9 @@ The JSON output is a stable contract:
       "confidence": 0.95,
       "file": "src/billing.ts",
       "symbol": "generateInvoice",
-      "lines": [37, 240],
+      "lines": [50, 253],
       "summary": "generateInvoice spans 204 lines — past the 60-line threshold...",
-      "evidence": ["lines 37–240 (204 lines)", "3.4× the configured 60-line threshold", "function declaration"],
+      "evidence": ["lines 50–253 (204 lines)", "3.4× the configured 60-line threshold", "function declaration"],
       "scores": { "severity": 0.9, "confidence": 0.95, "agent_risk": 0.95 },
       "suggested_actions": [{ "kind": "extract_function", "description": "...", "risk": "low" }]
     }

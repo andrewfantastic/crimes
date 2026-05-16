@@ -223,6 +223,11 @@ shared piece of nav.
 - **Cross-file `related_files`** — populated by the IA detectors and
   rendered as an "Also touches:" block (capped at 5, with overflow
   noted) in the human reporter. JSON output is unchanged.
+- **Petty crimes first slice** — `commented_out_code`,
+  `logic_in_comments`, and `name_behavior_mismatch` ship as local,
+  evidence-backed maintainability findings. They stay under the existing
+  `Finding` shape and do not add a new severity level. See
+  [`docs/finding-types/petty.md`](./docs/finding-types/petty.md).
 - **Route Metadata Drift evidence cap raised from 6 → 8** so both nav
   labels in a multi-source drift fit alongside the route path / file /
   component / title evidence without losing data to truncation.
@@ -371,12 +376,10 @@ small enough surface area; they are not the headline.
   truth, orphaned destinations, or fragmented workflows. This extends the
   agent-risk thesis into product taxonomy: can a human or agent tell what a
   thing is called, where it belongs, and which implementation owns it?
-- **Petty crimes:** small, evidence-backed maintainability irritants that
-  make humans or agents hesitate, guess, or copy the wrong thing. Candidate
-  detectors include commented-out code, logic-bearing comments,
-  name/behaviour mismatch, repeated domain literals, and weak tests. See
-  [`PETTY_CRIMES_PLAN.md`](./PETTY_CRIMES_PLAN.md). This must stay out of
-  style-lint territory: no tabs-vs-spaces, import-order, or generic
+- **Petty crimes follow-ups:** repeated domain literals, weak tests, option
+  bag junk drawers, return-shape roulette, and negative flag mazes. See
+  [`PETTY_CRIMES_PLAN.md`](./PETTY_CRIMES_PLAN.md). This track must stay
+  out of style-lint territory: no tabs-vs-spaces, import-order, or generic
   formatting rules.
 - **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).
 

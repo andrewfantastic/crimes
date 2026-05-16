@@ -32,13 +32,16 @@ export type {
   FindRelatedFilesOptions,
 } from "./context-related-files.js";
 export type { Detector, DetectorContext } from "./detector.js";
+export { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 export { directDateDetector } from "./detectors/direct-date.js";
 export { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
+export { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 export { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+export { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export {

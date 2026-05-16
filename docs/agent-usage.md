@@ -560,6 +560,25 @@ rules, suggested fixes), see
 
 ---
 
+## Petty crimes findings
+
+Petty crimes are small, local maintainability signals that make code easier
+to misread. They are not style lint. They exist because coding agents copy
+nearby patterns, trust comments, and infer safety from names.
+
+| `Finding.type`           | Charge                 | Agent concern                                                                        |
+| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| `commented_out_code`     | Commented-Out Corpse   | Disabled code can look like reusable implementation or current documentation.         |
+| `logic_in_comments`      | Logic in the Alibi     | A business rule may live only in prose instead of guards, types, config, or tests.    |
+| `name_behavior_mismatch` | False Identity         | A safe-sounding function may write, send, track, charge, or otherwise mutate state.   |
+
+When you see a petty crime, do not auto-fix it blindly. Read the evidence,
+then decide whether the current edit needs to preserve, encode, rename, or
+delete the suspicious pattern. For long-form reference, see
+[`docs/finding-types/petty.md`](./finding-types/petty.md).
+
+---
+
 ## How to read a finding
 
 Every finding has the same shape (see [`json-schema.md`](./json-schema.md) for
@@ -599,7 +618,7 @@ path sanitised:
     "name": "messy-ts-app",
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
-  "summary": { "total": 5, "high": 1, "medium": 3, "low": 1 },
+  "summary": { "total": 14, "high": 1, "medium": 11, "low": 2 },
   "findings": [
     {
       "id": "crime_00001",
@@ -609,10 +628,10 @@ path sanitised:
       "confidence": 0.95,
       "file": "src/billing.ts",
       "symbol": "generateInvoice",
-      "lines": [37, 240],
+      "lines": [50, 253],
       "summary": "generateInvoice spans 204 lines — past the 60-line threshold for a single function. Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
       "evidence": [
-        "lines 37–240 (204 lines)",
+        "lines 50–253 (204 lines)",
         "3.4× the configured 60-line threshold",
         "function declaration"
       ],
@@ -625,7 +644,7 @@ path sanitised:
         }
       ]
     }
-    // ...four more findings elided. Full output:
+    // ...thirteen more findings elided. Full output:
     //   docs/fixtures/messy-ts-app.json
   ]
 }
@@ -667,6 +686,7 @@ rely on them in agent instructions yet:
 | `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
 | IA findings: `missing_agent_context`, `route_metadata_drift`, `duplicated_navigation_source`, `concept_alias_drift`, `docs_code_drift` | ✅ shipped (`0.3.0`) |
 | `Finding.related_files` populated on IA findings (human-rendered as "Also touches:") | ✅ shipped (`0.3.0`) |
+| Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch` | ✅ shipped (on `main`) |
 | `crimes diff --fail-on new-high`       | 🚧 deferred (v0.4.0 candidate) |
 | `crimes ignore <id>`                   | 🚧 deferred (v0.4.0 candidate) |
 | `crimes explain <id>`                  | 🚧 deferred (v0.4.0 candidate) |

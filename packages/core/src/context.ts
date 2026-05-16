@@ -94,6 +94,12 @@ const GUIDANCE: Record<string, string> = {
     "Avoid adding more direct clock access; inject time where possible.",
   todo_density:
     "Review TODOs before relying on comments as current intent.",
+  commented_out_code:
+    "Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.",
+  logic_in_comments:
+    "Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.",
+  name_behavior_mismatch:
+    "Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.",
   missing_agent_context:
     "Agents may miss project-specific commands, architecture rules, and safety checks.",
   route_metadata_drift:

@@ -30,6 +30,19 @@ interface Invoice {
   metadata: Record<string, string>;
 }
 
+// const legacyRefund = await loadRefund(user.id);
+// if (legacyRefund && legacyRefund.status === "pending") {
+//   await approveRefund(legacyRefund.id);
+// }
+// await sendRefundReceipt(legacyRefund.email);
+
+// Only owners can refund enterprise plans unless billing support approves.
+export async function calculateRefundPreview(user: User, invoice: Invoice): Promise<number> {
+  await saveRefundAudit(user.id, invoice.id);
+  await sendRefundEmail(user.email, invoice.id);
+  return invoice.totalCents;
+}
+
 // A textbook God Function: pricing, discount rules, country tax, persistence
 // shape, audit logging, email rendering, retry logic, and PII handling all live
 // inside one body. Each region is its own responsibility but there are no seams,

@@ -6,13 +6,16 @@ import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
+import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
@@ -28,6 +31,10 @@ export const builtInDetectors: Detector[] = [
   largeFunctionDetector,
   todoDensityDetector,
   directDateDetector,
+  // Petty crimes (small local patterns that increase agent confusion).
+  commentedOutCodeDetector,
+  logicInCommentsDetector,
+  nameBehaviorMismatchDetector,
   // Information-architecture detectors (cross-file; require ctx.ia).
   missingAgentContextDetector,
   routeMetadataDriftDetector,

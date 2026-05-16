@@ -6,9 +6,9 @@
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 10,
+    "total": 14,
     "high": 1,
-    "medium": 7,
+    "medium": 11,
     "low": 2
   },
   "findings": [
@@ -21,12 +21,12 @@
       "file": "src/billing.ts",
       "symbol": "generateInvoice",
       "lines": [
-        37,
-        240
+        50,
+        253
       ],
       "summary": "generateInvoice spans 204 lines — past the 60-line threshold for a single function. Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
       "evidence": [
-        "lines 37–240 (204 lines)",
+        "lines 50–253 (204 lines)",
         "3.4× the configured 60-line threshold",
         "function declaration"
       ],
@@ -72,19 +72,49 @@
     },
     {
       "id": "crime_00003",
+      "type": "commented_out_code",
+      "charge": "Commented-Out Corpse",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/billing.ts",
+      "lines": [
+        33,
+        37
+      ],
+      "summary": "Comment block appears to contain disabled code. Dead implementation snippets can mislead humans and agents into copying or reviving stale behaviour.",
+      "evidence": [
+        "5 comment lines",
+        "code-like tokens: const, if, await",
+        "first code-like line: const legacyRefund = await loadRefund(user.id);"
+      ],
+      "scores": {
+        "severity": 0.45,
+        "confidence": 0.9,
+        "agent_risk": 0.72
+      },
+      "suggested_actions": [
+        {
+          "kind": "delete_dead_comment_code",
+          "description": "Delete the disabled code, or replace it with a short rationale that explains the active implementation.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00004",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
       "confidence": 0.9,
       "file": "src/billing.ts",
       "lines": [
-        44,
-        260
+        57,
+        273
       ],
       "summary": "7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
       "evidence": [
         "5× Date.now(), 2× new Date()",
-        "lines: 44, 50, 79, 185, 225, 237, 260",
+        "lines: 57, 63, 92, 198, 238, 250, 273",
         "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
       ],
       "scores": {
@@ -101,7 +131,7 @@
       ]
     },
     {
-      "id": "crime_00004",
+      "id": "crime_00005",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -131,7 +161,38 @@
       ]
     },
     {
-      "id": "crime_00005",
+      "id": "crime_00006",
+      "type": "name_behavior_mismatch",
+      "charge": "False Identity",
+      "severity": "medium",
+      "confidence": 0.8,
+      "file": "src/billing.ts",
+      "symbol": "calculateRefundPreview",
+      "lines": [
+        40,
+        44
+      ],
+      "summary": "calculateRefundPreview has a safe-sounding name but appears to perform side effects. Misleading names make edits riskier because callers may treat the function as pure.",
+      "evidence": [
+        "name prefix suggests a pure transformation",
+        "side-effect-like calls: saveRefundAudit, sendRefundEmail",
+        "3 side-effect signals in the function body"
+      ],
+      "scores": {
+        "severity": 0.55,
+        "confidence": 0.8,
+        "agent_risk": 0.78
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_extract_side_effect",
+          "description": "Rename the function to disclose the side effect, or extract the pure calculation/read from the mutation.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00007",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -166,7 +227,67 @@
       ]
     },
     {
-      "id": "crime_00006",
+      "id": "crime_00008",
+      "type": "large_file",
+      "charge": "God File",
+      "severity": "medium",
+      "confidence": 0.71,
+      "file": "src/billing.ts",
+      "lines": [
+        1,
+        310
+      ],
+      "summary": "File is 310 lines (threshold 300). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.",
+      "evidence": [
+        "310 non-empty lines",
+        "1.0× the configured 300-line threshold",
+        "5 top-level functions declared in this file"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.71,
+        "agent_risk": 0.46
+      },
+      "suggested_actions": [
+        {
+          "kind": "split_file",
+          "description": "Split along clear responsibility boundaries. Smaller modules give humans and agents a smaller surface to reason about per edit.",
+          "risk": "medium"
+        }
+      ]
+    },
+    {
+      "id": "crime_00009",
+      "type": "logic_in_comments",
+      "charge": "Logic in the Alibi",
+      "severity": "medium",
+      "confidence": 0.71,
+      "file": "src/billing.ts",
+      "lines": [
+        39,
+        39
+      ],
+      "summary": "Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.",
+      "evidence": [
+        "comment says: \"Only owners can refund enterprise plans unless billing support approves.\"",
+        "rule terms: only, unless",
+        "domain terms not found nearby: owner, plan, billing"
+      ],
+      "scores": {
+        "severity": 0.5,
+        "confidence": 0.71,
+        "agent_risk": 0.74
+      },
+      "suggested_actions": [
+        {
+          "kind": "encode_comment_rule",
+          "description": "Move the rule into a named guard, type, config value, or test; keep comments for rationale.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00010",
       "type": "duplicated_navigation_source",
       "charge": "Duplicated Navigation Source",
       "severity": "medium",
@@ -195,7 +316,7 @@
       ]
     },
     {
-      "id": "crime_00007",
+      "id": "crime_00011",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -224,7 +345,7 @@
       ]
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00012",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -258,7 +379,7 @@
       ]
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00013",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -282,25 +403,25 @@
       ]
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00014",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
       "confidence": 0.7,
       "file": "src/billing.ts",
       "lines": [
-        170,
-        295
+        183,
+        308
       ],
-      "summary": "4 TODO/FIXME markers (13.5 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
+      "summary": "4 TODO/FIXME markers (12.9 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.",
       "evidence": [
         "1× FIXME, 1× HACK, 1× XXX, 1× TODO",
-        "13.5 markers per 1k LOC (threshold 10)"
+        "12.9 markers per 1k LOC (threshold 10)"
       ],
       "scores": {
         "severity": 0.2,
         "confidence": 0.7,
-        "agent_risk": 0.22
+        "agent_risk": 0.21
       },
       "suggested_actions": [
         {
