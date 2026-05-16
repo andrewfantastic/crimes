@@ -615,6 +615,119 @@ serialise.
 
 ---
 
+## `VerdictReport` (output of `crimes verdict`)
+
+`crimes verdict --format json` emits a single JSON document — the
+`VerdictReport`. It is built on top of `crimes diff` (same archive-into-temp
+machinery, same fingerprint-based matching) and adds a single headline
+`verdict` plus `reasons` / `recommended_actions` strings on top.
+
+```ts
+interface VerdictReport {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal "verdict". */
+  report_type: "verdict";
+  repo: { name: string; root: string };
+  /** Base ref the verdict resolved (explicit `--base`, else default). */
+  base: string;
+  /** Head ref the verdict resolved (typically "HEAD"). */
+  head: string;
+  /** Headline judgement — one of four enum values. */
+  verdict: "cleaner" | "worse" | "unchanged" | "mixed";
+  summary: VerdictSummary;
+  /** Short, machine-friendly reasons that drove the verdict. */
+  reasons: string[];
+  /** Short, human-readable next-step suggestions. */
+  recommended_actions: string[];
+  /** Findings present at `head` but not at `base`. Same shape as ScanReport. */
+  new_findings: Finding[];
+  /** Findings present at `base` but not at `head`. Same shape as ScanReport. */
+  fixed_findings: Finding[];
+}
+
+interface VerdictSummary {
+  new: number;
+  fixed: number;
+  /** Findings present at both refs. Carried through from the underlying diff. */
+  unchanged: number;
+  new_by_severity:   { high: number; medium: number; low: number };
+  fixed_by_severity: { high: number; medium: number; low: number };
+  /** Σ SEVERITY_WEIGHT over `new_findings`. */
+  new_weighted: number;
+  /** Σ SEVERITY_WEIGHT over `fixed_findings`. */
+  fixed_weighted: number;
+}
+```
+
+### Default base selection
+
+When `--base` is omitted, `crimes verdict` picks the first of these refs
+that resolves:
+
+1. `origin/main`
+2. `main`
+
+If neither resolves, the command exits `2` with a "no default base" error
+on stderr asking the user to pass `--base <ref>` explicitly. No JSON is
+emitted.
+
+### `verdict` semantics
+
+Severity weights: `high = 3`, `medium = 2`, `low = 1`. Treat the verdict
+as an ordinal signal — the weights may change between minor releases
+(same contract as the per-finding `scores.*` fields).
+
+Judgement rules, in order:
+
+1. **`unchanged`** — no new findings AND no fixed findings.
+2. **`worse`** — any new finding has `severity: "high"`. (A new high is
+   not offset by fixing other highs — it still flips the verdict.)
+3. **`worse`** — `summary.new_weighted > summary.fixed_weighted` (no new
+   high required).
+4. **`cleaner`** — `summary.fixed_weighted > summary.new_weighted` AND no
+   new high findings.
+5. **`mixed`** — both sides have at least one finding and weighted scores
+   are equal.
+
+`reasons` is a short array of human-readable strings — same content the
+human renderer prints on the `Reason:` line. `recommended_actions` is
+deterministic and keyed off the verdict (e.g. "fix new high-severity
+findings before merging.", "ship it — this branch removes more crime
+weight than it adds."). Treat both as **advisory copy** — wording may
+shift across minor releases.
+
+### How findings are matched
+
+Same stable `<type>::<file>::<symbol-or-empty>` fingerprint as
+[`crimes diff`](#diffreport-output-of-crimes-diff-basehead). Same known
+limitations apply — file renames register as a fix + new pair,
+identical-name nested helpers collide on one fingerprint.
+
+### Exit codes
+
+`crimes verdict` is **advisory by default** — it always exits `0`
+regardless of the verdict, so agents and humans can read it without
+breaking automation. Opt into a blocking gate with `--fail-on`:
+
+| `--fail-on`    | Exit `1` when …                                                  |
+| -------------- | ---------------------------------------------------------------- |
+| _(omitted)_    | Never. Always exit `0`.                                          |
+| `worse`        | `verdict === "worse"`.                                           |
+| `new-high`     | Any new finding has `severity: "high"`.                          |
+| `new-medium`   | Any new finding has `severity: "medium"` or `"high"`.            |
+
+Exit `2` is reserved for usage / environment errors:
+
+- Not a git repository.
+- No default base resolves and no `--base` was passed.
+- An explicit `--base <ref>` cannot be resolved.
+- A bad `--format` or `--fail-on` flag.
+
+The JSON output is produced on stdout for exit `0` and `1`. Exit `2`
+writes a single human-readable error line to stderr and emits no JSON.
+
+---
+
 ## Stability guarantees
 
 Within a single `schema_version`:

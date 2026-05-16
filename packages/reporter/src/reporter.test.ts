@@ -1,14 +1,21 @@
-import type { ContextReport, DiffReport, ScanReport } from "@crimes/core";
+import type {
+  ContextReport,
+  DiffReport,
+  ScanReport,
+  VerdictReport,
+} from "@crimes/core";
 import { describe, expect, it } from "vitest";
 import {
   formatContextHumanReport,
   formatDiffReport,
   formatHumanReport,
+  formatVerdictReport,
 } from "./human.js";
 import {
   formatContextJsonReport,
   formatDiffJsonReport,
   formatJsonReport,
+  formatVerdictJsonReport,
 } from "./json.js";
 
 const sampleReport: ScanReport = {
@@ -280,5 +287,98 @@ describe("formatDiffJsonReport", () => {
     expect(parsed.fixed_findings).toHaveLength(1);
     expect(parsed.new_findings[0]!.charge).toBe("God Function");
     expect(parsed.fixed_findings[0]!.file).toBe("src/deleted.ts");
+  });
+});
+
+const sampleVerdict: VerdictReport = {
+  schema_version: "0.1.0",
+  report_type: "verdict",
+  repo: { name: "demo", root: "/tmp/demo" },
+  base: "origin/main",
+  head: "HEAD",
+  verdict: "worse",
+  summary: {
+    new: 2,
+    fixed: 1,
+    unchanged: 8,
+    new_by_severity: { high: 1, medium: 1, low: 0 },
+    fixed_by_severity: { high: 0, medium: 1, low: 0 },
+    new_weighted: 5,
+    fixed_weighted: 2,
+  },
+  reasons: ["introduced 1 high-severity crime"],
+  recommended_actions: ["fix new high-severity findings before merging."],
+  new_findings: sampleDiff.new_findings,
+  fixed_findings: sampleDiff.fixed_findings,
+};
+
+describe("formatVerdictReport", () => {
+  it("renders the headline CRIMES VERDICT block", () => {
+    const out = formatVerdictReport(sampleVerdict, { noColor: true });
+    expect(out).toContain("CRIMES VERDICT");
+    expect(out).toContain("base: origin/main");
+    expect(out).toContain("head: HEAD");
+    expect(out).toContain("Verdict: WORSE");
+    expect(out).toContain("New: 2");
+    expect(out).toContain("Fixed: 1");
+    expect(out).toContain("Reason: introduced 1 high-severity crime");
+    expect(out).toContain(
+      "Recommended next action: fix new high-severity findings before merging.",
+    );
+  });
+
+  it("uppercases each verdict label distinctly", () => {
+    for (const v of ["cleaner", "unchanged", "mixed"] as const) {
+      const out = formatVerdictReport(
+        { ...sampleVerdict, verdict: v, reasons: [], recommended_actions: [] },
+        { noColor: true },
+      );
+      expect(out).toContain(`Verdict: ${v.toUpperCase()}`);
+    }
+  });
+});
+
+describe("formatVerdictJsonReport", () => {
+  it("includes every required key", () => {
+    const parsed = JSON.parse(formatVerdictJsonReport(sampleVerdict)) as Record<
+      string,
+      unknown
+    >;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "repo",
+      "base",
+      "head",
+      "verdict",
+      "summary",
+      "reasons",
+      "recommended_actions",
+      "new_findings",
+      "fixed_findings",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.report_type).toBe("verdict");
+    expect(parsed.verdict).toBe("worse");
+  });
+
+  it("round-trips the summary with severity buckets", () => {
+    const parsed = JSON.parse(
+      formatVerdictJsonReport(sampleVerdict),
+    ) as VerdictReport;
+    expect(parsed.summary.new_by_severity).toEqual({
+      high: 1,
+      medium: 1,
+      low: 0,
+    });
+    expect(parsed.summary.fixed_by_severity).toEqual({
+      high: 0,
+      medium: 1,
+      low: 0,
+    });
+    expect(parsed.summary.new_weighted).toBe(5);
+    expect(parsed.summary.fixed_weighted).toBe(2);
   });
 });

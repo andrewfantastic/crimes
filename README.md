@@ -93,6 +93,10 @@ What ships today, all verified by a publish-tarball smoke test in CI:
   from the saved baseline. `--fail-on low|medium|high` (default `medium`)
   sets the severity threshold; exit `1` blocks CI, exit `2` is reserved for
   missing / malformed baseline files and bad flags.
+- `crimes verdict` — one-line "did this branch make the repo cleaner,
+  worse, unchanged, or mixed?" — built on top of `crimes diff`. Default
+  base is `origin/main`, then `main`. Advisory by default; opt into a
+  blocking gate with `--fail-on worse | new-high | new-medium`.
 - Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
@@ -122,12 +126,15 @@ Landing in `crimes@0.2.0`:
   [Commands → `crimes baseline`](#crimes-baseline) below.
 - **`--fail-on new-high`** flag for `crimes diff` — exits non-zero on any
   new `severity: "high"` finding. (Planned.)
-- **`crimes verdict`** — one-line "did this branch help or hurt?"
-  summary, built on `crimes diff` against the current merge base.
+- **`crimes verdict`** ✅ — one-line "did this branch help or hurt?"
+  summary, built on `crimes diff`. Defaults base to `origin/main` then
+  `main`; advisory by default, opt-in CI gate via `--fail-on worse |
+  new-high | new-medium`. See [Commands → `crimes verdict`](#crimes-verdict)
+  below.
 - **CI recipe** — copy-paste GitHub Actions snippet for failing PRs on
   new high-severity crimes.
-- **JSON schema docs** — `DiffReport` ✅ documented; `VerdictReport` and
-  `Baseline` shapes will follow under the same `schema_version`
+- **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅, and
+  `VerdictReport` ✅ documented under the same `schema_version`
   discipline as `ScanReport`.
 
 Deferred to later versions (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
@@ -456,6 +463,86 @@ Exit codes:
 Full schema, fingerprint semantics, and known limitations:
 [`docs/json-schema.md`](./docs/json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson).
 
+### `crimes verdict`
+
+Branch-level "did this branch make the repo cleaner, worse, unchanged, or
+mixed?" summary. Built on top of `crimes diff` — same archive-into-temp
+machinery, same fingerprint-based matching, same working-tree-safe
+guarantees — with a single headline verdict layered on top.
+
+```bash
+crimes verdict                                # default base: origin/main → main
+crimes verdict --base main                    # override base
+crimes verdict --format json                  # the stable contract
+crimes verdict --fail-on worse                # exit 1 when verdict is worse
+crimes verdict --fail-on new-high             # exit 1 on any new high finding
+crimes verdict --fail-on new-medium           # exit 1 on any new medium or high
+```
+
+Concise human output:
+
+```
+CRIMES VERDICT
+base: origin/main
+head: HEAD
+
+Verdict: WORSE
+New: 2
+Fixed: 1
+Reason: introduced 1 high-severity crime
+Recommended next action: fix new high-severity findings before merging.
+```
+
+JSON output is the stable contract:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "verdict",
+  "repo": { "name": "crimes", "root": "/path/to/repo" },
+  "base": "origin/main",
+  "head": "HEAD",
+  "verdict": "worse",
+  "summary": {
+    "new": 2, "fixed": 1, "unchanged": 8,
+    "new_by_severity":   { "high": 1, "medium": 1, "low": 0 },
+    "fixed_by_severity": { "high": 0, "medium": 1, "low": 0 },
+    "new_weighted": 5,
+    "fixed_weighted": 2
+  },
+  "reasons": ["introduced 1 high-severity crime"],
+  "recommended_actions": ["fix new high-severity findings before merging."],
+  "new_findings":   [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* ... */ ]
+}
+```
+
+Judgement logic (deterministic, no LLM):
+
+- **unchanged** — no new and no fixed findings.
+- **worse** — any new high finding, OR new weighted severity > fixed
+  weighted severity.
+- **cleaner** — fixed weighted severity > new weighted severity AND no
+  new high findings.
+- **mixed** — both sides non-zero with equal weighted severity.
+
+Severity weights are `high = 3`, `medium = 2`, `low = 1`. Treat the
+verdict as an ordinal signal — the weights may change between minor
+releases (same contract as the per-finding `scores.*` fields).
+
+Exit codes:
+
+| Exit | When                                                                                |
+| ---- | ----------------------------------------------------------------------------------- |
+| `0`  | Default — `crimes verdict` is advisory regardless of verdict.                       |
+| `0`  | With `--fail-on`, threshold not hit.                                                |
+| `1`  | With `--fail-on worse` and `verdict === "worse"`.                                   |
+| `1`  | With `--fail-on new-high` and any new finding has `severity: "high"`.               |
+| `1`  | With `--fail-on new-medium` and any new finding has `severity: "medium"` or `"high"`. |
+| `2`  | Usage / environment error — not a git repo, no resolvable default base, bad flag.   |
+
+Full schema: [`docs/json-schema.md`](./docs/json-schema.md#verdictreport-output-of-crimes-verdict).
+
 More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
 [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
@@ -624,7 +711,7 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
 - **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
 - **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0` in progress); **`verdict` and `--fail-on new-high` on `crimes diff` are the remaining `0.2.0` work**
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`); **`--fail-on new-high` on `crimes diff` is the remaining `0.2.0` work**
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

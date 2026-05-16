@@ -145,6 +145,50 @@ Read on the JSON:
 `--fail-on` values: `low` (any new finding fails), `medium` (medium or
 high; the default), `high` (only new high findings fail).
 
+### End-of-task verdict (`crimes verdict`)
+
+When the task is wrapped and you want a one-line "did this branch make
+the repo cleaner, worse, unchanged, or mixed?" answer for the user, run
+`crimes verdict`. Built on top of `crimes diff`, so same fingerprint
+matching and same working-tree-safety:
+
+```bash
+crimes verdict --format json                  # default base: origin/main → main
+crimes verdict --base main --format json      # override base
+crimes verdict --fail-on new-high             # opt-in CI gate
+```
+
+Read on the JSON:
+
+- `verdict` — headline, one of `cleaner | worse | unchanged | mixed`.
+- `reasons[]` — short human-readable strings explaining what drove the
+  verdict; quote them back when summarising.
+- `recommended_actions[]` — one or two next-step lines keyed off the
+  verdict. Treat both as advisory copy.
+- `summary.new_weighted` / `summary.fixed_weighted` — simple weighted
+  scores (`high = 3`, `medium = 2`, `low = 1`) that drive the
+  judgement. Treat as ordinal — exact weights may change.
+- `summary.new_by_severity` / `summary.fixed_by_severity` — per-severity
+  counts on each side, useful when explaining trade-offs.
+- `new_findings[]` / `fixed_findings[]` — full `Finding` shape, same
+  contract as `crimes diff`.
+
+Default base picks `origin/main` first, then `main`. If neither
+resolves the command exits `2` — pass `--base <ref>` explicitly.
+
+`--fail-on` is opt-in (the default behaviour is advisory, always exit
+`0`). Values:
+
+- `worse` — fail when `verdict === "worse"`.
+- `new-high` — fail when any new finding has `severity: "high"`.
+- `new-medium` — fail when any new finding has `severity: "medium"` or
+  `"high"`.
+
+Decision rule: when the verdict is `worse` because of a new high, treat
+it the same as a new high finding from `crimes diff` — a blocker unless
+the user explicitly accepts the risk. When the verdict is `mixed`,
+surface the trade-off rather than silently merging.
+
 ## Decision rules
 
 1. **A new `severity: "high"` finding introduced by your edit is a blocker.**
@@ -179,8 +223,8 @@ user approval.
 - It has no LSP, no watch mode, no editor integration.
 - It does not auto-fix. There is no `crimes --fix`.
 - These commands are **not yet implemented** and must not be invoked:
-  `crimes diff --fail-on new-high`, `crimes verdict`, `crimes ignore`,
-  `crimes explain`, `crimes init`, `crimes ask`.
+  `crimes diff --fail-on new-high`, `crimes ignore`, `crimes explain`,
+  `crimes init`, `crimes ask`.
 
 ## Reading findings — five fields that matter
 

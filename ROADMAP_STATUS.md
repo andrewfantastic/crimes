@@ -19,7 +19,7 @@ mirror, not a planning doc.
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
 | M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
 | M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅, `crimes baseline save` / `crimes baseline check` ✅; `verdict` / `--fail-on new-high` on `diff` are the remaining **0.2.0** work |
+| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅, `crimes baseline save` / `crimes baseline check` ✅, `crimes verdict` ✅; `--fail-on new-high` on `diff` is the remaining **0.2.0** work |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -108,24 +108,30 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
   / malformed baselines and bad flags. Schemas (`Baseline`,
   `BaselineCheckReport`) documented in
   [`docs/json-schema.md`](./docs/json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson).
+- ✅ **`crimes verdict`** — branch-level "did this branch make the repo
+  cleaner, worse, unchanged, or mixed?" summary. Built on top of
+  `crimes diff` (same archive-into-temp machinery, same fingerprint
+  matching). Default base picks `origin/main` first, then `main`;
+  exits `2` if neither resolves and no `--base` is passed. Advisory
+  by default (always exits `0`); opt into a CI gate with `--fail-on
+  worse | new-high | new-medium`. Severity weights are `high = 3`,
+  `medium = 2`, `low = 1`. Schema (`VerdictReport`) documented in
+  [`docs/json-schema.md`](./docs/json-schema.md#verdictreport-output-of-crimes-verdict).
 
 ### Planned for the rest of 0.2.0
 
 - **`crimes diff --fail-on new-high`** — exit non-zero when the head ref
   introduces any new `severity: "high"` finding (the canonical CI gate).
-- **`crimes verdict`** — branch-level "did this branch make the repo
-  better or worse?" summary. Built on top of `crimes diff` for the
-  current branch vs. its merge base.
 
 ### Planned docs
 
 - **CI recipe** — concrete GitHub Actions snippet for failing PRs on
-  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`
-  or `crimes baseline check`), plus the baseline alternative for legacy
-  repos.
-- **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅, `BaselineCheckReport` ✅
-  documented; `VerdictReport` still to come, under the same
-  `schema_version` discipline as `ScanReport`.
+  new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`,
+  `crimes verdict --fail-on new-high`, or `crimes baseline check`),
+  plus the baseline alternative for legacy repos.
+- **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅,
+  `BaselineCheckReport` ✅, `VerdictReport` ✅ — all documented under
+  the same `schema_version` discipline as `ScanReport`.
 
 ### Out of scope for 0.2.0
 
@@ -182,14 +188,15 @@ In rough leverage order — these unlock the most product value once
    **new** high findings without drowning teams in legacy debt. This is
    the single highest-impact feature still missing from the PRD's M4
    bundle, and the one most CI integrations are waiting on.
-2. **`crimes verdict`** because it turns the same diff signal into a
+2. **`crimes verdict`** ✅ because it turns the same diff signal into a
    one-line "did this branch help or hurt?" answer that fits a PR
    comment or an agent's end-of-task summary.
 3. **CI docs** because shipping `--fail-on new-high` without a copy-paste
    GitHub Actions recipe leaves users to guess at the integration.
-4. **Baseline docs in the JSON schema** so the new on-disk artefact
-   (`.crimes/baseline.json`) is treated as a stable contract from day
-   one — same versioning discipline as `ScanReport`.
+4. **Baseline + verdict docs in the JSON schema** so the new on-disk
+   artefact (`.crimes/baseline.json`) and the new `VerdictReport` are
+   treated as stable contracts from day one — same versioning
+   discipline as `ScanReport`.
 
 After 0.2.0, the next bottleneck shifts back to **detector signal**: the
 richer per-finding scores and cross-file relationships that `0.3.0`

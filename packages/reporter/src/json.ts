@@ -5,6 +5,7 @@ import type {
   DiffReport,
   HotspotsReport,
   ScanReport,
+  VerdictReport,
 } from "@crimes/core";
 
 export interface JsonReportOptions {
@@ -54,6 +55,14 @@ export function formatBaselineJsonReport(
 
 export function formatBaselineCheckJsonReport(
   report: BaselineCheckReport,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(report, null, pretty ? 2 : 0);
+}
+
+export function formatVerdictJsonReport(
+  report: VerdictReport,
   options: JsonReportOptions = {},
 ): string {
   const pretty = options.pretty ?? true;

@@ -5,6 +5,7 @@ export {
   formatDiffReport,
   formatHotspotsReport,
   formatHumanReport,
+  formatVerdictReport,
 } from "./human.js";
 export type {
   BaselineHumanReportOptions,
@@ -12,6 +13,7 @@ export type {
   DiffHumanReportOptions,
   HotspotsHumanReportOptions,
   HumanReportOptions,
+  VerdictHumanReportOptions,
 } from "./human.js";
 export {
   formatBaselineCheckJsonReport,
@@ -20,5 +22,6 @@ export {
   formatDiffJsonReport,
   formatHotspotsJsonReport,
   formatJsonReport,
+  formatVerdictJsonReport,
 } from "./json.js";
 export type { JsonReportOptions } from "./json.js";

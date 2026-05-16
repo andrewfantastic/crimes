@@ -79,3 +79,19 @@ export type {
 } from "./hotspots.js";
 export { builtInDetectors, scan } from "./scan.js";
 export type { ScanOptions } from "./scan.js";
+export {
+  judgeVerdict,
+  NoDefaultBaseError,
+  recommendActions,
+  resolveDefaultBase,
+  SEVERITY_WEIGHT,
+  shouldFailVerdict,
+  verdict,
+} from "./verdict.js";
+export type {
+  Verdict,
+  VerdictFailOn,
+  VerdictOptions,
+  VerdictReport,
+  VerdictSummary,
+} from "./verdict.js";

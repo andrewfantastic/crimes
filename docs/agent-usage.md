@@ -81,6 +81,7 @@ section into your project's agent-rules file.
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
 | Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
+| One-line "did this branch help or hurt?" summary                | `crimes verdict --format json`                   |
 | Gating CI on "no new debt vs the saved baseline"                | `crimes baseline check --format json`            |
 | Adopting `crimes` on a legacy repo (snapshot, then commit)      | `crimes baseline save`                           |
 | Triaging "where in the repo is the most change-risk right now?" | `crimes hotspots --format json`                  |
@@ -321,6 +322,91 @@ don't register as fix + new. See
 [`docs/json-schema.md`](./json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson)
 for the full schema and known limitations.
 
+### 1f. Branch-level verdict (`crimes verdict`)
+
+When the agent finishes a task and wants a one-line "did this branch
+help or hurt the repo?" answer, run `crimes verdict`. It is built on top
+of `crimes diff`, so it inherits the same fingerprint matching and
+working-tree-safety, but emits a single headline `verdict` instead of
+the full new/fixed/unchanged breakdown:
+
+```bash
+crimes verdict --format json                  # default base: origin/main → main
+crimes verdict --base main --format json      # override base
+crimes verdict --fail-on new-high             # opt-in CI gate (exit 1)
+```
+
+Default base selection: `origin/main` first, then `main`. If neither
+resolves the command exits `2` with a "no default base" error on
+stderr; pass `--base <ref>` explicitly.
+
+The JSON shape:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "verdict",
+  "repo": { "name": "...", "root": "..." },
+  "base": "origin/main",
+  "head": "HEAD",
+  "verdict": "worse",
+  "summary": {
+    "new": 2, "fixed": 1, "unchanged": 8,
+    "new_by_severity":   { "high": 1, "medium": 1, "low": 0 },
+    "fixed_by_severity": { "high": 0, "medium": 1, "low": 0 },
+    "new_weighted": 5,
+    "fixed_weighted": 2
+  },
+  "reasons": ["introduced 1 high-severity crime"],
+  "recommended_actions": ["fix new high-severity findings before merging."],
+  "new_findings":   [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* ... */ ]
+}
+```
+
+How to use the fields:
+
+- **`verdict`** is the headline: one of `"cleaner" | "worse" | "unchanged"
+  | "mixed"`. Read this first.
+- **`reasons`** is a short array of human-readable strings explaining
+  what drove the verdict. Quote them back to the user when summarising.
+- **`recommended_actions`** is one or two lines suggesting next steps.
+  Treat both `reasons` and `recommended_actions` as advisory copy —
+  wording may shift across minor releases.
+- **`summary.new_weighted` / `summary.fixed_weighted`** are the simple
+  weighted scores (`high = 3`, `medium = 2`, `low = 1`) that drive the
+  judgement. Treat as ordinal — exact weights may change.
+- **`summary.new_by_severity` / `summary.fixed_by_severity`** are the
+  per-severity counts on each side, useful when explaining the trade-off.
+- **`new_findings[]` / `fixed_findings[]`** carry the full `Finding`
+  shape — same contract as `crimes diff`. Quote `evidence` and `lines`
+  when explaining what changed.
+
+Judgement rules, in order:
+
+1. **`unchanged`** — no new and no fixed findings.
+2. **`worse`** — any new finding has `severity: "high"`.
+3. **`worse`** — `new_weighted > fixed_weighted` (no new high required).
+4. **`cleaner`** — `fixed_weighted > new_weighted` AND no new high.
+5. **`mixed`** — both sides non-zero with equal weighted scores.
+
+Exit codes:
+
+| `--fail-on`    | Exit `1` when …                                                  |
+| -------------- | ---------------------------------------------------------------- |
+| _(omitted)_    | Never — `crimes verdict` is advisory by default.                 |
+| `worse`        | `verdict === "worse"`.                                           |
+| `new-high`     | Any new finding has `severity: "high"`.                          |
+| `new-medium`   | Any new finding has `severity: "medium"` or `"high"`.            |
+
+Exit `2` is reserved for usage / environment errors (not a git repo, no
+default base resolves, bad flag).
+
+Decision rule: when `verdict === "worse"` because of a new high
+finding, the agent should treat that as a blocker — same rule as the
+rest of this document. When the verdict is `mixed`, surface the
+trade-off rather than silently merging.
+
 ### 2. Make the edit
 
 Apply your change. `crimes` does not run during editing; it has no LSP and no
@@ -465,8 +551,11 @@ rely on them in agent instructions yet:
 | `crimes baseline check [path]`         | ✅ shipped (`0.2.0`)    |
 | `crimes baseline check --fail-on <severity>` | ✅ shipped (`0.2.0`) |
 | `crimes baseline check --format json`  | ✅ shipped (`0.2.0`)    |
+| `crimes verdict`                       | ✅ shipped (`0.2.0`)    |
+| `crimes verdict --base <ref>`          | ✅ shipped (`0.2.0`)    |
+| `crimes verdict --format json`         | ✅ shipped (`0.2.0`)    |
+| `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
 | `crimes diff --fail-on new-high`       | 🚧 planned (`0.2.0`)    |
-| `crimes verdict`                       | 🚧 planned (`0.2.0`)    |
 | `crimes ignore <id>`                   | 🚧 not yet implemented  |
 | `crimes explain <id>`                  | 🚧 not yet implemented  |
 | `crimes init`                          | 🚧 not yet implemented  |
@@ -474,8 +563,9 @@ rely on them in agent instructions yet:
 
 Until the remaining `0.2.0` items land, the pre/post-edit workflow works
 as plain `crimes scan <path> --format json` on the directory or file you
-are about to touch — and `crimes diff <base...head>` for branch-level
-review.
+are about to touch, `crimes diff <base...head>` for branch-level review,
+and `crimes verdict` for the one-line "did this branch help or hurt?"
+summary at the end of a task.
 
 ---
 

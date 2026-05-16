@@ -1,0 +1,354 @@
+import { execFile } from "node:child_process";
+import { basename, resolve } from "node:path";
+import { promisify } from "node:util";
+import { diff } from "./diff.js";
+import type { Finding, Severity } from "./finding.js";
+import { SCHEMA_VERSION } from "./finding.js";
+import {
+  isGitRepo,
+  NotAGitRepoError,
+} from "./git/changed-files.js";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Weighted severity score used by the verdict judgement.
+ *
+ * The weights are intentionally simple — a coarse "is this branch net better
+ * or net worse?" signal, not a precise debt measurement. They form a 3 / 2 / 1
+ * scale so that a single new high finding outweighs anything short of
+ * fixing a high finding too.
+ */
+export const SEVERITY_WEIGHT: Record<Severity, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+/**
+ * One of four headline verdicts. Always one of these — `unknown` is not a
+ * valid state; environment errors throw instead so the CLI can exit 2.
+ */
+export type Verdict = "cleaner" | "worse" | "unchanged" | "mixed";
+
+/**
+ * Threshold at which a `crimes verdict` run becomes a failing CI gate.
+ *
+ * - `"worse"` — fail when the verdict is `"worse"`.
+ * - `"new-high"` — fail when any new finding has `severity: "high"`.
+ * - `"new-medium"` — fail when any new finding has `severity: "medium"` or
+ *   `"high"`.
+ *
+ * `undefined` keeps the command advisory (always exit 0).
+ */
+export type VerdictFailOn = "worse" | "new-high" | "new-medium";
+
+export interface VerdictSummary {
+  new: number;
+  fixed: number;
+  unchanged: number;
+  new_by_severity: { high: number; medium: number; low: number };
+  fixed_by_severity: { high: number; medium: number; low: number };
+  /** Σ SEVERITY_WEIGHT over `new_findings`. */
+  new_weighted: number;
+  /** Σ SEVERITY_WEIGHT over `fixed_findings`. */
+  fixed_weighted: number;
+}
+
+export interface VerdictReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "verdict";
+  repo: { name: string; root: string };
+  base: string;
+  head: string;
+  verdict: Verdict;
+  summary: VerdictSummary;
+  /** Short, machine-friendly reasons that drove the verdict. */
+  reasons: string[];
+  /** Short, human-readable next-step suggestions. */
+  recommended_actions: string[];
+  /** Findings present at `head` but not at `base`. */
+  new_findings: Finding[];
+  /** Findings present at `base` but not at `head`. */
+  fixed_findings: Finding[];
+}
+
+export interface VerdictOptions {
+  /** Absolute or relative path to the repo. Defaults to cwd. */
+  root?: string;
+  /**
+   * Base ref. When omitted, {@link resolveDefaultBase} picks one — prefer
+   * `origin/main`, then `main`. Throws {@link NoDefaultBaseError} if neither
+   * resolves.
+   */
+  base?: string;
+  /** Head ref. Defaults to `"HEAD"`. */
+  head?: string;
+}
+
+export class NoDefaultBaseError extends Error {
+  constructor(tried: string[]) {
+    super(
+      `could not pick a default base ref (tried ${tried.join(", ")}). ` +
+        `Pass --base <ref> explicitly, e.g. --base main.`,
+    );
+    this.name = "NoDefaultBaseError";
+  }
+}
+
+/**
+ * Pure judgement logic. Takes two pre-classified finding sets and returns
+ * the verdict + the reasons that drove it. Used by tests so they don't need
+ * a git repo.
+ *
+ * Rules (in order):
+ * 1. No new and no fixed → `unchanged`.
+ * 2. Any new high → `worse`.
+ * 3. `new_weighted > fixed_weighted` → `worse`.
+ * 4. `fixed_weighted > new_weighted` AND no new high → `cleaner`.
+ * 5. Otherwise (both sides non-zero with equal weight, or any other
+ *    ambiguity) → `mixed`.
+ */
+export function judgeVerdict(args: {
+  newFindings: Finding[];
+  fixedFindings: Finding[];
+}): {
+  verdict: Verdict;
+  reasons: string[];
+  summary: VerdictSummary;
+} {
+  const summary = summariseVerdict(args);
+  const reasons: string[] = [];
+
+  const hasAnyChange =
+    args.newFindings.length > 0 || args.fixedFindings.length > 0;
+  const hasNewHigh = summary.new_by_severity.high > 0;
+  const hasFixedHigh = summary.fixed_by_severity.high > 0;
+
+  if (!hasAnyChange) {
+    return {
+      verdict: "unchanged",
+      reasons: ["no new findings and no fixed findings"],
+      summary,
+    };
+  }
+
+  let verdict: Verdict;
+
+  if (hasNewHigh) {
+    verdict = "worse";
+    reasons.push(
+      `introduced ${summary.new_by_severity.high} high-severity crime${
+        summary.new_by_severity.high === 1 ? "" : "s"
+      }`,
+    );
+    if (hasFixedHigh) {
+      reasons.push(
+        `cleared ${summary.fixed_by_severity.high} high-severity crime${
+          summary.fixed_by_severity.high === 1 ? "" : "s"
+        } (does not offset new high findings)`,
+      );
+    }
+  } else if (summary.new_weighted > summary.fixed_weighted) {
+    verdict = "worse";
+    reasons.push(
+      `new weighted severity ${summary.new_weighted} > fixed weighted severity ${summary.fixed_weighted}`,
+    );
+  } else if (summary.fixed_weighted > summary.new_weighted) {
+    verdict = "cleaner";
+    reasons.push(
+      `fixed weighted severity ${summary.fixed_weighted} > new weighted severity ${summary.new_weighted}`,
+    );
+  } else {
+    // Both sides are non-zero (we already returned on the all-zero case) and
+    // weights are equal — net-zero change. Or one side is empty and weights
+    // happen to match (only possible when both are zero, already handled).
+    verdict = "mixed";
+    reasons.push(
+      `new and fixed weighted severity tied at ${summary.new_weighted}`,
+    );
+  }
+
+  return { verdict, reasons, summary };
+}
+
+/**
+ * Suggest one or two short next-step lines for the user, keyed off the
+ * verdict. Deterministic — no LLM, no detector-specific advice.
+ */
+export function recommendActions(args: {
+  verdict: Verdict;
+  summary: VerdictSummary;
+}): string[] {
+  const out: string[] = [];
+
+  if (args.verdict === "worse" && args.summary.new_by_severity.high > 0) {
+    out.push("fix new high-severity findings before merging.");
+    return out;
+  }
+
+  if (args.verdict === "worse") {
+    out.push(
+      "review the new findings — they outweigh the cleanups on this branch.",
+    );
+    return out;
+  }
+
+  if (args.verdict === "cleaner") {
+    out.push(
+      "ship it — this branch removes more crime weight than it adds.",
+    );
+    return out;
+  }
+
+  if (args.verdict === "unchanged") {
+    out.push("no maintainability change vs. base — verdict is advisory only.");
+    return out;
+  }
+
+  // mixed
+  out.push(
+    "trade-off — review new findings and confirm the fixed ones are intentional cleanups.",
+  );
+  return out;
+}
+
+function summariseVerdict(args: {
+  newFindings: Finding[];
+  fixedFindings: Finding[];
+}): VerdictSummary {
+  const newBySev = { high: 0, medium: 0, low: 0 };
+  const fixedBySev = { high: 0, medium: 0, low: 0 };
+  let newWeighted = 0;
+  let fixedWeighted = 0;
+
+  for (const f of args.newFindings) {
+    newBySev[f.severity] += 1;
+    newWeighted += SEVERITY_WEIGHT[f.severity];
+  }
+  for (const f of args.fixedFindings) {
+    fixedBySev[f.severity] += 1;
+    fixedWeighted += SEVERITY_WEIGHT[f.severity];
+  }
+
+  return {
+    new: args.newFindings.length,
+    fixed: args.fixedFindings.length,
+    unchanged: 0, // overwritten by `verdict()` when used end-to-end
+    new_by_severity: newBySev,
+    fixed_by_severity: fixedBySev,
+    new_weighted: newWeighted,
+    fixed_weighted: fixedWeighted,
+  };
+}
+
+/**
+ * Pick a default base ref. Prefer `origin/main` when it exists, then `main`.
+ * Throws {@link NoDefaultBaseError} when neither resolves — the CLI surfaces
+ * that as an exit-code-2 error pointing the user at `--base`.
+ */
+export async function resolveDefaultBase(root: string): Promise<string> {
+  const candidates = ["origin/main", "main"];
+  for (const ref of candidates) {
+    if (await refExists(root, ref)) return ref;
+  }
+  throw new NoDefaultBaseError(candidates);
+}
+
+async function refExists(cwd: string, ref: string): Promise<boolean> {
+  try {
+    await execFileAsync("git", ["rev-parse", "--verify", "--quiet", ref], {
+      cwd,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Run a verdict against the current repo. Defers to `crimes diff` for the
+ * heavy lifting (archive-export each ref, run a deterministic scan in a
+ * temp dir, classify by stable fingerprint), then layers the judgement +
+ * summary fields on top.
+ *
+ * Throws:
+ * - {@link NotAGitRepoError} when `root` is not inside a git repository.
+ * - {@link NoDefaultBaseError} when `base` is omitted and neither
+ *   `origin/main` nor `main` resolves.
+ * - {@link UnknownGitRefError} when an explicit ref fails to resolve.
+ */
+export async function verdict(
+  options: VerdictOptions = {},
+): Promise<VerdictReport> {
+  const root = resolve(options.root ?? process.cwd());
+  const head = options.head ?? "HEAD";
+
+  if (!(await isGitRepo(root))) {
+    throw new NotAGitRepoError(root);
+  }
+
+  const base = options.base ?? (await resolveDefaultBase(root));
+
+  const diffReport = await diff({ root, base, head });
+
+  const judged = judgeVerdict({
+    newFindings: diffReport.new_findings,
+    fixedFindings: diffReport.fixed_findings,
+  });
+
+  // Preserve the unchanged count from the underlying diff so the verdict
+  // summary stays a strict superset of the diff summary.
+  const summary: VerdictSummary = {
+    ...judged.summary,
+    unchanged: diffReport.summary.unchanged,
+  };
+
+  const recommended_actions = recommendActions({
+    verdict: judged.verdict,
+    summary,
+  });
+
+  return {
+    schema_version: SCHEMA_VERSION,
+    report_type: "verdict",
+    repo: {
+      name: basename(root),
+      root,
+    },
+    base,
+    head,
+    verdict: judged.verdict,
+    summary,
+    reasons: judged.reasons,
+    recommended_actions,
+    new_findings: diffReport.new_findings,
+    fixed_findings: diffReport.fixed_findings,
+  };
+}
+
+/**
+ * Apply a `--fail-on` threshold to a verdict report. Returns `true` when the
+ * CLI should exit non-zero.
+ *
+ * - `"worse"` — fail when `verdict === "worse"`.
+ * - `"new-high"` — fail when any new finding is `severity: "high"`.
+ * - `"new-medium"` — fail when any new finding is `severity: "medium"` or
+ *   `"high"`.
+ */
+export function shouldFailVerdict(
+  report: VerdictReport,
+  failOn: VerdictFailOn,
+): boolean {
+  switch (failOn) {
+    case "worse":
+      return report.verdict === "worse";
+    case "new-high":
+      return report.summary.new_by_severity.high > 0;
+    case "new-medium":
+      return (
+        report.summary.new_by_severity.high > 0 ||
+        report.summary.new_by_severity.medium > 0
+      );
+  }
+}

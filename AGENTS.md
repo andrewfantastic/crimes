@@ -100,6 +100,13 @@ crimes diff origin/main...HEAD --format json
 crimes baseline save                                   # snapshot, write the file
 crimes baseline check --format json                    # gate on default `--fail-on medium`
 crimes baseline check --fail-on high --format json     # stricter — only new high findings fail
+
+# One-line "did this branch make the repo cleaner, worse, unchanged, or mixed?".
+# Default base: origin/main, then main.
+crimes verdict --format json                           # advisory by default (always exit 0)
+crimes verdict --base main --format json               # explicit base
+crimes verdict --fail-on new-high                      # CI gate — exit 1 on any new high
+crimes verdict --fail-on worse                         # CI gate — exit 1 when verdict is `worse`
 ```
 
 If you are running against a checkout that has not been published to npm
@@ -107,8 +114,8 @@ yet (e.g. an unreleased version on `main`), prefix everything above with
 `node packages/cli/dist/index.js` after running `pnpm build`.
 
 **Not yet implemented** — do not invoke or reference these in generated docs:
-`crimes diff --fail-on new-high`, `crimes verdict`, `crimes ignore`,
-`crimes explain`, `crimes init`, `crimes ask`. See
+`crimes diff --fail-on new-high`, `crimes ignore`, `crimes explain`,
+`crimes init`, `crimes ask`. See
 [`docs/agent-usage.md`](./docs/agent-usage.md) for the full shipped/deferred
 matrix and [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.
 
