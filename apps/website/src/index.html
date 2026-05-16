@@ -3,21 +3,166 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>crimes — a crime scene investigator for your codebase</title>
+    <title>crimes — agent-native change & risk scanner for TS/JS</title>
     <meta
       name="description"
-      content="crimes is an open-source CLI that scans a codebase for change risk and agent risk — duplicated business rules, ambiguous sources of truth, and patterns that confuse AI coding agents. Built for agents, readable by humans."
+      content="Open-source CLI that scans TypeScript & JavaScript repos for change risk and AI-agent risk. Local, deterministic, no cloud. JSON output is the contract."
     />
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="color-scheme" content="dark" />
+    <meta name="author" content="Andrew Mayfield" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta
+      name="keywords"
+      content="codebase risk, code scanner, AI coding agents, agent-native, TypeScript, JavaScript, CLI, code quality, churn, hotspots, Claude Code, AGENTS.md"
+    />
+    <link rel="canonical" href="https://crimes.sh/" />
+
+    <!-- Open Graph -->
     <meta property="og:title" content="crimes — built for agents, readable by humans" />
     <meta
       property="og:description"
       content="A local, open-source CLI that ranks change-risk and agent-risk in TS/JS repos. JSON output is the contract."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://crimes.sh" />
+    <meta property="og:url" content="https://crimes.sh/" />
+    <meta property="og:site_name" content="crimes" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://crimes.sh/og-image.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="crimes — a crime scene investigator for your codebase. Built for agents, readable by humans." />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="crimes — built for agents, readable by humans" />
+    <meta name="twitter:description" content="Open-source CLI that ranks change-risk and agent-risk in TS/JS repos. JSON output is the contract." />
+    <meta name="twitter:image" content="https://crimes.sh/og-image.svg" />
+    <meta name="twitter:image:alt" content="crimes — a crime scene investigator for your codebase." />
+
+    <!-- Icons -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
     <link rel="stylesheet" href="./styles.css" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://crimes.sh/#website",
+            "url": "https://crimes.sh/",
+            "name": "crimes",
+            "description": "Open-source CLI that scans TypeScript and JavaScript repos for change risk and AI-agent risk.",
+            "inLanguage": "en-US",
+            "publisher": { "@id": "https://crimes.sh/#author" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://crimes.sh/#author",
+            "name": "Andrew Mayfield",
+            "url": "https://github.com/andrewfantastic",
+            "sameAs": ["https://github.com/andrewfantastic"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://crimes.sh/#software",
+            "name": "crimes",
+            "url": "https://crimes.sh/",
+            "applicationCategory": "DeveloperApplication",
+            "applicationSubCategory": "CommandLineTool",
+            "operatingSystem": "macOS, Linux, Windows",
+            "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
+            "softwareVersion": "0.1.0",
+            "downloadUrl": "https://www.npmjs.com/package/crimes",
+            "codeRepository": "https://github.com/andrewfantastic/crimes",
+            "programmingLanguage": "TypeScript",
+            "license": "https://opensource.org/licenses/MIT",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "Scan a repository for change risk and agent risk",
+              "Pre-edit context briefing for a single file",
+              "Working-tree-only diff-aware scanning",
+              "Churn × findings hotspots",
+              "Stable, versioned JSON output for AI agents",
+              "Claude Code skill and AGENTS.md integration"
+            ],
+            "author": { "@id": "https://crimes.sh/#author" }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://crimes.sh/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is crimes?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "crimes is an open-source CLI that scans a TypeScript or JavaScript repository for change risk and AI-agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents. It runs locally with no cloud calls and outputs both a human-readable report and a stable, versioned JSON contract."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How is crimes different from ESLint, Biome, Semgrep, or SonarQube?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "crimes is not a linter, a security scanner, or a quality platform. ESLint and Biome catch style and correctness; Semgrep and CodeQL catch security issues; SonarQube wraps both with a dashboard. crimes ranks change risk and agent risk — where future edits are most likely to go wrong and what an AI coding agent needs to know before editing a file. It is deliberately scoped to that wedge and does not re-implement other tools."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does crimes send my code to a server or LLM?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. crimes runs entirely on your machine. There are no accounts, no telemetry, and no SaaS dashboard. Core detectors are deterministic AST and file-content analysis. Any future LLM-assisted features will be optional, additive, and opt-in — never load-bearing."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which languages does crimes support?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The first language pack is TypeScript and JavaScript, including JSX and TSX. The detector core and finding schema are language-agnostic so additional language packs can be added without breaking the JSON contract. Python and other languages are tracked as future work."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do AI coding agents use crimes?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Agents read two on-disk artefacts that ship in the repo. Claude Code picks up the .claude/skills/crimes/SKILL.md skill automatically; Codex CLI, Cursor, Aider, Continue, and Copilot Workspace read AGENTS.md at the repo root. The recommended loop is: run crimes context <file> --format json before editing, then crimes scan --changed --format json after editing, and treat any new severity: high finding as a blocker."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why is the JSON output called the contract?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The JSON shape is the product, not an afterthought. Every finding is a typed record with id, type, charge, severity, confidence, evidence, scores, and suggested_actions. The top-level schema_version field is bumped on any breaking change, so an AI agent or CI system can refuse to consume an unfamiliar shape rather than guess. The human terminal output is a renderer over the same schema."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is crimes free?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. crimes is MIT-licensed and published on npm as the unscoped package crimes. There is no paid tier, no hosted service, and no telemetry. Install with npm install -g crimes or run one-shot with npx crimes scan ."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -32,6 +177,7 @@
         <a href="#quickstart">Quick start</a>
         <a href="#agents">For agents</a>
         <a href="#detects">Detectors</a>
+        <a href="#faq">FAQ</a>
         <a href="#next">Roadmap</a>
         <a class="external" href="https://github.com/andrewfantastic/crimes">GitHub ↗</a>
       </nav>
@@ -382,6 +528,118 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
           (<code>severity</code>, <code>confidence</code>,
           <code>agent_risk</code>). No verdicts without receipts.
         </p>
+      </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+        <p>
+          Short, direct answers to the questions that come up most often.
+          Every answer is also encoded as
+          <a href="https://schema.org/FAQPage"><code>FAQPage</code></a>
+          structured data, so AI assistants can quote them verbatim.
+        </p>
+
+        <div class="faq">
+          <details>
+            <summary>What is <code>crimes</code>?</summary>
+            <p>
+              <code>crimes</code> is an open-source CLI that scans a
+              TypeScript or JavaScript repository for <strong>change
+              risk</strong> and <strong>AI-agent risk</strong> — duplicated
+              business rules, ambiguous sources of truth, weakly tested
+              hotspots, and patterns that confuse AI coding agents. It runs
+              locally with no cloud calls and outputs both a human report
+              and a stable, versioned JSON contract.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              How is <code>crimes</code> different from ESLint, Biome,
+              Semgrep, or SonarQube?
+            </summary>
+            <p>
+              <code>crimes</code> is not a linter, a security scanner, or a
+              quality platform. ESLint and Biome catch style and
+              correctness; Semgrep and CodeQL catch security issues;
+              SonarQube wraps both with a dashboard. <code>crimes</code>
+              ranks change-risk and agent-risk — <em>where future edits are
+              most likely to go wrong, and what an AI coding agent needs to
+              know before editing a file</em>. It is deliberately scoped to
+              that wedge and does not re-implement other tools.
+            </p>
+          </details>
+
+          <details>
+            <summary>
+              Does <code>crimes</code> send my code to a server or LLM?
+            </summary>
+            <p>
+              No. <code>crimes</code> runs entirely on your machine. There
+              are no accounts, no telemetry, and no SaaS dashboard. Core
+              detectors are deterministic AST and file-content analysis.
+              Any future LLM-assisted features will be optional, additive,
+              and opt-in — never load-bearing.
+            </p>
+          </details>
+
+          <details>
+            <summary>Which languages does <code>crimes</code> support?</summary>
+            <p>
+              The first language pack is TypeScript and JavaScript,
+              including JSX and TSX. The detector core and finding schema
+              are language-agnostic, so additional language packs can be
+              added without breaking the JSON contract. Python and other
+              languages are tracked as future work.
+            </p>
+          </details>
+
+          <details>
+            <summary>How do AI coding agents use <code>crimes</code>?</summary>
+            <p>
+              Agents read two on-disk artefacts that ship in the repo.
+              Claude Code picks up
+              <code>.claude/skills/crimes/SKILL.md</code> automatically;
+              Codex CLI, Cursor, Aider, Continue, and Copilot Workspace
+              read <code>AGENTS.md</code> at the repo root. The recommended
+              loop is: run
+              <code>crimes context &lt;file&gt; --format json</code> before
+              editing, then <code>crimes scan --changed --format json</code>
+              after editing, and treat any new
+              <code>severity: "high"</code> finding as a blocker.
+            </p>
+          </details>
+
+          <details>
+            <summary>Why is the JSON output called <em>the contract</em>?</summary>
+            <p>
+              The JSON shape <strong>is</strong> the product, not an
+              afterthought. Every finding is a typed record with
+              <code>id</code>, <code>type</code>, <code>charge</code>,
+              <code>severity</code>, <code>confidence</code>,
+              <code>evidence</code>, <code>scores</code>, and
+              <code>suggested_actions</code>. The top-level
+              <code>schema_version</code> is bumped on any breaking change,
+              so an AI agent or CI system can refuse to consume an
+              unfamiliar shape rather than guess. The human terminal output
+              is a renderer over the same schema.
+            </p>
+          </details>
+
+          <details>
+            <summary>Is <code>crimes</code> free?</summary>
+            <p>
+              Yes. <code>crimes</code> is
+              <a href="https://github.com/andrewfantastic/crimes/blob/main/LICENSE">MIT-licensed</a>
+              and published on
+              <a href="https://www.npmjs.com/package/crimes">npm</a>
+              as the unscoped package <code>crimes</code>. There is no paid
+              tier, no hosted service, and no telemetry. Install with
+              <code>npm install -g crimes</code> or run one-shot with
+              <code>npx crimes scan .</code>
+            </p>
+          </details>
+        </div>
       </section>
 
       <section id="next">

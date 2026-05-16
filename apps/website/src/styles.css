@@ -533,6 +533,59 @@ td > code,
   color: #86c98a;
 }
 
+/* ---- FAQ ---- */
+
+.faq {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.faq details {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  padding: 0.75rem 1rem;
+}
+
+.faq details[open] {
+  border-color: var(--hairline-strong);
+}
+
+.faq summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--fg-strong);
+  list-style: none;
+  padding: 0.25rem 0;
+  position: relative;
+  padding-right: 1.75rem;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.faq details[open] summary::after {
+  content: "–";
+}
+
+.faq details p {
+  margin: 0.6rem 0 0.25rem;
+  color: var(--fg);
+}
+
 /* ---- Strip ---- */
 
 .strip {

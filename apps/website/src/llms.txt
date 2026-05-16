@@ -1,0 +1,74 @@
+# crimes
+
+> crimes is an open-source command-line tool that scans TypeScript and
+> JavaScript repositories for change risk and AI-agent risk. It runs
+> locally with no cloud calls, ships a stable versioned JSON contract
+> so AI coding agents can consume its output safely, and is MIT-licensed.
+
+crimes is positioned narrowly. It is not a linter (ESLint, Biome),
+not a security scanner (Semgrep, CodeQL), and not a code-quality
+platform (SonarQube). Its wedge is local, open-source, agent-native
+codebase risk and context — the question "where is future change most
+likely to go wrong, and what should a human or AI agent know before
+editing it?".
+
+Core principles:
+- Deterministic before magical. Detectors must work without any LLM.
+- Evidence before judgement. Every finding cites concrete AST or git
+  evidence (line ranges, churn counts, import patterns).
+- JSON output is the product contract. Bumped via schema_version on
+  breaking changes.
+- Built for AI agents. Ships a Claude Code skill and AGENTS.md so any
+  agent (Claude Code, Codex CLI, Cursor, Aider, Continue, Copilot
+  Workspace) can use it without per-prompt setup.
+
+## Install
+
+- npm: `npm install -g crimes`
+- one-shot: `npx crimes scan .`
+- requires Node.js 18+
+
+## Commands (v0.1.0)
+
+- `crimes scan .` — scan repo, print top findings
+- `crimes scan . --format json` — emit the versioned JSON contract
+- `crimes scan --changed --format json` — working-tree-only post-edit scan
+- `crimes context <file> --format json` — pre-edit briefing for one file
+- `crimes hotspots --since 90d --format json` — churn × findings ranking
+
+## Detectors shipped in v0.1.0
+
+- `large_function` (charge: God Function) — functions over a body-line threshold
+- `large_file` (charge: God File) — files over a line threshold
+- `todo_density` (charge: Unfinished Business) — clusters of TODO/FIXME/XXX/HACK
+- `direct_date` (charge: Temporal Recklessness) — `Date.now()` / `new Date()`
+  used directly in domain code
+
+Every finding includes typed scores: `severity`, `confidence`, and
+`agent_risk`. Default ranking is by aggregate risk, so multiple sources
+of truth, weak tests, and hidden side effects can elevate a finding
+even when local severity is low.
+
+## Agent integration
+
+- Claude Code: `.claude/skills/crimes/SKILL.md` auto-loads in any repo.
+- Other agents: a top-level `AGENTS.md` is read by OpenAI Codex CLI,
+  Cursor, Aider, Continue, and GitHub Copilot Workspace.
+
+Recommended loop for any agent:
+1. Before editing a file:  `crimes context <file> --format json`
+2. After editing:          `crimes scan --changed --format json`
+3. Triaging the repo:      `crimes hotspots --format json`
+4. Any new `severity: "high"` finding introduced by the edit is a blocker.
+
+## Resources
+
+- Website:        https://crimes.sh/
+- Source:         https://github.com/andrewfantastic/crimes
+- npm package:    https://www.npmjs.com/package/crimes
+- License:        MIT (https://github.com/andrewfantastic/crimes/blob/main/LICENSE)
+- PRD (spec):     https://github.com/andrewfantastic/crimes/blob/main/PRD.md
+- Agent guide:    https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md
+- JSON schema:    https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md
+- Sample output:  https://github.com/andrewfantastic/crimes/blob/main/docs/fixtures/messy-ts-app.json
+- Roadmap status: https://github.com/andrewfantastic/crimes/blob/main/ROADMAP_STATUS.md
