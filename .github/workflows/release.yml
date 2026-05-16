@@ -103,6 +103,37 @@ jobs:
             exit 1
           fi
 
+      # Debug aid: print the OIDC token's claims so we can compare what
+      # GitHub is sending against what npm has configured as a Trusted
+      # Publisher. Only the decoded payload is logged — never the signed
+      # token itself. Safe to remove once the first 0.1.x publish succeeds.
+      - name: Inspect OIDC claims (audience npm)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('npm');
+            const [, payload] = token.split('.');
+            const claims = JSON.parse(
+              Buffer.from(payload, 'base64url').toString('utf8'),
+            );
+            const safe = {
+              iss: claims.iss,
+              aud: claims.aud,
+              sub: claims.sub,
+              repository: claims.repository,
+              repository_owner: claims.repository_owner,
+              ref: claims.ref,
+              ref_type: claims.ref_type,
+              event_name: claims.event_name,
+              workflow: claims.workflow,
+              workflow_ref: claims.workflow_ref,
+              job_workflow_ref: claims.job_workflow_ref,
+              environment: claims.environment ?? null,
+            };
+            core.startGroup('OIDC claims (audience: npm)');
+            console.log(JSON.stringify(safe, null, 2));
+            core.endGroup();
+
       # `npm publish` from the CLI workspace.
       # - `provenance` attaches an OIDC-signed build attestation; required
       #   for Trusted Publishing.
