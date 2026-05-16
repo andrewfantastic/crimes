@@ -60,23 +60,27 @@ jobs:
         uses: pnpm/action-setup@v4
         # Version comes from `packageManager` in root package.json.
 
-      - name: Set up Node 22
+      # Node 24 ships with npm 11.x natively, which is required for npm
+      # Trusted Publishing — the OIDC-for-auth exchange against the
+      # registry (distinct from sigstore provenance signing) was added in
+      # npm 11.5.1. Node 22 LTS ships npm 10.9.x, and
+      # `npm install -g npm@latest` to upgrade in-place hits a known
+      # MODULE_NOT_FOUND on Linux mid-self-replace. Using Node 24 here
+      # avoids the dance. The published package still targets node18 (see
+      # tsup target + packages/cli engines.node), so consumer compatibility
+      # is unchanged.
+      - name: Set up Node 24 (ships npm 11 for Trusted Publishing)
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
           # Required so `npm publish` resolves to the public registry and
           # so npm's OIDC client knows where to mint the publish token for.
           registry-url: "https://registry.npmjs.org"
 
-      # Node 22 LTS ships with npm 10.9.x. npm Trusted Publishing for the
-      # *publish* step (the OIDC-for-auth exchange against the registry,
-      # distinct from sigstore provenance signing) requires npm ≥ 11.5.1.
-      # Without this upgrade the CLI signs provenance happily but sends an
-      # unauthenticated PUT to the registry and the registry 404s.
-      - name: Upgrade npm (Trusted Publishing requires ≥ 11.5.1)
+      - name: Print toolchain versions
         run: |
-          npm install -g npm@latest
+          node --version
           npm --version
 
       - name: Install dependencies
