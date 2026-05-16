@@ -421,20 +421,45 @@ Tracked for `0.5.0` or later. **Do not** document them as shipped.
 
 ## 🎯 Next target — `crimes@0.5.0` (tentative)
 
-**Theme (recommended): suppressions, config plumbing, and `crimes
-explain`.** The 0.4.0 release made existing detectors quieter and more
-trustworthy; 0.5.0 closes the M4 polish gap with the work that was
-deferred from 0.2.0 and 0.4.0:
+> **Implementation plan:
+> [`SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md`](./SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md).**
+> Product framing, scope evaluation (must/should/could/defer), config
+> shape, suppression file design, `crimes explain` CLI, JSON schema
+> implications, CI semantics, prompt sequence, and success criteria for
+> `0.5.0` live there. This section is the status mirror.
 
-- **`crimes init`** writes a starter `crimes.config.json` with sensible
-  defaults (matching the documented zero-config shape).
-- **`crimes ignore <id> --reason "…"`** appends to
-  `.crimes/suppressions.json`; fingerprints are the same
-  `<type>::<file>::<symbol-or-empty>` `crimes diff` already uses.
-- **`crimes explain <id>`** prints the long-form rationale per finding
-  type — what the detector observed, why it matters, what to do.
-- **Optional richer per-finding scores** — `scores.churn` and
-  `scores.test_gap` if the implementation surface stays small enough.
+**Theme (recommended): suppressions, config, and explainability —
+the three levers teams need to adopt `crimes` without fighting
+legitimate exceptions.** The 0.4.0 release made existing detectors
+quieter and more trustworthy; 0.5.0 closes the M4 polish gap with the
+work that was deferred from 0.2.0 and 0.4.0:
+
+- **`crimes init`** writes a starter `crimes.config.json` with
+  sensible defaults and inline pointers at the new knobs.
+- **Config loader extension** — `zod`-validated `CrimesConfig` with
+  per-shape `large_function` thresholds, `ia.aliasGroups`,
+  `detectors.{enable,disable}`, a `suppressions.path` override, and a
+  reserved `architecture.layers` placeholder.
+- **`.crimes/suppressions.json`** — fingerprint-keyed, `reason`
+  required, intended to be committed and reviewable in PRs.
+- **`crimes ignore <fingerprint-or-id> --reason "…"`** writes the
+  file; the `<type>::<file>::<symbol-or-empty>` fingerprint is the
+  same identity `crimes diff` and `crimes baseline` already use.
+- **Suppression application across `scan`, `context`,
+  `baseline check`, `diff`, `verdict`** — default-hide with
+  `suppressed_count`; `--show-suppressed` opt-in; never trips a
+  `--fail-on` gate on a suppressed finding.
+- **`crimes explain <id-or-fingerprint> [--from <scan.json>]`** prints
+  the long-form rationale per finding type — what the detector
+  observed, why it matters, what to do, and the exact
+  `crimes ignore` command to use if the team decides to live with it.
+- **`crimes diff --fail-on new-high | new-medium`** — completes the
+  M4 CI-gate trio (`scan --changed`, `baseline check`, `verdict`).
+
+Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`
+remain **deferred** in `SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md` §3.G —
+M2 work touches every detector and deserves its own release rather
+than a wedge into the suppressions theme.
 
 The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
