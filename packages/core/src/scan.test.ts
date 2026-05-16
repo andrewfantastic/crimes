@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import type { Finding, ScanReport } from "./finding.js";
@@ -14,7 +14,9 @@ const execFileAsync = promisify(execFile);
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-scan-test-"));
   for (const [path, content] of Object.entries(files)) {
-    await writeFile(join(dir, path), content, "utf8");
+    const full = join(dir, path);
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, content, "utf8");
   }
   return dir;
 }
@@ -67,6 +69,32 @@ describe("scan", () => {
     const root = await makeRepo({});
     const report = await scan({ root });
     expect(report.findings).toEqual([]);
+  });
+
+  it("passes a populated IA index into detector contexts", async () => {
+    const seen: { hasIa: boolean; routes: string[] }[] = [];
+    const sniffer = {
+      id: "ia_sniffer",
+      name: "IA Sniffer",
+      description: "test-only detector that captures ctx.ia state",
+      run(ctx: {
+        ia?: { routes: { routePath: string }[] };
+      }) {
+        seen.push({
+          hasIa: ctx.ia !== undefined,
+          routes: (ctx.ia?.routes ?? []).map((r) => r.routePath),
+        });
+        return [];
+      },
+    } as const;
+    const root = await makeRepo({
+      "src/pages/settings/billing.tsx":
+        `export default function PricingPage() { return null; }\n`,
+    });
+    await scan({ root, detectors: [sniffer] });
+    expect(seen.length).toBe(1);
+    expect(seen[0]!.hasIa).toBe(true);
+    expect(seen[0]!.routes).toContain("/settings/billing");
   });
 
   it("flags the example messy patterns", async () => {

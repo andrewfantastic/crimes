@@ -50,6 +50,43 @@ export type {
 } from "./finding.js";
 export { SCHEMA_VERSION } from "./finding.js";
 export {
+  DEFAULT_ALIAS_GROUPS,
+  aliasToGroupId,
+  buildIaIndex,
+  extractPermissions,
+  extractReferencedCommands,
+  liftLabelSignals,
+  liftNavSignals,
+  normaliseTokens,
+  parseMarkdown,
+  readDeclaredBins,
+  routeFromFilePath,
+  SINGULAR_TABLE,
+  splitTokens,
+  stripRepoPrefix,
+  STOP_WORDS,
+  tokenise,
+  tokenisePath,
+  toPosix as iaToPosix,
+} from "./ia/index.js";
+export type {
+  BuildIaIndexOptions,
+  IaAgentInventory,
+  IaConceptAliasGroup,
+  IaDocFencedCommand,
+  IaDocHeading,
+  IaDocLink,
+  IaDocSignal,
+  IaFileSignals,
+  IaIndex,
+  IaLabelSignal,
+  IaNavEntry,
+  IaNavSignal,
+  IaPermissionSignal,
+  IaRouteSignal,
+  RepoPath,
+} from "./ia/index.js";
+export {
   exportRefToTempDir,
   withRefCheckout,
 } from "./git/archive.js";

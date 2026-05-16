@@ -13,6 +13,8 @@ import { todoDensityDetector } from "./detectors/todo-density.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
+import { buildIaIndex } from "./ia/build.js";
+import type { IaIndex } from "./ia/types.js";
 
 export const builtInDetectors: Detector[] = [
   largeFileDetector,
@@ -56,6 +58,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     ? await restrictToChanged({ root, allFiles, base: options.base })
     : allFiles;
 
+  // Build the IA index over the FULL discovered file set, not just the
+  // changed slice -- IA findings are cross-file by definition. `--changed`
+  // gates only finding emission, not the underlying signal.
+  const ia = await safelyBuildIaIndex({ root, allFiles });
+
   const findings: Finding[] = [];
 
   for (const absolutePath of files) {
@@ -70,6 +77,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         source,
         parsed,
         config,
+        ia,
       });
       findings.push(...detectorFindings);
     }
@@ -92,6 +100,23 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
 
 function toRepoPath(p: string): string {
   return p.split(sep).join("/");
+}
+
+/**
+ * Build the IA index, but never let a failure here break the scan.
+ * Returns `undefined` on any error -- detectors that need the index
+ * (IA detectors) should treat absence as "skip this finding kind", not
+ * as a fatal condition.
+ */
+async function safelyBuildIaIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<IaIndex | undefined> {
+  try {
+    return await buildIaIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
 }
 
 async function restrictToChanged(args: {

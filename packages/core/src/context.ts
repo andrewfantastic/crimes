@@ -6,6 +6,8 @@ import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
+import { buildIaIndex } from "./ia/build.js";
+import type { IaIndex } from "./ia/types.js";
 import { builtInDetectors } from "./scan.js";
 
 export interface ContextOptions {
@@ -77,12 +79,18 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     exclude: config.exclude,
   });
 
+  // IA index is built over the WHOLE repo so single-file context still gets
+  // cross-file IA signal (a route file's metadata is only meaningful when
+  // compared against the nav sources in other files).
+  const ia = await safelyBuildIaIndex({ root, allFiles });
+
   const findings = await runDetectorsOnTarget({
     allFiles,
     targetAbs,
     root,
     config,
     detectors,
+    ia,
   });
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
@@ -107,8 +115,9 @@ async function runDetectorsOnTarget(args: {
   root: string;
   config: CrimesConfig;
   detectors: Detector[];
+  ia?: IaIndex;
 }): Promise<Finding[]> {
-  const { allFiles, targetAbs, root, config, detectors } = args;
+  const { allFiles, targetAbs, root, config, detectors, ia } = args;
   if (!allFiles.includes(targetAbs)) return [];
 
   const file = toRepoPath(relative(root, targetAbs));
@@ -123,12 +132,24 @@ async function runDetectorsOnTarget(args: {
       source,
       parsed,
       config,
+      ia,
     });
     findings.push(...detectorFindings);
   }
   sortFindings(findings);
   assignIds(findings);
   return findings;
+}
+
+async function safelyBuildIaIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<IaIndex | undefined> {
+  try {
+    return await buildIaIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
 }
 
 function buildRisk(findings: Finding[]): ContextRisk {

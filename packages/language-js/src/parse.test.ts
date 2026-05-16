@@ -50,3 +50,184 @@ describe("parseFile", () => {
     expect(result.functions).toHaveLength(1);
   });
 });
+
+describe("parseFile — default export", () => {
+  it("captures `export default function Foo`", () => {
+    const result = parse(`export default function Foo() { return 1; }\n`);
+    expect(result.defaultExport).toBe("Foo");
+  });
+
+  it("captures `export default class Foo`", () => {
+    const result = parse(`export default class Foo { run() {} }\n`);
+    expect(result.defaultExport).toBe("Foo");
+  });
+
+  it("captures `export default Identifier`", () => {
+    const src = `const PricingPage = () => null;\nexport default PricingPage;\n`;
+    const result = parse(src);
+    expect(result.defaultExport).toBe("PricingPage");
+  });
+
+  it("captures `export { Foo as default }`", () => {
+    const src = `function Foo() {}\nexport { Foo as default };\n`;
+    const result = parse(src);
+    expect(result.defaultExport).toBe("Foo");
+  });
+
+  it("leaves defaultExport undefined when there is no default export", () => {
+    const result = parse(`export const x = 1;\n`);
+    expect(result.defaultExport).toBeUndefined();
+  });
+
+  it("leaves defaultExport undefined for anonymous default arrows", () => {
+    const result = parse(`export default () => null;\n`);
+    expect(result.defaultExport).toBeUndefined();
+  });
+});
+
+describe("parseFile — nav literals", () => {
+  it("captures a top-level nav array assigned to a variable", () => {
+    const src = `
+      const sidebar = [
+        { href: "/settings/billing", label: "Billing" },
+        { href: "/team", label: "Team" },
+      ];
+    `;
+    const result = parse(src);
+    expect(result.navLiterals).toHaveLength(1);
+    const nav = result.navLiterals![0]!;
+    expect(nav.identifier).toBe("sidebar");
+    expect(nav.entries.map((e) => e.destination)).toEqual([
+      "/settings/billing",
+      "/team",
+    ]);
+    expect(nav.entries.map((e) => e.label)).toEqual(["Billing", "Team"]);
+  });
+
+  it("handles `as const` and `satisfies` wrappers", () => {
+    const src = `
+      export const items = [
+        { path: "/a", title: "A" },
+        { path: "/b", title: "B" },
+      ] as const;
+    `;
+    const result = parse(src);
+    expect(result.navLiterals).toHaveLength(1);
+    expect(result.navLiterals![0]!.entries[0]!.destination).toBe("/a");
+  });
+
+  it("captures non-key attributes on entries", () => {
+    const src = `
+      const nav = [
+        { href: "/admin", label: "Admin", permission: "owner" },
+        { href: "/billing", label: "Billing", permission: "billing.manage" },
+      ];
+    `;
+    const result = parse(src);
+    const entries = result.navLiterals![0]!.entries;
+    expect(entries[0]!.attributes.permission).toBe("owner");
+    expect(entries[1]!.attributes.permission).toBe("billing.manage");
+  });
+
+  it("does not fire on arrays without any destination+label entry", () => {
+    const src = `
+      const counts = [
+        { count: "1" },
+        { count: "2" },
+      ];
+    `;
+    const result = parse(src);
+    expect(result.navLiterals).toEqual([]);
+  });
+
+  it("does not fire on single-element arrays", () => {
+    const src = `
+      const x = [{ href: "/a", label: "A" }];
+    `;
+    const result = parse(src);
+    expect(result.navLiterals).toEqual([]);
+  });
+
+  it("captures `export default [...]` nav arrays", () => {
+    const src = `
+      export default [
+        { to: "/a", name: "A" },
+        { to: "/b", name: "B" },
+      ];
+    `;
+    const result = parse(src);
+    expect(result.navLiterals).toHaveLength(1);
+    expect(result.navLiterals![0]!.identifier).toBe("default");
+  });
+});
+
+describe("parseFile — UI string literals", () => {
+  it("captures <title>X</title>", () => {
+    const result = parse(`export const Head = () => (<title>Subscription</title>);\n`, ".tsx");
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Subscription", context: "jsx_title" }),
+    );
+  });
+
+  it("captures document.title = 'X'", () => {
+    const result = parse(`document.title = "Plans";\n`);
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Plans", context: "document_title" }),
+    );
+  });
+
+  it("captures useTitle('X')", () => {
+    const result = parse(`useTitle("Subscription");\n`);
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Subscription", context: "use_title" }),
+    );
+  });
+
+  it("captures setTitle('X')", () => {
+    const result = parse(`setTitle("Plans");\n`);
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Plans", context: "use_title" }),
+    );
+  });
+
+  it("captures `export const metadata = { title: 'X' }`", () => {
+    const result = parse(`export const metadata = { title: "Billing" };\n`);
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Billing", context: "metadata_title" }),
+    );
+  });
+
+  it("captures <Breadcrumb label='X' />", () => {
+    const result = parse(`const X = <Breadcrumb label="Billing" />;\n`, ".tsx");
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({
+        value: "Billing",
+        context: "jsx_label",
+        source: "Breadcrumb",
+      }),
+    );
+  });
+
+  it("captures <NavLink title='X'>...</NavLink>", () => {
+    const result = parse(
+      `const X = <NavLink title="Settings">stuff</NavLink>;\n`,
+      ".tsx",
+    );
+    expect(result.uiStringLiterals).toContainEqual(
+      expect.objectContaining({ value: "Settings", context: "jsx_label" }),
+    );
+  });
+
+  it("does not fire on arbitrary string literals", () => {
+    const result = parse(`const x = "Just a string";\n`);
+    expect(result.uiStringLiterals).toEqual([]);
+  });
+
+  it("skips JSX titles with mixed content", () => {
+    const result = parse(
+      `const X = <title>Settings — {productName}</title>;\n`,
+      ".tsx",
+    );
+    expect(result.uiStringLiterals).toEqual([]);
+  });
+});
