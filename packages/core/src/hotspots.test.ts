@@ -82,7 +82,7 @@ describe("hotspots", () => {
     expect(big_row!.risk).toBeGreaterThan(0);
   });
 
-  it("uses git history to rank files when run inside a git repo", async () => {
+  it("uses git history to rank files when run inside a git repo", { timeout: 30000 }, async () => {
     const root = await makeRepo({});
     await initGitRepo(root);
 

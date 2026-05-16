@@ -80,6 +80,7 @@ section into your project's agent-rules file.
 | About to refactor across a directory                            | `crimes scan <path> --format json`               |
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
+| Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
 | Triaging "where in the repo is the most change-risk right now?" | `crimes hotspots --format json`                  |
 | Reviewing the whole repo from scratch                           | `crimes scan . --format json --all`              |
 
@@ -180,6 +181,64 @@ Semantics:
 
 The output is the same `ScanReport` shape as `crimes scan` — same
 `schema_version`, same finding fields — just over a smaller set of files.
+
+### 1d. Comparing two committed refs (`crimes diff`)
+
+When you have two committed refs and want the deltas — e.g. reviewing
+what a feature branch did vs `main`, or what landed on `main` between
+two releases — use `crimes diff`:
+
+```bash
+crimes diff main...HEAD --format json
+crimes diff origin/main...HEAD --format json
+crimes diff v0.1.0...HEAD --format json
+```
+
+The range must be the triple-dot form (`<base>...<head>`).
+
+`crimes diff` is **working-tree-safe**: it exports each ref into a fresh
+temp directory via `git archive` and scans it there. No checkout, no
+stash, no temporary commits — your dirty working tree is preserved.
+
+The JSON shape:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "diff",
+  "repo": { "name": "...", "root": "..." },
+  "base": "main",
+  "head": "HEAD",
+  "summary": { "new": 2, "fixed": 1, "unchanged": 8 },
+  "new_findings": [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* ... */ ],
+  "unchanged_findings": [ /* ... */ ]
+}
+```
+
+How to use the fields:
+
+- **`summary.new`** is the headline gate: if it is `> 0` and any of those
+  findings are `severity: "high"`, treat the branch as introducing
+  regressions and either fix or surface them to the user.
+- **`new_findings[]`** carry the full `Finding` shape — quote `evidence`
+  and `lines` back when explaining what changed.
+- **`fixed_findings[]`** are wins. Mention which charges this branch
+  cleared when summarising the work.
+- **`unchanged_findings[]`** are pre-existing debt. Don't relitigate
+  them in the diff conversation — they were there before the branch.
+
+How findings are matched across the two refs: stable fingerprint
+`<type>::<file>::<symbol-or-empty>`, not the per-scan `id`. Small line
+shifts from unrelated edits do **not** register as fix + new. See
+[`docs/json-schema.md`](./json-schema.md#diffreport-output-of-crimes-diff-basehead)
+for the full fingerprint rationale and known limitations (file renames
+register as fix + new, identical-name nested helpers collide on one
+fingerprint).
+
+Decision rule, same as the rest of the workflow: a new `severity:
+"high"` finding in `new_findings` is a blocker unless the user
+explicitly accepts the risk.
 
 ### 2. Make the edit
 
@@ -319,17 +378,20 @@ rely on them in agent instructions yet:
 | `crimes hotspots [path]`               | ✅ shipped              |
 | `crimes hotspots [path] --since <window>` | ✅ shipped           |
 | `crimes hotspots [path] --format json` | ✅ shipped              |
-| `crimes diff main...HEAD`              | 🚧 not yet implemented  |
-| `crimes verdict`                       | 🚧 not yet implemented  |
-| `crimes baseline save`                 | 🚧 not yet implemented  |
+| `crimes diff <base...head>`            | ✅ shipped (`0.2.0`)    |
+| `crimes diff <base...head> --format json` | ✅ shipped (`0.2.0`) |
+| `crimes diff --fail-on new-high`       | 🚧 planned (`0.2.0`)    |
+| `crimes verdict`                       | 🚧 planned (`0.2.0`)    |
+| `crimes baseline save` / `baseline check` | 🚧 planned (`0.2.0`) |
 | `crimes ignore <id>`                   | 🚧 not yet implemented  |
 | `crimes explain <id>`                  | 🚧 not yet implemented  |
 | `crimes init`                          | 🚧 not yet implemented  |
 | `crimes ask` / LLM-assisted modes      | 🚧 not yet implemented  |
 
-Until those land, the pre/post-edit workflow works as plain
-`crimes scan <path> --format json` on the directory or file you are about to
-touch.
+Until the remaining `0.2.0` items land, the pre/post-edit workflow works
+as plain `crimes scan <path> --format json` on the directory or file you
+are about to touch — and `crimes diff <base...head>` for branch-level
+review.
 
 ---
 

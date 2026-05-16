@@ -123,6 +123,39 @@ try {
   assert(helpOut.includes("scan"), "--help did not list the `scan` command");
   assert(helpOut.includes("context"), "--help did not list the `context` command");
   assert(helpOut.includes("hotspots"), "--help did not list the `hotspots` command");
+  assert(helpOut.includes("diff"), "--help did not list the `diff` command");
+
+  step("crimes diff --help");
+  // We can't run a real `diff` here — the smoke fixture/cwd are not a git
+  // repo. But `--help` exercises the command registration and confirms
+  // the new flags wired up cleanly.
+  const diffHelpOut = run(installedBin, ["diff", "--help"]).stdout;
+  assert(
+    diffHelpOut.includes("<range>"),
+    "diff --help did not mention the <range> argument",
+  );
+  assert(
+    diffHelpOut.includes("--format"),
+    "diff --help did not list --format",
+  );
+
+  step("crimes diff in a non-git dir (should exit 2)");
+  // Run the binary from the smoke install root, which is just a temp dir
+  // with no git history. The diff command should fail cleanly with
+  // exit 2 — not 0, not 1, not a crash.
+  const diffNonGit = spawnSync(installedBin, ["diff", "main...HEAD"], {
+    cwd: installRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  assert(
+    diffNonGit.status === 2,
+    `diff in non-git dir should exit 2, got ${diffNonGit.status}`,
+  );
+  assert(
+    /not a git repository/.test(diffNonGit.stderr ?? ""),
+    `diff in non-git dir should mention "not a git repository", got: ${diffNonGit.stderr}`,
+  );
 
   step("crimes scan (human, --no-color)");
   const scanOut = run(installedBin, ["scan", fixture, "--no-color"]).stdout;

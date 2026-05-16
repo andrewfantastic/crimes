@@ -19,7 +19,7 @@ mirror, not a planning doc.
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
 | M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` pending |
 | M3 — Agent context            | 🟡 partial — `crimes context` + `AGENTS.md` + Claude skill shipped                       |
-| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` shipped; `diff` / `verdict` / baseline are the **0.2.0 focus** |
+| M4 — Diff and CI              | 🟡 partial — `crimes scan --changed [--base <ref>]` ✅, `crimes diff <base...head>` ✅; `verdict` / baseline / `--fail-on new-high` are the remaining **0.2.0** work |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -89,13 +89,21 @@ core path. The only new artefacts on disk are `.crimes/baseline.json` and
 the `diff` / `verdict` JSON shapes — all versioned by the same
 `schema_version` as `crimes scan`.
 
-### Planned commands
+### Landing in 0.2.0 so far
 
-- **`crimes diff <base...head>`** — report **new**, **fixed**, and
-  **unchanged** crimes between two Git refs. JSON-first; the diff shape is
-  documented alongside the scan schema.
-  - `--fail-on new-high` exits non-zero when the head ref introduces any
-    new `severity: "high"` finding (the canonical CI gate).
+- ✅ **`crimes diff <base...head>`** — report **new**, **fixed**, and
+  **unchanged** crimes between two Git refs. Working-tree-safe: each ref
+  is exported via `git archive` into a temp directory and scanned there,
+  so no checkout / stash / temporary commit ever touches the user's tree.
+  Findings are matched by stable fingerprint
+  `<type>::<file>::<symbol-or-empty>` so small line shifts from unrelated
+  edits don't register as fix + new. JSON shape documented in
+  [`docs/json-schema.md`](./docs/json-schema.md#diffreport-output-of-crimes-diff-basehead).
+
+### Planned for the rest of 0.2.0
+
+- **`crimes diff --fail-on new-high`** — exit non-zero when the head ref
+  introduces any new `severity: "high"` finding (the canonical CI gate).
 - **`crimes verdict`** — branch-level "did this branch make the repo
   better or worse?" summary. Built on top of `crimes diff` for the
   current branch vs. its merge base.
@@ -112,9 +120,9 @@ the `diff` / `verdict` JSON shapes — all versioned by the same
 - **CI recipe** — concrete GitHub Actions snippet for failing PRs on
   new high-severity crimes (`crimes diff origin/main...HEAD --fail-on new-high`),
   plus the baseline alternative for legacy repos.
-- **JSON schema docs** — extend [`docs/json-schema.md`](./docs/json-schema.md)
-  to cover the `DiffReport`, `VerdictReport`, and `Baseline` shapes. Same
-  `schema_version` discipline as `ScanReport`.
+- **JSON schema docs** — `DiffReport` ✅ documented; `VerdictReport` and
+  `Baseline` shapes still to come, under the same `schema_version`
+  discipline as `ScanReport`.
 
 ### Out of scope for 0.2.0
 

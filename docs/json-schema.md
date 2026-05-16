@@ -380,6 +380,118 @@ capped at `0.4`. The command does not fail — it degrades.
 
 ---
 
+## `DiffReport` (output of `crimes diff <base...head>`)
+
+`crimes diff <base...head> --format json` emits a single JSON document — the
+`DiffReport`. It shares `schema_version` and the `Finding` shape with
+`ScanReport`, but the body is grouped by what changed between the two refs
+rather than listed flat.
+
+```ts
+interface DiffReport {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal "diff". */
+  report_type: "diff";
+  repo: { name: string; root: string };
+  /** Base ref the user passed (e.g. "main", "origin/main", a SHA). */
+  base: string;
+  /** Head ref the user passed (typically "HEAD"). */
+  head: string;
+  summary: DiffSummary;
+  /** Findings present at `head` but not at `base`. */
+  new_findings: Finding[];
+  /** Findings present at `base` but not at `head`. */
+  fixed_findings: Finding[];
+  /**
+   * Findings present at both refs (matched by fingerprint).
+   * The Finding object comes from the `head` scan, so its
+   * `lines`, `evidence`, and per-scan `id` reflect HEAD.
+   */
+  unchanged_findings: Finding[];
+}
+
+interface DiffSummary {
+  new: number;
+  fixed: number;
+  unchanged: number;
+}
+```
+
+### `report_type`
+
+A discriminator literal so consumers can route on the report kind when
+multiple shapes are piped together. `ScanReport`, `ContextReport`, and
+`HotspotsReport` do not currently carry `report_type` — they are
+disambiguated by their distinctive top-level keys (`findings`, `file`,
+`hotspots`). `DiffReport` adds the field defensively because its body
+contains keys (`new_findings`, `fixed_findings`, `unchanged_findings`)
+that future report types might also want to use.
+
+### How findings are matched (fingerprinting)
+
+Findings are classified as `new` / `fixed` / `unchanged` by a stable
+fingerprint, **not** by the per-scan `id`. The fingerprint is:
+
+```
+<type>::<file>::<symbol-or-empty>
+```
+
+- `type` — detector identity (`large_function`, `large_file`, …)
+- `file` — repo-relative POSIX path
+- `symbol` — function/method name when the detector pinpoints a
+  declaration (e.g. `large_function`); empty for file-level detectors
+
+The fingerprint deliberately excludes `lines`, `evidence`, `summary`, and
+the per-scan `id`. That means a function shifting from lines 37–240 to
+lines 42–246 after an unrelated edit above it is classified as
+`unchanged`, not as a fix + new pair.
+
+Source of truth: [`packages/core/src/fingerprint.ts`](../packages/core/src/fingerprint.ts).
+
+### Sort order within each group
+
+`new_findings`, `fixed_findings`, and `unchanged_findings` each preserve
+the order their underlying scan produced — i.e. the same severity-first
+order documented for [`ScanReport.findings`](#findings):
+
+1. By severity (`high → medium → low`)
+2. Then by `confidence` descending
+3. Then by `file` ascending
+4. Then by `lines[0]` ascending
+
+### How the refs are scanned
+
+`crimes diff` exports each ref into a fresh temporary directory via
+`git archive <ref> | tar -x` and scans it there. The working tree is
+**never** touched: no checkout, no stash, no temporary commits. Both
+temp directories are cleaned up before the report is returned.
+
+### Known limitations
+
+- **File renames register as a fix + new pair.** A file moved from
+  `src/a.ts` to `src/b.ts` between `base` and `head` will produce both
+  fixed findings (from `a.ts`) and new findings (in `b.ts`), even if the
+  underlying detector results are identical. This matches the default
+  behaviour of `git diff` (without `--find-renames`).
+- **Two findings with identical `(type, file, symbol)` collide on one
+  fingerprint.** Nested helpers or overloaded function declarations with
+  the same name in the same file deduplicate to a single logical
+  finding. Rare in practice; a future schema version may add a
+  disambiguator if it becomes a problem.
+
+### Exit codes
+
+`crimes diff` currently exits `0` even when new findings are present.
+`--fail-on new-high` (the canonical CI gate) ships later in `0.2.0`
+alongside baseline support. Until then, gate on the JSON yourself:
+
+```bash
+crimes diff origin/main...HEAD --format json \
+  | jq -e '.summary.new == 0' >/dev/null
+```
+
+---
+
 ## Stability guarantees
 
 Within a single `schema_version`:

@@ -1,0 +1,219 @@
+import { basename, resolve } from "node:path";
+import { fingerprintFinding } from "./fingerprint.js";
+import type { Finding } from "./finding.js";
+import { SCHEMA_VERSION } from "./finding.js";
+import { withRefCheckout } from "./git/archive.js";
+import {
+  isGitRepo,
+  NotAGitRepoError,
+} from "./git/changed-files.js";
+import { scan } from "./scan.js";
+
+export interface DiffOptions {
+  /** Absolute or relative path to the repo. Defaults to cwd. */
+  root?: string;
+  /** Base ref, e.g. `"main"` or `"origin/main"`. */
+  base: string;
+  /** Head ref. Defaults to `"HEAD"`. */
+  head?: string;
+}
+
+export interface DiffSummary {
+  new: number;
+  fixed: number;
+  unchanged: number;
+}
+
+export interface DiffReport {
+  schema_version: typeof SCHEMA_VERSION;
+  report_type: "diff";
+  repo: { name: string; root: string };
+  base: string;
+  head: string;
+  summary: DiffSummary;
+  /** Findings present at `head` but not at `base`. */
+  new_findings: Finding[];
+  /** Findings present at `base` but not at `head`. */
+  fixed_findings: Finding[];
+  /**
+   * Findings present at both. The `Finding` object is taken from the `head`
+   * scan, so line ranges, evidence, and the per-scan `id` reflect HEAD.
+   */
+  unchanged_findings: Finding[];
+}
+
+export class InvalidDiffRangeError extends Error {
+  constructor(range: string, reason: string) {
+    super(
+      `invalid diff range "${range}": ${reason}. ` +
+        `Use the triple-dot form, e.g. main...HEAD or origin/main...HEAD.`,
+    );
+    this.name = "InvalidDiffRangeError";
+  }
+}
+
+/**
+ * Parse a triple-dot diff range (`<base>...<head>`) into its two refs.
+ *
+ * Accepts arbitrary refs on either side as long as they are non-empty and
+ * separated by exactly one `...`. Examples:
+ *
+ * - `main...HEAD`
+ * - `origin/main...HEAD`
+ * - `v0.1.0...HEAD`
+ *
+ * Throws {@link InvalidDiffRangeError} when the format is wrong. Ref
+ * **existence** is not checked here — that happens during scan setup.
+ */
+export function parseDiffRange(range: string): {
+  base: string;
+  head: string;
+} {
+  if (typeof range !== "string" || range.length === 0) {
+    throw new InvalidDiffRangeError(String(range), "range is empty");
+  }
+
+  // Double-dot ranges (`base..head`) are valid in `git diff` but mean
+  // something different and we don't support them yet — reject explicitly
+  // rather than silently treating them as part of a ref name.
+  if (range.includes("..") && !range.includes("...")) {
+    throw new InvalidDiffRangeError(
+      range,
+      "double-dot ranges are not supported — use triple-dot (...) form",
+    );
+  }
+
+  const idx = range.indexOf("...");
+  if (idx === -1) {
+    throw new InvalidDiffRangeError(range, "missing triple-dot separator");
+  }
+
+  // Reject 4+ dots in a row (e.g. "main....HEAD") and a second triple-dot.
+  if (range.indexOf("...", idx + 3) !== -1) {
+    throw new InvalidDiffRangeError(
+      range,
+      "exactly one '...' separator is allowed",
+    );
+  }
+  if (range[idx + 3] === ".") {
+    throw new InvalidDiffRangeError(range, "expected exactly three dots");
+  }
+
+  const base = range.slice(0, idx);
+  const head = range.slice(idx + 3);
+
+  if (base.length === 0) {
+    throw new InvalidDiffRangeError(range, "base ref is empty");
+  }
+  if (head.length === 0) {
+    throw new InvalidDiffRangeError(range, "head ref is empty");
+  }
+
+  return { base, head };
+}
+
+/**
+ * Classify two finding sets into `new`, `fixed`, and `unchanged` groups by
+ * {@link fingerprintFinding} identity. Pure / synchronous — useful for
+ * unit tests that don't need the git plumbing.
+ *
+ * For `unchanged_findings`, the returned `Finding` object is taken from
+ * `headFindings` so consumers see the line ranges / evidence of the current
+ * state, not the pre-edit one.
+ */
+export function classifyDiff(args: {
+  baseFindings: Finding[];
+  headFindings: Finding[];
+}): {
+  new_findings: Finding[];
+  fixed_findings: Finding[];
+  unchanged_findings: Finding[];
+} {
+  const baseByPrint = new Map<string, Finding>();
+  for (const f of args.baseFindings) {
+    if (!baseByPrint.has(fingerprintFinding(f))) {
+      baseByPrint.set(fingerprintFinding(f), f);
+    }
+  }
+
+  const seenInHead = new Set<string>();
+  const new_findings: Finding[] = [];
+  const unchanged_findings: Finding[] = [];
+
+  for (const f of args.headFindings) {
+    const print = fingerprintFinding(f);
+    if (seenInHead.has(print)) continue;
+    seenInHead.add(print);
+    if (baseByPrint.has(print)) {
+      unchanged_findings.push(f);
+    } else {
+      new_findings.push(f);
+    }
+  }
+
+  const fixed_findings: Finding[] = [];
+  for (const [print, f] of baseByPrint) {
+    if (!seenInHead.has(print)) fixed_findings.push(f);
+  }
+
+  return { new_findings, fixed_findings, unchanged_findings };
+}
+
+/**
+ * Run a deterministic two-ref diff. Scans `base` and `head` in isolated
+ * temporary directories created from `git archive` — the working tree is
+ * **never** mutated. Both temp directories are cleaned up before returning.
+ *
+ * Throws:
+ * - {@link NotAGitRepoError} when `root` is not inside a git repository.
+ * - {@link UnknownGitRefError} when either ref fails to resolve.
+ */
+export async function diff(options: DiffOptions): Promise<DiffReport> {
+  const root = resolve(options.root ?? process.cwd());
+  const head = options.head ?? "HEAD";
+
+  // Surface a clean error before we spend time exporting anything.
+  if (!(await isGitRepo(root))) {
+    throw new NotAGitRepoError(root);
+  }
+
+  const baseFindings = await scanRef({ root, ref: options.base });
+  const headFindings = await scanRef({ root, ref: head });
+
+  const { new_findings, fixed_findings, unchanged_findings } = classifyDiff({
+    baseFindings,
+    headFindings,
+  });
+
+  return {
+    schema_version: SCHEMA_VERSION,
+    report_type: "diff",
+    repo: {
+      name: basename(root),
+      root,
+    },
+    base: options.base,
+    head,
+    summary: {
+      new: new_findings.length,
+      fixed: fixed_findings.length,
+      unchanged: unchanged_findings.length,
+    },
+    new_findings,
+    fixed_findings,
+    unchanged_findings,
+  };
+}
+
+async function scanRef(args: {
+  root: string;
+  ref: string;
+}): Promise<Finding[]> {
+  return withRefCheckout(
+    { repoRoot: args.root, ref: args.ref },
+    async (tmpDir) => {
+      const report = await scan({ root: tmpDir });
+      return report.findings;
+    },
+  );
+}

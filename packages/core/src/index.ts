@@ -7,6 +7,18 @@ export { directDateDetector } from "./detectors/direct-date.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
+export {
+  classifyDiff,
+  diff,
+  InvalidDiffRangeError,
+  parseDiffRange,
+} from "./diff.js";
+export type {
+  DiffOptions,
+  DiffReport,
+  DiffSummary,
+} from "./diff.js";
+export { fingerprintFinding } from "./fingerprint.js";
 export type {
   Finding,
   FindingScores,
@@ -16,6 +28,10 @@ export type {
   SuggestedAction,
 } from "./finding.js";
 export { SCHEMA_VERSION } from "./finding.js";
+export {
+  exportRefToTempDir,
+  withRefCheckout,
+} from "./git/archive.js";
 export {
   getChangedFiles,
   NotAGitRepoError,

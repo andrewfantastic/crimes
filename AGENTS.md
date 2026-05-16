@@ -89,6 +89,11 @@ crimes context <file> --root ./packages/api --format json
 # Git churn × findings, ranked by aggregate risk
 crimes hotspots --format json
 crimes hotspots --since 30d --format json
+
+# New / fixed / unchanged crimes between two committed refs.
+# Working-tree-safe — exports each ref via `git archive` into a temp dir.
+crimes diff main...HEAD --format json
+crimes diff origin/main...HEAD --format json
 ```
 
 If you are running against a checkout that has not been published to npm
@@ -96,8 +101,8 @@ yet (e.g. an unreleased version on `main`), prefix everything above with
 `node packages/cli/dist/index.js` after running `pnpm build`.
 
 **Not yet implemented** — do not invoke or reference these in generated docs:
-`crimes diff`, `crimes verdict`, `crimes baseline`, `crimes explain`,
-`crimes init`, `crimes ask`. See
+`crimes diff --fail-on new-high`, `crimes verdict`, `crimes baseline`,
+`crimes explain`, `crimes init`, `crimes ask`. See
 [`docs/agent-usage.md`](./docs/agent-usage.md) for the full shipped/deferred
 matrix and [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.
 

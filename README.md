@@ -83,6 +83,10 @@ What ships today, all verified by a publish-tarball smoke test in CI:
 - `crimes hotspots [path]` — Git churn × scan findings, ranked by aggregate change-risk
 - `crimes hotspots [path] --since <window>` — `90d`, `2w`, `6m`, `1y`, or any `git log --since` string
 - `crimes hotspots [path] --format json`
+- `crimes diff <base...head>` — new / fixed / unchanged crimes between two
+  Git refs (e.g. `main...HEAD`, `origin/main...HEAD`). Working-tree-safe —
+  scans each ref via `git archive` into a temp dir.
+- `crimes diff <base...head> --format json`
 - Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
@@ -100,11 +104,13 @@ See [`PRD.md`](./PRD.md) for the full spec.
 PR introduces vs. what was already there — so the same `crimes` you run
 locally can gate a PR in CI.
 
-Planned for `crimes@0.2.0`:
+Landing in `crimes@0.2.0`:
 
-- **`crimes diff <base...head>`** — new, fixed, and unchanged findings
-  between two Git refs. `--fail-on new-high` exits non-zero on any new
-  `severity: "high"` finding.
+- **`crimes diff <base...head>`** ✅ — new, fixed, and unchanged findings
+  between two Git refs. Working-tree-safe (`git archive` into a temp
+  dir). See [Commands → `crimes diff`](#crimes-diff-basehead) above.
+- **`--fail-on new-high`** flag for `crimes diff` — exits non-zero on any
+  new `severity: "high"` finding. (Planned.)
 - **`crimes verdict`** — one-line "did this branch help or hurt?"
   summary, built on `crimes diff` against the current merge base.
 - **`crimes baseline save`** — snapshot current findings into
@@ -114,9 +120,9 @@ Planned for `crimes@0.2.0`:
   baseline (the "ignore legacy debt, gate on new debt" workflow).
 - **CI recipe** — copy-paste GitHub Actions snippet for failing PRs on
   new high-severity crimes.
-- **JSON schema docs** — `DiffReport`, `VerdictReport`, and `Baseline`
-  shapes added to [`docs/json-schema.md`](./docs/json-schema.md) under
-  the same `schema_version` discipline as `ScanReport`.
+- **JSON schema docs** — `DiffReport` ✅ documented; `VerdictReport` and
+  `Baseline` shapes will follow under the same `schema_version`
+  discipline as `ScanReport`.
 
 Deferred to later versions (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
 
@@ -301,6 +307,66 @@ JSON output is the stable contract:
 }
 ```
 
+### `crimes diff <base...head>`
+
+Report **new**, **fixed**, and **unchanged** crimes between two Git refs.
+The range must be the triple-dot form (`<base>...<head>`); the typical
+inputs are `main...HEAD` locally or `origin/main...HEAD` in CI.
+
+```bash
+crimes diff main...HEAD
+crimes diff origin/main...HEAD --format json
+crimes diff v0.1.0...HEAD --no-color
+```
+
+`crimes diff` is **working-tree-safe** — it exports each ref into a fresh
+temporary directory via `git archive` and scans it there. The working
+tree is never checked out, stashed, or otherwise mutated.
+
+Concise human output:
+
+```
+CRIMES DIFF
+base: main
+head: HEAD
+
+New crimes: 2
+Fixed crimes: 1
+Unchanged crimes: 8
+```
+
+The JSON output is the stable contract:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "diff",
+  "repo": { "name": "crimes", "root": "/path/to/repo" },
+  "base": "main",
+  "head": "HEAD",
+  "summary": { "new": 2, "fixed": 1, "unchanged": 8 },
+  "new_findings": [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* ... */ ],
+  "unchanged_findings": [ /* ... */ ]
+}
+```
+
+Findings are matched across refs by a **stable fingerprint** —
+`<type>::<file>::<symbol-or-empty>` — not by the per-scan `id`. Small line
+shifts from unrelated edits do not register as fix + new; a function that
+moves from lines 37–240 to 42–246 stays `unchanged`. See
+[`docs/json-schema.md`](./docs/json-schema.md#diffreport-output-of-crimes-diff-basehead)
+for the full schema, fingerprint design, and known limitations (e.g. file
+renames register as a fix + new pair).
+
+Exit code is `0` today even when there are new findings — `--fail-on
+new-high` lands later in the `0.2.0` slice. Until then, gate on JSON:
+
+```bash
+crimes diff origin/main...HEAD --format json \
+  | jq -e '.summary.new == 0' >/dev/null
+```
+
 More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
 [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
@@ -469,7 +535,7 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
 - **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
 - **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`); **`crimes diff` / `verdict` / `baseline save` / `baseline check` are the `0.2.0` focus**
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0` in progress); **`verdict` / `baseline save` / `baseline check` / `--fail-on new-high` are the remaining `0.2.0` work**
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

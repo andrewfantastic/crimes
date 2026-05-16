@@ -1,7 +1,15 @@
-import type { ContextReport, ScanReport } from "@crimes/core";
+import type { ContextReport, DiffReport, ScanReport } from "@crimes/core";
 import { describe, expect, it } from "vitest";
-import { formatContextHumanReport, formatHumanReport } from "./human.js";
-import { formatContextJsonReport, formatJsonReport } from "./json.js";
+import {
+  formatContextHumanReport,
+  formatDiffReport,
+  formatHumanReport,
+} from "./human.js";
+import {
+  formatContextJsonReport,
+  formatDiffJsonReport,
+  formatJsonReport,
+} from "./json.js";
 
 const sampleReport: ScanReport = {
   schema_version: "0.1.0",
@@ -163,5 +171,114 @@ describe("formatContextHumanReport", () => {
     expect(out).toContain("src/billing.ts");
     expect(out).toMatch(/no findings|clean|none/i);
     expect(out).toMatch(/no .*test|tests: none|no likely tests/i);
+  });
+});
+
+const sampleDiff: DiffReport = {
+  schema_version: "0.1.0",
+  report_type: "diff",
+  repo: { name: "demo", root: "/tmp/demo" },
+  base: "main",
+  head: "HEAD",
+  summary: { new: 2, fixed: 1, unchanged: 8 },
+  new_findings: [
+    {
+      id: "crime_00001",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      confidence: 0.9,
+      file: "src/new.ts",
+      symbol: "fresh",
+      lines: [1, 90],
+      summary: "...",
+      evidence: ["90 lines"],
+      scores: { severity: 0.9, confidence: 0.9 },
+    },
+    {
+      id: "crime_00002",
+      type: "todo_density",
+      charge: "Unfinished Business",
+      severity: "medium",
+      confidence: 0.8,
+      file: "src/new.ts",
+      lines: [1, 30],
+      summary: "...",
+      evidence: ["6× TODO"],
+      scores: { severity: 0.5, confidence: 0.8 },
+    },
+  ],
+  fixed_findings: [
+    {
+      id: "crime_00003",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      confidence: 0.95,
+      file: "src/deleted.ts",
+      symbol: "removed",
+      lines: [1, 90],
+      summary: "...",
+      evidence: ["90 lines"],
+      scores: { severity: 0.9, confidence: 0.95 },
+    },
+  ],
+  unchanged_findings: [],
+};
+
+describe("formatDiffReport", () => {
+  it("renders the concise CRIMES DIFF block", () => {
+    const out = formatDiffReport(sampleDiff, { noColor: true });
+    expect(out).toContain("CRIMES DIFF");
+    expect(out).toContain("base: main");
+    expect(out).toContain("head: HEAD");
+    expect(out).toContain("New crimes: 2");
+    expect(out).toContain("Fixed crimes: 1");
+    expect(out).toContain("Unchanged crimes: 8");
+  });
+
+  it("uses the literal counts from the report summary", () => {
+    const zero: DiffReport = {
+      ...sampleDiff,
+      summary: { new: 0, fixed: 0, unchanged: 0 },
+      new_findings: [],
+      fixed_findings: [],
+    };
+    const out = formatDiffReport(zero, { noColor: true });
+    expect(out).toContain("New crimes: 0");
+    expect(out).toContain("Fixed crimes: 0");
+    expect(out).toContain("Unchanged crimes: 0");
+  });
+});
+
+describe("formatDiffJsonReport", () => {
+  it("includes every required key", () => {
+    const parsed = JSON.parse(formatDiffJsonReport(sampleDiff)) as Record<
+      string,
+      unknown
+    >;
+    for (const key of [
+      "schema_version",
+      "report_type",
+      "repo",
+      "base",
+      "head",
+      "summary",
+      "new_findings",
+      "fixed_findings",
+      "unchanged_findings",
+    ]) {
+      expect(parsed).toHaveProperty(key);
+    }
+    expect(parsed.schema_version).toBe("0.1.0");
+    expect(parsed.report_type).toBe("diff");
+  });
+
+  it("preserves finding groups as arrays of the same Finding shape", () => {
+    const parsed = JSON.parse(formatDiffJsonReport(sampleDiff)) as DiffReport;
+    expect(parsed.new_findings).toHaveLength(2);
+    expect(parsed.fixed_findings).toHaveLength(1);
+    expect(parsed.new_findings[0]!.charge).toBe("God Function");
+    expect(parsed.fixed_findings[0]!.file).toBe("src/deleted.ts");
   });
 });

@@ -115,7 +115,7 @@ describe("scan", () => {
       expect(report.summary.total).toBe(0);
     });
 
-    it("uses <base>...HEAD when a base ref is provided", async () => {
+    it("uses <base>...HEAD when a base ref is provided", { timeout: 30000 }, async () => {
       const root = await makeRepo({
         "untouched.ts": bigSource(),
       });

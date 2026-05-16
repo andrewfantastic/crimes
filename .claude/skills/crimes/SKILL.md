@@ -85,6 +85,32 @@ crimes scan --changed --base origin/main --format json  # + unpushed commits
 Requires a git repo. Outside a repo it exits 2 — fall back to a path-scoped
 `crimes scan <path>`.
 
+### Branch-level review (`crimes diff`)
+
+When two committed refs exist and you want **new** / **fixed** /
+**unchanged** crimes between them (e.g. branch review, release-to-release):
+
+```bash
+crimes diff main...HEAD --format json
+crimes diff origin/main...HEAD --format json
+crimes diff v0.1.0...HEAD --format json
+```
+
+Triple-dot form only. Working-tree-safe — `crimes` exports each ref into
+a temp dir via `git archive` and scans there, so a dirty working tree is
+preserved.
+
+Read on the JSON:
+
+- `summary.new` — headline gate. If `> 0` and any are `severity: "high"`,
+  treat the branch as regressing.
+- `new_findings[]` — full Finding shape; quote `evidence` and `lines`.
+- `fixed_findings[]` — wins from the branch; mention which charges cleared.
+- `unchanged_findings[]` — pre-existing debt; don't relitigate.
+
+Findings are matched by stable fingerprint `<type>::<file>::<symbol-or-empty>`,
+not the per-scan `id` — small line shifts do not register as fix+new.
+
 ## Decision rules
 
 1. **A new `severity: "high"` finding introduced by your edit is a blocker.**
@@ -119,8 +145,8 @@ user approval.
 - It has no LSP, no watch mode, no editor integration.
 - It does not auto-fix. There is no `crimes --fix`.
 - These commands are **not yet implemented** and must not be invoked:
-  `crimes diff`, `crimes verdict`, `crimes baseline`, `crimes explain`,
-  `crimes init`, `crimes ask`.
+  `crimes diff --fail-on new-high`, `crimes verdict`, `crimes baseline`,
+  `crimes explain`, `crimes init`, `crimes ask`.
 
 ## Reading findings — five fields that matter
 

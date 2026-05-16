@@ -20,7 +20,7 @@ export class NotAGitRepoError extends Error {
   constructor(root: string) {
     super(
       `not a git repository (or any of the parent directories): ${root}. ` +
-        `--changed needs Git history. Initialise a repo or run without --changed.`,
+        `This command needs Git history — initialise a repo or run it from inside one.`,
     );
     this.name = "NotAGitRepoError";
   }
