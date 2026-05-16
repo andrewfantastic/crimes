@@ -13,13 +13,18 @@ For the agent workflow that consumes findings, see
 
 ## What ships
 
-| `Finding.type`           | Charge                 | Severity range | Confidence |
-| ------------------------ | ---------------------- | -------------- | ---------- |
-| `commented_out_code`     | Commented-Out Corpse   | low-medium     | 0.75-0.90  |
-| `logic_in_comments`      | Logic in the Alibi     | low-medium     | 0.55-0.76  |
-| `name_behavior_mismatch` | False Identity         | low-medium     | 0.65-0.86  |
+| `Finding.type`                  | Charge                    | Severity range | Confidence |
+| ------------------------------- | ------------------------- | -------------- | ---------- |
+| `commented_out_code`            | Commented-Out Corpse      | low-medium     | 0.75-0.90  |
+| `logic_in_comments`             | Logic in the Alibi        | low-medium     | 0.55-0.76  |
+| `name_behavior_mismatch`        | False Identity            | low-medium     | 0.65-0.86  |
+| `magic_domain_literal_scatter`  | String Sprinkles          | low-medium     | 0.66-0.85  |
+| `weak_test_signal`              | Test That Proves Nothing  | low-medium     | 0.78-0.88  |
+| `option_bag_junk_drawer`        | Option Bag Junk Drawer    | low            | 0.74-0.82  |
+| `return_shape_roulette`         | Return Shape Roulette     | low            | 0.73-0.82  |
+| `negative_flag_maze`            | Negative Flag Maze        | low            | 0.72       |
 
-All three emit the existing `Finding` shape. No schema bump is required:
+All eight emit the existing `Finding` shape. No schema bump is required:
 petty crimes are a detector family, not a new severity level or required
 field.
 
@@ -112,3 +117,148 @@ the pure calculation/read part from the mutation.
 - Test files are ignored.
 - The detector requires multiple side-effect signals, or one strong domain
   side effect, before it fires.
+
+---
+
+## String Sprinkles
+
+**What it detects.** Domain-looking string literals repeated across three or
+more production files and at least two directory areas, unless one occurrence
+is already an exported constant.
+
+**Example evidence.**
+
+```text
+literal: "enterprise"
+appears in 4 production files across src, src/api, src/jobs, src/ui
+representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts:2, src/ui/pricing.ts:2
+```
+
+**Why it matters.** Repeated plan, role, status, feature, or billing strings
+often become duplicated policy. Agents tend to add one more copy instead of
+finding or creating the source of truth.
+
+**Suggested fix.** Move the literal to a named constant, enum, schema,
+registry, or policy module before adding another occurrence.
+
+**False-positive notes.**
+
+- Test files, imports, paths, class names, prose, type-union entries, and
+  bare catalogue lists are ignored.
+- The detector is intentionally cross-file and may populate
+  `related_files`.
+- It anchors on the first file lexically so the same literal produces one
+  finding, not one per file.
+
+---
+
+## Test That Proves Nothing
+
+**What it detects.** `it(...)` / `test(...)` blocks in test files that have
+no `expect` / `assert` calls, or only weak matchers such as `toBeTruthy`,
+`toBeFalsy`, `toBeDefined`, and snapshots.
+
+**Example evidence.**
+
+```text
+test: "loads the billing plan"
+0 expect/assert calls
+lines 3-5
+```
+
+**Why it matters.** Weak tests give humans and agents false confidence. A
+test that only runs setup, or only proves a value exists, may not protect the
+behaviour an edit is about to change.
+
+**Suggested fix.** Assert observable behaviour, or delete the test if it only
+exercises setup.
+
+**False-positive notes.**
+
+- Type-level tests using `expectTypeOf`, `expectAssignable`, or
+  `expectError` are ignored.
+- The detector reads the actual test callback body, not surrounding
+  `describe` blocks.
+
+---
+
+## Option Bag Junk Drawer
+
+**What it detects.** Functions that accept generic object names such as
+`options`, `config`, `payload`, `data`, `params`, or `meta` and read six or
+more distinct properties from that bag.
+
+**Example evidence.**
+
+```text
+parameter: options
+6 distinct property reads: currency, locale, plan, region, retry, status
+```
+
+**Why it matters.** Broad option bags hide the shape a caller must provide.
+Agents can preserve the wrong fields, miss required ones, or pass the bag
+through more helpers without understanding ownership.
+
+**Suggested fix.** Replace the generic bag with a named type/object shape, or
+destructure only the fields this function owns.
+
+**False-positive notes.**
+
+- Test files are ignored.
+- Pass-through-only bags are not flagged yet; local shape evidence is
+  required.
+
+---
+
+## Return Shape Roulette
+
+**What it detects.** Functions with three or more object-literal return
+shapes, weak key overlap between branches, and no explicit return type.
+
+**Example evidence.**
+
+```text
+3 object-literal return shapes
+lowest key overlap: 0%
+example keys: { id, plan } vs { error, retryable }
+```
+
+**Why it matters.** Callers and agents infer the result contract from the
+branches they notice first. Divergent anonymous shapes make it easy to miss
+an error variant or optional field.
+
+**Suggested fix.** Add an explicit return type or split branch-specific
+results into named result variants.
+
+**False-positive notes.**
+
+- Test files are ignored.
+- Functions with explicit concrete return types are ignored.
+
+---
+
+## Negative Flag Maze
+
+**What it detects.** `if` / `while` conditions that combine two or more
+negative flag names such as `disableBilling`, `skipRetry`, `noCache`, or
+`withoutAuth`.
+
+**Example evidence.**
+
+```text
+negative flags: disableBilling, skipRetry
+condition: !disableBilling && !skipRetry
+```
+
+**Why it matters.** Double-negative conditionals are easy to invert during
+maintenance. Agents are especially likely to extend the existing condition
+instead of extracting a clear positive predicate.
+
+**Suggested fix.** Prefer positive flag names or extract the predicate into a
+named helper before extending the condition.
+
+**False-positive notes.**
+
+- Test files are ignored.
+- The detector requires negative-sounding names; arbitrary `!value` checks
+  are not enough.

@@ -223,10 +223,13 @@ shared piece of nav.
 - **Cross-file `related_files`** — populated by the IA detectors and
   rendered as an "Also touches:" block (capped at 5, with overflow
   noted) in the human reporter. JSON output is unchanged.
-- **Petty crimes first slice** — `commented_out_code`,
-  `logic_in_comments`, and `name_behavior_mismatch` ship as local,
-  evidence-backed maintainability findings. They stay under the existing
-  `Finding` shape and do not add a new severity level. See
+- **Petty crimes detector family** — `commented_out_code`,
+  `logic_in_comments`, `name_behavior_mismatch`,
+  `magic_domain_literal_scatter`, `weak_test_signal`,
+  `option_bag_junk_drawer`, `return_shape_roulette`, and
+  `negative_flag_maze` ship as evidence-backed maintainability findings.
+  They stay under the existing `Finding` shape and do not add a new
+  severity level. See
   [`docs/finding-types/petty.md`](./docs/finding-types/petty.md).
 - **Route Metadata Drift evidence cap raised from 6 → 8** so both nav
   labels in a multi-source drift fit alongside the route path / file /

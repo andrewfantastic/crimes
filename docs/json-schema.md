@@ -180,10 +180,10 @@ interface Finding {
   suggested_actions?: SuggestedAction[];
   /**
    * Other repo-relative files that contributed evidence to this finding.
-   * Populated by the IA detectors (`missing_agent_context`,
+   * Populated by cross-file detectors (`missing_agent_context`,
    * `route_metadata_drift`, `duplicated_navigation_source`,
-   * `concept_alias_drift`, `docs_code_drift`). Absent on structural
-   * and petty findings.
+   * `concept_alias_drift`, `docs_code_drift`,
+   * `magic_domain_literal_scatter`). Absent on file-local findings.
    */
   related_files?: string[];
 }
@@ -207,13 +207,12 @@ Populated when the detector has the data:
 
 Populated on cross-file findings:
 
-- `related_files` — populated by the five IA detectors
+- `related_files` — populated by the five IA detectors and the
+  cross-file petty literal detector
   (`missing_agent_context`, `route_metadata_drift`,
   `duplicated_navigation_source`, `concept_alias_drift`,
-  `docs_code_drift`). Absent on structural and petty findings
-  (`large_file`, `large_function`, `todo_density`, `direct_date`,
-  `commented_out_code`, `logic_in_comments`,
-  `name_behavior_mismatch`).
+  `docs_code_drift`, `magic_domain_literal_scatter`). Absent on
+  structural and file-local petty findings.
 
 Reserved (declared in the schema, deferred to later milestones):
 
@@ -241,6 +240,11 @@ should treat unknown values defensively. The currently shipped values are:
 | `commented_out_code`            | `Commented-Out Corpse`       | no          | Comment blocks or consecutive line comments that appear to contain disabled source code          |
 | `logic_in_comments`             | `Logic in the Alibi`         | no          | Comments that appear to carry business rules or safety constraints not represented nearby        |
 | `name_behavior_mismatch`        | `False Identity`             | yes         | Safe-sounding function names whose bodies appear to perform side effects                         |
+| `magic_domain_literal_scatter`  | `String Sprinkles`           | no          | Repeated domain-looking literals spread across production files                                  |
+| `weak_test_signal`              | `Test That Proves Nothing`   | no          | Tests with no assertions or only weak assertion matchers                                         |
+| `option_bag_junk_drawer`        | `Option Bag Junk Drawer`     | yes         | Generic object bags with large implicit shapes                                                   |
+| `return_shape_roulette`         | `Return Shape Roulette`      | yes         | Functions returning divergent object shapes without an explicit return type                      |
+| `negative_flag_maze`            | `Negative Flag Maze`         | no          | Conditionals that combine multiple negative flag names                                           |
 | `missing_agent_context`         | `Missing Agent Context`      | no          | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md`      |
 | `route_metadata_drift`          | `Route Metadata Drift`       | no          | One route's path, file, component name, page title, and nav labels appear to use competing names |
 | `duplicated_navigation_source`  | `Duplicated Navigation Source` | no        | Same destination declared in multiple nav-like source files with different labels                |
@@ -252,6 +256,8 @@ Information-architecture findings (`missing_agent_context`,
 `concept_alias_drift`, `docs_code_drift`) are cross-file: their `file`
 field anchors the finding on the most useful single path, and
 `related_files` lists the other files involved.
+`magic_domain_literal_scatter` follows the same cross-file pattern for
+repeated domain literals.
 
 ### `charge`
 
@@ -348,6 +354,11 @@ bumping `schema_version`):
 - `split_file` — split a large file along responsibility boundaries
 - `triage_todos` — convert TODO markers into tracked issues or remove them
 - `inject_clock` — replace direct `Date` usage with an injected clock
+- `centralise_domain_literal` — move a repeated domain literal to a named source of truth
+- `assert_observable_behaviour` — replace weak/no-op tests with assertions against observable behaviour
+- `name_option_shape` — replace a generic object bag with a named shape or owned destructuring
+- `name_return_shape` — add an explicit return type or named result variants
+- `rename_or_simplify_flags` — prefer positive flag names or extract a readable predicate
 - `add_agent_context` — add `AGENTS.md` or a Claude skill so agents can discover repo conventions
 - `align_route_metadata` — align route path, file/component name, page title, and nav labels around one canonical name
 - `consolidate_nav_source` — make one nav file the canonical source of truth for a destination
@@ -360,12 +371,12 @@ request.
 
 ### `related_files`
 
-Populated by cross-file detectors (the information-architecture
-detectors listed above). For each IA finding, `file` is the canonical
-anchor (route file, nav source, doc, or alias-group anchor) and
-`related_files` lists the other repo-relative paths that contributed
-evidence. Paths are repo-relative POSIX strings, deduped, and sorted
-deterministically.
+Populated by cross-file detectors: the information-architecture detectors
+listed above and `magic_domain_literal_scatter`. For each cross-file
+finding, `file` is the canonical anchor (route file, nav source, doc,
+alias-group anchor, or first literal occurrence) and `related_files` lists
+the other repo-relative paths that contributed evidence. Paths are
+repo-relative POSIX strings, deduped, and sorted deterministically.
 
 The human reporter renders `related_files` as an "Also touches:" block
 under each finding (capped at 5 entries with the rest summarised), so
@@ -373,8 +384,8 @@ JSON consumers and human readers see the same set of paths without the
 JSON contract changing. Treat each entry as "also read this before
 editing" — same scope as the finding itself.
 
-Reserved by the file-local detectors. They do not populate it today;
-treat absence as "no cross-file context for this finding".
+Reserved by the file-local detectors. They do not populate it today; treat
+absence as "no cross-file context for this finding".
 
 ---
 
@@ -533,6 +544,11 @@ Static lookup keyed on `Finding.type`. One line per type that appears in
 | `commented_out_code`            | Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.    |
 | `logic_in_comments`             | Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.  |
 | `name_behavior_mismatch`        | Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.   |
+| `magic_domain_literal_scatter`  | Repeated domain strings can be duplicated policy — find or create the source of truth before adding another copy. |
+| `weak_test_signal`              | Treat weak tests as low confidence; assert observable behaviour before relying on them as safety net.       |
+| `option_bag_junk_drawer`        | Generic bags hide required fields — identify the owned shape before threading more data through.            |
+| `return_shape_roulette`         | Divergent return shapes need an explicit contract before callers or agents infer a branch-specific shape.   |
+| `negative_flag_maze`            | Simplify negative flags before extending the condition; double negatives are easy to invert.                |
 | `missing_agent_context`         | Agents may miss project-specific commands, architecture rules, and safety checks.                          |
 | `route_metadata_drift`          | The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels. |
 | `duplicated_navigation_source`  | Multiple files declare this destination; updating only one will leave the others stale.                    |

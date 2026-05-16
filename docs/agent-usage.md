@@ -566,11 +566,16 @@ Petty crimes are small, local maintainability signals that make code easier
 to misread. They are not style lint. They exist because coding agents copy
 nearby patterns, trust comments, and infer safety from names.
 
-| `Finding.type`           | Charge                 | Agent concern                                                                        |
-| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
-| `commented_out_code`     | Commented-Out Corpse   | Disabled code can look like reusable implementation or current documentation.         |
-| `logic_in_comments`      | Logic in the Alibi     | A business rule may live only in prose instead of guards, types, config, or tests.    |
-| `name_behavior_mismatch` | False Identity         | A safe-sounding function may write, send, track, charge, or otherwise mutate state.   |
+| `Finding.type`                  | Charge                   | Agent concern                                                                        |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| `commented_out_code`            | Commented-Out Corpse     | Disabled code can look like reusable implementation or current documentation.         |
+| `logic_in_comments`             | Logic in the Alibi       | A business rule may live only in prose instead of guards, types, config, or tests.    |
+| `name_behavior_mismatch`        | False Identity           | A safe-sounding function may write, send, track, charge, or otherwise mutate state.   |
+| `magic_domain_literal_scatter`  | String Sprinkles         | Repeated domain strings invite another copy instead of a source-of-truth edit.        |
+| `weak_test_signal`              | Test That Proves Nothing | A present-but-weak test can make an edit look safer than it is.                       |
+| `option_bag_junk_drawer`        | Option Bag Junk Drawer   | Generic bags hide which fields an edit must preserve.                                 |
+| `return_shape_roulette`         | Return Shape Roulette    | Divergent anonymous return shapes make callers infer the wrong contract.              |
+| `negative_flag_maze`            | Negative Flag Maze       | Multiple negative flags are easy to invert while extending conditions.                |
 
 When you see a petty crime, do not auto-fix it blindly. Read the evidence,
 then decide whether the current edit needs to preserve, encode, rename, or
@@ -618,7 +623,7 @@ path sanitised:
     "name": "messy-ts-app",
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
-  "summary": { "total": 14, "high": 1, "medium": 11, "low": 2 },
+  "summary": { "total": 20, "high": 1, "medium": 13, "low": 6 },
   "findings": [
     {
       "id": "crime_00001",
@@ -644,7 +649,7 @@ path sanitised:
         }
       ]
     }
-    // ...thirteen more findings elided. Full output:
+    // ...nineteen more findings elided. Full output:
     //   docs/fixtures/messy-ts-app.json
   ]
 }
@@ -686,7 +691,7 @@ rely on them in agent instructions yet:
 | `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
 | IA findings: `missing_agent_context`, `route_metadata_drift`, `duplicated_navigation_source`, `concept_alias_drift`, `docs_code_drift` | ✅ shipped (`0.3.0`) |
 | `Finding.related_files` populated on IA findings (human-rendered as "Also touches:") | ✅ shipped (`0.3.0`) |
-| Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch` | ✅ shipped (on `main`) |
+| Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch`, `magic_domain_literal_scatter`, `weak_test_signal`, `option_bag_junk_drawer`, `return_shape_roulette`, `negative_flag_maze` | ✅ shipped (on `main`) |
 | `crimes diff --fail-on new-high`       | 🚧 deferred (v0.4.0 candidate) |
 | `crimes ignore <id>`                   | 🚧 deferred (v0.4.0 candidate) |
 | `crimes explain <id>`                  | 🚧 deferred (v0.4.0 candidate) |

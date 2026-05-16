@@ -14,15 +14,22 @@ import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navig
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
 import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
+import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
 import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
+import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
+import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
+import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
+import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
 import { buildIaIndex } from "./ia/build.js";
 import type { IaIndex } from "./ia/types.js";
+import { buildPettyIndex } from "./petty/build.js";
+import type { PettyIndex } from "./petty/types.js";
 
 export const builtInDetectors: Detector[] = [
   // Structural / file-local detectors (run first; they make up the bulk of
@@ -35,6 +42,11 @@ export const builtInDetectors: Detector[] = [
   commentedOutCodeDetector,
   logicInCommentsDetector,
   nameBehaviorMismatchDetector,
+  magicDomainLiteralScatterDetector,
+  weakTestSignalDetector,
+  optionBagJunkDrawerDetector,
+  returnShapeRouletteDetector,
+  negativeFlagMazeDetector,
   // Information-architecture detectors (cross-file; require ctx.ia).
   missingAgentContextDetector,
   routeMetadataDriftDetector,
@@ -82,6 +94,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // changed slice -- IA findings are cross-file by definition. `--changed`
   // gates only finding emission, not the underlying signal.
   const ia = await safelyBuildIaIndex({ root, allFiles });
+  const petty = await safelyBuildPettyIndex({ root, allFiles });
 
   const findings: Finding[] = [];
 
@@ -98,6 +111,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         parsed,
         config,
         ia,
+        petty,
       });
       findings.push(...detectorFindings);
     }
@@ -116,6 +130,17 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     summary: summarise(sorted),
     findings: sorted,
   };
+}
+
+async function safelyBuildPettyIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<PettyIndex | undefined> {
+  try {
+    return await buildPettyIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
 }
 
 function toRepoPath(p: string): string {

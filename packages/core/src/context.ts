@@ -11,6 +11,8 @@ import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { buildIaIndex } from "./ia/build.js";
 import type { IaIndex } from "./ia/types.js";
+import { buildPettyIndex } from "./petty/build.js";
+import type { PettyIndex } from "./petty/types.js";
 import { builtInDetectors } from "./scan.js";
 
 export interface ContextOptions {
@@ -100,6 +102,16 @@ const GUIDANCE: Record<string, string> = {
     "Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.",
   name_behavior_mismatch:
     "Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.",
+  magic_domain_literal_scatter:
+    "Repeated domain literals can be duplicated policy — find or create the source of truth before adding another copy.",
+  weak_test_signal:
+    "Nearby tests may not protect behaviour; inspect assertions before treating them as safety coverage.",
+  option_bag_junk_drawer:
+    "Generic object bags hide required shape — identify the actual fields before adding or renaming properties.",
+  return_shape_roulette:
+    "This function returns multiple object shapes; check every caller before depending on one result shape.",
+  negative_flag_maze:
+    "Multiple negative flags make predicates easy to invert — simplify or name the predicate before extending it.",
   missing_agent_context:
     "Agents may miss project-specific commands, architecture rules, and safety checks.",
   route_metadata_drift:
@@ -221,10 +233,10 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     exclude: config.exclude,
   });
 
-  // IA index is built over the WHOLE repo so single-file context still gets
-  // cross-file IA signal (a route file's metadata is only meaningful when
-  // compared against the nav sources in other files).
+  // Cross-file indexes are built over the WHOLE repo so single-file context
+  // still gets repo-level IA and petty-crimes signal.
   const ia = await safelyBuildIaIndex({ root, allFiles });
+  const petty = await safelyBuildPettyIndex({ root, allFiles });
 
   const findings = await runDetectorsOnTarget({
     allFiles,
@@ -233,6 +245,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     config,
     detectors,
     ia,
+    petty,
   });
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
@@ -296,8 +309,9 @@ async function runDetectorsOnTarget(args: {
   config: CrimesConfig;
   detectors: Detector[];
   ia?: IaIndex;
+  petty?: PettyIndex;
 }): Promise<Finding[]> {
-  const { allFiles, targetAbs, root, config, detectors, ia } = args;
+  const { allFiles, targetAbs, root, config, detectors, ia, petty } = args;
   if (!allFiles.includes(targetAbs)) return [];
 
   const file = toRepoPath(relative(root, targetAbs));
@@ -313,6 +327,7 @@ async function runDetectorsOnTarget(args: {
       parsed,
       config,
       ia,
+      petty,
     });
     findings.push(...detectorFindings);
   }
@@ -337,6 +352,17 @@ async function safelyBuildIaIndex(args: {
 }): Promise<IaIndex | undefined> {
   try {
     return await buildIaIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildPettyIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<PettyIndex | undefined> {
+  try {
+    return await buildPettyIndex({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }

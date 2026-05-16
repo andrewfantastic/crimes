@@ -1,9 +1,10 @@
 # Petty Crimes Implementation Plan
 
 Implementation plan for adding a "petty crimes" detector family to
-`crimes`. This is a planning document, not a build artefact: nothing here
-ships until a follow-up branch implements it. The authoritative product spec
-stays `PRD.md`; the live milestone tracker stays `ROADMAP_STATUS.md`.
+`crimes`. The first full detector set from this plan is now implemented on
+`main`; this document remains as the rationale and sequencing record. The
+authoritative product spec stays `PRD.md`; the live milestone tracker stays
+`ROADMAP_STATUS.md`.
 
 - **Repo state at planning time:** `crimes@0.3.0` release candidate on
   `main`. Built-in detectors cover local structure (`large_file`,
@@ -706,31 +707,34 @@ Agent guidance should say:
 
 ---
 
-## 8. Open questions
+## 8. Resolved implementation choices
 
-1. Should petty crimes be enabled by default immediately, or introduced behind
-   a config flag until tuned on real repos?
-2. Should the human reporter visually group petty findings, or is the charge
-   name enough for the first release?
-3. Should `todo_density` be reclassified as a petty crime in docs, or remain a
-   structural/testability detector?
-4. How aggressive should repeated literal detection be before dependency and
-   duplication detectors exist?
-5. Should docs examples use deliberately funny charges, or stay closer to the
-   existing sober tone?
+1. Petty crimes ship enabled by default, but each detector is capped and
+   tuned to avoid adding noise to the first-party `packages/core` self-scan.
+2. The human reporter does not need a new visual group for the first release;
+   charge names and `Finding.type` carry the category.
+3. `todo_density` remains a structural/testability detector in docs.
+4. Repeated literal detection is conservative: production files only, at
+   least three files, at least two directory areas, domain-looking strings
+   only, and no finding if an exported constant already exists.
+5. Charges are playful, but JSON summaries and evidence stay sober.
 
 ---
 
-## 9. Recommended first implementation slice
+## 9. Implemented detector set
 
-Ship a focused first slice:
+The implemented set covers the first slice and the conservative follow-up
+detectors:
 
 1. `commented_out_code`
 2. `logic_in_comments`
 3. `name_behavior_mismatch`
-4. `docs/finding-types/petty.md`
-5. Fixture examples and regenerated sample JSON
+4. `magic_domain_literal_scatter`
+5. `weak_test_signal`
+6. `option_bag_junk_drawer`
+7. `return_shape_roulette`
+8. `negative_flag_maze`
 
-Defer repeated literals and weak tests until the first three have been tuned.
-This keeps the category distinctive without turning the default scan into a
-large list of minor annoyances.
+The fixture examples and regenerated sample JSON live in
+[`examples/messy-ts-app`](./examples/messy-ts-app) and
+[`docs/fixtures/messy-ts-app.json`](./docs/fixtures/messy-ts-app.json).

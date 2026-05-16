@@ -254,7 +254,7 @@ HIGH severity (1)
      id=crime_00001  confidence=0.95
   ...
 
-Total 14  ·  high 1  medium 11  low 2
+Total 20  ·  high 1  medium 13  low 6
 ```
 
 JSON output is the **stable product API** — see
@@ -277,11 +277,16 @@ workflow.
 
 ### Petty crimes (on `main`)
 
-| Detector                 | Charge               | What it does                                                                 |
-| ------------------------ | -------------------- | ---------------------------------------------------------------------------- |
-| `commented_out_code`     | Commented-Out Corpse | Flags disabled code left behind in comments                                  |
-| `logic_in_comments`      | Logic in the Alibi   | Flags comments that appear to carry business rules not encoded nearby         |
-| `name_behavior_mismatch` | False Identity       | Flags safe-sounding function names whose bodies perform side effects          |
+| Detector                        | Charge                   | What it does                                                                 |
+| ------------------------------- | ------------------------ | ---------------------------------------------------------------------------- |
+| `commented_out_code`            | Commented-Out Corpse     | Flags disabled code left behind in comments                                  |
+| `logic_in_comments`             | Logic in the Alibi       | Flags comments that appear to carry business rules not encoded nearby         |
+| `name_behavior_mismatch`        | False Identity           | Flags safe-sounding function names whose bodies perform side effects          |
+| `magic_domain_literal_scatter`  | String Sprinkles         | Flags repeated domain literals spread across production files                 |
+| `weak_test_signal`              | Test That Proves Nothing | Flags tests with no assertions or only weak assertion signal                  |
+| `option_bag_junk_drawer`        | Option Bag Junk Drawer   | Flags broad generic option bags with large implicit shapes                    |
+| `return_shape_roulette`         | Return Shape Roulette    | Flags branchy functions returning divergent anonymous object shapes           |
+| `negative_flag_maze`            | Negative Flag Maze       | Flags conditionals that combine multiple negative flags                       |
 
 Petty crimes are small, evidence-backed maintainability irritants that make
 future edits easier to misread. They are not style rules; anything best

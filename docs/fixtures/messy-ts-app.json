@@ -6,10 +6,10 @@
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 14,
+    "total": 20,
     "high": 1,
-    "medium": 11,
-    "low": 2
+    "medium": 13,
+    "low": 6
   },
   "findings": [
     {
@@ -49,7 +49,7 @@
       "charge": "Missing Agent Context",
       "severity": "medium",
       "confidence": 0.9,
-      "file": "src/billing.ts",
+      "file": "src/api/plan.ts",
       "summary": "Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.",
       "evidence": [
         "no AGENTS.md found at repo root",
@@ -162,6 +162,71 @@
     },
     {
       "id": "crime_00006",
+      "type": "weak_test_signal",
+      "charge": "Test That Proves Nothing",
+      "severity": "medium",
+      "confidence": 0.88,
+      "file": "src/billing.test.ts",
+      "lines": [
+        4,
+        6
+      ],
+      "summary": "Test \"renders the enterprise plan\" contains no expect/assert calls. A test that only runs setup gives agents false confidence.",
+      "evidence": [
+        "test: \"renders the enterprise plan\"",
+        "0 expect/assert calls",
+        "lines 4-6"
+      ],
+      "scores": {
+        "severity": 0.45,
+        "confidence": 0.88,
+        "agent_risk": 0.68
+      },
+      "suggested_actions": [
+        {
+          "kind": "assert_observable_behaviour",
+          "description": "Assert the observable behaviour this test is meant to protect, or delete the test if it only exercises setup.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00007",
+      "type": "magic_domain_literal_scatter",
+      "charge": "String Sprinkles",
+      "severity": "medium",
+      "confidence": 0.85,
+      "file": "src/api/plan.ts",
+      "lines": [
+        2,
+        2
+      ],
+      "summary": "Domain literal \"enterprise\" appears in 4 production files across 4 areas. Repeated literals often become duplicated policy.",
+      "evidence": [
+        "literal: \"enterprise\"",
+        "appears in 4 production files across src, src/api, src/jobs, src/ui",
+        "representative files: src/api/plan.ts:2, src/billing.ts:7, src/jobs/plan-sync.ts:2, src/ui/pricing.ts:2"
+      ],
+      "scores": {
+        "severity": 0.5,
+        "confidence": 0.85,
+        "agent_risk": 0.8
+      },
+      "suggested_actions": [
+        {
+          "kind": "centralise_domain_literal",
+          "description": "Move the literal to a named constant, enum, schema, registry, or policy module before adding another copy.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "src/billing.ts",
+        "src/jobs/plan-sync.ts",
+        "src/ui/pricing.ts"
+      ]
+    },
+    {
+      "id": "crime_00008",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -192,7 +257,7 @@
       ]
     },
     {
-      "id": "crime_00007",
+      "id": "crime_00009",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -227,7 +292,7 @@
       ]
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00010",
       "type": "large_file",
       "charge": "God File",
       "severity": "medium",
@@ -257,7 +322,7 @@
       ]
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00011",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -287,7 +352,7 @@
       ]
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00012",
       "type": "duplicated_navigation_source",
       "charge": "Duplicated Navigation Source",
       "severity": "medium",
@@ -316,7 +381,7 @@
       ]
     },
     {
-      "id": "crime_00011",
+      "id": "crime_00013",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -345,7 +410,7 @@
       ]
     },
     {
-      "id": "crime_00012",
+      "id": "crime_00014",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -379,7 +444,7 @@
       ]
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00015",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -403,7 +468,127 @@
       ]
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00016",
+      "type": "weak_test_signal",
+      "charge": "Test That Proves Nothing",
+      "severity": "low",
+      "confidence": 0.78,
+      "file": "src/billing.test.ts",
+      "lines": [
+        8,
+        10
+      ],
+      "summary": "Test \"creates an invoice\" only uses weak assertion matchers. It may prove the code ran, not that behaviour is protected.",
+      "evidence": [
+        "test: \"creates an invoice\"",
+        "1 weak assertion matcher",
+        "lines 8-10"
+      ],
+      "scores": {
+        "severity": 0.25,
+        "confidence": 0.78,
+        "agent_risk": 0.58
+      },
+      "suggested_actions": [
+        {
+          "kind": "assert_observable_behaviour",
+          "description": "Assert the observable behaviour this test is meant to protect, or delete the test if it only exercises setup.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00017",
+      "type": "option_bag_junk_drawer",
+      "charge": "Option Bag Junk Drawer",
+      "severity": "low",
+      "confidence": 0.74,
+      "file": "src/petty.ts",
+      "symbol": "describeCheckout",
+      "lines": [
+        10,
+        19
+      ],
+      "summary": "describeCheckout accepts a broad `options` object with an implicit shape. Generic bags make it hard for agents to know which fields are required.",
+      "evidence": [
+        "parameter: options",
+        "6 distinct property reads: currency, plan, region, retry, role, status"
+      ],
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.74,
+        "agent_risk": 0.7
+      },
+      "suggested_actions": [
+        {
+          "kind": "name_option_shape",
+          "description": "Replace the generic bag with a named type/object shape, or destructure only the fields this function owns.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00018",
+      "type": "return_shape_roulette",
+      "charge": "Return Shape Roulette",
+      "severity": "low",
+      "confidence": 0.73,
+      "file": "src/petty.ts",
+      "symbol": "resolvePaymentResult",
+      "lines": [
+        21,
+        32
+      ],
+      "summary": "resolvePaymentResult returns several object shapes without an explicit return type. Callers and agents may infer the wrong result contract.",
+      "evidence": [
+        "3 object-literal return shapes",
+        "lowest key overlap: 0%",
+        "example keys: { code, message, ok } vs { permanent, url }"
+      ],
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.73,
+        "agent_risk": 0.82
+      },
+      "suggested_actions": [
+        {
+          "kind": "name_return_shape",
+          "description": "Add an explicit return type or split branch-specific results into named result variants.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00019",
+      "type": "negative_flag_maze",
+      "charge": "Negative Flag Maze",
+      "severity": "low",
+      "confidence": 0.72,
+      "file": "src/petty.ts",
+      "lines": [
+        35,
+        35
+      ],
+      "summary": "Conditional combines 2 negative flags. Double-negative logic is easy to invert during maintenance.",
+      "evidence": [
+        "negative flags: disableBilling, skipRetry",
+        "condition: !disableBilling && !skipRetry"
+      ],
+      "scores": {
+        "severity": 0.25,
+        "confidence": 0.72,
+        "agent_risk": 0.66
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_simplify_flags",
+          "description": "Prefer positive flag names or extract the predicate into a named helper before extending this condition.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00020",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",

@@ -2,6 +2,7 @@ import type { ParsedFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
+import type { PettyIndex } from "./petty/types.js";
 
 /**
  * A detector inspects parsed files and emits zero or more findings.
@@ -37,4 +38,10 @@ export interface DetectorContext {
    * file-local detectors ignore it.
    */
   ia?: IaIndex;
+  /**
+   * Optional repo-level petty-crimes signal index. Populated by `scan` and
+   * `context`; absent only in direct unit-test stubs or when the index build
+   * fails. Cross-file petty detectors read from this.
+   */
+  petty?: PettyIndex;
 }

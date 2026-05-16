@@ -40,10 +40,15 @@ export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navig
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
 export { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
+export { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 export { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
 export { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
+export { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
+export { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
+export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
+export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 export {
   classifyDiff,
   diff,
@@ -85,6 +90,16 @@ export {
   tokenisePath,
   toPosix as iaToPosix,
 } from "./ia/index.js";
+export { buildPettyIndex } from "./petty/build.js";
+export { extractStringLiterals } from "./petty/literals.js";
+export type {
+  BuildPettyIndexOptions,
+} from "./petty/build.js";
+export type {
+  PettyIndex,
+  PettyLiteralHit,
+  RepoPath as PettyRepoPath,
+} from "./petty/types.js";
 export type {
   BuildIaIndexOptions,
   IaAgentInventory,
