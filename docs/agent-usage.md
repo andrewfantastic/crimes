@@ -578,17 +578,19 @@ rely on them in agent instructions yet:
 | `crimes verdict --base <ref>`          | ✅ shipped (`0.2.0`)    |
 | `crimes verdict --format json`         | ✅ shipped (`0.2.0`)    |
 | `crimes verdict --fail-on <threshold>` | ✅ shipped (`0.2.0`)    |
-| `crimes diff --fail-on new-high`       | 🚧 planned (`0.2.0`)    |
-| `crimes ignore <id>`                   | 🚧 not yet implemented  |
-| `crimes explain <id>`                  | 🚧 not yet implemented  |
-| `crimes init`                          | 🚧 not yet implemented  |
-| `crimes ask` / LLM-assisted modes      | 🚧 not yet implemented  |
+| `crimes diff --fail-on new-high`       | 🚧 deferred to `0.3.0`  |
+| `crimes ignore <id>`                   | 🚧 deferred to `0.3.0`  |
+| `crimes explain <id>`                  | 🚧 deferred to `0.3.0`  |
+| `crimes init`                          | 🚧 deferred to `0.3.0`  |
+| `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
-Until the remaining `0.2.0` items land, the pre/post-edit workflow works
-as plain `crimes scan <path> --format json` on the directory or file you
-are about to touch, `crimes diff <base...head>` for branch-level review,
-and `crimes verdict` for the one-line "did this branch help or hurt?"
-summary at the end of a task.
+Until the deferred items land in `0.3.0`, the pre/post-edit workflow
+works as plain `crimes scan <path> --format json` on the directory or
+file you are about to touch, `crimes diff <base...head>` for branch-level
+review, and `crimes verdict` for the one-line "did this branch help or
+hurt?" summary at the end of a task. For a hard CI gate, use any of
+`crimes scan --changed --fail-on`, `crimes baseline check --fail-on`,
+or `crimes verdict --fail-on` — see [`docs/ci.md`](./ci.md).
 
 ---
 

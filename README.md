@@ -69,11 +69,13 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — current `main` (release candidate: `crimes@0.2.0`)
+## Status — `crimes@0.2.0` release candidate
 
-`crimes@0.1.0` is the latest tag on npm. Everything below ships from
-`main` today and is verified by the publish-tarball smoke test in CI on
-every commit; the next release will cut it as `crimes@0.2.0`.
+`packages/cli/package.json` is pinned at `0.2.0`. Everything below ships
+from `main` today and is verified by the publish-tarball smoke test in
+CI on every commit. The next GitHub Release tagged `v0.2.0` will cut
+the npm publish via Trusted Publishing. Last published: `crimes@0.1.0`
+(2026-05-15).
 
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` — directory scan, default top-10
@@ -104,12 +106,15 @@ every commit; the next release will cut it as `crimes@0.2.0`.
 - Four detectors: **God Function**, **God File**, **Unfinished Business**, **Temporal Recklessness**
 - Bundled agent assets: [`AGENTS.md`](./AGENTS.md) and
   [`.claude/skills/crimes/SKILL.md`](./.claude/skills/crimes/SKILL.md)
+- CI integration: three gating modes documented in
+  [`docs/ci.md`](./docs/ci.md) with a copy-paste GitHub Actions workflow
+  at [`examples/github-actions/crimes.yml`](./examples/github-actions/crimes.yml).
 
 See [`PRD.md`](./PRD.md) for the full spec.
 
 ---
 
-## What's next — `crimes@0.2.0`
+## Shipped in `crimes@0.2.0`
 
 **Theme: branch and PR safety for humans and coding agents.**
 
@@ -118,43 +123,63 @@ See [`PRD.md`](./PRD.md) for the full spec.
 PR introduces vs. what was already there — so the same `crimes` you run
 locally can gate a PR in CI.
 
-Landing in `crimes@0.2.0`:
+Shipped in `crimes@0.2.0`:
 
-- **`crimes diff <base...head>`** ✅ — new, fixed, and unchanged findings
+- **`crimes diff <base...head>`** — new, fixed, and unchanged findings
   between two Git refs. Working-tree-safe (`git archive` into a temp
-  dir). See [Commands → `crimes diff`](#crimes-diff-basehead) above.
-- **`crimes baseline save` / `crimes baseline check`** ✅ — snapshot
+  dir). See [Commands → `crimes diff`](#crimes-diff-basehead) below.
+- **`crimes baseline save` / `crimes baseline check`** — snapshot
   current findings into `.crimes/baseline.json` so teams can adopt
   `crimes` on legacy code without fixing everything first, then fail CI
   only on findings introduced after the snapshot. See
   [Commands → `crimes baseline`](#crimes-baseline) below.
-- **`crimes scan --changed --fail-on low|medium|high`** ✅ — exits non-zero
+- **`crimes scan --changed --fail-on low|medium|high`** — exits non-zero
   when a finding in the changed-files set meets the threshold. The narrow,
   changed-files-only CI gate. JSON output gains `fail_on` / `failed` when
   the flag is set; `crimes scan` without `--changed` is unaffected.
-- **`--fail-on new-high`** flag for `crimes diff` — exits non-zero on any
-  new `severity: "high"` finding. (Planned.)
-- **`crimes verdict`** ✅ — one-line "did this branch help or hurt?"
+- **`crimes verdict`** — one-line "did this branch help or hurt?"
   summary, built on `crimes diff`. Defaults base to `origin/main` then
   `main`; advisory by default, opt-in CI gate via `--fail-on worse |
   new-high | new-medium`. See [Commands → `crimes verdict`](#crimes-verdict)
   below.
-- **CI recipe** — copy-paste GitHub Actions snippet for failing PRs on
-  new high-severity crimes.
-- **JSON schema docs** — `DiffReport` ✅, `Baseline` ✅, and
-  `VerdictReport` ✅ documented under the same `schema_version`
-  discipline as `ScanReport`.
+- **CI integration docs + GitHub Actions example** —
+  [`docs/ci.md`](./docs/ci.md) covers the three recommended gating modes
+  (changed-files, baseline, branch verdict);
+  [`examples/github-actions/crimes.yml`](./examples/github-actions/crimes.yml)
+  is the copy-paste workflow.
+- **Schema / report consistency pass** — every report now carries a
+  `report_type` discriminator (`"scan"`, `"context"`, `"hotspots"`,
+  `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`) under the
+  same `schema_version`. JSON schema docs (`DiffReport`, `Baseline`,
+  `BaselineCheckReport`, `VerdictReport`) live in
+  [`docs/json-schema.md`](./docs/json-schema.md).
 
-Deferred to later versions (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
+Deferred from `0.2.0` (see [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for
+the full list):
 
-- Richer per-finding risk model — `scores.churn`, `scores.test_gap`,
-  `scores.blast_radius` (target: `0.3.0`)
-- Cross-file `related_files`, `crimes explain <id>`, `crimes init`
-  (target: `0.3.0`)
-- Dependency-graph detectors and duplication detectors (target: `0.4.0`+)
-- LLM-assisted features (`crimes ask`) — `v1+`
-- Homebrew tap and standalone binaries (M6) — deferred until the CLI
-  surface stabilises
+- **`crimes diff --fail-on new-high`** — gate on JSON or use
+  `crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
+  high` / `crimes baseline check` until this lands. Target: `0.3.0`.
+- **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json` —
+  target: `0.3.0`.
+- **`crimes explain <id>`** — long-form rationale. Target: `0.3.0`.
+- **`crimes init`** + config plumbing — target: `0.3.0`.
+- **`crimes ask`** / LLM-assisted modes — `v1+`.
+- **Dependency-graph detectors** (circular deps, layer violations) —
+  target: `0.4.0+`.
+- **Duplication detectors** — target: `0.4.0+`.
+- **Homebrew tap + standalone binaries** — deferred until the CLI
+  surface stabilises (post-`0.3.0`).
+
+## What's next — `crimes@0.3.0` (tentative)
+
+**Tentative theme: richer repo risk model and suppressions.** The
+bottleneck shifts back to detector signal — per-finding `scores.churn`
+/ `scores.test_gap` / `scores.blast_radius`, cross-file `related_files`,
+`crimes explain`, and the per-finding suppressions that pair with the
+`0.2.0` baseline workflow. Slice subject to revisit during planning;
+authoritative status lives in
+[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
 
 ---
 
@@ -391,7 +416,9 @@ for the full schema, fingerprint design, and known limitations (e.g. file
 renames register as a fix + new pair).
 
 Exit code is `0` today even when there are new findings — `--fail-on
-new-high` lands later in the `0.2.0` slice. Until then, gate on JSON:
+new-high` is deferred to `0.3.0`. Until then, gate on JSON, or use
+`crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
+high` / `crimes baseline check` for a hard CI gate:
 
 ```bash
 crimes diff origin/main...HEAD --format json \
@@ -759,7 +786,7 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
 - **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` planned for `0.3.0`
 - **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` planned for `0.3.0`
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`); **`--fail-on new-high` on `crimes diff` is the remaining `0.2.0` work**
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`); `--fail-on new-high` on `crimes diff` and per-finding `crimes ignore` deferred to `0.3.0`
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

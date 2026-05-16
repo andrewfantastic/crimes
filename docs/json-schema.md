@@ -557,9 +557,13 @@ temp directories are cleaned up before the report is returned.
 
 ### Exit codes
 
-`crimes diff` currently exits `0` even when new findings are present.
-`--fail-on new-high` (the canonical CI gate) ships later in `0.2.0`
-alongside baseline support. Until then, gate on the JSON yourself:
+`crimes diff` is **advisory** — it exits `0` even when new findings are
+present. `--fail-on new-high` is deferred to `0.3.0`. For a hard CI
+gate today, use one of `crimes verdict --fail-on new-high`,
+`crimes scan --changed --fail-on high`, or
+`crimes baseline check --fail-on …` — all three share the same exit-code
+contract (`0` pass, `1` blocked, `2` usage / environment error). Or
+gate on the JSON yourself:
 
 ```bash
 crimes diff origin/main...HEAD --format json \

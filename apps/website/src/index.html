@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.1.0",
+            "softwareVersion": "0.2.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -95,9 +95,14 @@
               "Scan a repository for change risk and agent risk",
               "Pre-edit context briefing for a single file",
               "Working-tree-only diff-aware scanning",
+              "Changed-files CI gate with --fail-on",
+              "Branch-level new / fixed / unchanged crimes diff",
+              "Baseline snapshot to pin legacy debt and gate on new findings",
+              "One-line branch verdict — cleaner, worse, unchanged, or mixed",
               "Churn × findings hotspots",
               "Stable, versioned JSON output for AI agents",
-              "Claude Code skill and AGENTS.md integration"
+              "Claude Code skill and AGENTS.md integration",
+              "GitHub Actions example for PR gating"
             ],
             "author": { "@id": "https://crimes.sh/#author" }
           },
@@ -179,6 +184,7 @@
         <a href="#install">Install</a>
         <a href="#quickstart">Quick start</a>
         <a href="#agents">For agents</a>
+        <a href="#ci">CI</a>
         <a href="#detects">Detectors</a>
         <a href="#faq">FAQ</a>
         <a href="#next">Roadmap</a>
@@ -189,7 +195,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.1.0</span>
+          <span class="pill">v0.2.0 · branch &amp; PR safety</span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -254,7 +260,7 @@ crimes scan .</code></pre>
 
       <section id="quickstart">
         <h2>Quick start</h2>
-        <p>Five commands cover everything <code>crimes</code> does today:</p>
+        <p>Eight commands cover everything <code>crimes</code> does today:</p>
 
         <div class="qs">
           <div class="qs-row">
@@ -272,7 +278,9 @@ crimes scan .</code></pre>
             <pre><code>crimes scan . --format json</code></pre>
             <p class="note">
               Versioned via <code>schema_version</code>. Stable while it
-              reads <code>"0.1.0"</code>. This is what agents should consume.
+              reads <code>"0.1.0"</code>. Every report carries a
+              <code>report_type</code> discriminator so consumers can route
+              on one field.
             </p>
           </div>
 
@@ -287,13 +295,59 @@ crimes scan .</code></pre>
           </div>
 
           <div class="qs-row">
-            <h3>Working-tree-only scan</h3>
+            <h3>Working-tree-only scan (with optional CI gate)</h3>
             <pre><code>crimes scan --changed --format json
-crimes scan --changed --base main --format json</code></pre>
+crimes scan --changed --base main --format json
+crimes scan --changed --fail-on high</code></pre>
             <p class="note">
               Restricts to files changed in the working tree, optionally
-              including commits unique to the current branch. The post-edit
-              gate inside an agent loop.
+              including commits unique to the current branch.
+              <code>--fail-on low|medium|high</code> (only valid with
+              <code>--changed</code>) exits <code>1</code> when a finding
+              in the changed set meets the threshold — the cheapest CI
+              gate.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Branch-level diff between two refs</h3>
+            <pre><code>crimes diff main...HEAD --format json
+crimes diff origin/main...HEAD --format json</code></pre>
+            <p class="note">
+              <strong>New</strong>, <strong>fixed</strong>, and
+              <strong>unchanged</strong> crimes between two Git refs.
+              Working-tree-safe — exports each ref into a temp dir via
+              <code>git archive</code>. Findings are matched by stable
+              fingerprint, so unrelated line shifts don't register as
+              fix + new.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Baseline — pin legacy debt, gate on new</h3>
+            <pre><code>crimes baseline save
+git add .crimes/baseline.json &amp;&amp; git commit -m "Add crimes baseline"
+crimes baseline check --fail-on medium</code></pre>
+            <p class="note">
+              Snapshot the current findings to
+              <code>.crimes/baseline.json</code>, commit the file, then
+              fail CI only on findings absent from the baseline.
+              <code>--fail-on</code> defaults to <code>medium</code>;
+              exit <code>1</code> blocks CI, exit <code>2</code> is
+              reserved for missing / malformed baselines.
+            </p>
+          </div>
+
+          <div class="qs-row">
+            <h3>Branch verdict — cleaner, worse, unchanged, or mixed</h3>
+            <pre><code>crimes verdict --base origin/main --format json
+crimes verdict --base origin/main --fail-on new-high</code></pre>
+            <p class="note">
+              One-line "did this branch help or hurt?" summary, built on
+              <code>crimes diff</code>. Default base picks
+              <code>origin/main</code> first, then <code>main</code>.
+              Advisory by default; opt into a hard gate with
+              <code>--fail-on worse | new-high | new-medium</code>.
             </p>
           </div>
 
@@ -372,6 +426,12 @@ crimes scan --changed --base main --format json</code></pre>
             findings against the pre-edit run.
           </li>
           <li>
+            <strong>Before opening the PR</strong> —
+            <code>crimes verdict --base origin/main --fail-on new-high</code>
+            for the one-line "did this branch help or hurt?" answer,
+            with a hard gate on any new high finding.
+          </li>
+          <li>
             <strong>Triaging the wider repo</strong> —
             <code>crimes hotspots --format json</code> ranks files by an
             aggregate of git churn and current findings.
@@ -384,6 +444,84 @@ crimes scan --changed --base main --format json</code></pre>
           <code>charge</code>. Quote <code>evidence[]</code> back to the
           user when you explain a decision: it is deterministic AST or
           file-content data, not opinion.
+        </p>
+      </section>
+
+      <section id="ci">
+        <h2>CI</h2>
+        <p>
+          <code>crimes</code> is built for CI. Three deterministic gating
+          modes — pick whichever fits the contract you want with your
+          team. All three share the same exit-code shape:
+          <code>0</code> success / no blocking findings,
+          <code>1</code> a configured <code>--fail-on</code> threshold
+          met, <code>2</code> a usage or environment error.
+        </p>
+
+        <div class="detector-table" role="table" aria-label="CI gating modes">
+          <div class="row head" role="row">
+            <span role="columnheader">Mode</span>
+            <span role="columnheader">Command</span>
+            <span role="columnheader">When to use</span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><strong>A · Changed-files</strong></span>
+            <span role="cell"><code>crimes scan --changed --fail-on high</code></span>
+            <span role="cell">
+              Repo already clean, or you only want to gate the diff
+              itself.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><strong>B · Baseline</strong></span>
+            <span role="cell"><code>crimes baseline check --fail-on medium</code></span>
+            <span role="cell">
+              Legacy repo — commit <code>.crimes/baseline.json</code>,
+              then fail only on <strong>new</strong> debt.
+            </span>
+          </div>
+          <div class="row" role="row">
+            <span role="cell"><strong>C · Branch verdict</strong></span>
+            <span role="cell"><code>crimes verdict --base origin/main --fail-on new-high</code></span>
+            <span role="cell">
+              PR summary that flips to a hard gate on any new high
+              finding.
+            </span>
+          </div>
+        </div>
+
+        <h3 class="sub">GitHub Actions — copy / paste</h3>
+        <pre><code><span class="comment"># .github/workflows/crimes.yml</span>
+name: crimes
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  crimes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          <span class="comment"># `verdict` resolves `origin/main` — fetch full history.</span>
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install -g crimes
+      - run: crimes verdict --base origin/main --fail-on new-high</code></pre>
+
+        <p class="note">
+          Full integration guide and Mode A / B swaps:
+          <a
+            href="https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md"
+            ><code>docs/ci.md</code></a
+          >. Copy-paste workflow:
+          <a
+            href="https://github.com/andrewfantastic/crimes/blob/main/examples/github-actions/crimes.yml"
+            ><code>examples/github-actions/crimes.yml</code></a
+          >.
         </p>
       </section>
 
@@ -420,6 +558,7 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
         <h3 class="sub">JSON report (the contract)</h3>
         <pre><code>{
   <span class="json-key">"schema_version"</span>: <span class="json-str">"0.1.0"</span>,
+  <span class="json-key">"report_type"</span>: <span class="json-str">"scan"</span>,
   <span class="json-key">"repo"</span>: { <span class="json-key">"name"</span>: <span class="json-str">"messy-ts-app"</span>, <span class="json-key">"root"</span>: <span class="json-str">"/..."</span> },
   <span class="json-key">"summary"</span>: { <span class="json-key">"total"</span>: 5, <span class="json-key">"high"</span>: 1, <span class="json-key">"medium"</span>: 3, <span class="json-key">"low"</span>: 1 },
   <span class="json-key">"findings"</span>: [
@@ -655,30 +794,43 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
         <ul class="roadmap">
           <li class="done">
             <strong>v0.1.0 — shipped.</strong>
+            <code>crimes scan</code>,
             <code>crimes scan --changed</code>,
             <code>crimes context</code>,
             <code>crimes hotspots</code>,
             <code>AGENTS.md</code> + Claude skill, npm Trusted Publishing
             release automation, and this landing page.
           </li>
-          <li>
-            <strong>v0.2.0 — diff-aware CI gate.</strong>
+          <li class="done">
+            <strong>v0.2.0 — branch &amp; PR safety (release candidate).</strong>
             <code>crimes diff main...HEAD</code>,
-            <code>crimes verdict</code>, baseline / suppressions, and
-            <code>--fail-on new-high</code> so CI fails only on
-            <em>new</em> high-severity findings, not legacy debt.
+            <code>crimes baseline save</code> /
+            <code>crimes baseline check</code>,
+            <code>crimes verdict</code>,
+            <code>crimes scan --changed --fail-on</code>, three CI
+            gating modes documented in
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md"
+              ><code>docs/ci.md</code></a
+            >
+            with a copy-paste GitHub Actions workflow, and a
+            <code>report_type</code> discriminator on every JSON report.
           </li>
           <li>
-            <strong>v0.3.0 — richer risk model.</strong>
+            <strong>v0.3.0 — richer repo risk model and suppressions.</strong>
             Per-finding <code>scores.churn</code> /
-            <code>scores.test_gap</code>, test proximity feeding into
-            <code>hotspots</code>, cross-file <code>related_files</code>,
-            and the first dependency-structure detectors (circular
-            dependencies, layer violations).
+            <code>scores.test_gap</code> / <code>scores.blast_radius</code>,
+            cross-file <code>related_files</code>,
+            <code>crimes explain &lt;id&gt;</code>,
+            <code>crimes ignore &lt;id&gt;</code> +
+            <code>.crimes/suppressions.json</code>, and
+            <code>crimes diff --fail-on new-high</code> to finish the
+            M4 CI-gate trio.
           </li>
           <li>
-            <strong>Later.</strong> Homebrew tap, standalone macOS / Linux
-            / Windows binaries, duplication detectors, optional
+            <strong>Later.</strong> Dependency-graph detectors (circular
+            deps, layer violations), duplication detectors, Homebrew tap,
+            standalone macOS / Linux / Windows binaries, and optional
             LLM-assisted summaries.
           </li>
         </ul>
@@ -722,6 +874,8 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
         <a href="https://github.com/andrewfantastic/crimes/blob/main/PRD.md">PRD</a>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md">Agent guide</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md">CI guide</a>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md">JSON schema</a>
         <span aria-hidden="true">·</span>

@@ -16,8 +16,11 @@ Core principles:
 - Deterministic before magical. Detectors must work without any LLM.
 - Evidence before judgement. Every finding cites concrete AST or git
   evidence (line ranges, churn counts, import patterns).
-- JSON output is the product contract. Bumped via schema_version on
-  breaking changes.
+- JSON output is the product contract. Every report carries a
+  `schema_version` and a `report_type` discriminator
+  (`"scan"`, `"context"`, `"hotspots"`, `"diff"`, `"baseline"`,
+  `"baseline_check"`, `"verdict"`). Breaking changes bump
+  `schema_version`.
 - Built for AI agents. Ships a Claude Code skill and AGENTS.md so any
   agent (Claude Code, Codex CLI, Cursor, Aider, Continue, Copilot
   Workspace) can use it without per-prompt setup.
@@ -28,15 +31,50 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (v0.1.0)
+## Commands (release candidate v0.2.0; latest published v0.1.0)
 
+Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings
 - `crimes scan . --format json` — emit the versioned JSON contract
 - `crimes scan --changed --format json` — working-tree-only post-edit scan
 - `crimes context <file> --format json` — pre-edit briefing for one file
 - `crimes hotspots --since 90d --format json` — churn × findings ranking
 
-## Detectors shipped in v0.1.0
+Branch / PR safety (shipped in v0.2.0):
+- `crimes scan --changed --fail-on low|medium|high` — exit 1 when the
+  changed set has a finding at or above the threshold. Only valid with
+  `--changed`. JSON gains `fail_on` and `failed` fields.
+- `crimes diff <base...head> --format json` — new / fixed / unchanged
+  crimes between two committed refs (triple-dot range). Working-tree-safe;
+  exports each ref via `git archive` into a temp dir. Findings matched
+  by stable fingerprint `<type>::<file>::<symbol-or-empty>`.
+- `crimes baseline save` — snapshot current findings to
+  `.crimes/baseline.json` (intended to be committed).
+- `crimes baseline check --fail-on low|medium|high` — re-scan and fail
+  only on findings absent from the baseline. Default threshold `medium`.
+- `crimes verdict --base origin/main --format json` — one-line "did
+  this branch make the repo cleaner, worse, unchanged, or mixed?"
+  Advisory by default; opt into a hard gate with `--fail-on worse |
+  new-high | new-medium`.
+
+## CI integration (v0.2.0)
+
+Three deterministic gating modes — all share a uniform exit-code
+contract: `0` success, `1` configured `--fail-on` threshold met,
+`2` usage / environment error.
+
+- Mode A — `crimes scan --changed --fail-on high` (narrow,
+  changed-files-only).
+- Mode B — `crimes baseline check --fail-on medium` (legacy repo;
+  pin debt with a committed `.crimes/baseline.json`).
+- Mode C — `crimes verdict --base origin/main --fail-on new-high`
+  (PR summary that flips to a hard gate on any new high finding).
+
+Copy-paste GitHub Actions workflow ships in the repo at
+`examples/github-actions/crimes.yml`. Full integration guide:
+`docs/ci.md`.
+
+## Detectors shipped today
 
 - `large_function` (charge: God Function) — functions over a body-line threshold
 - `large_file` (charge: God File) — files over a line threshold
@@ -56,10 +94,21 @@ even when local severity is low.
   Cursor, Aider, Continue, and GitHub Copilot Workspace.
 
 Recommended loop for any agent:
-1. Before editing a file:  `crimes context <file> --format json`
-2. After editing:          `crimes scan --changed --format json`
-3. Triaging the repo:      `crimes hotspots --format json`
-4. Any new `severity: "high"` finding introduced by the edit is a blocker.
+1. Before editing a file:   `crimes context <file> --format json`
+2. After editing:           `crimes scan --changed --format json`
+3. Before opening the PR:   `crimes verdict --base origin/main --fail-on new-high`
+4. Triaging the repo:       `crimes hotspots --format json`
+5. Any new `severity: "high"` finding introduced by the edit is a blocker.
+
+## Not shipped yet — do not invoke or document as available
+
+- `crimes diff --fail-on new-high` — deferred to v0.3.0.
+- `crimes ignore <id>` + `.crimes/suppressions.json` — v0.3.0.
+- `crimes explain <id>` — v0.3.0.
+- `crimes init` + config plumbing — v0.3.0.
+- `crimes ask` / LLM-assisted features — v1+.
+- Dependency-graph + duplication detectors — v0.4.0+.
+- Homebrew tap + standalone binaries — deferred.
 
 ## Resources
 
@@ -69,6 +118,7 @@ Recommended loop for any agent:
 - License:        MIT (https://github.com/andrewfantastic/crimes/blob/main/LICENSE)
 - PRD (spec):     https://github.com/andrewfantastic/crimes/blob/main/PRD.md
 - Agent guide:    https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md
+- CI guide:       https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md
 - JSON schema:    https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md
 - Sample output:  https://github.com/andrewfantastic/crimes/blob/main/docs/fixtures/messy-ts-app.json
 - Roadmap status: https://github.com/andrewfantastic/crimes/blob/main/ROADMAP_STATUS.md

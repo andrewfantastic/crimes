@@ -40,20 +40,35 @@ npx crimes scan .
 Run `crimes` against any TypeScript / JavaScript repository:
 
 ```bash
+# Per-file / per-directory
 crimes scan .                                   # default top-10 findings
 crimes scan . --format json                     # stable JSON contract
 crimes scan . --all                             # every finding
 
 crimes scan --changed --format json             # working-tree changes only
 crimes scan --changed --base main --format json # + commits on this branch
+crimes scan --changed --fail-on high            # CI gate — exit 1 on a new high
 
 crimes context src/billing.ts --format json     # per-file pre-edit briefing
-
 crimes hotspots --since 90d --format json       # git churn × findings ranking
+
+# Branch / PR safety
+crimes diff main...HEAD --format json           # new / fixed / unchanged crimes
+crimes baseline save                            # snapshot pre-existing findings
+crimes baseline check --fail-on medium          # fail CI only on new debt
+crimes verdict --base origin/main --fail-on new-high  # branch-level gate
 ```
 
 The JSON output is the **stable product API** (`schema_version: "0.1.0"`).
+Every report carries a `report_type` discriminator (`"scan"`, `"context"`,
+`"hotspots"`, `"diff"`, `"baseline"`, `"baseline_check"`, `"verdict"`).
 Agents should consume it directly.
+
+Uniform exit-code contract across all gating commands: `0` success,
+`1` configured `--fail-on` threshold met, `2` usage / environment
+error. See [`docs/ci.md`](https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md)
+for the three recommended CI modes and a copy-paste GitHub Actions
+workflow.
 
 ---
 
