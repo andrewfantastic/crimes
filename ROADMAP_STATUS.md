@@ -184,6 +184,11 @@ integrations have a stable target.
   edits, design-system drift, or user-facing regressions. This is not a
   taste engine or visual-design grader; findings must stay deterministic,
   evidence-backed, and tied to change risk.
+- **Information architecture detectors:** product-structure findings that
+  reveal concept drift, route / navigation drift, ambiguous sources of
+  truth, orphaned destinations, or fragmented workflows. This extends the
+  agent-risk thesis into product taxonomy: can a human or agent tell what a
+  thing is called, where it belongs, and which implementation owns it?
 - **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).
 
 ### Frontend / UI risk candidates
@@ -227,6 +232,67 @@ Initial frontend detector priority, if this track is promoted:
    agent-risk signals rather than a full accessibility scanner.
 3. **Duplicate Component Shape** — larger implementation surface, but likely
    strong differentiation once near-duplicate JSX detection is in place.
+
+### Information architecture risk candidates
+
+IA crimes are especially aligned with `crimes` because they expose product
+structure drift before it turns into duplicated code, conflicting business
+rules, or agent confusion. The detector should not judge whether the product
+taxonomy is "good"; it should surface evidence that the repo contains
+multiple competing answers to the same structural question.
+
+- **Concept Alias Drift:** the same domain concept appears under multiple
+  names across identifiers, routes, headings, translation keys, constants,
+  docs, and tests. Examples: `organization` / `workspace` / `team` /
+  `account`, or `plan` / `tier` / `subscription` / `package`. Agent value:
+  prevents new edits from choosing the wrong vocabulary or duplicating a
+  rule under another name.
+- **Route Metadata Drift:** route paths, nav labels, page titles,
+  breadcrumbs, component names, and file names disagree. Example:
+  `/settings/billing` is labelled "Plans", headed "Subscription", and
+  implemented by `PricingPage.tsx`. Agent value: tells an editor to inspect
+  the whole destination before renaming, moving, or extending it.
+- **Duplicated Navigation Source:** nav arrays, route registries,
+  breadcrumbs, sitemap metadata, and sidebar definitions repeat the same
+  destination data in multiple files. Agent value: identifies which source
+  may be stale before an agent updates only one copy.
+- **Orphaned Destination:** page, route, or screen files exist but are not
+  reachable from primary navigation, route registries, sitemap metadata, or
+  internal links. Agent value: warns that a file may be abandoned or
+  non-canonical before treating it as the source of truth.
+- **Parallel Destination:** multiple pages or flows appear to serve the same
+  user intent. Examples: `/billing`, `/settings/billing`, and
+  `/account/subscription`, or `InviteUserModal` and
+  `AddTeamMemberDialog`. Agent value: forces a source-of-truth decision
+  before another parallel implementation is extended.
+- **Workflow Fragmentation:** one user journey is scattered across
+  unrelated route branches or folders, such as onboarding logic split across
+  `signup`, `settings`, `profile`, and `team`. Agent value: adds
+  `related_files` context for changes that otherwise look local but are
+  really journey-wide.
+- **Action Label Drift:** the same action or object is labelled differently
+  across UI copy and code, such as "Delete", "Remove", and "Archive" for
+  the same operation, or "User", "Member", and "Seat" for the same actor.
+  Agent value: catches semantic drift that often precedes duplicated
+  conditional logic and inconsistent UX.
+- **Permission IA Drift:** navigation, route guards, docs, and policy code
+  describe access using different roles or concepts. Example: nav visible
+  to `admin`, route guarded by `owner`, UI says "Team settings", and code
+  checks `organization.manage`. Agent value: highlights auth vocabulary
+  mismatches before a change leaks or hides product areas.
+
+Initial IA detector priority, if this track is promoted:
+
+1. **Concept Alias Drift** — highest differentiation and directly supports
+   source-of-truth discovery.
+2. **Route Metadata Drift** — concrete, evidence-backed, and easy to explain
+   in PR comments.
+3. **Duplicated Navigation Source** — likely low-noise in apps with route
+   config or sidebar arrays.
+4. **Orphaned Destination** — useful cleanup signal once route discovery is
+   mature.
+5. **Parallel Destination** — high value, but probably needs near-duplicate
+   name / route / component-shape scoring to avoid noisy guesses.
 
 ### Distribution (later)
 
