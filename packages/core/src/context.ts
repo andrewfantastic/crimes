@@ -4,6 +4,8 @@ import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } fr
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
+import type { ContextRelatedFile } from "./context-related-files.js";
+import { findRelatedFiles } from "./context-related-files.js";
 import type { Detector } from "./detector.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -47,11 +49,35 @@ export interface ContextReport {
   /** Repo-relative path to the inspected file, forward slashes. */
   file: string;
   risk: ContextRisk;
-  findings: Finding[];
-  /** Repo-relative paths of test files likely covering `file`. */
-  likely_tests: string[];
   /** Deterministic, type-keyed safe-editing notes for an agent. */
   agent_guidance: string[];
+  /**
+   * Other files an agent should probably read before editing the target.
+   * Discovered deterministically — IA finding passthrough, shared path
+   * tokens, domain-prefix filename matches, same-directory siblings.
+   * Always present (empty array when nothing fired); see
+   * `related_files_reason` for the empty case.
+   */
+  related_files: ContextRelatedFile[];
+  /** Repo-relative paths of test files likely covering `file`. */
+  likely_tests: string[];
+  /** Same Finding shape as `crimes scan`, filtered to the target file. */
+  findings: Finding[];
+  /**
+   * Only present when `agent_guidance` is empty. Short string explaining
+   * why — keeps `[]` from being read as "we didn't look".
+   */
+  agent_guidance_reason?: string;
+  /**
+   * Only present when `related_files` is empty. Short string explaining
+   * why no neighbourhood file fired.
+   */
+  related_files_reason?: string;
+  /**
+   * Only present when `likely_tests` is empty. Short string explaining
+   * what conventions were searched without a hit.
+   */
+  likely_tests_reason?: string;
 }
 
 /**
@@ -204,19 +230,57 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   });
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
-  const agent_guidance = buildGuidance(findings);
+
+  // Repo-relative POSIX paths for every discovered file — the
+  // related-files helper works in that vocabulary so it can compare
+  // against IA index keys without re-resolving.
+  const allFilesRel = allFiles.map((abs) =>
+    toRepoPath(relative(root, abs)),
+  );
+  const related_files = findRelatedFiles({
+    fileRel,
+    allFilesRel,
+    ia,
+    findings,
+    likelyTests: likely_tests,
+  });
+
+  const agent_guidance = buildGuidance(findings, related_files);
   const risk = buildRisk(findings);
 
-  return {
+  // Key ordering inside the literal matters — `JSON.stringify` preserves
+  // insertion order, and `agent_guidance` is the field agents read first,
+  // so it goes ahead of `findings`. Optional `*_reason` fields are placed
+  // immediately after the array they explain so a human scanning the JSON
+  // can find them in one breath.
+  const report: ContextReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "context",
     repo: { name: basename(root), root },
     file: fileRel,
     risk,
-    findings,
-    likely_tests,
     agent_guidance,
+    related_files,
+    likely_tests,
+    findings,
   };
+
+  if (agent_guidance.length === 0) {
+    report.agent_guidance_reason =
+      findings.length === 0 && related_files.length === 0
+        ? "no findings on this file and no deterministic related files"
+        : "findings on this file did not match any keyed guidance line";
+  }
+  if (related_files.length === 0) {
+    report.related_files_reason =
+      "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings";
+  }
+  if (likely_tests.length === 0) {
+    report.likely_tests_reason =
+      "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename";
+  }
+
+  return report;
 }
 
 async function runDetectorsOnTarget(args: {
@@ -282,7 +346,19 @@ function buildRisk(findings: Finding[]): ContextRisk {
   return { level, high: counts.high, medium: counts.medium, low: counts.low, total: findings.length };
 }
 
-function buildGuidance(findings: Finding[]): string[] {
+/**
+ * Guidance line emitted when a file has no findings but does have
+ * deterministic related files. Keeps the "Agent guidance" block
+ * non-empty in the common neighbourhood-only case (an agent landed on a
+ * clean route file, but other files clearly share its domain).
+ */
+const NEIGHBOURHOOD_GUIDANCE =
+  "Review related files before editing — they share domain tokens or route/navigation evidence with this target.";
+
+function buildGuidance(
+  findings: Finding[],
+  relatedFiles: ContextRelatedFile[],
+): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const f of findings) {
@@ -290,6 +366,13 @@ function buildGuidance(findings: Finding[]): string[] {
     seen.add(f.type);
     const line = GUIDANCE[f.type];
     if (line) out.push(line);
+  }
+  // Add the neighbourhood line only when nothing else fired — when a
+  // finding-keyed guidance line is already present, the IA wording
+  // ("read them before renaming or extending", etc.) already covers
+  // related files. Adding both would dilute the more specific line.
+  if (out.length === 0 && relatedFiles.length > 0) {
+    out.push(NEIGHBOURHOOD_GUIDANCE);
   }
   return out;
 }

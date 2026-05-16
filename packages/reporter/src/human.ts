@@ -199,9 +199,63 @@ export function formatContextHumanReport(
   lines.push(colour.bold("CRIMES CONTEXT"));
   lines.push(colour.dim(`file: ${report.file}`));
   lines.push(`risk: ${riskLabel(report.risk, colour)}  ${riskCounts(report.risk, colour)}`);
-  lines.push("");
 
-  // Findings
+  // Agent guidance — the field agents read first. Comes before findings
+  // so a human running the human report sees the actionable summary line
+  // before the more verbose finding bodies.
+  lines.push("");
+  lines.push(colour.bold("Agent guidance"));
+  if (report.agent_guidance.length === 0) {
+    const reason =
+      report.agent_guidance_reason ?? "no specific guidance for this file";
+    lines.push(colour.dim(`  (${reason})`));
+  } else {
+    for (const g of report.agent_guidance) {
+      lines.push(`  · ${g}`);
+    }
+  }
+
+  // Related files — neighbourhood discovery. Cap at 5 in the human
+  // report (same convention as Finding.related_files) and note overflow.
+  lines.push("");
+  lines.push(colour.bold("Related files"));
+  if (report.related_files.length === 0) {
+    const reason =
+      report.related_files_reason ?? "no related files found by convention";
+    lines.push(colour.dim(`  (${reason})`));
+  } else {
+    const RELATED_DISPLAY_CAP = 5;
+    const shown = report.related_files.slice(0, RELATED_DISPLAY_CAP);
+    const hidden = report.related_files.length - shown.length;
+    for (const r of shown) {
+      lines.push(
+        `  · ${colour.cyan(r.file)}  ${colour.dim(`— ${r.reason}`)}`,
+      );
+    }
+    if (hidden > 0) {
+      lines.push(
+        colour.dim(`  … and ${hidden} more (see JSON output)`),
+      );
+    }
+  }
+
+  // Likely tests
+  lines.push("");
+  lines.push(colour.bold("Likely tests"));
+  if (report.likely_tests.length === 0) {
+    const reason =
+      report.likely_tests_reason ?? "no likely tests found by convention";
+    lines.push(colour.dim(`  (${reason})`));
+  } else {
+    for (const t of report.likely_tests) {
+      lines.push(`  · ${colour.cyan(t)}`);
+    }
+  }
+
+  // Findings — last, more verbose. Agents acting on the JSON read this
+  // section from the structured `findings` array; humans get the same
+  // information rendered.
+  lines.push("");
   if (report.findings.length === 0) {
     lines.push(colour.green("No findings on this file. Suspiciously clean."));
   } else {
@@ -212,28 +266,6 @@ export function formatContextHumanReport(
     });
     // Trim trailing blank from the last finding block.
     if (lines[lines.length - 1] === "") lines.pop();
-  }
-
-  // Agent guidance
-  lines.push("");
-  lines.push(colour.bold("Agent guidance"));
-  if (report.agent_guidance.length === 0) {
-    lines.push(colour.dim("  (no specific guidance for this file)"));
-  } else {
-    for (const g of report.agent_guidance) {
-      lines.push(`  · ${g}`);
-    }
-  }
-
-  // Likely tests
-  lines.push("");
-  lines.push(colour.bold("Likely tests"));
-  if (report.likely_tests.length === 0) {
-    lines.push(colour.dim("  (no likely tests found by convention)"));
-  } else {
-    for (const t of report.likely_tests) {
-      lines.push(`  · ${colour.cyan(t)}`);
-    }
   }
 
   return lines.join("\n");

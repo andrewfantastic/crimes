@@ -23,6 +23,14 @@ export { DEFAULT_CONFIG, loadConfig } from "./config.js";
 export type { CrimesConfig } from "./config.js";
 export { context, findNearestPackageRoot } from "./context.js";
 export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
+export {
+  findRelatedFiles,
+  RELATED_FILES_CAP,
+} from "./context-related-files.js";
+export type {
+  ContextRelatedFile,
+  FindRelatedFilesOptions,
+} from "./context-related-files.js";
 export type { Detector, DetectorContext } from "./detector.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 export { directDateDetector } from "./detectors/direct-date.js";

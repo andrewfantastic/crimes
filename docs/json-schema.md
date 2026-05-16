@@ -390,12 +390,20 @@ interface ContextReport {
   /** Repo-relative path of the inspected file. */
   file: string;
   risk: ContextRisk;
-  /** Same Finding shape as ScanReport, filtered to `file`. */
-  findings: Finding[];
-  /** Repo-relative paths of test files likely covering `file`. Sorted. */
-  likely_tests: string[];
   /** One short line per finding type that fired, deduped. Stable order. */
   agent_guidance: string[];
+  /** Other files an agent should read before editing the target. */
+  related_files: ContextRelatedFile[];
+  /** Repo-relative paths of test files likely covering `file`. Sorted. */
+  likely_tests: string[];
+  /** Same Finding shape as ScanReport, filtered to `file`. */
+  findings: Finding[];
+  /** Present only when `agent_guidance` is empty. */
+  agent_guidance_reason?: string;
+  /** Present only when `related_files` is empty. */
+  related_files_reason?: string;
+  /** Present only when `likely_tests` is empty. */
+  likely_tests_reason?: string;
 }
 
 interface ContextRisk {
@@ -407,21 +415,104 @@ interface ContextRisk {
   /** findings.length */
   total: number;
 }
+
+interface ContextRelatedFile {
+  /** Repo-relative POSIX path. Never the target file itself. */
+  file: string;
+  /** Short, human-readable rationale. Multiple reasons joined with "; ". */
+  reason: string;
+  /** Ordinal 0–1 weight used for sorting. May change between minor releases. */
+  score?: number;
+}
 ```
+
+### Field order
+
+`JSON.stringify` preserves insertion order, and the report is built with
+`agent_guidance` ahead of `findings` so agents reading the JSON top to
+bottom see the actionable summary before the more verbose finding
+bodies. The canonical order is:
+
+```
+schema_version → report_type → repo → file → risk
+  → agent_guidance → related_files → likely_tests → findings
+  → agent_guidance_reason? → related_files_reason? → likely_tests_reason?
+```
+
+Object-key order is **not** part of the schema contract — consumers
+should read by key, not by position — but the test fixtures and the CLI
+output follow this order so copy-paste examples stay consistent.
+
+### `related_files`
+
+A ranked, capped list (max 10 entries) of repo-relative files an agent
+should probably read before editing the target. Discovered
+deterministically — no LLM, no git history. Heuristics:
+
+- **IA finding passthrough.** When a finding on the target carries
+  `related_files` (the IA detectors do this — `route_metadata_drift`,
+  `duplicated_navigation_source`, `concept_alias_drift`,
+  `docs_code_drift`), each of those paths surfaces with reason
+  `related to <charge>`.
+- **Shared IA path tokens.** Files whose path tokens overlap with the
+  target's after stop-word filtering and singularisation (using the same
+  tokeniser the IA index uses). Generic tokens like `api`, `route`,
+  `service` don't anchor a match. Reason: `shares domain token "<token>"`.
+- **Domain-prefix filename match.** Files whose basename starts with
+  `<dominant-token>-` / `<dominant-token>_` / `<dominant-token>.`, ends
+  with `-<dominant-token>` / `_<dominant-token>` (before the
+  extension), or contains a path segment equal to the dominant token.
+  Reason: `matches domain "<token>"`.
+- **Same-directory siblings.** Other source files in the same directory
+  as the target. Reason: `same directory`.
+
+Per-entry rules:
+
+- The target file itself is never included.
+- Files already surfaced in `likely_tests` are excluded (tests live in
+  their own block).
+- Multiple heuristic hits on the same file compound — reasons are joined
+  with `; ` and scores add (capped at `1.0`).
+- Sorted by `score` descending, then by `file` ascending — deterministic
+  across runs.
+- The cap (`10`) is **not** part of the schema contract; treat it as a
+  hint, not a guarantee.
+
+`related_files_reason` is set instead of (or in addition to, when the
+array is empty) the array — see [Empty-field reasons](#empty-field-reasons).
 
 ### `likely_tests`
 
-Discovered by three deterministic conventions, in this order:
+Discovered by four deterministic conventions, in this order:
 
 1. Sibling files with the same basename and a `.test.{ts,tsx,js,jsx,mjs,cjs}`
-   or `.spec.{...}` extension.
-2. Files under any `__tests__/` directory whose basename (with any
-   `.test`/`.spec` infix stripped) matches the target's basename.
-3. Test files (matching either of the above conventions) whose source
+   or `.spec.{...}` extension (Jest / Vitest infix).
+2. Sibling files matching the Go-style `_test.{ts,tsx,…}` / `_spec.{…}`
+   suffix.
+3. Files under any `__tests__/` directory whose basename (with any
+   `.test` / `.spec` / `_test` / `_spec` suffix stripped) matches the
+   target's basename.
+4. Test files (matching one of the above conventions) whose source
    contains a relative-path import that resolves to the target file.
 
 The result is deduped and lexically sorted. No git history, no symbol
 resolution beyond a textual import-path match.
+
+### Empty-field reasons
+
+When `agent_guidance`, `related_files`, or `likely_tests` is the empty
+array, the corresponding `*_reason` field is set to a short string
+explaining why. The reason is **omitted** when the array is non-empty.
+Standard wordings:
+
+| Field | Wording (when empty) |
+| ----- | -------------------- |
+| `agent_guidance_reason` | `no findings on this file and no deterministic related files` or `findings on this file did not match any keyed guidance line` |
+| `related_files_reason` | `no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings` |
+| `likely_tests_reason` | `no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename` |
+
+The exact wording is **advisory copy** — match on the array being empty
+or the reason field being present, not on the string itself.
 
 ### `agent_guidance`
 
@@ -440,9 +531,15 @@ Static lookup keyed on `Finding.type`. One line per type that appears in
 | `concept_alias_drift`           | Other files describe this concept under a different name; read them before renaming or extending.          |
 | `docs_code_drift`               | Docs reference local files that no longer exist — update the docs in the same PR.                          |
 
+When the target file has no findings but `related_files` is non-empty,
+`agent_guidance` instead contains a single neighbourhood line:
+
+> Review related files before editing — they share domain tokens or
+> route/navigation evidence with this target.
+
 New detector `type`s may add new guidance lines without bumping
-`schema_version`. The **wording** of an existing guidance line is not part
-of the schema contract — treat it as advisory copy, not a stable string to
+`schema_version`. The **wording** of any guidance line is not part of
+the schema contract — treat it as advisory copy, not a stable string to
 match on.
 
 ---

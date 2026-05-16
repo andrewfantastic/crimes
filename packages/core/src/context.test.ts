@@ -1,8 +1,22 @@
 import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { context, findNearestPackageRoot } from "./context.js";
+
+// Resolve the bundled fixture relative to the test file. Vitest's cwd
+// depends on how it was invoked (`pnpm test` from root vs from the
+// package); going via `import.meta.url` keeps the path correct either way.
+const HERE = dirname(fileURLToPath(import.meta.url));
+const FIXTURE_ROOT = resolvePath(
+  HERE,
+  "..",
+  "..",
+  "..",
+  "examples",
+  "messy-ts-app",
+);
 
 async function makeRepo(files: Record<string, string>): Promise<string> {
   const raw = await mkdtemp(join(tmpdir(), "crimes-context-test-"));
@@ -268,6 +282,196 @@ describe("context", () => {
         types: r.findings.map((f) => f.type).sort(),
       });
       expect(stripIds(monorepoReport)).toEqual(stripIds(packageReport));
+    });
+  });
+
+  describe("neighbourhood related_files", () => {
+    it("passes finding.related_files through with a 'related to <charge>' reason", async () => {
+      // The bundled fixture is the easiest way to get an IA finding that
+      // populates related_files deterministically — `route_metadata_drift`
+      // anchors on the billing route and lists the two nav sources.
+      const report = await context({
+        root: FIXTURE_ROOT,
+        file: "src/routes/settings/billing.tsx",
+      });
+      const navPaths = report.related_files.map((r) => r.file);
+      expect(navPaths).toContain("src/nav/registry.ts");
+      expect(navPaths).toContain("src/nav/sidebar.ts");
+      const registry = report.related_files.find(
+        (r) => r.file === "src/nav/registry.ts",
+      );
+      expect(registry?.reason).toContain("Route Metadata Drift");
+    });
+
+    it("matches domain-prefix helper files even when there is no finding", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "app/api/admin/users/route.ts": "export const GET = () => null;\n",
+        "app/api/admin/teams/route.ts": "export const GET = () => null;\n",
+        "lib/admin-auth.ts": "export const checkAdmin = () => true;\n",
+        "lib/admin-permissions.ts": "export const perms = {};\n",
+        "lib/payments.ts": "export const charge = () => null;\n",
+      });
+      const report = await context({
+        root,
+        file: "app/api/admin/users/route.ts",
+      });
+      const files = report.related_files.map((r) => r.file);
+      expect(files).toContain("lib/admin-auth.ts");
+      expect(files).toContain("lib/admin-permissions.ts");
+      expect(files).toContain("app/api/admin/teams/route.ts");
+      expect(files).not.toContain("lib/payments.ts");
+      // Each entry should carry a reason and a score.
+      for (const r of report.related_files) {
+        expect(r.reason.length).toBeGreaterThan(0);
+        expect(typeof r.score).toBe("number");
+      }
+    });
+
+    it("surfaces same-directory siblings", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/billing/invoice.ts": "export const x = 1;\n",
+        "src/billing/tax.ts": "export const y = 2;\n",
+        "src/billing/pricing.ts": "export const z = 3;\n",
+        "src/unrelated/foo.ts": "export const f = 1;\n",
+      });
+      const report = await context({
+        root,
+        file: "src/billing/invoice.ts",
+      });
+      const files = report.related_files.map((r) => r.file);
+      expect(files).toContain("src/billing/tax.ts");
+      expect(files).toContain("src/billing/pricing.ts");
+      // The unrelated file shouldn't sneak in via same-directory.
+      const unrelated = report.related_files.find(
+        (r) => r.file === "src/unrelated/foo.ts",
+      );
+      // It may still match via shared "billing" token (it doesn't here),
+      // but should never carry "same directory" as a reason.
+      if (unrelated) expect(unrelated.reason).not.toContain("same directory");
+    });
+
+    it("does not duplicate likely_tests in related_files", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/billing/invoice.ts": "export const x = 1;\n",
+        "src/billing/invoice.test.ts":
+          "import { x } from './invoice';\n",
+        "src/billing/tax.ts": "export const y = 2;\n",
+      });
+      const report = await context({
+        root,
+        file: "src/billing/invoice.ts",
+      });
+      expect(report.likely_tests).toContain("src/billing/invoice.test.ts");
+      const relatedPaths = report.related_files.map((r) => r.file);
+      expect(relatedPaths).not.toContain("src/billing/invoice.test.ts");
+      // Non-test siblings still show up.
+      expect(relatedPaths).toContain("src/billing/tax.ts");
+    });
+
+    it("caps related_files at the documented limit", async () => {
+      const files: Record<string, string> = {
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/widgets/target.ts": "export const t = 1;\n",
+      };
+      // 20 same-directory siblings — should be capped to 10.
+      for (let i = 0; i < 20; i++) {
+        files[`src/widgets/sib${i}.ts`] = `export const s${i} = ${i};\n`;
+      }
+      const root = await makeRepo(files);
+      const report = await context({
+        root,
+        file: "src/widgets/target.ts",
+      });
+      expect(report.related_files.length).toBeLessThanOrEqual(10);
+      // Output is deterministically sorted: ties by score → alphabetical
+      // by file. With same-weight siblings, we should see sib0..sib16
+      // (lex order, 17 comes after 16 etc), capped at 10. Just assert
+      // the cap, not the exact contents — sort details are covered by
+      // dedicated module tests.
+      expect(report.related_files.length).toBe(10);
+    });
+
+    it("never lists the target file itself", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/billing/invoice.ts": "export const x = 1;\n",
+        "src/billing/tax.ts": "export const y = 2;\n",
+      });
+      const report = await context({
+        root,
+        file: "src/billing/invoice.ts",
+      });
+      const paths = report.related_files.map((r) => r.file);
+      expect(paths).not.toContain("src/billing/invoice.ts");
+    });
+  });
+
+  describe("empty-field reasons", () => {
+    it("emits all three reasons for a clean stand-alone file", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "lonely" }),
+        "src/x.ts": "export const x = 1;\n",
+      });
+      const report = await context({ root, file: "src/x.ts" });
+
+      expect(report.findings).toEqual([]);
+      expect(report.likely_tests).toEqual([]);
+      // The only other file is `package.json`, which isn't in the
+      // discoverable source set — so no neighbourhood candidates exist.
+      expect(report.related_files).toEqual([]);
+      expect(report.agent_guidance).toEqual([]);
+
+      expect(report.agent_guidance_reason).toBeDefined();
+      expect(report.likely_tests_reason).toBeDefined();
+      expect(report.related_files_reason).toBeDefined();
+    });
+
+    it("omits the reasons when their arrays are populated", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/foo.ts": "export const foo = 1;\n",
+        "src/foo.test.ts": "import { foo } from './foo';\n",
+        "src/bar.ts": "export const bar = 2;\n",
+      });
+      const report = await context({ root, file: "src/foo.ts" });
+
+      expect(report.likely_tests.length).toBeGreaterThan(0);
+      expect(report.related_files.length).toBeGreaterThan(0);
+      expect(report.likely_tests_reason).toBeUndefined();
+      expect(report.related_files_reason).toBeUndefined();
+    });
+
+    it("emits agent_guidance_reason only when guidance is empty", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/clock.ts":
+          "export const a = " +
+          Array.from({ length: 10 }, () => "Date.now()").join(" + ") +
+          ";\n",
+      });
+      const report = await context({ root, file: "src/clock.ts" });
+      expect(report.agent_guidance.length).toBeGreaterThan(0);
+      expect(report.agent_guidance_reason).toBeUndefined();
+    });
+
+    it("uses the neighbourhood guidance line when there are no findings but related files exist", async () => {
+      const root = await makeRepo({
+        "package.json": JSON.stringify({ name: "app" }),
+        "src/billing/target.ts": "export const x = 1;\n",
+        "src/billing/sibling.ts": "export const y = 2;\n",
+      });
+      const report = await context({
+        root,
+        file: "src/billing/target.ts",
+      });
+      expect(report.findings).toEqual([]);
+      expect(report.related_files.length).toBeGreaterThan(0);
+      expect(report.agent_guidance).toHaveLength(1);
+      expect(report.agent_guidance[0]).toMatch(/related files/i);
+      expect(report.agent_guidance_reason).toBeUndefined();
     });
   });
 

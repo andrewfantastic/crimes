@@ -200,6 +200,12 @@ const sampleContext: ContextReport = {
   repo: { name: "demo", root: "/tmp/demo" },
   file: "src/billing.ts",
   risk: { level: "high", high: 1, medium: 1, low: 0, total: 2 },
+  agent_guidance: [
+    "Prefer extracting pure helpers before adding more branches.",
+    "Review TODOs before relying on comments as current intent.",
+  ],
+  related_files: [],
+  likely_tests: ["src/billing.test.ts", "src/__tests__/billing.test.ts"],
   findings: [
     {
       id: "crime_00001",
@@ -227,11 +233,6 @@ const sampleContext: ContextReport = {
       scores: { severity: 0.4, confidence: 0.7 },
     },
   ],
-  likely_tests: ["src/billing.test.ts", "src/__tests__/billing.test.ts"],
-  agent_guidance: [
-    "Prefer extracting pure helpers before adding more branches.",
-    "Review TODOs before relying on comments as current intent.",
-  ],
 };
 
 describe("formatContextJsonReport", () => {
@@ -245,9 +246,10 @@ describe("formatContextJsonReport", () => {
       "repo",
       "file",
       "risk",
-      "findings",
-      "likely_tests",
       "agent_guidance",
+      "related_files",
+      "likely_tests",
+      "findings",
     ]) {
       expect(parsed).toHaveProperty(key);
     }
@@ -266,6 +268,66 @@ describe("formatContextJsonReport", () => {
     ]);
     expect(parsed.agent_guidance).toHaveLength(2);
     expect(parsed.findings).toHaveLength(2);
+    expect(parsed.related_files).toEqual([]);
+  });
+
+  it("places agent_guidance before findings in the serialised JSON", () => {
+    const out = formatContextJsonReport(sampleContext);
+    const guidanceIdx = out.indexOf('"agent_guidance"');
+    const findingsIdx = out.indexOf('"findings"');
+    const relatedIdx = out.indexOf('"related_files"');
+    const testsIdx = out.indexOf('"likely_tests"');
+    expect(guidanceIdx).toBeGreaterThan(-1);
+    expect(relatedIdx).toBeGreaterThan(guidanceIdx);
+    expect(testsIdx).toBeGreaterThan(relatedIdx);
+    expect(findingsIdx).toBeGreaterThan(testsIdx);
+  });
+
+  it("serialises related_files entries with file/reason/score", () => {
+    const withRelated: ContextReport = {
+      ...sampleContext,
+      related_files: [
+        {
+          file: "src/nav/sidebar.ts",
+          reason: 'related to Route Metadata Drift; shares domain token "billing"',
+          score: 0.6,
+        },
+      ],
+    };
+    const parsed = JSON.parse(
+      formatContextJsonReport(withRelated),
+    ) as ContextReport;
+    expect(parsed.related_files).toHaveLength(1);
+    expect(parsed.related_files[0]!.file).toBe("src/nav/sidebar.ts");
+    expect(parsed.related_files[0]!.reason).toContain("Route Metadata Drift");
+    expect(parsed.related_files[0]!.score).toBe(0.6);
+  });
+
+  it("emits *_reason fields only when their array is empty", () => {
+    const clean: ContextReport = {
+      ...sampleContext,
+      risk: { level: "none", high: 0, medium: 0, low: 0, total: 0 },
+      findings: [],
+      agent_guidance: [],
+      related_files: [],
+      likely_tests: [],
+      agent_guidance_reason: "no findings on this file and no deterministic related files",
+      related_files_reason: "no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings",
+      likely_tests_reason: "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
+    };
+    const parsed = JSON.parse(
+      formatContextJsonReport(clean),
+    ) as ContextReport;
+    expect(parsed.agent_guidance_reason).toMatch(/no findings/);
+    expect(parsed.related_files_reason).toMatch(/no neighbourhood signal/);
+    expect(parsed.likely_tests_reason).toMatch(/no sibling/);
+
+    const populated = JSON.parse(
+      formatContextJsonReport(sampleContext),
+    ) as ContextReport & Record<string, unknown>;
+    expect(populated.agent_guidance_reason).toBeUndefined();
+    expect(populated.related_files_reason).toBeUndefined();
+    expect(populated.likely_tests_reason).toBeUndefined();
   });
 });
 
@@ -283,6 +345,72 @@ describe("formatContextHumanReport", () => {
     expect(out).toContain("src/__tests__/billing.test.ts");
   });
 
+  it("places Agent guidance before Findings in the human report", () => {
+    const out = formatContextHumanReport(sampleContext, { noColor: true });
+    const guidanceIdx = out.indexOf("Agent guidance");
+    const findingsIdx = out.indexOf("Findings");
+    expect(guidanceIdx).toBeGreaterThan(-1);
+    expect(findingsIdx).toBeGreaterThan(guidanceIdx);
+  });
+
+  it("renders a Related files block when related_files is populated", () => {
+    const withRelated: ContextReport = {
+      ...sampleContext,
+      related_files: [
+        {
+          file: "src/nav/sidebar.ts",
+          reason: "related to Route Metadata Drift",
+          score: 0.4,
+        },
+        {
+          file: "src/nav/registry.ts",
+          reason: 'shares domain token "billing"',
+          score: 0.2,
+        },
+      ],
+    };
+    const out = formatContextHumanReport(withRelated, { noColor: true });
+    expect(out).toContain("Related files");
+    expect(out).toContain("src/nav/sidebar.ts");
+    expect(out).toContain("Route Metadata Drift");
+    expect(out).toContain("src/nav/registry.ts");
+    expect(out).toContain("billing");
+  });
+
+  it("renders the related_files_reason when the array is empty", () => {
+    const clean: ContextReport = {
+      ...sampleContext,
+      risk: { level: "none", high: 0, medium: 0, low: 0, total: 0 },
+      findings: [],
+      likely_tests: [],
+      agent_guidance: [],
+      related_files: [],
+      agent_guidance_reason: "no findings on this file and no deterministic related files",
+      related_files_reason: "no neighbourhood signal found",
+      likely_tests_reason: "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename",
+    };
+    const out = formatContextHumanReport(clean, { noColor: true });
+    expect(out).toContain("Related files");
+    expect(out).toContain("no neighbourhood signal found");
+    expect(out).toContain("no sibling");
+  });
+
+  it("caps the Related files block at 5 entries and notes overflow", () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      file: `src/x${i}.ts`,
+      reason: "same directory",
+      score: 0.2,
+    }));
+    const out = formatContextHumanReport(
+      { ...sampleContext, related_files: many },
+      { noColor: true },
+    );
+    expect(out).toContain("src/x0.ts");
+    expect(out).toContain("src/x4.ts");
+    expect(out).not.toContain("src/x5.ts");
+    expect(out).toContain("and 3 more (see JSON output)");
+  });
+
   it("handles a clean file with no findings or tests", () => {
     const clean: ContextReport = {
       ...sampleContext,
@@ -290,6 +418,7 @@ describe("formatContextHumanReport", () => {
       findings: [],
       likely_tests: [],
       agent_guidance: [],
+      related_files: [],
     };
     const out = formatContextHumanReport(clean, { noColor: true });
     expect(out).toContain("src/billing.ts");

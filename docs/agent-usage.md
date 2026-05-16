@@ -107,7 +107,7 @@ crimes context path/to/file --format json
 If you are running against an unreleased checkout, invoke it from this
 monorepo as `node packages/cli/dist/index.js context path/to/file --format json`.
 
-The JSON shape is:
+The JSON shape is (canonical key order — `agent_guidance` first):
 
 ```jsonc
 {
@@ -115,28 +115,57 @@ The JSON shape is:
   "report_type": "context",
   "file": "src/billing.ts",
   "risk": { "level": "high", "high": 1, "medium": 1, "low": 1, "total": 3 },
-  "findings": [ /* same Finding shape as scan */ ],
-  "likely_tests": ["src/billing.test.ts"],
   "agent_guidance": [
     "Prefer extracting pure helpers before adding more branches.",
     "Avoid adding more direct clock access; inject time where possible."
-  ]
+  ],
+  "related_files": [
+    {
+      "file": "src/nav/sidebar.ts",
+      "reason": "related to Route Metadata Drift",
+      "score": 0.4
+    },
+    {
+      "file": "src/billing-policy.ts",
+      "reason": "shares domain token \"billing\"; matches domain \"billing\"",
+      "score": 0.4
+    }
+  ],
+  "likely_tests": ["src/billing.test.ts"],
+  "findings": [ /* same Finding shape as scan */ ]
 }
 ```
 
-How to use the fields:
+How to use the fields (read in this order):
 
 - **`risk.level`** is the headline (`none | low | medium | high`) — the worst
   severity present on this file.
+- **`agent_guidance`** is one short line per finding type that fired,
+  deduped. Read it first — it tells you what *not* to make worse before
+  you read anything else. When the file has no findings but does have
+  related files, you'll instead see one line pointing you at the
+  neighbourhood.
+- **`related_files`** is a ranked, capped list (max 10) of other files
+  in the repo that an agent should probably read before editing the
+  target. Each entry carries a `reason` (`related to <charge>`,
+  `shares domain token "<token>"`, `matches domain "<token>"`, or
+  `same directory`) and a `score` sort key. Source-of-truth files for
+  the same concept usually surface here — the labelled nav source for a
+  route, the helper module for an API handler, the sibling pages in
+  the same flow. Read these before editing.
+- **`likely_tests`** is found by four deterministic conventions:
+  same-basename `.test.ts` / `.spec.ts` siblings, Go-style
+  `_test.ts` / `_spec.ts` siblings, files under `__tests__/` matching
+  the basename, and test files that import the target via a relative
+  path. Run these tests after editing.
 - **`findings`** are the same Finding objects `crimes scan` would emit,
   filtered to this file. Read every `high` first.
-- **`likely_tests`** is found by three deterministic conventions: same-basename
-  `.test.ts` / `.spec.ts` siblings, files under `__tests__/` matching the
-  basename, and test files that import the target via a relative path. Run
-  these tests after editing.
-- **`agent_guidance`** is one short line per finding type that fired, deduped.
-  It tells you what *not* to make worse (extract helpers before adding
-  branches; don't add more clock access; etc.) — not a full fix.
+
+When any of `agent_guidance`, `related_files`, or `likely_tests` is the
+empty array, the corresponding `*_reason` field is set to a short
+string explaining why (e.g. `"no neighbourhood signal: …"`). Treat
+`[]` plus a reason as "we searched and found nothing", not as "we
+didn't search".
 
 ### 1b. Pre-edit scan (before touching a directory)
 
