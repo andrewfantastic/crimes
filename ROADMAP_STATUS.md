@@ -4,16 +4,14 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.2.0` (npm) ✅ shipped — _branch
-  and PR safety for humans and coding agents_.
-- **Shipped on `main` (awaiting npm release):** `crimes@0.3.0` —
-  _information architecture crimes_ — and `crimes@0.4.0` — _agent
-  context quality and signal-to-noise_. `packages/cli/package.json` is
-  bumped to `0.4.0`. Both bodies of work ship from `main` and pass the
-  publish-tarball smoke test. A GitHub Release tagged `v0.4.0` will
-  fire [`.github/workflows/release.yml`](./.github/workflows/release.yml)
-  and cut both shipped milestones to npm at once. Release notes draft:
+- **Last published version:** `crimes@0.4.0` (npm) ✅ shipped — _agent
+  context quality and signal-to-noise_. `packages/cli/package.json`
+  tracks the latest shipped version. Release notes:
   [`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md).
+- **Previously shipped milestones:** `crimes@0.3.0` — _information
+  architecture crimes_ — and `crimes@0.2.0` — _branch and PR safety for
+  humans and coding agents_. Both are live on npm and exercised by the
+  publish-tarball smoke test in CI on every commit.
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
 - **Website:** [crimes.sh](https://crimes.sh) — live, deployed from this
@@ -169,7 +167,7 @@ tracked for later versions. Don't document them as shipped.
 
 ---
 
-## 🟢 Release candidate — `crimes@0.3.0`
+## ✅ Shipped in `crimes@0.3.0`
 
 **Theme: information architecture crimes.**
 
@@ -193,7 +191,7 @@ do not look for, and that AI coding agents repeatedly trip over when
 they pick the wrong vocabulary, the wrong route, or the wrong copy of a
 shared piece of nav.
 
-### ✅ Completed in `0.3.0` (on `main`)
+### ✅ Completed in `0.3.0`
 
 - **IA concept index foundation** —
   [`packages/core/src/ia/`](./packages/core/src/ia/) builds a
@@ -313,7 +311,7 @@ Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 
 ---
 
-## 🟢 Release candidate — `crimes@0.4.0`
+## ✅ Shipped in `crimes@0.4.0`
 
 **Theme: agent context quality and signal-to-noise.**
 
@@ -333,7 +331,7 @@ report. `0.4.0` raises the context floor and lowers the noise ceiling
 _before_ adding more detectors — no new detectors ship in this
 release.
 
-### ✅ Completed in `0.4.0` (on `main`)
+### ✅ Completed in `0.4.0`
 
 - **Monorepo / nested-package root detection for `crimes context`** —
   `findNearestPackageRoot` walks up from the target file to the nearest

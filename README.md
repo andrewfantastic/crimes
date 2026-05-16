@@ -71,17 +71,15 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ## Status — `crimes@0.4.0`
 
-`packages/cli/package.json` is bumped to `0.4.0` — _agent context
-quality and signal-to-noise_. The `0.4.0` work targets the two
+`crimes@0.4.0` is the latest published version on npm — _agent
+context quality and signal-to-noise_. It targets the two
 highest-leverage gaps surfaced by Claude / Codex trials of `0.3.0`
 against real repos: (1) `crimes context` now tells agents what **else**
 to read before editing a target file, and (2) the existing detectors
 are quieter and more honest about what they searched. No new detectors
-ship in `0.4.0` — every change raises the trust ratio of findings that
-already exist. Everything below ships from `main` and is verified by
-the publish-tarball smoke test in CI on every commit. Last published
-to npm: `crimes@0.2.0`. A GitHub Release tagged `v0.4.0` cuts the npm
-publish via Trusted Publishing — release notes draft lives at
+shipped in `0.4.0` — every change raised the trust ratio of findings
+that already exist. Everything below is verified by the publish-tarball
+smoke test in CI on every commit. Release notes:
 [`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md).
 
 - `crimes --help` / `crimes --version`
@@ -367,7 +365,7 @@ workflow.
 | `todo_density`      | Unfinished Business   | Flags files with high density of `TODO` / `FIXME` / `XXX` / `HACK` markers      |
 | `direct_date`       | Temporal Recklessness | Flags direct uses of `Date.now()` and `new Date()` in source files              |
 
-### Petty crimes (on `main`)
+### Petty crimes (shipped in `0.3.0`)
 
 | Detector                        | Charge                   | What it does                                                                 |
 | ------------------------------- | ------------------------ | ---------------------------------------------------------------------------- |
@@ -385,7 +383,7 @@ future edits easier to misread. They are not style rules; anything best
 handled by ESLint/Biome stays out of scope. See
 [`docs/finding-types/petty.md`](./docs/finding-types/petty.md).
 
-### Information architecture detectors (shipping in `0.3.0`, currently on `main`)
+### Information architecture detectors (shipped in `0.3.0`)
 
 | Detector                        | Charge                       | What it does                                                                                                                          |
 | ------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -965,8 +963,8 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 
 - **M0 — Repo foundation** ✅ (`0.1.0`)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`); per-finding `scores.churn` / `test_gap` deferred to `0.4.0+`
-- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` ✅ on IA findings (`0.3.0`)
+- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`), `HotspotsReport.history_limited` shallow-clone awareness ✅ (`0.4.0`); per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to `0.5.0+`
+- **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` ✅ on IA findings (`0.3.0`); deterministic neighbourhood `related_files` + monorepo-root auto-detection + shape-aware `large_function` ✅ (`0.4.0`)
 - **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`); `--fail-on new-high` on `crimes diff` and per-finding `crimes ignore` still deferred
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred

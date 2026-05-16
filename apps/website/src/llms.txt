@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (v0.3.0 — release candidate; latest published v0.2.0)
+## Commands (latest published v0.4.0)
 
 Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings
@@ -136,15 +136,51 @@ Recommended loop for any agent:
 ## Shipped in v0.3.0 — information architecture crimes
 
 v0.2.0 made crimes useful for branches, PRs, CI, and agent loops.
-v0.3.0 is focused on detecting repo structure drift that confuses
+v0.3.0 focused on detecting repo structure drift that confuses
 humans, coding agents, teams, and customers — source-of-truth and
 concept drift across code, routes, navigation, copy, docs, and
 ownership. The five IA detectors listed above are the headline slice.
-`packages/cli/package.json` is bumped to `0.3.0`; the npm publish
-fires once the GitHub Release tagged `v0.3.0` triggers the release
-workflow.
+Live on npm.
 
-## IA candidates deferred from v0.3.0
+## Shipped in v0.4.0 — agent context quality and signal-to-noise
+
+v0.4.0 ships no new detectors. It raises the trust ratio of every
+detector that already shipped. Headline additions:
+
+- `ContextReport.related_files` — up to ten files an agent should
+  read before editing the target, ranked by a deterministic blend
+  of IA-finding passthrough, shared path tokens, domain-prefix
+  filename matches, and same-directory siblings. Each entry carries
+  a `reason` and an ordinal `score`.
+- Monorepo / nested-package root auto-detection for `crimes context`
+  — walks up to the nearest enclosing `package.json`; explicit
+  `--root` still wins.
+- Shape-aware `large_function` — per-shape thresholds for `domain`,
+  `test_callback`, `react_component`, `page_export`, `route_handler`,
+  and `unknown` functions. React pages, route handlers, and test
+  callbacks no longer trip the detector at the 60-line domain
+  threshold.
+- `docs_code_drift` GitHub-relative link allowlist — `../../issues`,
+  `../../pull/N`, `../../wiki/Home`, `../../blob/...` and similar
+  GitHub-rewritten paths no longer flag as broken local links.
+- `ScanReport.changed_files` — `crimes scan --changed --format json`
+  emits a top-level array of every file the resolver returned,
+  sorted and deduplicated, including files with zero findings.
+- `HotspotsReport.history_limited` (+ `history_limited_reason`) —
+  set when `git rev-parse --is-shallow-repository` returns true.
+  Agents should downweight rankings when the flag is set.
+- Top-level `agent_guidance` ordering in `ContextReport` — JSON
+  output places `agent_guidance` ahead of `findings`.
+- Empty-field self-explanation — `agent_guidance_reason`,
+  `related_files_reason`, and `likely_tests_reason` distinguish "we
+  searched and found nothing" from "we didn't search".
+- `_test.ts` / `_spec.ts` likely-test discovery.
+
+All additions are additive and backwards-compatible. `schema_version`
+stays at `"0.1.0"`. Live on npm. Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.4.0.md
+
+## IA candidates deferred from v0.3.0 and v0.4.0
 
 These remain in the long-term IA roadmap and are **not implemented**.
 Do not invoke or document them as available.
@@ -168,26 +204,25 @@ Do not invoke or document them as available.
   CLI command the published `bin` no longer implements. Needs
   deterministic command-registration scanning that is not yet shipped.
 
-## Next-target candidate — v0.4.0: suppressions and config (tentative)
+## Next-target candidate — v0.5.0: suppressions and config (tentative)
 
 Recommended headline for the next release: `crimes init` +
 `crimes.config.json` plumbing, `crimes ignore <id>` +
 `.crimes/suppressions.json`, and the long-deferred
-`crimes explain <id>` and `crimes diff --fail-on new-high`. Unlocks
-adoption of the IA detectors on real repos by letting teams
-scope-silence legitimate alias choices without disabling a detector
-globally. Not yet implemented.
+`crimes explain <id>` and `crimes diff --fail-on new-high`. The
+noise-reduction work in v0.4.0 removed most of the underlying demand
+for suppressions; v0.5.0 closes the M4 polish gap. Not yet implemented.
 
 ## Not shipped yet — do not invoke or document as available
 
 - `crimes diff --fail-on new-high` — deferred.
-- `crimes ignore <id>` + `.crimes/suppressions.json` — deferred (v0.4.0 candidate).
-- `crimes explain <id>` — deferred (v0.4.0 candidate).
-- `crimes init` + config plumbing — deferred (v0.4.0 candidate).
-- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred to v0.4.0+.
+- `crimes ignore <id>` + `.crimes/suppressions.json` — deferred (v0.5.0 candidate).
+- `crimes explain <id>` — deferred (v0.5.0 candidate).
+- `crimes init` + config plumbing — deferred (v0.5.0 candidate).
+- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred to v0.5.0+.
 - `crimes ask` / LLM-assisted features — v1+.
-- Dependency-graph + duplication detectors — v0.4.0+.
-- Frontend / UI agent-risk detectors — v0.4.0+.
+- Dependency-graph + duplication detectors — v0.5.0+.
+- Frontend / UI agent-risk detectors — v0.5.0+.
 - Homebrew tap + standalone binaries — deferred.
 
 ## Resources
