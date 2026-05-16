@@ -171,15 +171,36 @@ the full list):
 - **Homebrew tap + standalone binaries** — deferred until the CLI
   surface stabilises (post-`0.3.0`).
 
-## What's next — `crimes@0.3.0` (tentative)
+## What's next — `crimes@0.3.0`
 
-**Tentative theme: richer repo risk model and suppressions.** The
-bottleneck shifts back to detector signal — per-finding `scores.churn`
-/ `scores.test_gap` / `scores.blast_radius`, cross-file `related_files`,
-`crimes explain`, and the per-finding suppressions that pair with the
-`0.2.0` baseline workflow. Slice subject to revisit during planning;
-authoritative status lives in
-[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
+**Theme: information architecture crimes.** `0.2.0` made `crimes`
+useful for branches, PRs, CI, and agent loops. `0.3.0` should make it
+better at detecting **source-of-truth and concept drift** — the places
+where a repo gives humans and coding agents conflicting stories about
+what things are called, where they live, which implementation owns
+them, and how users move through the product. This is the
+agent-confusion-risk wedge taken seriously: deterministic, evidence-backed
+findings that linters and security scanners don't look for.
+
+Likely candidate slice (subject to revisit during planning, full
+detail in [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md)):
+
+- **Concept Alias Drift** — `organization` / `workspace` / `team` /
+  `account` for the same concept across code, routes, copy, and docs.
+- **Route Metadata Drift** — route path, nav label, page title,
+  breadcrumb, and component name disagree.
+- **Duplicated Navigation Source** — the same destination repeated
+  across nav arrays, route registries, sitemap data, and sidebars.
+- **Orphaned Destination** — pages / routes / screens unreachable from
+  primary navigation.
+- **Parallel Destination** — `/billing` vs `/settings/billing` vs
+  `/account/subscription` for the same user intent.
+
+Supporting work — per-finding scores (`scores.churn` / `scores.test_gap`
+/ `scores.blast_radius`), cross-file `related_files`, `crimes explain`,
+`crimes ignore` + suppressions, `crimes init`, and `crimes diff
+--fail-on new-high` — slots in around the IA detectors but is no longer
+the headline theme.
 
 ---
 

@@ -100,14 +100,39 @@ Recommended loop for any agent:
 4. Triaging the repo:       `crimes hotspots --format json`
 5. Any new `severity: "high"` finding introduced by the edit is a blocker.
 
+## Next theme — v0.3.0: information architecture crimes
+
+v0.2.0 made crimes useful for branches, PRs, CI, and agent loops.
+v0.3.0 is aimed at detecting repo structure drift that confuses
+humans, coding agents, teams, and customers — source-of-truth and
+concept drift across code, routes, navigation, copy, docs, and
+ownership. Likely candidate detectors (subject to revisit):
+
+- Concept Alias Drift — `organization` / `workspace` / `team` /
+  `account` for the same domain concept.
+- Route Metadata Drift — route path, nav label, page title,
+  breadcrumb, and component name disagree for the same destination.
+- Duplicated Navigation Source — same destination repeated across
+  nav arrays, route registries, sitemap metadata, and sidebars.
+- Orphaned Destination — pages / routes unreachable from primary nav.
+- Parallel Destination — multiple pages or flows serve the same
+  user intent (`/billing` vs `/settings/billing` vs
+  `/account/subscription`).
+
+None of these are shipped today.
+
 ## Not shipped yet — do not invoke or document as available
 
-- `crimes diff --fail-on new-high` — deferred to v0.3.0.
-- `crimes ignore <id>` + `.crimes/suppressions.json` — v0.3.0.
-- `crimes explain <id>` — v0.3.0.
-- `crimes init` + config plumbing — v0.3.0.
+- IA detectors above — v0.3.0 (planned).
+- `crimes diff --fail-on new-high` — supporting work for v0.3.0.
+- `crimes ignore <id>` + `.crimes/suppressions.json` — supporting work for v0.3.0.
+- `crimes explain <id>` — supporting work for v0.3.0.
+- `crimes init` + config plumbing — supporting work for v0.3.0.
+- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — supporting work for v0.3.0.
+- Cross-file `related_files` — supporting work for v0.3.0.
 - `crimes ask` / LLM-assisted features — v1+.
 - Dependency-graph + duplication detectors — v0.4.0+.
+- Frontend / UI agent-risk detectors — v0.4.0+.
 - Homebrew tap + standalone binaries — deferred.
 
 ## Resources

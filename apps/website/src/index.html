@@ -817,21 +817,32 @@ Total 5  ·  high 1  medium 3  low 1</code></pre>
             <code>report_type</code> discriminator on every JSON report.
           </li>
           <li>
-            <strong>v0.3.0 — richer repo risk model and suppressions.</strong>
-            Per-finding <code>scores.churn</code> /
-            <code>scores.test_gap</code> / <code>scores.blast_radius</code>,
-            cross-file <code>related_files</code>,
-            <code>crimes explain &lt;id&gt;</code>,
-            <code>crimes ignore &lt;id&gt;</code> +
-            <code>.crimes/suppressions.json</code>, and
-            <code>crimes diff --fail-on new-high</code> to finish the
-            M4 CI-gate trio.
+            <strong>v0.3.0 — information architecture crimes.</strong>
+            Detectors for repo structure drift that confuses humans and
+            coding agents: <strong>Concept Alias Drift</strong>
+            (<code>organization</code> / <code>workspace</code> /
+            <code>team</code> / <code>account</code> for the same
+            concept), <strong>Route Metadata Drift</strong> (route, nav
+            label, page title, breadcrumb, and component name disagree),
+            <strong>Duplicated Navigation Source</strong>,
+            <strong>Orphaned Destination</strong>, and
+            <strong>Parallel Destination</strong>. Source-of-truth
+            ambiguity that linters and security scanners don't look for,
+            and that agents repeatedly trip over when picking the wrong
+            vocabulary or the wrong copy of nav. Candidate slice —
+            subject to revisit during planning. Supporting work
+            (per-finding <code>scores.churn</code> /
+            <code>scores.test_gap</code>, cross-file
+            <code>related_files</code>, <code>crimes explain</code>,
+            <code>crimes ignore</code>, <code>crimes diff --fail-on
+            new-high</code>) slots in around the IA detectors.
           </li>
           <li>
             <strong>Later.</strong> Dependency-graph detectors (circular
-            deps, layer violations), duplication detectors, Homebrew tap,
-            standalone macOS / Linux / Windows binaries, and optional
-            LLM-assisted summaries.
+            deps, layer violations), duplication detectors, frontend /
+            UI agent-risk detectors, Homebrew tap, standalone macOS /
+            Linux / Windows binaries, and optional LLM-assisted
+            summaries.
           </li>
         </ul>
         <p>

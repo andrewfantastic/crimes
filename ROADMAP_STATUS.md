@@ -167,31 +167,93 @@ versions. Don't document them as shipped.
 
 ## 🎯 Next target — `crimes@0.3.0`
 
-**Tentative theme: richer repo risk model and suppressions.**
+**Theme: information architecture crimes.**
 
-`0.2.0` covered the change-set surface. `0.3.0` shifts the bottleneck
-back to **detector signal**: the per-finding scores and cross-file
-context the PRD's M2/M3 milestones describe, plus the suppressions
-workflow that pairs with the baseline gate.
+`0.2.0` made `crimes` useful for branches, PRs, CI, and agent loops —
+the change-set surface is now covered. `0.3.0` should make `crimes`
+better at detecting **repo structure drift that confuses humans, coding
+agents, teams, and customers**.
 
-Candidate slice (subject to revisit before planning):
+Information architecture crimes expose the places where a repo gives
+multiple competing answers to the same structural question — what a
+concept is called, where it lives, which implementation owns it, how
+users move through the product, who is allowed to do what. They are
+the most distinctive form of agent-risk `crimes` can ship: deterministic
+evidence of source-of-truth ambiguity that linters and security scanners
+do not look for, and that AI coding agents repeatedly trip over when
+they pick the wrong vocabulary, the wrong route, or the wrong copy of a
+shared piece of nav.
 
-- **Richer per-finding scores (M2):** populate
-  `scores.churn`, `scores.test_gap`, and `scores.blast_radius` on every
-  finding so the default ranking matches the PRD's "aggregate risk
-  first" intent end-to-end. Promote the file-level blend
-  `crimes hotspots` already computes into per-finding scores.
-- **Cross-file `related_files` (M3):** every finding ships repo-relative
-  paths an agent should also read (nearby tests, duplicates, alternate
-  sources of truth). Currently reserved in the schema; populate it.
-- **`crimes explain <id>`** — long-form per-finding rationale (M3).
+The detectors below are headline candidates. They share two properties
+that line up with the `crimes` thesis: every finding is evidence-backed
+(file paths, route strings, identifiers, label literals — no opinion),
+and every finding makes the repo safer to edit by a human or an agent.
+See the [Information architecture risk candidates](#information-architecture-risk-candidates)
+section below for the long-form descriptions and agent-value notes.
+
+### Likely 0.3.0 candidate slice — IA crimes
+
+- **Concept Alias Drift** — the same domain concept appears under
+  multiple names across identifiers, routes, headings, translation keys,
+  constants, docs, and tests (`organization` / `workspace` / `team` /
+  `account`; `plan` / `tier` / `subscription` / `package`). Highest
+  differentiation and the foundation for the rest of the IA track.
+- **Route Metadata Drift** — route paths, nav labels, page titles,
+  breadcrumbs, component names, and file names disagree for the same
+  destination. Concrete and easy to explain in a PR comment.
+- **Duplicated Navigation Source** — nav arrays, route registries,
+  breadcrumbs, sitemap metadata, and sidebar definitions repeat the same
+  destination data in multiple files; agents updating one copy miss the
+  others.
+- **Orphaned Destination** — page / route / screen files exist but are
+  not reachable from primary navigation, route registries, sitemap
+  metadata, or internal links. Useful cleanup signal once route
+  discovery is mature.
+- **Parallel Destination** — multiple pages or flows appear to serve the
+  same user intent (`/billing`, `/settings/billing`, and
+  `/account/subscription`; `InviteUserModal` and `AddTeamMemberDialog`).
+  Forces a source-of-truth decision before another parallel
+  implementation is extended.
+- **Permission IA Drift** _(if feasible in the same slice)_ —
+  navigation, route guards, docs, and policy code describe access using
+  different roles or concepts. High-value but probably needs route /
+  policy / nav discovery from the earlier detectors before it can run.
+
+The detector core and finding schema are already language-agnostic; the
+IA detectors should produce the same `Finding` shape (with new `type`
+values) and ride the existing scan / diff / baseline / verdict / context
+plumbing without schema churn. The new `type` values are additive under
+the current `schema_version` discipline.
+
+### Supporting / later candidates
+
+These are still useful and are tracked, but they are no longer the
+headline `0.3.0` theme. They land alongside the IA slice if they
+explicitly support it, otherwise they slip to `0.3.x` / `0.4.0`.
+
+- **Cross-file `related_files`** — populate the schema-reserved field
+  with the routes, nav files, label sources, and parallel destinations
+  that the IA detectors already need to discover. Directly supports IA
+  findings (and incidentally backfills M3).
+- **Richer per-finding scores (M2):** `scores.churn`,
+  `scores.test_gap`, and `scores.blast_radius` on every finding. Useful
+  for ranking IA findings (a `Concept Alias Drift` across high-churn
+  files matters more than one across docs), but secondary to shipping
+  the IA detectors themselves.
+- **`crimes explain <id>`** — long-form per-finding rationale (M3). IA
+  findings benefit from this more than structural ones because the "so
+  what" is less obvious.
 - **`crimes ignore <id>`** + `.crimes/suppressions.json` (M4 polish) —
-  per-finding suppressions to complement the repo-wide baseline.
+  per-finding suppressions to complement the repo-wide baseline. Pairs
+  naturally with IA detectors, which will sometimes flag legitimate
+  alias choices that the team has accepted.
 - **`crimes diff --fail-on new-high`** — finish the M4 CI-gate trio so
   `diff` matches `verdict` and `baseline check`.
 - **`crimes init` + config plumbing** — bootstrap a `crimes.config.json`
   with sensible architecture rules so the layer-violation detector can
-  ship in `0.4.0`.
+  ship in `0.4.0`. Only pulled into `0.3.0` if the IA detectors need
+  declared route / nav locations beyond what convention-based discovery
+  finds.
 
 ---
 
