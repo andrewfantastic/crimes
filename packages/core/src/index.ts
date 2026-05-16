@@ -21,7 +21,7 @@ export type {
 } from "./baseline.js";
 export { DEFAULT_CONFIG, loadConfig } from "./config.js";
 export type { CrimesConfig } from "./config.js";
-export { context } from "./context.js";
+export { context, findNearestPackageRoot } from "./context.js";
 export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
 export type { Detector, DetectorContext } from "./detector.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
