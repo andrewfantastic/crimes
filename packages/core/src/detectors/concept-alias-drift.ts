@@ -120,9 +120,8 @@ function evaluateGroup(
 
   // Confidence sits in the 0.6-0.75 band per the plan. Lift slightly when
   // product-surface signal is high.
-  const confidence = Math.min(
-    0.6 + Math.min(productSurface.length, 6) * 0.025,
-    0.75,
+  const confidence = round(
+    Math.min(0.6 + Math.min(productSurface.length, 6) * 0.025, 0.75),
   );
 
   // Severity is medium when product surface contributes; otherwise the
@@ -144,7 +143,7 @@ function evaluateGroup(
     scores: {
       severity: severity === "medium" ? 0.55 : 0.4,
       confidence,
-      agent_risk: Math.min(0.7 + (qualifyingAliases.length - 3) * 0.05, 0.85),
+      agent_risk: round(Math.min(0.7 + (qualifyingAliases.length - 3) * 0.05, 0.85)),
     },
     suggested_actions: [
       {
@@ -255,6 +254,10 @@ const TEST_LIKE = [
 
 function isTestlike(file: string): boolean {
   return TEST_LIKE.some((re) => re.test(file));
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function isPrimaryAnchor(ctx: DetectorContext): boolean {

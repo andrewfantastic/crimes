@@ -143,7 +143,7 @@ function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
     .sort();
 
   // Confidence climbs with the number of disagreeing sources.
-  const confidence = Math.min(0.6 + (distinctTokenSets.size - 3) * 0.05, 0.8);
+  const confidence = round(Math.min(0.6 + (distinctTokenSets.size - 3) * 0.05, 0.8));
 
   const finding: Finding = {
     id: "",
@@ -160,7 +160,7 @@ function analyseRoute(route: IaRouteSignal, ia: IaIndex): Finding[] {
     scores: {
       severity: 0.6,
       confidence,
-      agent_risk: Math.min(0.65 + (distinctTokenSets.size - 3) * 0.05, 0.85),
+      agent_risk: round(Math.min(0.65 + (distinctTokenSets.size - 3) * 0.05, 0.85)),
     },
     suggested_actions: [
       {
@@ -228,6 +228,10 @@ function labelKindLong(label: IaLabelSignal): string {
     case "jsx_label":
       return `<${label.source ?? "Component"} label>`;
   }
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function intersectAll(sets: Set<string>[]): Set<string> {

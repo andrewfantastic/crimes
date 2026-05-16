@@ -473,6 +473,53 @@ Bad:
 
 ---
 
+## Information architecture findings
+
+`crimes@0.3.0` adds five **information architecture** detectors that
+look for ambiguous sources of truth across the repo:
+
+| `Finding.type`                  | Charge                       | Reads                                                                                  |
+| ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
+| `missing_agent_context`         | Missing Agent Context        | `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md` + `package.json` `bin`         |
+| `route_metadata_drift`          | Route Metadata Drift         | Route file paths, default exports, `<title>` / `metadata.title`, and nav-source labels |
+| `duplicated_navigation_source`  | Duplicated Navigation Source | Top-level nav-array literals across files                                              |
+| `concept_alias_drift`           | Concept Alias Drift          | Path tokens, route paths, labels, nav entries, and doc headings                        |
+| `docs_code_drift`               | Docs-Code Drift              | Local links in `docs/**/*.md` and root-level `*.md`                                    |
+
+IA findings are **cross-file by design**. The `file` field anchors the
+finding on the most useful single path (the route file, the
+lexicographically first nav source, the alias-group anchor, the doc),
+and `related_files` lists the other repo-relative paths that
+contributed evidence. Treat `related_files` as "also read these before
+editing" — same scope as the finding itself.
+
+Each `agent_guidance` line is keyed on `Finding.type`:
+
+| Type                            | Guidance                                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `missing_agent_context`         | Agents may miss project-specific commands, architecture rules, and safety checks.                          |
+| `route_metadata_drift`          | The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels. |
+| `duplicated_navigation_source`  | Multiple files declare this destination; updating only one will leave the others stale.                    |
+| `concept_alias_drift`           | Other files describe this concept under a different name; read them before renaming or extending.          |
+| `docs_code_drift`               | Docs reference local files that no longer exist — update the docs in the same PR.                          |
+
+**Key contract.** IA findings are **ambiguity signals**, not claims of
+semantic truth. The detector phrases its summary as "appears to" /
+"may" / "looks like" — and so should you when relaying a finding to a
+user. Every evidence string is concrete (file path, line, literal
+value); the *interpretation* of that evidence belongs to the human or
+agent reading the report.
+
+**No LLM, no API key, no network access** is required to produce these
+findings. Every IA detector runs as a deterministic AST + markdown
+pass. Two runs over the same repo produce identical IA findings.
+
+For long-form per-detector reference (false-positive notes, quorum
+rules, suggested fixes), see
+[`docs/finding-types/ia.md`](./finding-types/ia.md).
+
+---
+
 ## How to read a finding
 
 Every finding has the same shape (see [`json-schema.md`](./json-schema.md) for

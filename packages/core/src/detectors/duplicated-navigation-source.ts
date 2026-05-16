@@ -98,7 +98,7 @@ function buildFinding(destination: string, entries: NavHit[]): Finding {
   );
 
   // Confidence rises with the number of disagreeing labels.
-  const confidence = Math.min(0.7 + (distinctLabels.size - 2) * 0.05, 0.85);
+  const confidence = round(Math.min(0.7 + (distinctLabels.size - 2) * 0.05, 0.85));
 
   return {
     id: "",
@@ -115,7 +115,7 @@ function buildFinding(destination: string, entries: NavHit[]): Finding {
     scores: {
       severity: 0.6,
       confidence,
-      agent_risk: Math.min(0.7 + (distinctLabels.size - 2) * 0.05, 0.85),
+      agent_risk: round(Math.min(0.7 + (distinctLabels.size - 2) * 0.05, 0.85)),
     },
     suggested_actions: [
       {
@@ -143,4 +143,8 @@ function normalise(dest: string): string {
 
 function normaliseLabel(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }

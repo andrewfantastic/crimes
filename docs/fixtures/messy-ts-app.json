@@ -6,10 +6,10 @@
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 6,
+    "total": 10,
     "high": 1,
-    "medium": 4,
-    "low": 1
+    "medium": 7,
+    "low": 2
   },
   "findings": [
     {
@@ -132,6 +132,70 @@
     },
     {
       "id": "crime_00005",
+      "type": "concept_alias_drift",
+      "charge": "Concept Alias Drift",
+      "severity": "medium",
+      "confidence": 0.75,
+      "file": "docs/billing.md",
+      "summary": "4 aliases from the \"tenant\" concept group appear across 5 files. An agent extending one vocabulary may duplicate logic that already exists under another name.",
+      "evidence": [
+        "alias group: tenant",
+        "aliases found: account, organisation, team, workspace",
+        "\"account\" in 2 file(s): docs/billing.md, src/routes/account/subscription.tsx",
+        "\"organisation\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"team\" in 2 file(s): docs/teams.md, src/routes/team/index.tsx",
+        "\"workspace\" in 2 file(s): docs/teams.md, src/routes/workspace/members.tsx"
+      ],
+      "scores": {
+        "severity": 0.55,
+        "confidence": 0.75,
+        "agent_risk": 0.75
+      },
+      "suggested_actions": [
+        {
+          "kind": "consolidate_concept",
+          "description": "Pick or document the canonical term, and use aliases deliberately rather than accidentally.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "docs/teams.md",
+        "src/routes/account/subscription.tsx",
+        "src/routes/team/index.tsx",
+        "src/routes/workspace/members.tsx"
+      ]
+    },
+    {
+      "id": "crime_00006",
+      "type": "duplicated_navigation_source",
+      "charge": "Duplicated Navigation Source",
+      "severity": "medium",
+      "confidence": 0.7,
+      "file": "src/nav/registry.ts",
+      "summary": "Destination /settings/billing appears in 2 nav source files with 2 different labels. An agent updating one source will leave the others stale.",
+      "evidence": [
+        "destination: /settings/billing",
+        "src/nav/registry.ts label: Plans",
+        "src/nav/sidebar.ts label: Billing"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.7,
+        "agent_risk": 0.7
+      },
+      "suggested_actions": [
+        {
+          "kind": "consolidate_nav_source",
+          "description": "Move destination metadata into one source of truth or document which nav file is canonical.",
+          "risk": "medium"
+        }
+      ],
+      "related_files": [
+        "src/nav/sidebar.ts"
+      ]
+    },
+    {
+      "id": "crime_00007",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -160,7 +224,64 @@
       ]
     },
     {
-      "id": "crime_00006",
+      "id": "crime_00008",
+      "type": "route_metadata_drift",
+      "charge": "Route Metadata Drift",
+      "severity": "medium",
+      "confidence": 0.65,
+      "file": "src/routes/settings/billing.tsx",
+      "summary": "Route /settings/billing appears to be labelled in 4 competing ways across its path, file, component, page title, and nav entries. An agent editing one label may leave the others out of sync.",
+      "evidence": [
+        "route path: /settings/billing",
+        "file: src/routes/settings/billing.tsx",
+        "component: PricingPage",
+        "metadata.title: Plans",
+        "<title>: Subscription",
+        "nav label in src/nav/registry.ts: Plans"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.65,
+        "agent_risk": 0.7
+      },
+      "suggested_actions": [
+        {
+          "kind": "align_route_metadata",
+          "description": "Choose the canonical name for this destination and align route metadata, nav labels, and page/component names.",
+          "risk": "low"
+        }
+      ],
+      "related_files": [
+        "src/nav/registry.ts",
+        "src/nav/sidebar.ts"
+      ]
+    },
+    {
+      "id": "crime_00009",
+      "type": "docs_code_drift",
+      "charge": "Docs-Code Drift",
+      "severity": "low",
+      "confidence": 0.9,
+      "file": "docs/teams.md",
+      "summary": "1 local link in docs/teams.md point at file(s) that do not exist on disk. Agents reading this doc may follow stale instructions.",
+      "evidence": [
+        "docs/teams.md:5 → ./setup.md (not found)"
+      ],
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.9,
+        "agent_risk": 0.6
+      },
+      "suggested_actions": [
+        {
+          "kind": "fix_doc_link",
+          "description": "Update the docs or restore the referenced file so agents do not follow stale instructions.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00010",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
