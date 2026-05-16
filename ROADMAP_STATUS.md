@@ -169,6 +169,12 @@ versions. Don't document them as shipped.
 
 **Theme: information architecture crimes.**
 
+> **Implementation plan: [`IA_CRIMES_PLAN.md`](./IA_CRIMES_PLAN.md).**
+> Detector taxonomy, scope recommendation, IA-index architecture,
+> extraction strategy, fixture plan, sequencing, and success criteria
+> for `0.3.0` live there. This section is the headline summary; the
+> plan is the build doc.
+
 `0.2.0` made `crimes` useful for branches, PRs, CI, and agent loops —
 the change-set surface is now covered. `0.3.0` should make `crimes`
 better at detecting **repo structure drift that confuses humans, coding
