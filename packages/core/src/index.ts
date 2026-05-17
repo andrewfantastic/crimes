@@ -126,6 +126,12 @@ export type {
   JsxElementInfo,
   JsxNode,
 } from "./jsx/walk.js";
+export {
+  hashFunction,
+  hashJsxSubtree,
+  hashSlice,
+} from "./ast-hash/hash.js";
+export type { AstHash } from "./ast-hash/hash.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {
