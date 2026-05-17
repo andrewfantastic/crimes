@@ -3,9 +3,12 @@ import { DEFAULT_CONFIG } from "../config.js";
 import type { DetectorContext } from "../detector.js";
 import { directDateDetector } from "./direct-date.js";
 
-function makeCtx(uses: Array<{ kind: "now" | "new"; line: number }>): DetectorContext {
+function makeCtx(
+  uses: Array<{ kind: "now" | "new"; line: number }>,
+  overrides: { file?: string } = {},
+): DetectorContext {
   return {
-    file: "src/date.ts",
+    file: overrides.file ?? "src/date.ts",
     absolutePath: "/tmp/date.ts",
     source: "",
     parsed: {
@@ -63,5 +66,32 @@ describe("directDateDetector", () => {
     const evidence = findings[0]!.evidence.join(" ");
     expect(evidence).toContain("2× Date.now()");
     expect(evidence).toContain("1× new Date()");
+  });
+
+  it("skips emission entirely on test files (false positive in §20)", async () => {
+    const uses = Array.from({ length: 5 }, (_, i) => ({
+      kind: "new" as const,
+      line: i + 1,
+    }));
+    for (const file of [
+      "src/foo.test.ts",
+      "src/foo.spec.tsx",
+      "packages/core/src/__tests__/build.ts",
+      "src/suppressions.test.ts",
+    ]) {
+      const findings = await directDateDetector.run(makeCtx(uses, { file }));
+      expect(findings).toEqual([]);
+    }
+  });
+
+  it("still emits on non-test files with date-shaped names", async () => {
+    const uses = Array.from({ length: 5 }, (_, i) => ({
+      kind: "new" as const,
+      line: i + 1,
+    }));
+    const findings = await directDateDetector.run(
+      makeCtx(uses, { file: "src/billing.ts" }),
+    );
+    expect(findings).toHaveLength(1);
   });
 });

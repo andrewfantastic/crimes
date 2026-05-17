@@ -1,7 +1,6 @@
 import type { Detector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
-
-const TEST_FILE = /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
+import { isTestFile } from "../util/test-files.js";
 const TEST_CALL = /\b(?:it|test)\s*\(\s*(["'`])([^"'`]+)\1/g;
 const ASSERTION = /\b(?:expect|assert(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g;
 const WEAK_ASSERTION = /\.(?:toBeDefined|toBeTruthy|toBeFalsy|toMatchSnapshot|toMatchInlineSnapshot)\s*\(/g;
@@ -17,7 +16,7 @@ export const weakTestSignalDetector: Detector = {
     "regressions ship without warning.",
 
   run(ctx) {
-    if (!TEST_FILE.test(ctx.file) || looksTypeOnlyTest(ctx.file, ctx.source)) return [];
+    if (!isTestFile(ctx.file) || looksTypeOnlyTest(ctx.file, ctx.source)) return [];
 
     const blocks = extractTestBlocks(ctx.source);
     const findings: Finding[] = [];

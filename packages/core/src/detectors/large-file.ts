@@ -1,15 +1,7 @@
 import type { CrimesConfig } from "../config.js";
 import type { Detector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
-
-/**
- * Recognises the test-file naming conventions every other module in the
- * codebase honours (`scoring/build.ts`, `petty/build.ts`,
- * `return-shape-roulette.ts`): `*.test.[cm]?[jt]sx?`, `*.spec.[cm]?[jt]sx?`,
- * and anything under a `__tests__/` directory.
- */
-const TEST_FILE_RE =
-  /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
+import { isTestFile } from "../util/test-files.js";
 
 type LargeFileShape = "domain" | "test_file";
 
@@ -63,7 +55,7 @@ export function policyForFile(
 }
 
 export function shapeForFile(file: string): LargeFileShape {
-  return TEST_FILE_RE.test(file) ? "test_file" : "domain";
+  return isTestFile(file) ? "test_file" : "domain";
 }
 
 export const largeFileDetector: Detector = {

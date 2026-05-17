@@ -1,6 +1,7 @@
 import { readFileSync as fsReadFileSync } from "node:fs";
 import type { Detector, DetectorContext } from "../detector.js";
 import type { Finding } from "../finding.js";
+import { isTestFile } from "../util/test-files.js";
 
 /**
  * Fires when ≥3 files contain comparison-style checks against the same
@@ -181,9 +182,6 @@ function buildFinding(
   };
 }
 
-function isTestFile(file: string): boolean {
-  return /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/.test(file);
-}
 
 function isPrimaryAnchor(ctx: DetectorContext): boolean {
   if (!ctx.ia) return false;

@@ -1,6 +1,7 @@
 import type { DateUse } from "@crimes/language-js";
 import type { Detector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
+import { isTestFile } from "../util/test-files.js";
 
 export const directDateDetector: Detector = {
   id: "direct_date",
@@ -15,6 +16,11 @@ export const directDateDetector: Detector = {
     "exact timing without freezing the whole process.",
 
   run(ctx) {
+    // Test files intentionally inject dates as `now: () => new Date(NOW_ISO)`
+    // — flagging that pattern is a false positive. Domain code is where
+    // direct clock access matters.
+    if (isTestFile(ctx.file)) return [];
+
     const hits = ctx.parsed.dateNowOrNewDateUses;
     if (hits.length === 0) return [];
 

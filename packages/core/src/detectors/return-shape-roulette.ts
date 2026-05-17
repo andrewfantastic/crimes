@@ -1,7 +1,6 @@
 import type { Detector } from "../detector.js";
 import type { Finding } from "../finding.js";
-
-const TEST_FILE = /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
+import { isTestFile } from "../util/test-files.js";
 
 export const returnShapeRouletteDetector: Detector = {
   id: "return_shape_roulette",
@@ -14,7 +13,7 @@ export const returnShapeRouletteDetector: Detector = {
     "the path they were debugging.",
 
   run(ctx) {
-    if (TEST_FILE.test(ctx.file)) return [];
+    if (isTestFile(ctx.file)) return [];
 
     const lines = ctx.source.split(/\r?\n/);
     const findings: Finding[] = [];

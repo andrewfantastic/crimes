@@ -1,8 +1,8 @@
 import type { Detector } from "../detector.js";
 import type { Finding } from "../finding.js";
+import { isTestFile } from "../util/test-files.js";
 
 const BAG_NAMES = ["options", "config", "payload", "data", "params", "meta"];
-const TEST_FILE = /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
 
 export const optionBagJunkDrawerDetector: Detector = {
   id: "option_bag_junk_drawer",
@@ -15,7 +15,7 @@ export const optionBagJunkDrawerDetector: Detector = {
     "downstream consumers silently break.",
 
   run(ctx) {
-    if (TEST_FILE.test(ctx.file)) return [];
+    if (isTestFile(ctx.file)) return [];
 
     const lines = ctx.source.split(/\r?\n/);
     const findings: Finding[] = [];

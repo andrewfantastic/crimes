@@ -24,6 +24,7 @@ import { relative, sep } from "node:path";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
+import { isTestFile } from "../util/test-files.js";
 
 export interface ChurnIndex {
   /** Returns [0,1] churn for a file, from git log over the configured window. */
@@ -72,8 +73,6 @@ export interface BuildScoringContextOptions {
 
 const CHURN_CAP = 20;
 const BLAST_RADIUS_CAP = 50;
-const TEST_FILE_RE =
-  /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
 
 /**
  * Build the per-file scoring indices for a scan. Always returns a context
@@ -123,7 +122,7 @@ function buildTestGapIndex(args: {
 }): TestGapIndex {
   const { repoPaths, imports } = args;
   const fileSet = new Set(repoPaths);
-  const testFiles = new Set(repoPaths.filter((p) => TEST_FILE_RE.test(p)));
+  const testFiles = new Set(repoPaths.filter((p) => isTestFile(p)));
 
   // Index every discovered file's basename without extension and parent
   // directory; we'll use these to find sibling tests.
@@ -155,7 +154,7 @@ function buildTestGapIndex(args: {
     if (!imports) return false;
     const incoming = imports.in.get(file) ?? [];
     for (const edge of incoming) {
-      if (TEST_FILE_RE.test(edge.from)) return true;
+      if (isTestFile(edge.from)) return true;
     }
     return false;
   };
@@ -163,7 +162,7 @@ function buildTestGapIndex(args: {
   return {
     forFile(repoPath) {
       // Test files themselves — they aren't the thing under test.
-      if (TEST_FILE_RE.test(repoPath)) return 0;
+      if (isTestFile(repoPath)) return 0;
       // The file isn't known to us (e.g. unscanned path). Treat as a full
       // gap rather than guess.
       if (!fileSet.has(repoPath)) return 1;

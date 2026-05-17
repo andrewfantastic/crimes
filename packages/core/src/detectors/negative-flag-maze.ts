@@ -1,8 +1,8 @@
 import type { Detector } from "../detector.js";
 import type { Finding } from "../finding.js";
+import { isTestFile } from "../util/test-files.js";
 
 const NEGATIVE_NAME = /^(?:no|not|disable|disabled|skip|without)[A-Z_]/;
-const TEST_FILE = /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
 
 export const negativeFlagMazeDetector: Detector = {
   id: "negative_flag_maze",
@@ -15,7 +15,7 @@ export const negativeFlagMazeDetector: Detector = {
     "logic disagree.",
 
   run(ctx) {
-    if (TEST_FILE.test(ctx.file)) return [];
+    if (isTestFile(ctx.file)) return [];
 
     const findings: Finding[] = [];
     for (const condition of extractConditions(ctx.source)) {

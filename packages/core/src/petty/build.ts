@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isTestFile } from "../util/test-files.js";
 import { extractStringLiterals } from "./literals.js";
 import type { PettyIndex, PettyLiteralHit, RepoPath } from "./types.js";
 
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-const TEST_FILE = /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
 const DOMAIN_WORDS = [
   "active",
   "admin",
@@ -44,7 +44,7 @@ export async function buildPettyIndex(options: BuildPettyIndexOptions): Promise<
 
   for (const abs of options.files) {
     const file = toRepoRel(root, abs);
-    if (!SOURCE_EXT.test(file) || TEST_FILE.test(file)) continue;
+    if (!SOURCE_EXT.test(file) || isTestFile(file)) continue;
 
     let source: string;
     try {
