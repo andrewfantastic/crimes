@@ -3,6 +3,7 @@ import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
 import { registerDiffCommand } from "./commands/diff.js";
 import { registerHotspotsCommand } from "./commands/hotspots.js";
+import { registerIgnoreCommand } from "./commands/ignore.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerScanCommand } from "./commands/scan.js";
 import { registerVerdictCommand } from "./commands/verdict.js";
@@ -20,6 +21,7 @@ program
   .version(__CRIMES_VERSION__);
 
 registerInitCommand(program);
+registerIgnoreCommand(program);
 registerScanCommand(program);
 registerContextCommand(program);
 registerHotspotsCommand(program);
