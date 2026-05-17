@@ -1,0 +1,89 @@
+/**
+ * Shape of `evals/fixtures/fixtures.meta.json`. The registry holds
+ * one entry per fixture; runner walks it to enumerate the universe of
+ * fixtures available for a given run.
+ */
+export interface FixturesRegistry {
+  schema_version: "0.1.0";
+  fixtures: FixtureRegistryEntry[];
+}
+
+export interface FixtureRegistryEntry {
+  /** Numeric prefix used in the directory name (`01-messy-ts-app`). */
+  id: string;
+  /** Repo-relative path to the fixture directory. */
+  path: string;
+  /** Free-form human label shown in the runner's progress output. */
+  name: string;
+  /** Origin of the fixture body — drives setup behaviour. */
+  kind: "symlink" | "oss-clone" | "hand-crafted";
+  /** One-line purpose statement (which detectors / behaviours it exercises). */
+  purpose: string;
+}
+
+/**
+ * Per-OSS-clone meta file. Lives at
+ * `evals/fixtures/<NN>-<name>/.crimes-eval-meta.json`. The setup
+ * script reads this and clones the upstream at the pinned SHA.
+ */
+export interface OssFixtureMeta {
+  upstream: string;
+  sha: string;
+  license: string;
+  purpose: string;
+  /** Set to true to skip cloning (e.g. upstream disappeared). */
+  archived?: boolean;
+}
+
+export type ScenarioKind = "refactor" | "bugfix" | "review" | "context" | "plan";
+
+export interface ExpectedArtifacts {
+  referenced_findings?: string[];
+  referenced_files?: string[];
+  forbidden_actions?: string[];
+  expected_priority?: string;
+}
+
+export interface Scenario {
+  /** Stable id, e.g. `"refactor-01-messy-ts-app"`. */
+  id: string;
+  /** Fixture id this scenario runs against. */
+  fixture: string;
+  kind: ScenarioKind;
+  /** Verbatim agent prompt — multi-line strings supported in JSON via `\n`. */
+  prompt: string;
+  expected_artifacts: ExpectedArtifacts;
+  /** Open-ended questions for the opt-in judge-model pass. */
+  judge_questions?: string[];
+}
+
+export interface ScoreDetail {
+  check: "referenced_findings" | "referenced_files" | "forbidden_actions" | "expected_priority";
+  expected: unknown;
+  observed: unknown;
+  passed: boolean;
+}
+
+export interface JudgeQuestionScore {
+  question: string;
+  score: number;
+  reasoning: string;
+}
+
+export interface ScoreResult {
+  scenario: string;
+  agent: string;
+  crimes_version: string;
+  timestamp: string;
+  run_id: string;
+  structural_score: {
+    passed: number;
+    failed: number;
+    details: ScoreDetail[];
+  };
+  judge_score?: {
+    overall: number;
+    per_question: JudgeQuestionScore[];
+    model: string;
+  };
+}

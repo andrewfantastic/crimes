@@ -1,0 +1,99 @@
+#!/usr/bin/env tsx
+import { execFile } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import type { OssFixtureMeta } from "./types.js";
+
+const execFileAsync = promisify(execFile);
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(HERE, "..", "..", "..");
+const FIXTURES_DIR = resolve(REPO_ROOT, "evals", "fixtures");
+const META_FILENAME = ".crimes-eval-meta.json";
+
+/**
+ * `pnpm run evals:setup` entry. Walks `evals/fixtures/<NN>-<name>/`
+ * directories, reads `.crimes-eval-meta.json` per directory, and
+ * clones each OSS upstream at its pinned SHA. Idempotent — directories
+ * with the body already present are skipped.
+ *
+ * Hand-crafted and symlink fixtures need no setup; they're already in
+ * the tree. The script is a no-op when no OSS meta files exist.
+ */
+async function main(): Promise<void> {
+  if (!existsSync(FIXTURES_DIR)) {
+    process.stdout.write(
+      `evals:setup: ${FIXTURES_DIR} does not exist — nothing to set up.\n`,
+    );
+    return;
+  }
+
+  const subdirs = readdirSync(FIXTURES_DIR).filter((name) => {
+    const full = resolve(FIXTURES_DIR, name);
+    try {
+      return statSync(full).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+
+  const ossEntries: Array<{ dir: string; meta: OssFixtureMeta }> = [];
+  for (const name of subdirs) {
+    const metaPath = resolve(FIXTURES_DIR, name, META_FILENAME);
+    if (!existsSync(metaPath)) continue;
+    try {
+      const meta = JSON.parse(readFileSync(metaPath, "utf8")) as OssFixtureMeta;
+      ossEntries.push({ dir: resolve(FIXTURES_DIR, name), meta });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `evals:setup: failed to parse ${metaPath} — ${message}\n`,
+      );
+    }
+  }
+
+  if (ossEntries.length === 0) {
+    process.stdout.write(
+      "evals:setup: no OSS clone meta files found — nothing to clone.\n",
+    );
+    return;
+  }
+
+  for (const { dir, meta } of ossEntries) {
+    if (meta.archived) {
+      process.stdout.write(`evals:setup: ${dir} archived — skipping.\n`);
+      continue;
+    }
+    const hasBody = readdirSync(dir).some(
+      (entry) => entry !== META_FILENAME && !entry.startsWith("."),
+    );
+    if (hasBody) {
+      process.stdout.write(
+        `evals:setup: ${dir} body already present — skipping clone.\n`,
+      );
+      continue;
+    }
+    process.stdout.write(
+      `evals:setup: cloning ${meta.upstream}@${meta.sha} into ${dir}\n`,
+    );
+    try {
+      await execFileAsync("git", ["clone", meta.upstream, dir], { cwd: REPO_ROOT });
+      await execFileAsync("git", ["-C", dir, "checkout", meta.sha]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `evals:setup: clone failed for ${meta.upstream}@${meta.sha} — ${message}\n`,
+      );
+      process.exitCode = 1;
+      continue;
+    }
+  }
+}
+
+main().catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`evals:setup: ${message}\n`);
+  process.exit(1);
+});
