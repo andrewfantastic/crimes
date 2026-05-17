@@ -132,6 +132,19 @@ export {
   hashSlice,
 } from "./ast-hash/hash.js";
 export type { AstHash } from "./ast-hash/hash.js";
+export {
+  buildScoringContext,
+  computeAgentRisk,
+  finaliseFindingScores,
+  hasNotableScores,
+} from "./scoring/build.js";
+export type {
+  BlastRadiusIndex,
+  BuildScoringContextOptions,
+  ChurnIndex,
+  ScoringContext,
+  TestGapIndex,
+} from "./scoring/build.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {

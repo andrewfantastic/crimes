@@ -12,13 +12,30 @@ export interface FindingScores {
   severity: number;
   /** How certain the detector is (0-1). */
   confidence: number;
-  /** Estimated blast radius across the repo (0-1). 0 when unknown. */
+  /**
+   * Normalised transitive-importer count (0-1). Populated by the scoring
+   * context attached to every scan; absent only in direct unit-test stubs
+   * that bypass scan/context wiring. Treat as ordinal — the precise scaling
+   * may shift between minor releases.
+   */
   blast_radius?: number;
-  /** Git churn signal (0-1). 0 when unknown. */
+  /**
+   * Normalised commits-in-window count (0-1). Populated by the scoring
+   * context; absent in stubs. Ordinal.
+   */
   churn?: number;
-  /** Test gap signal (0-1). 0 when unknown. */
+  /**
+   * Inverted test-coverage signal (0-1). 1.0 = no nearby tests; 0.0 = a
+   * test file imports this file. Populated by the scoring context; absent
+   * in stubs. Ordinal.
+   */
   test_gap?: number;
-  /** How likely an AI agent is to misread/damage this area (0-1). */
+  /**
+   * Unified composite of severity / confidence / churn / test_gap /
+   * blast_radius (0-1). Computed by core's finalisation pass after every
+   * detector runs — detectors no longer set this field directly. Absent
+   * only in stubs that bypass scan/context wiring.
+   */
   agent_risk?: number;
 }
 

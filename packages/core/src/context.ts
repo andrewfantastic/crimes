@@ -16,6 +16,11 @@ import type { ImportGraph } from "./imports/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
+  buildScoringContext,
+  finaliseFindingScores,
+} from "./scoring/build.js";
+import type { ScoringContext } from "./scoring/build.js";
+import {
   builtInDetectors,
   filterDetectors,
   resolveAliasGroups,
@@ -259,6 +264,11 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
   const imports = await safelyBuildImportGraph({ root, allFiles });
+  const scoring = await safelyBuildScoringContext({
+    root,
+    allFiles,
+    imports,
+  });
 
   const findings = await runDetectorsOnTarget({
     allFiles,
@@ -269,6 +279,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     ia,
     petty,
     imports,
+    scoring,
   });
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
@@ -358,9 +369,19 @@ async function runDetectorsOnTarget(args: {
   ia?: IaIndex;
   petty?: PettyIndex;
   imports?: ImportGraph;
+  scoring?: ScoringContext;
 }): Promise<Finding[]> {
-  const { allFiles, targetAbs, root, config, detectors, ia, petty, imports } =
-    args;
+  const {
+    allFiles,
+    targetAbs,
+    root,
+    config,
+    detectors,
+    ia,
+    petty,
+    imports,
+    scoring,
+  } = args;
   if (!allFiles.includes(targetAbs)) return [];
 
   const file = toRepoPath(relative(root, targetAbs));
@@ -378,8 +399,17 @@ async function runDetectorsOnTarget(args: {
       ia,
       petty,
       imports,
+      scoring,
     });
     findings.push(...detectorFindings);
+  }
+
+  // Backfill per-finding scores (churn / test_gap / blast_radius) and
+  // recompute agent_risk from the unified formula. Detectors that ran
+  // before scoring landed may have set agent_risk themselves; the
+  // finalisation pass overwrites with the canonical value.
+  for (const f of findings) {
+    finaliseFindingScores(f, scoring);
   }
 
   // `crimes context <file>` must only show findings that are *about*
@@ -431,6 +461,22 @@ async function safelyBuildImportGraph(args: {
 }): Promise<ImportGraph | undefined> {
   try {
     return await buildImportGraph({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildScoringContext(args: {
+  root: string;
+  allFiles: string[];
+  imports: ImportGraph | undefined;
+}): Promise<ScoringContext | undefined> {
+  try {
+    return await buildScoringContext({
+      root: args.root,
+      files: args.allFiles,
+      imports: args.imports,
+    });
   } catch {
     return undefined;
   }

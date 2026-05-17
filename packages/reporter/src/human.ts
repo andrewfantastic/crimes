@@ -59,7 +59,11 @@ export function formatHumanReport(
     if (group.length === 0) continue;
     lines.push(severityHeading(sev, group.length, colour));
     group.forEach((finding, idx) => {
-      lines.push(...renderFinding(finding, idx + 1, colour));
+      lines.push(
+        ...renderFinding(finding, idx + 1, colour, {
+          alwaysShowRiskProfile: showAll,
+        }),
+      );
       lines.push("");
     });
   }
@@ -91,7 +95,12 @@ export function formatHumanReport(
   return lines.join("\n");
 }
 
-function renderFinding(finding: Finding, n: number, colour: ColourFns): string[] {
+function renderFinding(
+  finding: Finding,
+  n: number,
+  colour: ColourFns,
+  options: { alwaysShowRiskProfile?: boolean } = {},
+): string[] {
   const lineRange = finding.lines
     ? `:${finding.lines[0]}${finding.lines[1] !== finding.lines[0] ? `-${finding.lines[1]}` : ""}`
     : "";
@@ -101,6 +110,8 @@ function renderFinding(finding: Finding, n: number, colour: ColourFns): string[]
   const out: string[] = [];
   out.push(`  ${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`);
   out.push(`     ${colour.bold("Charge:")} ${finding.charge}`);
+  const riskLine = renderRiskProfileLine(finding, colour, options);
+  if (riskLine) out.push(riskLine);
   out.push(`     ${colour.bold("Summary:")} ${finding.summary}`);
   if (finding.evidence.length > 0) {
     out.push(`     ${colour.bold("Evidence:")}`);
@@ -130,6 +141,34 @@ function renderFinding(finding: Finding, n: number, colour: ColourFns): string[]
     `     ${colour.dim(`id=${finding.id}  confidence=${finding.confidence.toFixed(2)}`)}`,
   );
   return out;
+}
+
+/**
+ * One-line "Risk profile" block surfacing the per-finding scoring signals
+ * the 0.6.0 release added. Shown only when at least one of churn,
+ * test_gap, or blast_radius is greater than 0.5 — keeps the report tidy
+ * on low-signal findings — or always when `--all` was passed.
+ */
+function renderRiskProfileLine(
+  finding: Finding,
+  colour: ColourFns,
+  options: { alwaysShowRiskProfile?: boolean },
+): string | undefined {
+  const { churn, test_gap, blast_radius } = finding.scores;
+  if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
+    return undefined;
+  }
+  const notable =
+    (churn ?? 0) > 0.5 ||
+    (test_gap ?? 0) > 0.5 ||
+    (blast_radius ?? 0) > 0.5;
+  if (!notable && !options.alwaysShowRiskProfile) return undefined;
+  const parts = [
+    `churn ${(churn ?? 0).toFixed(2)}`,
+    `test gap ${(test_gap ?? 0).toFixed(2)}`,
+    `blast radius ${(blast_radius ?? 0).toFixed(2)}`,
+  ];
+  return `     ${colour.bold("Risk profile:")} ${colour.dim(parts.join(" · "))}`;
 }
 
 function severityHeading(
@@ -280,7 +319,13 @@ export function formatContextHumanReport(
   } else {
     lines.push(colour.bold("Findings"));
     report.findings.forEach((finding, idx) => {
-      lines.push(...renderFinding(finding, idx + 1, colour));
+      // crimes context <file> is a deep-dive on a single file — always
+      // surface the risk profile so the user sees every signal we have.
+      lines.push(
+        ...renderFinding(finding, idx + 1, colour, {
+          alwaysShowRiskProfile: true,
+        }),
+      );
       lines.push("");
     });
     // Trim trailing blank from the last finding block.
@@ -528,6 +573,9 @@ export function formatBaselineCheckReport(
       colour.bold(`New findings (${report.new_findings.length})`),
     );
     report.new_findings.forEach((finding, idx) => {
+      // Baseline check has no --all knob; fall back to the default notable
+      // gate (renderRiskProfileLine hides the line when all three signals
+      // are ≤ 0.5).
       lines.push(...renderFinding(finding, idx + 1, colour));
       lines.push("");
     });
@@ -687,6 +735,12 @@ export function formatExplainReport(
     }
   }
 
+  const riskBlock = explainRiskProfileBlock(f, colour);
+  if (riskBlock.length > 0) {
+    lines.push("");
+    lines.push(...riskBlock);
+  }
+
   if (f.suggested_actions && f.suggested_actions.length > 0) {
     lines.push("");
     lines.push(colour.bold("Suggested actions"));
@@ -711,6 +765,58 @@ export function formatExplainReport(
   lines.push(`  ${report.suggested_suppression_command}`);
 
   return lines.join("\n");
+}
+
+/**
+ * "Risk profile" section for `crimes explain`. Each per-finding score
+ * is shown alongside its raw evidence (commit count, importer count,
+ * test-coverage hint) so the user sees *why* the score is what it is.
+ * Returns an empty list when no scoring signal is present.
+ */
+function explainRiskProfileBlock(
+  finding: Finding,
+  colour: ColourFns,
+): string[] {
+  const { churn, test_gap, blast_radius } = finding.scores;
+  if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
+    return [];
+  }
+  const lines: string[] = [];
+  lines.push(colour.bold("Risk profile"));
+  lines.push(
+    `  · churn:        ${(churn ?? 0).toFixed(2)} — ` +
+      churnExplain(churn ?? 0),
+  );
+  lines.push(
+    `  · test gap:     ${(test_gap ?? 0).toFixed(2)} — ` +
+      testGapExplain(test_gap ?? 0),
+  );
+  lines.push(
+    `  · blast radius: ${(blast_radius ?? 0).toFixed(2)} — ` +
+      blastRadiusExplain(blast_radius ?? 0),
+  );
+  return lines;
+}
+
+function churnExplain(score: number): string {
+  if (score === 0) return "no commits touched this file in the last 90 days";
+  if (score >= 1) return "20+ commits in the last 90 days (cap reached)";
+  return `~${Math.round(score * 20)} commits in the last 90 days`;
+}
+
+function testGapExplain(score: number): string {
+  if (score === 0) return "a test file imports this module";
+  if (score === 0.5) {
+    return "a sibling or __tests__ test file exists but does not import this module";
+  }
+  if (score >= 1) return "no sibling or __tests__ test file detected";
+  return "partial coverage signal";
+}
+
+function blastRadiusExplain(score: number): string {
+  if (score === 0) return "no other files import this one";
+  if (score >= 1) return "50+ transitive importers (cap reached)";
+  return `~${Math.round(score * 50)} transitive importers`;
 }
 
 export interface AuditSuppressionsHumanReportOptions {

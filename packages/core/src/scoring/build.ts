@@ -1,0 +1,320 @@
+/**
+ * Scoring data sources — the M2-completion piece of 0.6.0.
+ *
+ * Every finding now carries real `churn`, `test_gap`, and `blast_radius`
+ * scores in addition to `severity` and `confidence`. These three values
+ * are looked up per-file from indices built once per scan and attached
+ * to `DetectorContext.scoring`. The unified `agent_risk` is computed
+ * from all five via the formula in §4.4:
+ *
+ *   agent_risk = clamp01(
+ *     0.4 * severity
+ *     + 0.2 * confidence
+ *     + 0.15 * churn
+ *     + 0.15 * test_gap
+ *     + 0.10 * blast_radius
+ *   )
+ *
+ * The three new scores are ordinal: the formulae may shift between
+ * minor releases as we tune them, but the contract — higher is worse,
+ * range [0, 1] — is stable.
+ */
+
+import { relative, sep } from "node:path";
+import type { Finding, FindingScores, Severity } from "../finding.js";
+import { collectChurn } from "../git/churn.js";
+import type { ImportGraph } from "../imports/types.js";
+
+export interface ChurnIndex {
+  /** Returns [0,1] churn for a file, from git log over the configured window. */
+  forFile(repoPath: string): number;
+  /**
+   * True when the underlying git history is shallow or absent. Detectors
+   * should treat churn as advisory when this is set.
+   */
+  limited: boolean;
+  /** Short human-readable reason. Only set when `limited` is true. */
+  limitedReason?: string;
+}
+
+export interface TestGapIndex {
+  /**
+   * Returns [0,1] test gap for a file. 1.0 = no nearby tests; 0.0 =
+   * strong test coverage (an actual test file imports the target).
+   */
+  forFile(repoPath: string): number;
+}
+
+export interface BlastRadiusIndex {
+  /**
+   * Returns [0,1] blast radius — normalised count of transitive importers
+   * of the file.
+   */
+  forFile(repoPath: string): number;
+}
+
+export interface ScoringContext {
+  churn: ChurnIndex;
+  testGap: TestGapIndex;
+  blastRadius: BlastRadiusIndex;
+}
+
+export interface BuildScoringContextOptions {
+  /** Absolute repo root. */
+  root: string;
+  /** Absolute paths the scan discovered. */
+  files: string[];
+  /** Repo-wide import graph (from `buildImportGraph`). */
+  imports: ImportGraph | undefined;
+  /** Git-log window. Defaults to `"90d"`. */
+  since?: string;
+}
+
+const CHURN_CAP = 20;
+const BLAST_RADIUS_CAP = 50;
+const TEST_FILE_RE =
+  /(?:^|\/)(?:__tests__\/|.*\.(?:test|spec)\.[cm]?[jt]sx?$)/;
+
+/**
+ * Build the per-file scoring indices for a scan. Always returns a context
+ * — index methods degrade to `0` when the underlying signal is missing
+ * rather than throwing.
+ */
+export async function buildScoringContext(
+  options: BuildScoringContextOptions,
+): Promise<ScoringContext> {
+  const since = options.since ?? "90d";
+
+  const churnResult = await collectChurn({ root: options.root, since });
+  const churnByFile = new Map<string, number>();
+  for (const c of churnResult.files) {
+    churnByFile.set(c.file, Math.min(c.changeCount / CHURN_CAP, 1));
+  }
+  const churn: ChurnIndex = {
+    forFile(repoPath) {
+      return churnByFile.get(repoPath) ?? 0;
+    },
+    limited: !churnResult.gitAvailable || churnResult.historyLimited === true,
+    ...(churnResult.historyLimitedReason !== undefined
+      ? { limitedReason: churnResult.historyLimitedReason }
+      : !churnResult.gitAvailable
+        ? {
+            limitedReason:
+              "not a git repository or git is unavailable; churn is unknown",
+          }
+        : {}),
+  };
+
+  const repoPaths = options.files.map((abs) =>
+    toRepoPath(options.root, abs),
+  );
+  const testGap = buildTestGapIndex({
+    repoPaths,
+    imports: options.imports,
+  });
+  const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
+
+  return { churn, testGap, blastRadius };
+}
+
+function buildTestGapIndex(args: {
+  repoPaths: string[];
+  imports: ImportGraph | undefined;
+}): TestGapIndex {
+  const { repoPaths, imports } = args;
+  const fileSet = new Set(repoPaths);
+  const testFiles = new Set(repoPaths.filter((p) => TEST_FILE_RE.test(p)));
+
+  // Index every discovered file's basename without extension and parent
+  // directory; we'll use these to find sibling tests.
+  const siblingTestFor = (file: string): boolean => {
+    const { dir, baseNoExt } = parseRepoPath(file);
+    if (baseNoExt.length === 0) return false;
+    // Sibling: ${dir}/${baseNoExt}.test.{ext} / .spec.{ext}
+    for (const candidate of testFiles) {
+      const parsed = parseRepoPath(candidate);
+      if (parsed.dir === dir && stripTestSuffix(parsed.baseNoExt) === baseNoExt) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const tellsTestCoversBasename = (file: string): boolean => {
+    const { baseNoExt } = parseRepoPath(file);
+    if (baseNoExt.length === 0) return false;
+    for (const candidate of testFiles) {
+      if (!candidate.includes("__tests__/")) continue;
+      const parsed = parseRepoPath(candidate);
+      if (stripTestSuffix(parsed.baseNoExt) === baseNoExt) return true;
+    }
+    return false;
+  };
+
+  const importedByTest = (file: string): boolean => {
+    if (!imports) return false;
+    const incoming = imports.in.get(file) ?? [];
+    for (const edge of incoming) {
+      if (TEST_FILE_RE.test(edge.from)) return true;
+    }
+    return false;
+  };
+
+  return {
+    forFile(repoPath) {
+      // Test files themselves — they aren't the thing under test.
+      if (TEST_FILE_RE.test(repoPath)) return 0;
+      // The file isn't known to us (e.g. unscanned path). Treat as a full
+      // gap rather than guess.
+      if (!fileSet.has(repoPath)) return 1;
+      if (importedByTest(repoPath)) return 0;
+      if (siblingTestFor(repoPath) || tellsTestCoversBasename(repoPath)) {
+        return 0.5;
+      }
+      return 1;
+    },
+  };
+}
+
+function buildBlastRadiusIndex(args: {
+  imports: ImportGraph | undefined;
+}): BlastRadiusIndex {
+  const memo = new Map<string, number>();
+  const { imports } = args;
+
+  return {
+    forFile(repoPath) {
+      if (!imports) return 0;
+      if (memo.has(repoPath)) return memo.get(repoPath)!;
+      const count = transitiveImporterCount(imports, repoPath);
+      const score = Math.min(count / BLAST_RADIUS_CAP, 1);
+      memo.set(repoPath, score);
+      return score;
+    },
+  };
+}
+
+function transitiveImporterCount(
+  imports: ImportGraph,
+  start: string,
+): number {
+  const visited = new Set<string>();
+  const stack = [start];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    const incoming = imports.in.get(current) ?? [];
+    for (const edge of incoming) {
+      if (visited.has(edge.from)) continue;
+      visited.add(edge.from);
+      stack.push(edge.from);
+    }
+  }
+  return visited.size;
+}
+
+/**
+ * Severity → numeric mapping shared with the human reporter's risk badges.
+ * Matches the prior detector convention so the new unified formula does not
+ * shift the ordering of existing findings.
+ */
+const SEVERITY_NUMERIC: Record<Severity, number> = {
+  high: 0.9,
+  medium: 0.7,
+  low: 0.45,
+};
+
+/**
+ * Compute `agent_risk` from the unified formula. Pure — no side effects.
+ */
+export function computeAgentRisk(args: {
+  severity: Severity;
+  confidence: number;
+  churn: number;
+  test_gap: number;
+  blast_radius: number;
+}): number {
+  const sev = SEVERITY_NUMERIC[args.severity];
+  const raw =
+    0.4 * sev +
+    0.2 * args.confidence +
+    0.15 * args.churn +
+    0.15 * args.test_gap +
+    0.10 * args.blast_radius;
+  return round(clamp01(raw));
+}
+
+/**
+ * Populate `churn` / `test_gap` / `blast_radius` on a finding from the
+ * scoring context, then recompute `agent_risk` from the unified formula.
+ *
+ * Detectors that emit findings still set `severity` and `confidence`; this
+ * function backfills the rest and overwrites any `agent_risk` the
+ * detector may have set (existing detectors do; future ones don't need
+ * to). When `scoring` is absent — typically in detector unit-test stubs
+ * — the three new fields are left unset and `agent_risk` is computed
+ * with them treated as 0, preserving the pre-0.6.0 ordering.
+ */
+export function finaliseFindingScores(
+  finding: Finding,
+  scoring: ScoringContext | undefined,
+): void {
+  let churn = 0;
+  let test_gap = 0;
+  let blast_radius = 0;
+  if (scoring) {
+    churn = round(scoring.churn.forFile(finding.file));
+    test_gap = round(scoring.testGap.forFile(finding.file));
+    blast_radius = round(scoring.blastRadius.forFile(finding.file));
+    finding.scores.churn = churn;
+    finding.scores.test_gap = test_gap;
+    finding.scores.blast_radius = blast_radius;
+  }
+  finding.scores.agent_risk = computeAgentRisk({
+    severity: finding.severity,
+    confidence: finding.scores.confidence,
+    churn,
+    test_gap,
+    blast_radius,
+  });
+}
+
+/**
+ * Return true when at least one of `churn`, `test_gap`, or `blast_radius`
+ * on a finding is greater than 0.5. The human reporter uses this to
+ * decide whether to show the "Risk profile" block alongside the finding.
+ */
+export function hasNotableScores(scores: FindingScores): boolean {
+  return (
+    (scores.churn ?? 0) > 0.5 ||
+    (scores.test_gap ?? 0) > 0.5 ||
+    (scores.blast_radius ?? 0) > 0.5
+  );
+}
+
+function clamp01(n: number): number {
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function toRepoPath(root: string, abs: string): string {
+  const rel = abs.startsWith(root) ? relative(root, abs) : abs;
+  return rel.split(sep).join("/");
+}
+
+function parseRepoPath(repoPath: string): { dir: string; baseNoExt: string } {
+  const lastSlash = repoPath.lastIndexOf("/");
+  const dir = lastSlash >= 0 ? repoPath.slice(0, lastSlash) : "";
+  const base = lastSlash >= 0 ? repoPath.slice(lastSlash + 1) : repoPath;
+  const dot = base.indexOf(".");
+  const baseNoExt = dot >= 0 ? base.slice(0, dot) : base;
+  return { dir, baseNoExt };
+}
+
+function stripTestSuffix(base: string): string {
+  return base.replace(/\.(test|spec)$/, "");
+}

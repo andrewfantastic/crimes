@@ -354,13 +354,30 @@ interface FindingScores {
   severity: number;
   /** Detector certainty (0–1). Always present. */
   confidence: number;
-  /** Reserved — cross-repo blast radius. Not populated in v0.1.0. */
+  /**
+   * Normalised transitive-importer count (0–1). Populated by every scan
+   * since 0.6.0 from the repo's import graph. Ordinal — the precise
+   * scaling may shift between minor releases. See `docs/scoring.md`.
+   */
   blast_radius?: number;
-  /** Reserved — git churn signal. Not populated in v0.1.0. */
+  /**
+   * Normalised commits-in-window count (0–1). Populated by every scan
+   * since 0.6.0 from `git log --since=90d`. Same saturation curve as
+   * `crimes hotspots`. Ordinal — see `docs/scoring.md`.
+   */
   churn?: number;
-  /** Reserved — test-proximity signal. Not populated in v0.1.0. */
+  /**
+   * Inverted test-coverage signal (0–1). 1.0 = no nearby tests; 0.0 = a
+   * test file imports this file. Populated by every scan since 0.6.0.
+   * Ordinal — see `docs/scoring.md`.
+   */
   test_gap?: number;
-  /** 0–1, how likely an AI agent is to misread/damage this area. */
+  /**
+   * Unified composite of severity / confidence / churn / test_gap /
+   * blast_radius (0–1). Computed by core's finalisation pass on every
+   * scan since 0.6.0; detectors no longer set this directly. The
+   * weighting formula is documented in `docs/scoring.md`.
+   */
   agent_risk?: number;
 }
 ```
@@ -370,9 +387,12 @@ fields. `agent_risk` is the differentiating signal vs other tools: rank by
 `agent_risk` when your goal is "which areas are dangerous for me to edit",
 not "which areas have the worst static smell".
 
-`blast_radius`, `churn`, and `test_gap` are deliberately omitted in v0.1.0 —
-they require git history and cross-file analysis that hasn't shipped yet.
-Treat absence as "not computed", not "zero".
+`blast_radius`, `churn`, and `test_gap` are populated by every scan from
+0.6.0 onward. They were "reserved" in 0.1.0–0.5.0; consumers that fell
+back to "not computed" for absent values now see real numbers. The fields
+remain optional in the schema so consumers can keep tolerating absence in
+mixed-version environments (a `crimes scan` from a fixture saved before
+0.6.0 still parses cleanly).
 
 All score fields are rounded to two decimals when present.
 

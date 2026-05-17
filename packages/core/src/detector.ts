@@ -4,6 +4,7 @@ import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
 import type { PettyIndex } from "./petty/types.js";
+import type { ScoringContext } from "./scoring/build.js";
 
 /**
  * A detector inspects parsed files and emits zero or more findings.
@@ -62,4 +63,15 @@ export interface DetectorContext {
    * read from this; file-local detectors ignore it.
    */
   imports?: ImportGraph;
+  /**
+   * Optional per-file scoring context. Populated by `scan` and `context`;
+   * absent in direct unit-test stubs. Core uses this to backfill
+   * `scores.churn` / `scores.test_gap` / `scores.blast_radius` and to
+   * recompute `scores.agent_risk` on every finding via the unified
+   * 0.6.0 formula. Detectors do not need to read it themselves —
+   * finalisation happens after `run()` returns — but it is exposed
+   * here for advanced detectors that want to gate behaviour on the
+   * scoring signal (e.g. `visual_regression_review_hint`).
+   */
+  scoring?: ScoringContext;
 }

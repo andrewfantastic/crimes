@@ -33,6 +33,11 @@ import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
+import {
+  buildScoringContext,
+  finaliseFindingScores,
+} from "./scoring/build.js";
+import type { ScoringContext } from "./scoring/build.js";
 import type {
   ApplySuppressionsOptions,
   SuppressionEntry,
@@ -122,6 +127,13 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // so that dependency-graph detectors and `scores.blast_radius` see the
   // full picture, not just the `--changed` slice.
   const imports = await safelyBuildImportGraph({ root, allFiles });
+  // Scoring context: built once, queried per-finding during finalisation.
+  // Always present (degrades gracefully when git is unavailable).
+  const scoring = await safelyBuildScoringContext({
+    root,
+    allFiles,
+    imports,
+  });
 
   const findings: Finding[] = [];
 
@@ -140,9 +152,18 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         ia,
         petty,
         imports,
+        scoring,
       });
       findings.push(...detectorFindings);
     }
+  }
+
+  // Backfill the per-finding scoring fields (churn / test_gap /
+  // blast_radius) and recompute `agent_risk` from the unified 0.6.0
+  // formula. Done once after all detectors have emitted so the
+  // signal-source code lives in one place, not 17.
+  for (const f of findings) {
+    finaliseFindingScores(f, scoring);
   }
 
   const sorted = sortFindings(findings);
@@ -212,6 +233,22 @@ async function safelyBuildImportGraph(args: {
 }): Promise<ImportGraph | undefined> {
   try {
     return await buildImportGraph({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildScoringContext(args: {
+  root: string;
+  allFiles: string[];
+  imports: ImportGraph | undefined;
+}): Promise<ScoringContext | undefined> {
+  try {
+    return await buildScoringContext({
+      root: args.root,
+      files: args.allFiles,
+      imports: args.imports,
+    });
   } catch {
     return undefined;
   }
