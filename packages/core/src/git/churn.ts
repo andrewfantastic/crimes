@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 
 /**
  * Sentinel header for parsing `git log` output. We emit one of these before
@@ -141,6 +141,27 @@ export function isGitRepo(root: string): boolean {
   return existsSync(resolve(root, ".git"));
 }
 
+/**
+ * Walk upward from `start` looking for a `.git` entry (file or
+ * directory — submodules use a file). Returns the absolute path of the
+ * enclosing repo root, or `undefined` if the walk reaches the
+ * filesystem root without finding one.
+ *
+ * Used by `crimes hotspots <subdir>` so a sub-directory inside a Git
+ * repo still gets churn signal — running the command from
+ * `packages/cli` in this monorepo, for example, should still see
+ * commits even though `packages/cli/.git` doesn't exist.
+ */
+export function findEnclosingGitRepo(start: string): string | undefined {
+  let current = resolve(start);
+  while (true) {
+    if (existsSync(resolve(current, ".git"))) return current;
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
 interface SpawnResult {
   status: number | null;
   stdout: string;
@@ -186,26 +207,49 @@ export async function collectChurn(
   options: CollectChurnOptions,
 ): Promise<CollectChurnResult> {
   const { root, since } = options;
-  if (!isGitRepo(root)) {
+  // Walk upward to the enclosing git repo. This is what makes
+  // `crimes hotspots packages` work from the monorepo root — the
+  // sub-directory isn't its own git root, but the parent is.
+  const gitRoot = findEnclosingGitRepo(root);
+  if (gitRoot === undefined) {
     return { gitAvailable: false, files: [] };
   }
 
   const sinceArg = normaliseSince(since);
 
+  // Repo-root-relative POSIX path to the scan root. Empty when the
+  // scan root *is* the git root. Passed to `git log -- <pathspec>` so
+  // git filters to commits that touch files under the scan directory.
+  const scanPathRelToGit = toPosixRelative(gitRoot, root);
+
   try {
+    const logArgs = [
+      "log",
+      `--since=${sinceArg}`,
+      `--pretty=format:${COMMIT_MARKER} %cI`,
+      "--name-only",
+      "--no-merges",
+    ];
+    if (scanPathRelToGit.length > 0) {
+      logArgs.push("--", scanPathRelToGit);
+    }
     const [log, shallow] = await Promise.all([
-      runGit(root, [
-        "log",
-        `--since=${sinceArg}`,
-        `--pretty=format:${COMMIT_MARKER} %cI`,
-        "--name-only",
-        "--no-merges",
-      ]),
-      probeShallow(root),
+      runGit(gitRoot, logArgs),
+      probeShallow(gitRoot),
     ]);
+    // `git log` emits paths relative to the git root. Callers expect
+    // them relative to the scan root they passed in, so rewrite each
+    // entry. Files outside the scan path are dropped (`--` pathspec
+    // already filters them, but rewriting is a defensive second check).
+    const rebased: FileChurn[] = [];
+    for (const entry of parseGitLog(log.stdout)) {
+      const rel = rebaseChurnFile(entry.file, scanPathRelToGit);
+      if (rel === undefined) continue;
+      rebased.push({ ...entry, file: rel });
+    }
     const result: CollectChurnResult = {
       gitAvailable: true,
-      files: parseGitLog(log.stdout),
+      files: rebased,
     };
     if (shallow) {
       result.historyLimited = true;
@@ -216,6 +260,36 @@ export async function collectChurn(
   } catch {
     return { gitAvailable: false, files: [] };
   }
+}
+
+/**
+ * Repo-root-relative POSIX path from `gitRoot` to `target`, or the
+ * empty string when the two are the same. `..`-leading paths are
+ * treated as outside the repo and return the empty string — that
+ * should be impossible given the upward walk, but stays defensive.
+ */
+function toPosixRelative(gitRoot: string, target: string): string {
+  const rel = relative(resolve(gitRoot), resolve(target));
+  if (rel.length === 0) return "";
+  if (rel.startsWith("..")) return "";
+  return rel.split(sep).join("/");
+}
+
+/**
+ * Convert a path emitted by `git log` (relative to the git root) to a
+ * path relative to the scan root. `scanPath` is the git-root-relative
+ * scan directory (empty when scan root == git root). Returns
+ * `undefined` when the file is outside `scanPath`.
+ */
+function rebaseChurnFile(
+  file: string,
+  scanPath: string,
+): string | undefined {
+  if (scanPath.length === 0) return file;
+  if (file === scanPath) return "";
+  const prefix = `${scanPath}/`;
+  if (!file.startsWith(prefix)) return undefined;
+  return file.slice(prefix.length);
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   applyDiffFailOn,
   diff,
   InvalidDiffRangeError,
+  loadConfig,
   NotAGitRepoError,
   parseDiffRange,
   UnknownGitRefError,
@@ -10,6 +11,10 @@ import {
 import type { DiffFailOn } from "@crimes/core";
 import { formatDiffJsonReport, formatDiffReport } from "@crimes/reporter";
 import type { Command } from "commander";
+import {
+  emitDetectorsDisabledBreadcrumb,
+  resolveNoColor,
+} from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface DiffCommandOptions {
@@ -85,6 +90,15 @@ export function registerDiffCommand(program: Command): void {
 
       let report;
       try {
+        try {
+          const config = loadConfig(root);
+          emitDetectorsDisabledBreadcrumb(config, {
+            noColor: resolveNoColor(options),
+          });
+        } catch {
+          // A bad config will surface a clearer error inside `diff()`;
+          // the breadcrumb is best-effort and shouldn't mask that.
+        }
         report = await diff({
           root,
           base: parsed.base,

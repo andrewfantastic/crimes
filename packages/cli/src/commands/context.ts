@@ -11,6 +11,10 @@ import {
   formatContextJsonReport,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import {
+  emitDetectorsDisabledBreadcrumb,
+  resolveNoColor,
+} from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface ContextCommandOptions {
@@ -77,6 +81,9 @@ export function registerContextCommand(program: Command): void {
         // so the .crimes/suppressions.json lines up with the report.
         const resolvedRoot = report.repo.root;
         const config = loadConfig(resolvedRoot);
+        emitDetectorsDisabledBreadcrumb(config, {
+          noColor: resolveNoColor(options),
+        });
         const suppressions = loadSuppressionsForRoot(resolvedRoot, config);
         report = applySuppressionsToContext(report, suppressions.entries, {
           showSuppressed: options.showSuppressed,

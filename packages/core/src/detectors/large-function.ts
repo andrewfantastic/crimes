@@ -8,14 +8,15 @@ import type { Finding, Severity } from "../finding.js";
  * existing `crimes.config.json` setups keep working; the other shapes
  * use fixed values reflecting what looks normal for that surface.
  *
- *   shape           | threshold | sev @ thr | sev @ 2× thr
- *   ----------------+-----------+-----------+-------------
- *   domain          | config    | medium    | high
- *   route_handler   | 100       | medium    | high
- *   react_component | 200       | medium    | high
- *   page_export    | 200       | medium    | high
- *   test_callback  | 200       | low       | medium
- *   unknown        |  80       | medium    | high
+ *   shape                  | threshold | sev @ thr | sev @ 2× thr
+ *   -----------------------+-----------+-----------+-------------
+ *   domain                 | config    | medium    | high
+ *   route_handler          | 100       | medium    | high
+ *   react_component        | 200       | medium    | high
+ *   page_export            | 200       | medium    | high
+ *   test_callback          | 200       | low       | medium
+ *   cli_command_registrar  | 200       | low       | medium
+ *   unknown                |  80       | medium    | high
  */
 interface ShapePolicy {
   threshold: number;
@@ -57,6 +58,13 @@ const DEFAULT_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = 
     severityAtTwoX: "high",
     label: "route handler",
     agentRiskScale: 1,
+  },
+  cli_command_registrar: {
+    threshold: 200,
+    severityAtThreshold: "low",
+    severityAtTwoX: "medium",
+    label: "CLI command registrar",
+    agentRiskScale: 0.6,
   },
   unknown: {
     threshold: 80,
@@ -175,6 +183,9 @@ function symbolFor(fn: ParsedFunction): string {
       if (m) return `${m[1]} callback`;
     }
   }
+  if (fn.shape === "cli_command_registrar") {
+    return "action callback";
+  }
   return "<anonymous>";
 }
 
@@ -237,6 +248,12 @@ function suggestedActionFor(shape: FunctionShape): string {
       return (
         "Split the suite into focused describe blocks or per-scenario " +
         "tests so each behaviour is independently runnable and diffable."
+      );
+    case "cli_command_registrar":
+      return (
+        "Move the action body into a named exported function and let the " +
+        "registrar stay as a thin Commander DSL chain — the chain itself " +
+        "is declarative and rarely needs editing."
       );
     default:
       return (

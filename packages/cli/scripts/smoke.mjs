@@ -223,7 +223,7 @@ try {
     `  → ${ctxReport.findings.length} findings, ${ctxReport.likely_tests.length} likely tests, risk=${ctxReport.risk?.level}\n`,
   );
 
-  step("crimes hotspots (human, --no-color, non-git fixture)");
+  step("crimes hotspots (human, --no-color)");
   const hotHumanOut = run(installedBin, ["hotspots", fixture, "--no-color"]).stdout;
   assert(
     hotHumanOut.includes("CRIMES HOTSPOTS"),

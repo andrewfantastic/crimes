@@ -37,6 +37,7 @@ export interface CrimesConfig {
       react_component?: number;
       page_export?: number;
       test_callback?: number;
+      cli_command_registrar?: number;
       unknown?: number;
     };
   };
@@ -139,6 +140,7 @@ const largeFunctionShapesSchema = z
     react_component: z.number().int().positive().optional(),
     page_export: z.number().int().positive().optional(),
     test_callback: z.number().int().positive().optional(),
+    cli_command_registrar: z.number().int().positive().optional(),
     unknown: z.number().int().positive().optional(),
   })
   .strict();

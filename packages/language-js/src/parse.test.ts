@@ -231,3 +231,67 @@ describe("parseFile — UI string literals", () => {
     expect(result.uiStringLiterals).toEqual([]);
   });
 });
+
+describe("parseFile — cli_command_registrar shape", () => {
+  it("classifies a `registerXCommand(program)` wrapper as cli_command_registrar", () => {
+    const src = `
+import type { Command } from "commander";
+export function registerScanCommand(program: Command): void {
+  program
+    .command("scan")
+    .description("Scan a repository.")
+    .option("--all", "show every finding", false)
+    .action(() => { return; });
+}
+`;
+    const result = parse(src);
+    const fn = result.functions.find((f) => f.name === "registerScanCommand");
+    expect(fn).toBeDefined();
+    expect(fn!.shape).toBe("cli_command_registrar");
+    expect(fn!.shapeEvidence?.some((e) => /register\*Command/.test(e))).toBe(true);
+  });
+
+  it("classifies an anonymous `.action(...)` callback as cli_command_registrar", () => {
+    const src = `
+import type { Command } from "commander";
+export function registerScanCommand(program: Command): void {
+  program
+    .command("scan")
+    .action(async (path: string) => {
+      const x = path;
+      return x;
+    });
+}
+`;
+    const result = parse(src);
+    const callbacks = result.functions.filter(
+      (f) => f.shape === "cli_command_registrar" && !f.name,
+    );
+    expect(callbacks).toHaveLength(1);
+    expect(callbacks[0]!.kind).toBe("arrow");
+  });
+
+  it("leaves a `register` function with no Commander chain alone", () => {
+    const src = `
+export function registerScanCommand(program: unknown): void {
+  console.log(program);
+}
+`;
+    const result = parse(src);
+    const fn = result.functions.find((f) => f.name === "registerScanCommand");
+    expect(fn).toBeDefined();
+    expect(fn!.shape).not.toBe("cli_command_registrar");
+  });
+
+  it("does not classify .action callbacks outside a .command chain", () => {
+    // A standalone `something.action(...)` call that isn't preceded by
+    // `.command(...)` is not a Commander DSL — it could be Redux, Zustand,
+    // etc. Don't grab them.
+    const src = `
+store.action(() => { return; });
+`;
+    const result = parse(src);
+    const arrows = result.functions.filter((f) => f.kind === "arrow");
+    expect(arrows.every((f) => f.shape !== "cli_command_registrar")).toBe(true);
+  });
+});

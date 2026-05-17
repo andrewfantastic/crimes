@@ -29,6 +29,12 @@ export type FunctionKind =
  *   (`GET`, `POST`, …) under an App Router route directory, or the
  *   default export under `pages/api/**` (Pages Router API). Medium
  *   threshold (100).
+ * - **`cli_command_registrar`** — a Commander.js builder DSL function:
+ *   either the outer `registerXCommand(program)` wrapper whose body is
+ *   a `program.command(…).description(…).option(…).action(…)` chain,
+ *   or the anonymous arrow / function passed to `.action(…)` on that
+ *   chain. High threshold, low severity at threshold — the chain is
+ *   declarative registration, not branching logic.
  * - **`unknown`** — an anonymous function/arrow that didn't match any
  *   of the above. Sits at a slightly relaxed threshold (80) so real
  *   god-functions hiding inside callbacks still surface.
@@ -39,6 +45,7 @@ export type FunctionShape =
   | "react_component"
   | "page_export"
   | "route_handler"
+  | "cli_command_registrar"
   | "unknown";
 
 export interface ParsedFunction {
@@ -411,6 +418,35 @@ function classifyShape(args: {
     };
   }
 
+  // 1b. cli_command_registrar — Commander.js DSL. Recognised as either
+  //     the outer `registerXCommand(program)` wrapper, OR the anonymous
+  //     callback passed to `.action(...)` on a `program.command(...)`
+  //     chain. The chain is registration syntax, not branching logic, so
+  //     it shouldn't be charged at domain thresholds.
+  if (
+    name &&
+    isCommanderRegistrarName(name) &&
+    (kind === "function" || kind === "function_expression" || kind === "arrow") &&
+    bodyContainsCommanderChain(node)
+  ) {
+    return {
+      shape: "cli_command_registrar",
+      shapeEvidence: [
+        `name matches register*Command`,
+        `body contains Commander DSL chain`,
+      ],
+    };
+  }
+  if (
+    (kind === "arrow" || kind === "function_expression") &&
+    isCommanderActionCallbackArg(node)
+  ) {
+    return {
+      shape: "cli_command_registrar",
+      shapeEvidence: [`callback passed to Commander .action(...)`],
+    };
+  }
+
   // 2. route_handler — two flavours:
   //    (a) App Router: named export with HTTP-verb name under
   //        `(src/)?app/**` (typically `route.ts`).
@@ -574,6 +610,117 @@ function isDefaultExportFunction(node: ts.Node): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * Matches the `registerXCommand` naming convention used by Commander
+ * builder DSL wrappers (e.g. `registerScanCommand`,
+ * `registerIgnoreCommand`). Conservative: requires the literal
+ * `register` prefix, a PascalCase tail, and a `Command` suffix.
+ */
+const COMMANDER_REGISTRAR_NAME_RE = /^register[A-Z][A-Za-z0-9]*Command$/;
+
+function isCommanderRegistrarName(name: string): boolean {
+  return COMMANDER_REGISTRAR_NAME_RE.test(name);
+}
+
+/**
+ * True when `node`'s body contains an expression of the form
+ * `<param>.command(...).…` — the Commander builder chain. Walks the
+ * direct body statements rather than the whole tree so unrelated
+ * `something.command(...)` calls elsewhere don't trip the heuristic.
+ */
+function bodyContainsCommanderChain(node: ts.Node): boolean {
+  let body: ts.Node | undefined;
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isMethodDeclaration(node)
+  ) {
+    body = node.body;
+  } else if (ts.isArrowFunction(node)) {
+    body = node.body;
+  }
+  if (!body) return false;
+
+  if (ts.isBlock(body)) {
+    for (const stmt of body.statements) {
+      if (
+        ts.isExpressionStatement(stmt) &&
+        chainIncludesCommandCall(stmt.expression)
+      ) {
+        return true;
+      }
+      if (
+        ts.isReturnStatement(stmt) &&
+        stmt.expression &&
+        chainIncludesCommandCall(stmt.expression)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // ConciseBody: an arrow's expression-bodied form.
+  return chainIncludesCommandCall(body as ts.Expression);
+}
+
+/**
+ * Walk a method-call chain (`a.b().c().d()`) and return true if any
+ * step in the chain is a `.command(...)` call. We don't enforce that
+ * the chain root is literally an identifier named `program` — repos
+ * sometimes alias it (`cmd`, `cli`), and the `.command(...)` step plus
+ * the registrar function name is conservative enough.
+ */
+function chainIncludesCommandCall(expr: ts.Expression): boolean {
+  let cursor: ts.Expression = expr;
+  while (ts.isCallExpression(cursor)) {
+    const callee = cursor.expression;
+    if (
+      ts.isPropertyAccessExpression(callee) &&
+      ts.isIdentifier(callee.name) &&
+      callee.name.text === "command"
+    ) {
+      return true;
+    }
+    if (ts.isPropertyAccessExpression(callee)) {
+      cursor = callee.expression;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
+/**
+ * True when the function is an argument to a `.action(...)` call that
+ * sits on a Commander builder chain (i.e. the chain contains a
+ * `.command(...)` step somewhere upstream). The receiver may be any
+ * identifier — see {@link chainIncludesCommandCall}.
+ */
+function isCommanderActionCallbackArg(node: ts.Node): boolean {
+  const parent = node.parent;
+  if (!parent || !ts.isCallExpression(parent)) return false;
+  let isArgument = false;
+  for (const arg of parent.arguments) {
+    if (arg === node) {
+      isArgument = true;
+      break;
+    }
+  }
+  if (!isArgument) return false;
+  const callee = parent.expression;
+  if (
+    !ts.isPropertyAccessExpression(callee) ||
+    !ts.isIdentifier(callee.name) ||
+    callee.name.text !== "action"
+  ) {
+    return false;
+  }
+  // The receiver of `.action(...)` should itself be a `.command(...)`
+  // chain head — i.e. somewhere up the chain we hit a `.command(...)`
+  // call.
+  return chainIncludesCommandCall(callee.expression);
 }
 
 /**

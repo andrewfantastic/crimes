@@ -273,6 +273,71 @@ describe("largeFunctionDetector (shape-aware thresholds)", () => {
     expect(findings).toEqual([]);
   });
 
+  it("does not flag a 180-line cli_command_registrar", async () => {
+    const findings = await largeFunctionDetector.run(
+      makeCtx([
+        {
+          name: "registerScanCommand",
+          start: 1,
+          end: 180,
+          shape: "cli_command_registrar",
+          shapeEvidence: ["name matches register*Command"],
+        },
+      ]),
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it("flags a 240-line cli_command_registrar as low severity", async () => {
+    const findings = await largeFunctionDetector.run(
+      makeCtx([
+        {
+          name: "registerScanCommand",
+          start: 1,
+          end: 240,
+          shape: "cli_command_registrar",
+          shapeEvidence: ["name matches register*Command"],
+        },
+      ]),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("low");
+    expect(
+      findings[0]!.evidence.some((e) =>
+        /CLI command registrar threshold \(200/.test(e),
+      ),
+    ).toBe(true);
+  });
+
+  it("escalates a 401-line cli_command_registrar to medium (≥2× threshold)", async () => {
+    const findings = await largeFunctionDetector.run(
+      makeCtx([
+        {
+          name: "registerIgnoreCommand",
+          start: 1,
+          end: 401,
+          shape: "cli_command_registrar",
+        },
+      ]),
+    );
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("labels anonymous cli_command_registrar callbacks as 'action callback'", async () => {
+    const findings = await largeFunctionDetector.run(
+      makeCtx([
+        {
+          start: 1,
+          end: 240,
+          shape: "cli_command_registrar",
+          shapeEvidence: ["callback passed to Commander .action(...)"],
+        },
+      ]),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.symbol).toBe("action callback");
+  });
+
   it("test_callback agent_risk is lower than a same-size domain function", async () => {
     const test = await largeFunctionDetector.run(
       makeCtx([
@@ -370,6 +435,44 @@ describe("largeFunctionDetector (end-to-end shape classification)", () => {
         /React component threshold \(200/.test(e),
       ),
     ).toBe(true);
+  });
+
+  it("classifies a `registerXCommand(program)` wrapper as cli_command_registrar", async () => {
+    // 240-line wrapper → past the 200-line registrar threshold → low.
+    // (The DSL chain itself is declarative; severity stays low even at
+    // generous sizes — the 0.5.0 dogfood signal was that high severity
+    // on Commander wrappers was the dominant false-positive cluster.)
+    const optionLines = Array.from({ length: 230 }, () => '    .option("--x", "x")').join(
+      "\n",
+    );
+    const source =
+      "import type { Command } from 'commander';\n" +
+      "export function registerScanCommand(program: Command): void {\n" +
+      "  program\n" +
+      "    .command('scan')\n" +
+      optionLines +
+      "\n    .action(() => { return; });\n" +
+      "}\n";
+    const ctx = parsedCtx({
+      source,
+      file: "src/cli/commands/scan.ts",
+      absolutePath: "/tmp/src/cli/commands/scan.ts",
+    });
+    const findings = await largeFunctionDetector.run(ctx);
+    // The wrapper plus its anonymous `.action(...)` arrow both get
+    // classified as cli_command_registrar — one or both may exceed
+    // the 200-line threshold depending on the chain length. Just
+    // require *some* finding to come back, and that none escape to
+    // medium/high severity.
+    expect(findings.length).toBeGreaterThan(0);
+    for (const f of findings) {
+      expect(f.severity).toBe("low");
+      expect(
+        f.evidence.some((e) =>
+          /CLI command registrar threshold \(200/.test(e),
+        ),
+      ).toBe(true);
+    }
   });
 
   it("keeps the fixture's generateInvoice God Function at high severity", async () => {

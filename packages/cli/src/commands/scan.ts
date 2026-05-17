@@ -15,6 +15,10 @@ import {
   formatScanFailOnLine,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import {
+  emitDetectorsDisabledBreadcrumb,
+  resolveNoColor,
+} from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface ScanCommandOptions {
@@ -99,6 +103,9 @@ export function registerScanCommand(program: Command): void {
       let config;
       try {
         config = loadConfig(root);
+        emitDetectorsDisabledBreadcrumb(config, {
+          noColor: resolveNoColor(options),
+        });
         report = await scan({
           root,
           config,

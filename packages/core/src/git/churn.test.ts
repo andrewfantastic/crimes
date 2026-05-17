@@ -1,5 +1,30 @@
-import { describe, expect, it } from "vitest";
-import { normaliseSince, parseGitLog } from "./churn.js";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  collectChurn,
+  findEnclosingGitRepo,
+  normaliseSince,
+  parseGitLog,
+} from "./churn.js";
+
+const execFileAsync = promisify(execFile);
+
+async function git(cwd: string, ...args: string[]): Promise<void> {
+  await execFileAsync("git", args, {
+    cwd,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "crimes-test",
+      GIT_AUTHOR_EMAIL: "test@example.com",
+      GIT_COMMITTER_NAME: "crimes-test",
+      GIT_COMMITTER_EMAIL: "test@example.com",
+    },
+  });
+}
 
 describe("normaliseSince", () => {
   it.each([
@@ -132,5 +157,108 @@ describe("parseGitLog", () => {
     ].join("\n");
     const parsed = parseGitLog(output);
     expect(parsed[0]!.latestChange).toBe("2026-05-15T10:00:00+00:00");
+  });
+});
+
+describe("findEnclosingGitRepo", () => {
+  let repo: string;
+
+  beforeEach(async () => {
+    const raw = await mkdtemp(join(tmpdir(), "crimes-churn-enclosing-"));
+    repo = await realpath(raw);
+    await git(repo, "init", "--initial-branch=main", "--quiet");
+    await git(repo, "config", "commit.gpgsign", "false");
+    await mkdir(join(repo, "packages", "cli", "src"), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(repo, { recursive: true, force: true });
+  });
+
+  it("returns the same directory when .git is present", () => {
+    expect(findEnclosingGitRepo(repo)).toBe(repo);
+  });
+
+  it("walks upward to find the enclosing repo from a subdirectory", () => {
+    const sub = join(repo, "packages", "cli", "src");
+    expect(findEnclosingGitRepo(sub)).toBe(repo);
+  });
+
+  it("returns undefined when no .git is found above the path", async () => {
+    const orphan = await mkdtemp(join(tmpdir(), "crimes-churn-orphan-"));
+    const real = await realpath(orphan);
+    try {
+      // Tmp dirs on most systems aren't inside a git repo. If they
+      // happen to be, this test is a no-op rather than a failure.
+      const found = findEnclosingGitRepo(real);
+      if (found !== undefined) return;
+      expect(found).toBeUndefined();
+    } finally {
+      await rm(real, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("collectChurn enclosing-repo lookup", () => {
+  let repo: string;
+
+  beforeEach(async () => {
+    const raw = await mkdtemp(join(tmpdir(), "crimes-churn-int-"));
+    repo = await realpath(raw);
+    await git(repo, "init", "--initial-branch=main", "--quiet");
+    await git(repo, "config", "commit.gpgsign", "false");
+    await mkdir(join(repo, "packages", "cli", "src"), { recursive: true });
+    await mkdir(join(repo, "packages", "core", "src"), { recursive: true });
+    await writeFile(
+      join(repo, "packages", "cli", "src", "scan.ts"),
+      "export const x = 1;\n",
+    );
+    await writeFile(
+      join(repo, "packages", "core", "src", "scan.ts"),
+      "export const y = 1;\n",
+    );
+    await writeFile(join(repo, "README.md"), "root file\n");
+    await git(repo, "add", "-A");
+    await git(repo, "commit", "-m", "init", "--quiet");
+  });
+
+  afterEach(async () => {
+    await rm(repo, { recursive: true, force: true });
+  });
+
+  it("finds churn when called against a subdirectory of the repo", async () => {
+    const sub = join(repo, "packages", "cli");
+    const result = await collectChurn({ root: sub, since: "10y" });
+    expect(result.gitAvailable).toBe(true);
+    const files = result.files.map((f) => f.file).sort();
+    // The scan root is `packages/cli`; paths must be relative to it,
+    // not to the git root.
+    expect(files).toContain("src/scan.ts");
+    // Files outside the scan path are dropped.
+    expect(files).not.toContain("packages/core/src/scan.ts");
+    expect(files).not.toContain("README.md");
+  });
+
+  it("returns repo-root-relative paths when scan root == git root", async () => {
+    const result = await collectChurn({ root: repo, since: "10y" });
+    expect(result.gitAvailable).toBe(true);
+    const files = result.files.map((f) => f.file).sort();
+    expect(files).toContain("packages/cli/src/scan.ts");
+    expect(files).toContain("README.md");
+  });
+
+  it("reports gitAvailable=false when no enclosing repo is found", async () => {
+    const orphan = await mkdtemp(join(tmpdir(), "crimes-churn-orphan2-"));
+    const real = await realpath(orphan);
+    try {
+      const result = await collectChurn({ root: real, since: "10y" });
+      // If the system temp dir happens to sit inside another git repo,
+      // gitAvailable will be true — skip the assertion in that case.
+      if (result.gitAvailable) return;
+      expect(result.gitAvailable).toBe(false);
+      expect(result.files).toEqual([]);
+    } finally {
+      await rm(real, { recursive: true, force: true });
+    }
   });
 });
