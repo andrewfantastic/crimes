@@ -1,6 +1,6 @@
 {
   "upstream": "https://github.com/tj/commander.js",
-  "sha": "ada0b40ec5d4ee8d4dc8c00a45edd6da2cea66cd",
+  "sha": "c03f066e4ade4bab1036e62d1c330f68a37bef1c",
   "license": "MIT",
-  "purpose": "Reference Commander.js implementation itself — exercises cli_command_registrar shape recognition + IA detectors. Meta but useful: testing the shape against the canonical library it was modelled on."
+  "purpose": "Reference Commander.js implementation pinned at the v9.5.0 release tag — exercises cli_command_registrar shape recognition + IA detectors. Meta but useful: testing the shape against the canonical library it was modelled on."
 }

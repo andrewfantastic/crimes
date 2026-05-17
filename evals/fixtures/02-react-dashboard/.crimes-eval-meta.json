@@ -1,6 +1,6 @@
 {
   "upstream": "https://github.com/vercel/next-learn",
-  "sha": "c93bc685b58a3a09c50f1a9f6cc40d8ce15c6c9f",
+  "sha": "914a33426aac20f825ca52fae80b889302b92240",
   "license": "MIT",
-  "purpose": "Mid-size Next.js learn app — exercises frontend track (page_export, react_component, design tokens, JSX shape duplication). Pinned to a stable, well-known instructional repo so reproducing results doesn't depend on tracking a fast-moving HEAD."
+  "purpose": "Mid-size Next.js learn app — exercises frontend track (page_export, react_component, design tokens, JSX shape duplication). Pinned to vercel/next-learn `main` HEAD at vendoring time; this instructional repo doesn't tag releases. Re-pin to a fresher SHA when upstream rebases enough to matter."
 }
