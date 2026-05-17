@@ -23,6 +23,8 @@ import { missingAgentContextDetector } from "./detectors/missing-agent-context.j
 import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
 import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
+import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
+import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
@@ -70,6 +72,8 @@ export const builtInDetectors: Detector[] = [
   duplicatedNavigationSourceDetector,
   conceptAliasDriftDetector,
   docsCodeDriftDetector,
+  orphanedDestinationDetector,
+  parallelDestinationDetector,
   // Dependency-graph + architecture (require ctx.imports).
   layerViolationDetector,
   circularDependencyDetector,
