@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import {
   applyScanFailOn,
   applySuppressionsToScan,
+  countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
   NotAGitRepoError,
@@ -17,9 +18,13 @@ import {
 import type { Command } from "commander";
 import {
   emitDetectorsDisabledBreadcrumb,
+  emitFuturePinnedSuppressionsWarnings,
+  emitResurfacedSuppressionsBreadcrumb,
   resolveNoColor,
 } from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
+
+declare const __CRIMES_VERSION__: string;
 
 interface ScanCommandOptions {
   format: "human" | "json";
@@ -103,9 +108,8 @@ export function registerScanCommand(program: Command): void {
       let config;
       try {
         config = loadConfig(root);
-        emitDetectorsDisabledBreadcrumb(config, {
-          noColor: resolveNoColor(options),
-        });
+        const noColor = resolveNoColor(options);
+        emitDetectorsDisabledBreadcrumb(config, { noColor });
         report = await scan({
           root,
           config,
@@ -113,9 +117,21 @@ export function registerScanCommand(program: Command): void {
           base: options.base,
         });
         const suppressions = loadSuppressionsForRoot(root, config);
+        // Future-pinned warnings can fire even when nothing resurfaces
+        // (the entry might not match any current finding).
+        emitFuturePinnedSuppressionsWarnings(
+          suppressions.entries,
+          __CRIMES_VERSION__,
+          { noColor },
+        );
         report = applySuppressionsToScan(report, suppressions.entries, {
           showSuppressed: options.showSuppressed,
+          crimesVersion: __CRIMES_VERSION__,
         });
+        emitResurfacedSuppressionsBreadcrumb(
+          countResurfacedByPinnedMinor(report.findings),
+          { noColor },
+        );
       } catch (error) {
         if (
           error instanceof NotAGitRepoError ||

@@ -1,9 +1,11 @@
 import { resolve } from "node:path";
 import {
   applyDiffFailOn,
+  countResurfacedByPinnedMinor,
   diff,
   InvalidDiffRangeError,
   loadConfig,
+  loadSuppressionsForRoot,
   NotAGitRepoError,
   parseDiffRange,
   UnknownGitRefError,
@@ -13,9 +15,13 @@ import { formatDiffJsonReport, formatDiffReport } from "@crimes/reporter";
 import type { Command } from "commander";
 import {
   emitDetectorsDisabledBreadcrumb,
+  emitFuturePinnedSuppressionsWarnings,
+  emitResurfacedSuppressionsBreadcrumb,
   resolveNoColor,
 } from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
+
+declare const __CRIMES_VERSION__: string;
 
 interface DiffCommandOptions {
   format: "human" | "json";
@@ -88,13 +94,21 @@ export function registerDiffCommand(program: Command): void {
         throw error;
       }
 
+      const noColor = resolveNoColor(options);
       let report;
       try {
         try {
           const config = loadConfig(root);
-          emitDetectorsDisabledBreadcrumb(config, {
-            noColor: resolveNoColor(options),
-          });
+          emitDetectorsDisabledBreadcrumb(config, { noColor });
+          // Future-pinned warnings before we run the diff — they're a
+          // heads-up about file state, not about anything specific to
+          // the new findings.
+          const suppressions = loadSuppressionsForRoot(root, config);
+          emitFuturePinnedSuppressionsWarnings(
+            suppressions.entries,
+            __CRIMES_VERSION__,
+            { noColor },
+          );
         } catch {
           // A bad config will surface a clearer error inside `diff()`;
           // the breadcrumb is best-effort and shouldn't mask that.
@@ -104,7 +118,12 @@ export function registerDiffCommand(program: Command): void {
           base: parsed.base,
           head: parsed.head,
           showSuppressed: options.showSuppressed,
+          crimesVersion: __CRIMES_VERSION__,
         });
+        emitResurfacedSuppressionsBreadcrumb(
+          countResurfacedByPinnedMinor(report.new_findings),
+          { noColor },
+        );
       } catch (error) {
         if (
           error instanceof NotAGitRepoError ||

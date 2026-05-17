@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import {
   applySuppressionsToContext,
   context,
+  countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
 } from "@crimes/core";
@@ -13,9 +14,13 @@ import {
 import type { Command } from "commander";
 import {
   emitDetectorsDisabledBreadcrumb,
+  emitFuturePinnedSuppressionsWarnings,
+  emitResurfacedSuppressionsBreadcrumb,
   resolveNoColor,
 } from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
+
+declare const __CRIMES_VERSION__: string;
 
 interface ContextCommandOptions {
   format: "human" | "json";
@@ -81,13 +86,22 @@ export function registerContextCommand(program: Command): void {
         // so the .crimes/suppressions.json lines up with the report.
         const resolvedRoot = report.repo.root;
         const config = loadConfig(resolvedRoot);
-        emitDetectorsDisabledBreadcrumb(config, {
-          noColor: resolveNoColor(options),
-        });
+        const noColor = resolveNoColor(options);
+        emitDetectorsDisabledBreadcrumb(config, { noColor });
         const suppressions = loadSuppressionsForRoot(resolvedRoot, config);
+        emitFuturePinnedSuppressionsWarnings(
+          suppressions.entries,
+          __CRIMES_VERSION__,
+          { noColor },
+        );
         report = applySuppressionsToContext(report, suppressions.entries, {
           showSuppressed: options.showSuppressed,
+          crimesVersion: __CRIMES_VERSION__,
         });
+        emitResurfacedSuppressionsBreadcrumb(
+          countResurfacedByPinnedMinor(report.findings),
+          { noColor },
+        );
       } catch (error) {
         if (isUserSetupError(error)) {
           fatalUserError(error);

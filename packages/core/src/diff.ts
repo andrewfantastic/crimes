@@ -26,6 +26,13 @@ export interface DiffOptions {
    * with `suppressed: true` and `suppression_reason`. Defaults to false.
    */
   showSuppressed?: boolean;
+  /**
+   * Current crimes version (semver). When provided, feedback-sourced
+   * suppressions with a stale `crimes_version_pinned` minor are resurfaced
+   * — kept in `new_findings` tagged `previously_suppressed: true` — so the
+   * user can re-confirm. The CLI passes its own `__CRIMES_VERSION__`.
+   */
+  crimesVersion?: string;
 }
 
 /**
@@ -230,7 +237,12 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
   const { visible: visibleNew, suppressedCount } = partitionFindings(
     new_findings,
     suppressions.entries,
-    { showSuppressed: options.showSuppressed ?? false },
+    {
+      showSuppressed: options.showSuppressed ?? false,
+      ...(options.crimesVersion !== undefined
+        ? { crimesVersion: options.crimesVersion }
+        : {}),
+    },
   );
 
   const report: DiffReport = {

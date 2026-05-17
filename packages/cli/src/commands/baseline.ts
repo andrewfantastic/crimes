@@ -2,6 +2,9 @@ import { resolve } from "node:path";
 import {
   BaselineNotFoundError,
   checkBaseline,
+  countResurfacedByPinnedMinor,
+  loadConfig,
+  loadSuppressionsForRoot,
   MalformedBaselineError,
   saveBaseline,
 } from "@crimes/core";
@@ -13,6 +16,11 @@ import {
   formatBaselineSaveReport,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import {
+  emitFuturePinnedSuppressionsWarnings,
+  emitResurfacedSuppressionsBreadcrumb,
+  resolveNoColor,
+} from "../breadcrumb.js";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 // Injected at build time by tsup from the CLI package's package.json. Shared
@@ -135,13 +143,32 @@ export function registerBaselineCommand(program: Command): void {
           return;
         }
 
+        const noColor = resolveNoColor(options);
+        try {
+          const config = loadConfig(root);
+          const suppressions = loadSuppressionsForRoot(root, config);
+          emitFuturePinnedSuppressionsWarnings(
+            suppressions.entries,
+            __CRIMES_VERSION__,
+            { noColor },
+          );
+        } catch {
+          // Best-effort: a bad config will surface a clearer error
+          // inside `checkBaseline()` below.
+        }
+
         let report;
         try {
           report = await checkBaseline({
             root,
             failOn: options.failOn,
             showSuppressed: options.showSuppressed,
+            crimesVersion: __CRIMES_VERSION__,
           });
+          emitResurfacedSuppressionsBreadcrumb(
+            countResurfacedByPinnedMinor(report.new_findings),
+            { noColor },
+          );
         } catch (error) {
           if (
             error instanceof BaselineNotFoundError ||

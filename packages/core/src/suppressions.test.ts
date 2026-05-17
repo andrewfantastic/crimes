@@ -7,10 +7,15 @@ import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import {
   appendSuppression,
+  compareMinor,
+  countResurfacedByPinnedMinor,
+  findFuturePinnedSuppressions,
   loadSuppressions,
   MalformedSuppressionsError,
+  minorKey,
   partitionFindings,
   removeSuppression,
+  shouldResurface,
 } from "./suppressions.js";
 
 async function tempPath(): Promise<string> {
@@ -431,5 +436,393 @@ describe("removeSuppression", () => {
     expect(after.suppressions[0].fingerprint).toBe(
       "large_function::b.ts::b",
     );
+  });
+});
+
+describe("minorKey + compareMinor", () => {
+  it("strips patch from semver-shaped strings", () => {
+    expect(minorKey("0.7")).toBe("0.7");
+    expect(minorKey("0.7.0")).toBe("0.7");
+    expect(minorKey("0.7.42")).toBe("0.7");
+    expect(minorKey("1.2.3-beta")).toBe("1.2");
+  });
+
+  it("returns input unchanged when unparseable", () => {
+    expect(minorKey("v0.7")).toBe("v0.7");
+    expect(minorKey("not-a-version")).toBe("not-a-version");
+  });
+
+  it("orders by major then minor, treating different patches as equal", () => {
+    expect(compareMinor("0.6.5", "0.7.0")).toBe(-1);
+    expect(compareMinor("0.7.0", "0.7.5")).toBe(0);
+    expect(compareMinor("1.0.0", "0.99.99")).toBe(1);
+    expect(compareMinor("0.7", "0.7.99")).toBe(0);
+  });
+
+  it("treats unparseable versions as same-minor (conservative)", () => {
+    expect(compareMinor("junk", "0.7.0")).toBe(0);
+  });
+});
+
+describe("shouldResurface", () => {
+  it("returns false for manual suppressions (never resurface)", () => {
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+          source: "manual",
+          crimes_version_pinned: "0.6",
+        },
+        "0.7.0",
+      ),
+    ).toBe(false);
+    // Also: no `source` field at all (the 0.5.0 / 0.6.0 file shape).
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+        },
+        "0.7.0",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false for feedback entries with no pinned version (malformed, treat as quiet)", () => {
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+        },
+        "0.7.0",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns true when a feedback pin is older than the current minor", () => {
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.6",
+        },
+        "0.7.0",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false when pin minor matches current minor (any patch)", () => {
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.7",
+        },
+        "0.7.5",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false when pin is from the future (downgrade scenario)", () => {
+    expect(
+      shouldResurface(
+        {
+          fingerprint: "x",
+          type: "x",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.8",
+        },
+        "0.7.0",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("findFuturePinnedSuppressions", () => {
+  it("returns only feedback entries whose pin is later than current", () => {
+    const entries = [
+      {
+        fingerprint: "future",
+        type: "x",
+        reason: "r",
+        created_at: "x",
+        source: "feedback" as const,
+        crimes_version_pinned: "0.8",
+      },
+      {
+        fingerprint: "current",
+        type: "x",
+        reason: "r",
+        created_at: "x",
+        source: "feedback" as const,
+        crimes_version_pinned: "0.7",
+      },
+      {
+        fingerprint: "old",
+        type: "x",
+        reason: "r",
+        created_at: "x",
+        source: "feedback" as const,
+        crimes_version_pinned: "0.6",
+      },
+      {
+        fingerprint: "manual-future-pin",
+        type: "x",
+        reason: "r",
+        created_at: "x",
+        crimes_version_pinned: "0.9",
+      },
+    ];
+    const result = findFuturePinnedSuppressions(entries, "0.7.0");
+    expect(result.map((e) => e.fingerprint)).toEqual(["future"]);
+  });
+});
+
+describe("partitionFindings — resurface (0.7.0)", () => {
+  function feedbackFinding(): Finding {
+    return makeFinding({
+      type: "direct_date",
+      file: "src/billing.ts",
+      symbol: undefined,
+    });
+  }
+
+  it("silences a feedback suppression whose pin matches the current minor", () => {
+    const { visible, suppressedCount, resurfacedCount } = partitionFindings(
+      [feedbackFinding()],
+      [
+        {
+          fingerprint: "direct_date::src/billing.ts::",
+          type: "direct_date",
+          reason: "Test-file injection — intentional",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.7",
+        },
+      ],
+      { showSuppressed: false, crimesVersion: "0.7.0" },
+    );
+    expect(visible).toHaveLength(0);
+    expect(suppressedCount).toBe(1);
+    expect(resurfacedCount).toBe(0);
+  });
+
+  it("resurfaces a feedback suppression whose pin is older than the current minor", () => {
+    const { visible, suppressedCount, resurfacedCount, resurfacedByPinnedMinor } =
+      partitionFindings(
+        [feedbackFinding()],
+        [
+          {
+            fingerprint: "direct_date::src/billing.ts::",
+            type: "direct_date",
+            reason: "Test-file injection — intentional",
+            created_at: "x",
+            source: "feedback",
+            crimes_version_pinned: "0.6",
+          },
+        ],
+        { showSuppressed: false, crimesVersion: "0.7.0" },
+      );
+    expect(visible).toHaveLength(1);
+    expect(visible[0]!.previously_suppressed).toBe(true);
+    expect(visible[0]!.previous_suppression).toEqual({
+      pinned_version: "0.6",
+      reason: "Test-file injection — intentional",
+    });
+    expect(suppressedCount).toBe(0);
+    expect(resurfacedCount).toBe(1);
+    expect(resurfacedByPinnedMinor).toEqual({ "0.6": 1 });
+  });
+
+  it("never resurfaces a manual suppression, regardless of version mismatch", () => {
+    const { visible, suppressedCount, resurfacedCount } = partitionFindings(
+      [feedbackFinding()],
+      [
+        {
+          fingerprint: "direct_date::src/billing.ts::",
+          type: "direct_date",
+          reason: "legacy module",
+          created_at: "x",
+          source: "manual",
+          crimes_version_pinned: "0.5",
+        },
+      ],
+      { showSuppressed: false, crimesVersion: "0.7.0" },
+    );
+    expect(visible).toHaveLength(0);
+    expect(suppressedCount).toBe(1);
+    expect(resurfacedCount).toBe(0);
+  });
+
+  it("silences a future-pinned feedback suppression and records a warning", () => {
+    const { visible, suppressedCount, resurfacedCount, futurePinnedWarnings } =
+      partitionFindings(
+        [feedbackFinding()],
+        [
+          {
+            fingerprint: "direct_date::src/billing.ts::",
+            type: "direct_date",
+            reason: "from the future",
+            created_at: "x",
+            source: "feedback",
+            crimes_version_pinned: "0.8",
+          },
+        ],
+        { showSuppressed: false, crimesVersion: "0.7.0" },
+      );
+    expect(visible).toHaveLength(0);
+    expect(suppressedCount).toBe(1);
+    expect(resurfacedCount).toBe(0);
+    expect(futurePinnedWarnings).toHaveLength(1);
+    expect(futurePinnedWarnings[0]).toContain("0.8");
+    expect(futurePinnedWarnings[0]).toContain("0.7.0");
+  });
+
+  it("no resurfacing when crimesVersion is absent (back-compat path)", () => {
+    const { visible, suppressedCount, resurfacedCount } = partitionFindings(
+      [feedbackFinding()],
+      [
+        {
+          fingerprint: "direct_date::src/billing.ts::",
+          type: "direct_date",
+          reason: "x",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.6",
+        },
+      ],
+      { showSuppressed: false },
+    );
+    expect(visible).toHaveLength(0);
+    expect(suppressedCount).toBe(1);
+    expect(resurfacedCount).toBe(0);
+  });
+
+  it("groups multiple resurfaced entries by pinned minor", () => {
+    const findings: Finding[] = [
+      makeFinding({ type: "direct_date", file: "a.ts", symbol: undefined }),
+      makeFinding({ type: "direct_date", file: "b.ts", symbol: undefined }),
+      makeFinding({ type: "direct_date", file: "c.ts", symbol: undefined }),
+    ];
+    const { resurfacedByPinnedMinor, resurfacedCount } = partitionFindings(
+      findings,
+      [
+        {
+          fingerprint: "direct_date::a.ts::",
+          type: "direct_date",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.6",
+        },
+        {
+          fingerprint: "direct_date::b.ts::",
+          type: "direct_date",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.6.3",
+        },
+        {
+          fingerprint: "direct_date::c.ts::",
+          type: "direct_date",
+          reason: "r",
+          created_at: "x",
+          source: "feedback",
+          crimes_version_pinned: "0.5",
+        },
+      ],
+      { showSuppressed: false, crimesVersion: "0.7.0" },
+    );
+    expect(resurfacedCount).toBe(3);
+    expect(resurfacedByPinnedMinor).toEqual({ "0.6": 2, "0.5": 1 });
+  });
+});
+
+describe("countResurfacedByPinnedMinor", () => {
+  it("walks findings and groups by pinned minor", () => {
+    const findings: Finding[] = [
+      {
+        ...makeFinding({ file: "a.ts" }),
+        previously_suppressed: true,
+        previous_suppression: { pinned_version: "0.6", reason: "r" },
+      },
+      {
+        ...makeFinding({ file: "b.ts" }),
+        previously_suppressed: true,
+        previous_suppression: { pinned_version: "0.6.3", reason: "r" },
+      },
+      makeFinding({ file: "c.ts" }), // not resurfaced
+    ];
+    expect(countResurfacedByPinnedMinor(findings)).toEqual({ "0.6": 2 });
+  });
+
+  it("returns empty record when nothing is resurfaced", () => {
+    expect(countResurfacedByPinnedMinor([makeFinding()])).toEqual({});
+  });
+});
+
+describe("0.5.0 / 0.6.0 file back-compat", () => {
+  it("reads a suppressions file with no `source` / `crimes_version_pinned`", async () => {
+    const path = await tempPath();
+    const doc = {
+      schema_version: SCHEMA_VERSION,
+      report_type: "suppressions" as const,
+      created_at: "2026-04-01T00:00:00.000Z",
+      updated_at: "2026-04-01T00:00:00.000Z",
+      suppressions: [
+        {
+          fingerprint: "large_function::src/x.ts::foo",
+          type: "large_function",
+          file: "src/x.ts",
+          symbol: "foo",
+          reason: "legacy",
+          created_at: "2026-04-01T00:00:00.000Z",
+        },
+      ],
+    };
+    await writeFile(path, JSON.stringify(doc, null, 2), "utf8");
+    const loaded = loadSuppressions(path);
+    expect(loaded.entries).toHaveLength(1);
+    expect(loaded.entries[0]!.source).toBeUndefined();
+    expect(loaded.entries[0]!.crimes_version_pinned).toBeUndefined();
+  });
+
+  it("appendSuppression can write new source + crimes_version_pinned fields", async () => {
+    const path = await tempPath();
+    await appendSuppression(
+      path,
+      {
+        fingerprint: "direct_date::src/x.ts::",
+        type: "direct_date",
+        reason: "test-file injection",
+        source: "feedback",
+        crimes_version_pinned: "0.7",
+      },
+      { now: () => new Date("2026-05-20T12:00:00.000Z") },
+    );
+    const reread = loadSuppressions(path);
+    expect(reread.entries).toHaveLength(1);
+    expect(reread.entries[0]!.source).toBe("feedback");
+    expect(reread.entries[0]!.crimes_version_pinned).toBe("0.7");
   });
 });

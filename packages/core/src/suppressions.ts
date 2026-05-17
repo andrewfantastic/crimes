@@ -22,6 +22,22 @@ export interface SuppressionEntry {
   reason: string;
   created_at: string;
   created_by?: string;
+  /**
+   * Origin of this suppression. Defaults to `"manual"` when absent — the
+   * shape `crimes ignore` has always written and the shape every 0.5.0 /
+   * 0.6.0 file on disk uses. Entries with `source: "feedback"` are
+   * managed by `crimes feedback` (0.7.0+) and participate in the
+   * auto-resurface loop. Manual suppressions never resurface.
+   */
+  source?: "manual" | "feedback";
+  /**
+   * The crimes minor (or full semver — only the major.minor parts are
+   * compared) this suppression was recorded against, e.g. `"0.7"` or
+   * `"0.7.0"`. Only meaningful when `source === "feedback"`. On scans
+   * whose minor differs from the pinned value, the matching finding
+   * resurfaces tagged `previously_suppressed: true`.
+   */
+  crimes_version_pinned?: string;
 }
 
 /**
@@ -46,6 +62,8 @@ export const SuppressionEntrySchema = z
     reason: z.string().min(1),
     created_at: z.string().min(1),
     created_by: z.string().min(1).optional(),
+    source: z.enum(["manual", "feedback"]).optional(),
+    crimes_version_pinned: z.string().min(1).optional(),
   })
   .strict();
 
@@ -194,6 +212,10 @@ export async function appendSuppression(
     if (entry.file !== undefined) next.file = entry.file;
     if (entry.symbol !== undefined) next.symbol = entry.symbol;
     if (entry.created_by !== undefined) next.created_by = entry.created_by;
+    if (entry.source !== undefined) next.source = entry.source;
+    if (entry.crimes_version_pinned !== undefined) {
+      next.crimes_version_pinned = entry.crimes_version_pinned;
+    }
     doc.suppressions[existingIdx] = next;
   } else {
     const next: SuppressionEntry = {
@@ -205,6 +227,10 @@ export async function appendSuppression(
     if (entry.file !== undefined) next.file = entry.file;
     if (entry.symbol !== undefined) next.symbol = entry.symbol;
     if (entry.created_by !== undefined) next.created_by = entry.created_by;
+    if (entry.source !== undefined) next.source = entry.source;
+    if (entry.crimes_version_pinned !== undefined) {
+      next.crimes_version_pinned = entry.crimes_version_pinned;
+    }
     doc.suppressions.push(next);
   }
 
@@ -311,11 +337,115 @@ function readCreatedAt(path: string): string | undefined {
 
 export interface ApplySuppressionsOptions {
   showSuppressed: boolean;
+  /**
+   * Current crimes version (full semver or major.minor). When provided,
+   * feedback-sourced suppressions with a `crimes_version_pinned` minor
+   * that differs from this version's minor are *resurfaced* — kept in
+   * `findings[]` and tagged `previously_suppressed: true` — instead of
+   * being silenced. Manual suppressions never resurface; feedback
+   * suppressions whose pin matches the current minor stay silenced as
+   * usual. Suppressions whose pin is *later* than the current version
+   * (downgrade scenario) are also silenced and reported in
+   * `futurePinnedWarnings`.
+   */
+  crimesVersion?: string;
 }
 
 export interface PartitionedFindings {
   visible: Finding[];
   suppressedCount: number;
+  /**
+   * Number of feedback-sourced suppressions that resurfaced for
+   * re-confirmation. Resurfaced entries appear in `visible` tagged
+   * `previously_suppressed: true` and are *not* counted in
+   * `suppressedCount`. Always 0 when `options.crimesVersion` is absent.
+   */
+  resurfacedCount: number;
+  /**
+   * Per-pinned-minor breakdown of resurfaced suppressions, e.g.
+   * `{ "0.6": 5, "0.5": 1 }`. Empty when nothing resurfaced. Used by
+   * the CLI breadcrumb so a single line can summarise "5 pinned to 0.6".
+   */
+  resurfacedByPinnedMinor: Record<string, number>;
+  /**
+   * One human-readable message per feedback-sourced suppression whose
+   * pinned version is *later* than the current crimes version (the
+   * "you downgraded crimes" edge case). The CLI emits these as
+   * one-line stderr warnings.
+   */
+  futurePinnedWarnings: string[];
+}
+
+/**
+ * Extract the major.minor of a semver-shaped string. Accepts `"0.7"`,
+ * `"0.7.0"`, `"1.2.3-beta"` — returns `"0.7"`, `"0.7"`, `"1.2"`. Returns
+ * the input unchanged when it doesn't start with `digits.digits`, so
+ * malformed pins fall back to literal equality (and almost certainly
+ * resurface, which is the conservative default).
+ */
+export function minorKey(version: string): string {
+  const match = version.match(/^(\d+)\.(\d+)/);
+  return match ? `${match[1]}.${match[2]}` : version;
+}
+
+interface SemverParts {
+  major: number;
+  minor: number;
+}
+
+function parseSemver(version: string): SemverParts | undefined {
+  const match = version.match(/^(\d+)\.(\d+)/);
+  if (!match) return undefined;
+  return { major: Number(match[1]), minor: Number(match[2]) };
+}
+
+/**
+ * Compare two version strings by major.minor. Returns -1 when `a < b`,
+ * `1` when `a > b`, `0` when equal. Falls back to `0` when either side
+ * is unparseable (treat unknowns as same-minor so we don't silently
+ * resurface every suppression on a junk version string).
+ */
+export function compareMinor(a: string, b: string): -1 | 0 | 1 {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  if (!pa || !pb) return 0;
+  if (pa.major !== pb.major) return pa.major < pb.major ? -1 : 1;
+  if (pa.minor !== pb.minor) return pa.minor < pb.minor ? -1 : 1;
+  return 0;
+}
+
+/**
+ * Return `true` when a suppression should resurface for re-confirmation.
+ * Manual suppressions never resurface; feedback suppressions resurface
+ * when their pinned minor is *older* than the current crimes minor.
+ * Future-pinned entries (downgrade scenario) are NOT resurfaced — the
+ * caller handles them via {@link findFuturePinnedSuppressions}.
+ */
+export function shouldResurface(
+  entry: SuppressionEntry,
+  currentVersion: string,
+): boolean {
+  if (entry.source !== "feedback") return false;
+  if (!entry.crimes_version_pinned) return false;
+  return compareMinor(entry.crimes_version_pinned, currentVersion) < 0;
+}
+
+/**
+ * Return every feedback-sourced suppression whose pinned minor is
+ * *later* than the current crimes version — i.e. the user downgraded.
+ * The CLI emits a one-line stderr warning per entry; the entry stays
+ * silenced (treated as quiet) regardless.
+ */
+export function findFuturePinnedSuppressions(
+  entries: SuppressionEntry[],
+  currentVersion: string,
+): SuppressionEntry[] {
+  return entries.filter(
+    (e) =>
+      e.source === "feedback" &&
+      e.crimes_version_pinned !== undefined &&
+      compareMinor(e.crimes_version_pinned, currentVersion) > 0,
+  );
 }
 
 /**
@@ -324,6 +454,10 @@ export interface PartitionedFindings {
  * - With `showSuppressed: false`, matched findings are removed entirely.
  * - With `showSuppressed: true`, matched findings stay in `visible`,
  *   annotated with `suppressed: true` and `suppression_reason`.
+ * - When `options.crimesVersion` is set, feedback-sourced suppressions
+ *   whose pinned minor differs from the current minor are kept in
+ *   `visible` (regardless of `showSuppressed`) and tagged
+ *   `previously_suppressed: true` — the 0.7.0 auto-resurface loop.
  *
  * Pure / synchronous — the engines call this after building their raw
  * findings list and use the result to assemble the final report.
@@ -334,29 +468,103 @@ export function partitionFindings(
   options: ApplySuppressionsOptions,
 ): PartitionedFindings {
   if (suppressions.length === 0) {
-    return { visible: findings, suppressedCount: 0 };
+    return {
+      visible: findings,
+      suppressedCount: 0,
+      resurfacedCount: 0,
+      resurfacedByPinnedMinor: {},
+      futurePinnedWarnings: [],
+    };
   }
   const byPrint = new Map<string, SuppressionEntry>();
   for (const s of suppressions) byPrint.set(s.fingerprint, s);
 
   let suppressedCount = 0;
+  let resurfacedCount = 0;
+  const resurfacedByPinnedMinor: Record<string, number> = {};
+  const futurePinnedWarnings: string[] = [];
   const visible: Finding[] = [];
+
   for (const f of findings) {
     const entry = byPrint.get(fingerprintFinding(f));
-    if (entry) {
-      suppressedCount += 1;
-      if (options.showSuppressed) {
-        visible.push({
-          ...f,
-          suppressed: true,
-          suppression_reason: entry.reason,
-        });
-      }
+    if (!entry) {
+      visible.push(f);
       continue;
     }
-    visible.push(f);
+
+    // Resurface check first — only fires when the caller passed
+    // crimesVersion. Manual suppressions short-circuit `shouldResurface`.
+    if (
+      options.crimesVersion !== undefined &&
+      shouldResurface(entry, options.crimesVersion)
+    ) {
+      resurfacedCount += 1;
+      const pin = entry.crimes_version_pinned!;
+      const key = minorKey(pin);
+      resurfacedByPinnedMinor[key] =
+        (resurfacedByPinnedMinor[key] ?? 0) + 1;
+      visible.push({
+        ...f,
+        previously_suppressed: true,
+        previous_suppression: {
+          pinned_version: pin,
+          reason: entry.reason,
+        },
+      });
+      continue;
+    }
+
+    // Future-pinned: silence as usual + record a warning. Manual
+    // suppressions and current-minor feedback fall through here too,
+    // but the warning only fires for future-pinned feedback entries.
+    if (
+      options.crimesVersion !== undefined &&
+      entry.source === "feedback" &&
+      entry.crimes_version_pinned !== undefined &&
+      compareMinor(entry.crimes_version_pinned, options.crimesVersion) > 0
+    ) {
+      futurePinnedWarnings.push(
+        `suppression ${entry.fingerprint} is pinned to ${entry.crimes_version_pinned}, ` +
+          `which is later than the current crimes version ${options.crimesVersion} — ` +
+          "leaving silenced (downgrade scenario).",
+      );
+    }
+
+    suppressedCount += 1;
+    if (options.showSuppressed) {
+      visible.push({
+        ...f,
+        suppressed: true,
+        suppression_reason: entry.reason,
+      });
+    }
   }
-  return { visible, suppressedCount };
+
+  return {
+    visible,
+    suppressedCount,
+    resurfacedCount,
+    resurfacedByPinnedMinor,
+    futurePinnedWarnings,
+  };
+}
+
+/**
+ * Walk a partitioned findings list (or any list of resurfaced findings)
+ * and return a per-pinned-minor count, e.g. `{ "0.6": 5, "0.5": 1 }`.
+ * Used by the CLI breadcrumb so a single stderr line can summarise
+ * "5 feedback-sourced suppressions resurface (pinned to 0.6)".
+ */
+export function countResurfacedByPinnedMinor(
+  findings: Finding[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const f of findings) {
+    if (!f.previously_suppressed || !f.previous_suppression) continue;
+    const key = minorKey(f.previous_suppression.pinned_version);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /**

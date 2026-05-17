@@ -1,7 +1,9 @@
-import type { CrimesConfig } from "@crimes/core";
+import type { CrimesConfig, SuppressionEntry } from "@crimes/core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   emitDetectorsDisabledBreadcrumb,
+  emitFuturePinnedSuppressionsWarnings,
+  emitResurfacedSuppressionsBreadcrumb,
   resolveNoColor,
 } from "./breadcrumb.js";
 
@@ -119,5 +121,104 @@ describe("resolveNoColor", () => {
   it("returns true when the legacy noColor: true is passed", () => {
     setIsTTY(true);
     expect(resolveNoColor({ noColor: true })).toBe(true);
+  });
+});
+
+describe("emitResurfacedSuppressionsBreadcrumb", () => {
+  it("stays silent when nothing resurfaced", () => {
+    const stderr = new FakeStderr();
+    emitResurfacedSuppressionsBreadcrumb({}, { stderr });
+    expect(stderr.chunks).toEqual([]);
+  });
+
+  it("emits a single-pin line when one pinned minor accounts for everything", () => {
+    const stderr = new FakeStderr();
+    emitResurfacedSuppressionsBreadcrumb({ "0.6": 5 }, { stderr });
+    expect(stderr.chunks).toHaveLength(1);
+    expect(stderr.chunks[0]!).toContain(
+      "5 feedback-sourced suppressions resurface because they were pinned to 0.6",
+    );
+    expect(stderr.chunks[0]!).toMatch(/crimes feedback recheck/);
+  });
+
+  it("emits a per-pin breakdown when multiple minors are involved", () => {
+    const stderr = new FakeStderr();
+    emitResurfacedSuppressionsBreadcrumb(
+      { "0.6": 2, "0.5": 1 },
+      { stderr },
+    );
+    expect(stderr.chunks[0]!).toContain("3 feedback-sourced suppressions resurface");
+    expect(stderr.chunks[0]!).toContain("1 pinned to 0.5");
+    expect(stderr.chunks[0]!).toContain("2 pinned to 0.6");
+  });
+
+  it("singular wording when exactly one suppression resurfaces", () => {
+    const stderr = new FakeStderr();
+    emitResurfacedSuppressionsBreadcrumb({ "0.6": 1 }, { stderr });
+    expect(stderr.chunks[0]!).toContain(
+      "1 feedback-sourced suppression resurface",
+    );
+  });
+
+  it("stays silent under noColor", () => {
+    const stderr = new FakeStderr();
+    emitResurfacedSuppressionsBreadcrumb(
+      { "0.6": 5 },
+      { stderr, noColor: true },
+    );
+    expect(stderr.chunks).toEqual([]);
+  });
+});
+
+describe("emitFuturePinnedSuppressionsWarnings", () => {
+  function makeEntry(
+    overrides: Partial<SuppressionEntry> = {},
+  ): SuppressionEntry {
+    return {
+      fingerprint: "direct_date::src/x.ts::",
+      type: "direct_date",
+      reason: "from the future",
+      created_at: "x",
+      source: "feedback",
+      crimes_version_pinned: "0.8",
+      ...overrides,
+    };
+  }
+
+  it("stays silent when no entries are future-pinned", () => {
+    const stderr = new FakeStderr();
+    emitFuturePinnedSuppressionsWarnings([], "0.7.0", { stderr });
+    expect(stderr.chunks).toEqual([]);
+  });
+
+  it("emits one line per future-pinned feedback entry", () => {
+    const stderr = new FakeStderr();
+    emitFuturePinnedSuppressionsWarnings(
+      [makeEntry(), makeEntry({ fingerprint: "x::y.ts::z", crimes_version_pinned: "0.9" })],
+      "0.7.0",
+      { stderr },
+    );
+    expect(stderr.chunks).toHaveLength(2);
+    expect(stderr.chunks[0]!).toContain("0.8");
+    expect(stderr.chunks[1]!).toContain("0.9");
+  });
+
+  it("ignores manual entries even when pinned to a future version", () => {
+    const stderr = new FakeStderr();
+    emitFuturePinnedSuppressionsWarnings(
+      [makeEntry({ source: "manual" })],
+      "0.7.0",
+      { stderr },
+    );
+    expect(stderr.chunks).toEqual([]);
+  });
+
+  it("stays silent under noColor", () => {
+    const stderr = new FakeStderr();
+    emitFuturePinnedSuppressionsWarnings([makeEntry()], "0.7.0", {
+      stderr,
+      noColor: true,
+    });
+    expect(stderr.chunks).toEqual([]);
   });
 });

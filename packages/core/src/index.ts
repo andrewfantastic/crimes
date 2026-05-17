@@ -237,12 +237,17 @@ export {
 export type { ScanOptions } from "./scan.js";
 export {
   appendSuppression,
+  compareMinor,
+  countResurfacedByPinnedMinor,
+  findFuturePinnedSuppressions,
   loadSuppressions,
   loadSuppressionsForRoot,
   MalformedSuppressionsError,
+  minorKey,
   partitionFindings,
   removeSuppression,
   resolveOverridePath,
+  shouldResurface,
   SuppressionEntrySchema,
   SuppressionsSchema,
 } from "./suppressions.js";

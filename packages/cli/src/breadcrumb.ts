@@ -1,4 +1,5 @@
-import type { CrimesConfig } from "@crimes/core";
+import type { CrimesConfig, SuppressionEntry } from "@crimes/core";
+import { findFuturePinnedSuppressions } from "@crimes/core";
 
 /**
  * Number of disabled detectors at or above which the breadcrumb fires.
@@ -62,4 +63,69 @@ export function emitDetectorsDisabledBreadcrumb(
     `crimes: detectors.disable removed ${disabled.length} detectors from this run.\n` +
       `        Consider per-finding \`crimes ignore\` for narrow exceptions.\n`,
   );
+}
+
+/**
+ * One-line stderr breadcrumb fired by every scan-like command when one or
+ * more feedback-sourced suppressions resurfaced (their pinned minor is
+ * older than the current crimes minor). The 0.7.0 calibration loop relies
+ * on the user noticing and running `crimes feedback recheck`.
+ *
+ *   crimes: 5 feedback-sourced suppressions resurface because they were pinned to 0.6.
+ *           Run `crimes feedback recheck` to review.
+ *
+ * Suppression rules (same shape as the detectors.disable breadcrumb):
+ *   • Empty `byPinnedMinor` — nothing to flag, no-op.
+ *   • `options.noColor` — caller asked for clean diagnostics.
+ */
+export function emitResurfacedSuppressionsBreadcrumb(
+  byPinnedMinor: Record<string, number>,
+  options: BreadcrumbOptions = {},
+): void {
+  if (options.noColor) return;
+  const entries = Object.entries(byPinnedMinor).sort(
+    ([a], [b]) => a.localeCompare(b),
+  );
+  if (entries.length === 0) return;
+
+  const total = entries.reduce((sum, [, n]) => sum + n, 0);
+  if (total < 1) return;
+
+  const detail =
+    entries.length === 1
+      ? `because they were pinned to ${entries[0]![0]}`
+      : `(${entries.map(([v, n]) => `${n} pinned to ${v}`).join(", ")})`;
+  const plural = total === 1 ? "" : "s";
+
+  const stderr = options.stderr ?? process.stderr;
+  stderr.write(
+    `crimes: ${total} feedback-sourced suppression${plural} resurface ${detail}.\n` +
+      `        Run \`crimes feedback recheck\` to review.\n`,
+  );
+}
+
+/**
+ * One stderr line per feedback-sourced suppression whose pinned version is
+ * later than the current crimes version (the "you downgraded crimes" edge
+ * case). The suppression stays silenced regardless; this is purely a
+ * heads-up so the user understands why a finding they marked `fp` in 0.8
+ * doesn't reappear on a 0.7 box.
+ */
+export function emitFuturePinnedSuppressionsWarnings(
+  entries: SuppressionEntry[],
+  currentVersion: string,
+  options: BreadcrumbOptions = {},
+): void {
+  if (options.noColor) return;
+  const future = findFuturePinnedSuppressions(entries, currentVersion);
+  if (future.length === 0) return;
+
+  const stderr = options.stderr ?? process.stderr;
+  for (const e of future) {
+    stderr.write(
+      `crimes: suppression ${e.fingerprint} is pinned to ${e.crimes_version_pinned}, ` +
+        `which is later than the current crimes version ${currentVersion} — ` +
+        "leaving silenced (downgrade scenario).\n",
+    );
+  }
 }

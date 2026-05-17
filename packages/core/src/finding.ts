@@ -77,6 +77,22 @@ export interface Finding {
   suppressed?: true;
   /** Paired with `suppressed`. The reason recorded in the suppressions file. */
   suppression_reason?: string;
+  /**
+   * Set when the finding matched a feedback-sourced suppression whose
+   * pinned minor differs from the current crimes minor — the resurface
+   * loop introduced in 0.7.0. The finding is kept in `findings[]` (NOT
+   * counted in `suppressed_count`) so the user can re-confirm `fp` (push
+   * the pin forward) or mark `tp` (delete the suppression). Manual
+   * suppressions never resurface.
+   */
+  previously_suppressed?: true;
+  /** Paired with `previously_suppressed`. Carries the prior pin + reason. */
+  previous_suppression?: {
+    /** The crimes minor (or full semver) the suppression was pinned to. */
+    pinned_version: string;
+    /** The reason recorded on the original feedback `fp` entry. */
+    reason: string;
+  };
 }
 
 export interface ScanSummary {
