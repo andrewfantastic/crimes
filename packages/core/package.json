@@ -13,7 +13,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -23,7 +25,8 @@
   },
   "dependencies": {
     "@crimes/language-js": "workspace:*",
-    "fast-glob": "^3.3.2"
+    "fast-glob": "^3.3.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -26,8 +26,9 @@ import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
+import { DEFAULT_ALIAS_GROUPS } from "./ia/aliases.js";
 import { buildIaIndex } from "./ia/build.js";
-import type { IaIndex } from "./ia/types.js";
+import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 
@@ -78,7 +79,8 @@ export interface ScanOptions {
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const root = resolve(options.root ?? process.cwd());
   const config = options.config ?? loadConfig(root);
-  const detectors = options.detectors ?? builtInDetectors;
+  const detectors =
+    options.detectors ?? filterDetectors(builtInDetectors, config);
 
   const allFiles = await discoverFiles({
     root,
@@ -103,7 +105,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // Build the IA index over the FULL discovered file set, not just the
   // changed slice -- IA findings are cross-file by definition. `--changed`
   // gates only finding emission, not the underlying signal.
-  const ia = await safelyBuildIaIndex({ root, allFiles });
+  const ia = await safelyBuildIaIndex({
+    root,
+    allFiles,
+    aliasGroups: resolveAliasGroups(config),
+  });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
 
   const findings: Finding[] = [];
@@ -170,11 +176,84 @@ function toRepoPath(p: string): string {
 async function safelyBuildIaIndex(args: {
   root: string;
   allFiles: string[];
+  aliasGroups?: IaConceptAliasGroup[];
 }): Promise<IaIndex | undefined> {
   try {
-    return await buildIaIndex({ root: args.root, files: args.allFiles });
+    return await buildIaIndex({
+      root: args.root,
+      files: args.allFiles,
+      ...(args.aliasGroups !== undefined
+        ? { aliasGroups: args.aliasGroups }
+        : {}),
+    });
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Resolve the alias-group catalogue used to build the IA index.
+ *
+ * Config groups are **additive** to the built-in defaults: an entry that
+ * shares an `id` with a default group is appended verbatim (the
+ * concept_alias_drift detector dedupes hits per group, so duplicates are
+ * harmless). A future `ia.aliasGroupsReplace: true` opt-in could swap
+ * "additive" for "replace" — see SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md §3.B.
+ */
+export function resolveAliasGroups(
+  config: CrimesConfig,
+): IaConceptAliasGroup[] {
+  const overrides = config.ia?.aliasGroups ?? [];
+  if (overrides.length === 0) return DEFAULT_ALIAS_GROUPS;
+  return [...DEFAULT_ALIAS_GROUPS, ...overrides];
+}
+
+/**
+ * Apply `config.detectors.enable` / `config.detectors.disable` to the
+ * built-in detector list. Returns a new array; never mutates the input.
+ *
+ * `enable` is an allowlist (empty / omitted means "all built-ins").
+ * `disable` runs **after** `enable` so a user can shrink the set in two
+ * passes if they want to. An unknown id in either list raises
+ * {@link UnknownDetectorError} — typos should not silently no-op.
+ */
+export function filterDetectors(
+  available: Detector[],
+  config: CrimesConfig,
+): Detector[] {
+  const enable = config.detectors?.enable ?? [];
+  const disable = config.detectors?.disable ?? [];
+  const knownIds = new Set(available.map((d) => d.id));
+
+  for (const id of enable) {
+    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+  }
+  for (const id of disable) {
+    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+  }
+
+  let pool = available;
+  if (enable.length > 0) {
+    const enableSet = new Set(enable);
+    pool = pool.filter((d) => enableSet.has(d.id));
+  }
+  if (disable.length > 0) {
+    const disableSet = new Set(disable);
+    pool = pool.filter((d) => !disableSet.has(d.id));
+  }
+  return pool;
+}
+
+export class UnknownDetectorError extends Error {
+  id: string;
+  constructor(id: string) {
+    super(
+      `unknown detector id "${id}" in crimes.config.json. ` +
+        `Check the spelling against the built-in detector list in ` +
+        `docs/finding-types/.`,
+    );
+    this.name = "UnknownDetectorError";
+    this.id = id;
   }
 }
 

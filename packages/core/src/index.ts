@@ -19,8 +19,20 @@ export type {
   SaveBaselineOptions,
   SaveBaselineResult,
 } from "./baseline.js";
-export { DEFAULT_CONFIG, loadConfig } from "./config.js";
-export type { CrimesConfig } from "./config.js";
+export {
+  ConfigParseError,
+  CrimesConfigSchema,
+  DEFAULT_CONFIG,
+  DEFAULT_SUPPRESSIONS_PATH,
+  loadConfig,
+  loadConfigDetailed,
+  resolveSuppressionsPath,
+} from "./config.js";
+export type {
+  ConfigIssue,
+  CrimesConfig,
+  LoadConfigResult,
+} from "./config.js";
 export { context, findNearestPackageRoot } from "./context.js";
 export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
 export {
@@ -145,7 +157,14 @@ export type {
   HotspotsOptions,
   HotspotsReport,
 } from "./hotspots.js";
-export { applyScanFailOn, builtInDetectors, scan } from "./scan.js";
+export {
+  applyScanFailOn,
+  builtInDetectors,
+  filterDetectors,
+  resolveAliasGroups,
+  scan,
+  UnknownDetectorError,
+} from "./scan.js";
 export type { ScanOptions } from "./scan.js";
 export {
   judgeVerdict,

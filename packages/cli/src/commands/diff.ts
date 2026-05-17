@@ -8,6 +8,7 @@ import {
 } from "@crimes/core";
 import { formatDiffJsonReport, formatDiffReport } from "@crimes/reporter";
 import type { Command } from "commander";
+import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface DiffCommandOptions {
   format: "human" | "json";
@@ -69,6 +70,10 @@ export function registerDiffCommand(program: Command): void {
         ) {
           process.stderr.write(`crimes: ${error.message}\n`);
           process.exit(2);
+          return;
+        }
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
           return;
         }
         throw error;

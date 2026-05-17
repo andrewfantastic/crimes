@@ -12,6 +12,7 @@ import {
   formatScanFailOnLine,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface ScanCommandOptions {
   format: "human" | "json";
@@ -99,6 +100,10 @@ export function registerScanCommand(program: Command): void {
         ) {
           process.stderr.write(`crimes: ${error.message}\n`);
           process.exit(2);
+          return;
+        }
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
           return;
         }
         throw error;

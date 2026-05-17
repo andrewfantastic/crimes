@@ -13,6 +13,7 @@ import {
   formatBaselineSaveReport,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 // Injected at build time by tsup from the CLI package's package.json. Shared
 // with `index.ts` via the same `define` block — re-declared here because each
@@ -63,10 +64,19 @@ export function registerBaselineCommand(program: Command): void {
         return;
       }
 
-      const result = await saveBaseline({
-        root,
-        crimesVersion: __CRIMES_VERSION__,
-      });
+      let result;
+      try {
+        result = await saveBaseline({
+          root,
+          crimesVersion: __CRIMES_VERSION__,
+        });
+      } catch (error) {
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
+          return;
+        }
+        throw error;
+      }
 
       if (format === "json") {
         process.stdout.write(
@@ -132,6 +142,10 @@ export function registerBaselineCommand(program: Command): void {
           ) {
             process.stderr.write(`crimes: ${error.message}\n`);
             process.exit(2);
+            return;
+          }
+          if (isUserSetupError(error)) {
+            fatalUserError(error);
             return;
           }
           throw error;

@@ -10,10 +10,14 @@ import type { Detector } from "./detector.js";
 import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { buildIaIndex } from "./ia/build.js";
-import type { IaIndex } from "./ia/types.js";
+import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
-import { builtInDetectors } from "./scan.js";
+import {
+  builtInDetectors,
+  filterDetectors,
+  resolveAliasGroups,
+} from "./scan.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
@@ -223,7 +227,8 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     explicitRoot: options.root,
   });
   const config = options.config ?? loadConfig(root);
-  const detectors = options.detectors ?? builtInDetectors;
+  const detectors =
+    options.detectors ?? filterDetectors(builtInDetectors, config);
 
   const fileRel = toRepoRelative(root, targetAbs);
 
@@ -235,7 +240,11 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
 
   // Cross-file indexes are built over the WHOLE repo so single-file context
   // still gets repo-level IA and petty-crimes signal.
-  const ia = await safelyBuildIaIndex({ root, allFiles });
+  const ia = await safelyBuildIaIndex({
+    root,
+    allFiles,
+    aliasGroups: resolveAliasGroups(config),
+  });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
 
   const findings = await runDetectorsOnTarget({
@@ -349,9 +358,16 @@ async function runDetectorsOnTarget(args: {
 async function safelyBuildIaIndex(args: {
   root: string;
   allFiles: string[];
+  aliasGroups?: IaConceptAliasGroup[];
 }): Promise<IaIndex | undefined> {
   try {
-    return await buildIaIndex({ root: args.root, files: args.allFiles });
+    return await buildIaIndex({
+      root: args.root,
+      files: args.allFiles,
+      ...(args.aliasGroups !== undefined
+        ? { aliasGroups: args.aliasGroups }
+        : {}),
+    });
   } catch {
     return undefined;
   }

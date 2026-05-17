@@ -1,4 +1,5 @@
 import type { FunctionShape, ParsedFunction } from "@crimes/language-js";
+import type { CrimesConfig } from "../config.js";
 import type { Detector } from "../detector.js";
 import type { Finding, Severity } from "../finding.js";
 
@@ -28,7 +29,7 @@ interface ShapePolicy {
   agentRiskScale: number;
 }
 
-const FIXED_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = {
+const DEFAULT_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = {
   test_callback: {
     threshold: 200,
     severityAtThreshold: "low",
@@ -66,21 +67,36 @@ const FIXED_POLICIES: Record<Exclude<FunctionShape, "domain">, ShapePolicy> = {
   },
 };
 
-function policyFor(shape: FunctionShape, domainThreshold: number): ShapePolicy {
+/**
+ * Resolve the size policy for one shape. The `domain` shape's threshold
+ * comes from `thresholds.largeFunction.domain` when set, else the legacy
+ * `thresholds.largeFunctionLines` (kept for back-compat). Other shapes
+ * honour `thresholds.largeFunction.<shape>` overrides when present;
+ * otherwise they use the built-in defaults.
+ */
+export function policyFor(
+  shape: FunctionShape,
+  config: CrimesConfig,
+): ShapePolicy {
+  const overrides = config.thresholds.largeFunction;
   if (shape === "domain") {
     return {
-      threshold: domainThreshold,
+      threshold:
+        overrides?.domain ?? config.thresholds.largeFunctionLines,
       severityAtThreshold: "medium",
       severityAtTwoX: "high",
       label: "domain function",
       agentRiskScale: 1,
     };
   }
-  // `FIXED_POLICIES` is a complete `Record<Exclude<FunctionShape, "domain">, …>`
+  // `DEFAULT_POLICIES` is a complete `Record<Exclude<FunctionShape, "domain">, …>`
   // so the lookup always succeeds, but strict index access types it as
   // possibly undefined. Falling back to the `unknown` policy keeps the
   // signature total without weakening the runtime guarantee.
-  return FIXED_POLICIES[shape] ?? FIXED_POLICIES.unknown;
+  const base = DEFAULT_POLICIES[shape] ?? DEFAULT_POLICIES.unknown;
+  const override = overrides?.[shape];
+  if (override === undefined) return base;
+  return { ...base, threshold: override };
 }
 
 export const largeFunctionDetector: Detector = {
@@ -92,12 +108,11 @@ export const largeFunctionDetector: Detector = {
     "and test callbacks each carry their own budget).",
 
   run(ctx) {
-    const domainThreshold = ctx.config.thresholds.largeFunctionLines;
     const findings: Finding[] = [];
 
     for (const fn of ctx.parsed.functions) {
       const length = fn.endLine - fn.startLine + 1;
-      const policy = policyFor(fn.shape, domainThreshold);
+      const policy = policyFor(fn.shape, ctx.config);
       if (length <= policy.threshold) continue;
 
       const ratio = length / policy.threshold;

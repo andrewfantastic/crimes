@@ -6,6 +6,7 @@ import {
   formatContextJsonReport,
 } from "@crimes/reporter";
 import type { Command } from "commander";
+import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
 
 interface ContextCommandOptions {
   format: "human" | "json";
@@ -54,10 +55,19 @@ export function registerContextCommand(program: Command): void {
       // what makes `crimes context examples/pkg/src/foo.ts` from a
       // monorepo root produce the same findings as running it from
       // inside `examples/pkg`.
-      const report = await context({
-        ...(options.root !== undefined ? { root: options.root } : {}),
-        file: absoluteFile,
-      });
+      let report;
+      try {
+        report = await context({
+          ...(options.root !== undefined ? { root: options.root } : {}),
+          file: absoluteFile,
+        });
+      } catch (error) {
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
+          return;
+        }
+        throw error;
+      }
 
       if (format === "json") {
         process.stdout.write(formatContextJsonReport(report) + "\n");
