@@ -2,6 +2,7 @@ import type { ParsedFile } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
+import type { ImportGraph } from "./imports/types.js";
 import type { PettyIndex } from "./petty/types.js";
 
 /**
@@ -52,4 +53,13 @@ export interface DetectorContext {
    * fails. Cross-file petty detectors read from this.
    */
   petty?: PettyIndex;
+  /**
+   * Optional repo-level import graph. Populated by `scan` and `context` for
+   * every detector context; absent only in direct unit-test stubs that
+   * don't exercise cross-file dependency analysis. Dependency-graph
+   * detectors (`circular_dependency`, `deep_import`,
+   * `high_fan_in_fan_out`), `layer_violation`, and `scores.blast_radius`
+   * read from this; file-local detectors ignore it.
+   */
+  imports?: ImportGraph;
 }

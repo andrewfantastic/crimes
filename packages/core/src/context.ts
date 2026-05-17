@@ -11,6 +11,8 @@ import type { Finding, Severity } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
+import { buildImportGraph } from "./imports/build.js";
+import type { ImportGraph } from "./imports/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
@@ -256,6 +258,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     aliasGroups: resolveAliasGroups(config),
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
+  const imports = await safelyBuildImportGraph({ root, allFiles });
 
   const findings = await runDetectorsOnTarget({
     allFiles,
@@ -265,6 +268,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     detectors,
     ia,
     petty,
+    imports,
   });
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
@@ -353,8 +357,10 @@ async function runDetectorsOnTarget(args: {
   detectors: Detector[];
   ia?: IaIndex;
   petty?: PettyIndex;
+  imports?: ImportGraph;
 }): Promise<Finding[]> {
-  const { allFiles, targetAbs, root, config, detectors, ia, petty } = args;
+  const { allFiles, targetAbs, root, config, detectors, ia, petty, imports } =
+    args;
   if (!allFiles.includes(targetAbs)) return [];
 
   const file = toRepoPath(relative(root, targetAbs));
@@ -371,6 +377,7 @@ async function runDetectorsOnTarget(args: {
       config,
       ia,
       petty,
+      imports,
     });
     findings.push(...detectorFindings);
   }
@@ -413,6 +420,17 @@ async function safelyBuildPettyIndex(args: {
 }): Promise<PettyIndex | undefined> {
   try {
     return await buildPettyIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildImportGraph(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<ImportGraph | undefined> {
+  try {
+    return await buildImportGraph({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }

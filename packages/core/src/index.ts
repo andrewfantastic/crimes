@@ -114,6 +114,12 @@ export {
   tokenisePath,
   toPosix as iaToPosix,
 } from "./ia/index.js";
+export {
+  buildImportGraph,
+  extractImportSpecifiers,
+} from "./imports/build.js";
+export type { BuildImportGraphOptions } from "./imports/build.js";
+export type { ImportEdge, ImportGraph } from "./imports/types.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {

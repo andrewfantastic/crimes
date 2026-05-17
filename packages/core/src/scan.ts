@@ -29,6 +29,8 @@ import { getChangedFiles } from "./git/changed-files.js";
 import { DEFAULT_ALIAS_GROUPS } from "./ia/aliases.js";
 import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
+import { buildImportGraph } from "./imports/build.js";
+import type { ImportGraph } from "./imports/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import type {
@@ -116,6 +118,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     aliasGroups: resolveAliasGroups(config),
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
+  // The import graph is also a cross-file index — build it over `allFiles`
+  // so that dependency-graph detectors and `scores.blast_radius` see the
+  // full picture, not just the `--changed` slice.
+  const imports = await safelyBuildImportGraph({ root, allFiles });
 
   const findings: Finding[] = [];
 
@@ -133,6 +139,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         config,
         ia,
         petty,
+        imports,
       });
       findings.push(...detectorFindings);
     }
@@ -194,6 +201,17 @@ async function safelyBuildPettyIndex(args: {
 }): Promise<PettyIndex | undefined> {
   try {
     return await buildPettyIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildImportGraph(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<ImportGraph | undefined> {
+  try {
+    return await buildImportGraph({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }
