@@ -76,6 +76,12 @@ export interface ScoreResult {
   crimes_version: string;
   timestamp: string;
   run_id: string;
+  /**
+   * The agent's response text — preserved so `pnpm run evals:replay`
+   * can re-score it against a newer crimes build without re-invoking
+   * the agent.
+   */
+  response: string;
   structural_score: {
     passed: number;
     failed: number;

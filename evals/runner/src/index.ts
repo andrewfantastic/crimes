@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { invokeClaude } from "./agents/claude.js";
 import { invokeCodex } from "./agents/codex.js";
 import type { AgentRunResult } from "./agents/claude.js";
+import { runJudge } from "./judge.js";
 import { scoreStructural } from "./score.js";
 import type {
   FixtureRegistryEntry,
@@ -159,8 +160,24 @@ async function main(): Promise<void> {
         crimes_version: crimesVersion,
         timestamp: new Date().toISOString(),
         run_id: runId,
+        response: agentResult.response,
         structural_score: structural,
       };
+
+      if (flags.judge) {
+        try {
+          const judge = await runJudge({
+            scenario,
+            response: agentResult.response,
+          });
+          if (judge) result.judge_score = judge;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          process.stderr.write(
+            `evals: judge pass failed for ${scenario.id} — ${message}\n`,
+          );
+        }
+      }
 
       // Tally for summary.
       summary.total_scenarios += 1;

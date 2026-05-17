@@ -1,0 +1,101 @@
+name: evals-pr-replay
+
+# Triggers on PRs that touch detector / scoring / language / CLI code.
+# Replays the structural rubric over already-committed agent outputs
+# in `evals/results/<latest-version>/` against the PR's crimes build,
+# then posts (or updates) a single PR comment with the diff summary.
+#
+# This workflow never invokes a real agent — fresh agent runs happen
+# on the maintainer's machine using the `claude` and `codex` CLIs
+# against their existing subscriptions (see evals/README.md). CI's job
+# is regression detection on top of the pinned results, with no API
+# keys + no per-call billing involved.
+#
+# Security: the only user-controllable input we read is `context.issue`
+# (numeric PR id from GitHub Actions runtime) — no PR title/body/etc.
+# is interpolated into shell commands. The diff-summary.md body is
+# generated from our own scoring outputs, not from PR content.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/core/src/detectors/**"
+      - "packages/core/src/scoring/**"
+      - "packages/language-js/src/**"
+      - "packages/cli/src/**"
+      - "evals/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  evals-replay:
+    name: Replay pinned eval results
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Replay pinned results (no agent invocations)
+        run: pnpm run evals:replay
+
+      - name: Diff replay vs pinned summary
+        run: pnpm run evals:diff
+
+      - name: Post / update PR comment with diff summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const summaryPath = path.join(
+              process.env.GITHUB_WORKSPACE,
+              "evals",
+              "diff-summary.md",
+            );
+            if (!fs.existsSync(summaryPath)) {
+              core.info("No diff summary written — skipping PR comment.");
+              return;
+            }
+            const body =
+              "<!-- crimes-evals-replay -->\n" +
+              fs.readFileSync(summaryPath, "utf8");
+            const { owner, repo, number } = context.issue;
+            const existing = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: number,
+            });
+            const prior = existing.data.find((c) =>
+              c.body && c.body.includes("<!-- crimes-evals-replay -->"),
+            );
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: prior.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: number,
+                body,
+              });
+            }
