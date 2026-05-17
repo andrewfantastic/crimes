@@ -6,7 +6,9 @@ import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 import { circularDependencyDetector } from "./detectors/circular-dependency.js";
+import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { deepImportDetector } from "./detectors/deep-import.js";
@@ -25,6 +27,7 @@ import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
 import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
+import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
@@ -74,6 +77,9 @@ export const builtInDetectors: Detector[] = [
   docsCodeDriftDetector,
   orphanedDestinationDetector,
   parallelDestinationDetector,
+  permissionIaDriftDetector,
+  actionLabelDriftDetector,
+  commandDriftDocsCodeDriftDetector,
   // Dependency-graph + architecture (require ctx.imports).
   layerViolationDetector,
   circularDependencyDetector,

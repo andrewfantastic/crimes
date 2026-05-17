@@ -54,7 +54,9 @@ export type {
   FindRelatedFilesOptions,
 } from "./context-related-files.js";
 export type { Detector, DetectorContext } from "./detector.js";
+export { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 export { circularDependencyDetector } from "./detectors/circular-dependency.js";
+export { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 export { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 export { deepImportDetector } from "./detectors/deep-import.js";
@@ -73,6 +75,7 @@ export { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 export { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 export { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
 export { parallelDestinationDetector } from "./detectors/parallel-destination.js";
+export { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
