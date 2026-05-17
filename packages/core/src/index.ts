@@ -120,6 +120,12 @@ export {
 } from "./imports/build.js";
 export type { BuildImportGraphOptions } from "./imports/build.js";
 export type { ImportEdge, ImportGraph } from "./imports/types.js";
+export { findJsxElements, walkJsx } from "./jsx/walk.js";
+export type {
+  JsxAttributeValue,
+  JsxElementInfo,
+  JsxNode,
+} from "./jsx/walk.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {

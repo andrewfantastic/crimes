@@ -114,6 +114,43 @@ export interface UiStringLiteral {
   source?: string;
 }
 
+/**
+ * Statically-knowable value of a JSX attribute. Frontend detectors read
+ * these to look for design-token escapes (hex colors in `style`),
+ * accessibility hazards (`onClick` with no `role`), and copy drift
+ * (label attribute literals).
+ */
+export type JsxAttributeValue =
+  | { kind: "string"; value: string }
+  | { kind: "expression"; source: string }
+  | { kind: "boolean"; value: true }
+  | { kind: "spread"; source: string };
+
+/** A child of a JSX element — another element, or a text run. */
+export type JsxNode =
+  | { kind: "element"; element: JsxElementInfo }
+  | { kind: "text"; value: string };
+
+/**
+ * A single JSX element extracted from a source file. Attribute values are
+ * captured when they are statically knowable (string literal, boolean
+ * shorthand, `{…}` expression source). Children appear in document order;
+ * non-element / non-text nodes (fragments are flattened into their
+ * children) are dropped from `children`.
+ */
+export interface JsxElementInfo {
+  /** Element name as written (`"Button"`, `"div"`, `"Pricing.Tier"`). */
+  name: string;
+  /** Inclusive [start, end] 1-based line range. */
+  lines: [number, number];
+  /** Attributes by name, with literal values when statically known. */
+  attributes: Map<string, JsxAttributeValue>;
+  /** Children, in document order. */
+  children: JsxNode[];
+  /** True for `<Component />` (self-closing, no children). */
+  selfClosing: boolean;
+}
+
 export interface ParsedFile {
   /** Total non-empty line count (1-based). */
   lineCount: number;
@@ -127,6 +164,13 @@ export interface ParsedFile {
   navLiterals?: NavLiteral[];
   /** String literals tagged with the UI context they appear in. */
   uiStringLiterals?: UiStringLiteral[];
+  /**
+   * Top-level JSX trees discovered in this file. Nested elements appear
+   * as children of their parent rather than as separate roots. Absent
+   * (rather than `[]`) for files without any JSX — keeps the JSON
+   * fixture tidy on non-React surfaces.
+   */
+  jsxElements?: JsxElementInfo[];
 }
 
 export interface ParseInput {
@@ -242,12 +286,14 @@ export function parseFile(input: ParseInput): ParsedFile {
   const dateUses: DateUse[] = [];
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
+  const jsxElements: JsxElementInfo[] = [];
   let defaultExport: string | undefined;
 
   const visit = (node: ts.Node): void => {
     collectFunction(node, sourceFile, functions, input.absolutePath);
     collectDateUse(node, sourceFile, dateUses);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
+    collectJsxRoot(node, sourceFile, input.source, jsxElements);
     ts.forEachChild(node, visit);
   };
 
@@ -257,7 +303,7 @@ export function parseFile(input: ParseInput): ParsedFile {
     visit(node);
   });
 
-  return {
+  const result: ParsedFile = {
     lineCount: countNonEmptyLines(input.source),
     functions,
     dateNowOrNewDateUses: dateUses,
@@ -265,6 +311,8 @@ export function parseFile(input: ParseInput): ParsedFile {
     navLiterals,
     uiStringLiterals,
   };
+  if (jsxElements.length > 0) result.jsxElements = jsxElements;
+  return result;
 }
 
 function pickScriptKind(ext: string): ts.ScriptKind {
@@ -940,4 +988,182 @@ function pushJsxLabelAttributes(
       source: tagName,
     });
   }
+}
+
+/**
+ * Collect a JSX root — a `JsxElement` / `JsxSelfClosingElement` / `JsxFragment`
+ * that is not itself nested inside another JSX node. We rely on the parent
+ * pointers set up by `createSourceFile(..., true, ...)` to short-circuit
+ * nested elements; nested nodes are walked as children when their root is
+ * processed, not as new roots.
+ */
+function collectJsxRoot(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+  source: string,
+  out: JsxElementInfo[],
+): void {
+  if (
+    !ts.isJsxElement(node) &&
+    !ts.isJsxSelfClosingElement(node) &&
+    !ts.isJsxFragment(node)
+  ) {
+    return;
+  }
+  if (isInsideJsx(node)) return;
+
+  if (ts.isJsxFragment(node)) {
+    for (const child of node.children) {
+      if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
+        out.push(buildJsxElementInfo(child, sourceFile, source));
+      }
+    }
+    return;
+  }
+  out.push(buildJsxElementInfo(node, sourceFile, source));
+}
+
+function isInsideJsx(node: ts.Node): boolean {
+  let p: ts.Node | undefined = node.parent;
+  while (p) {
+    if (
+      ts.isJsxElement(p) ||
+      ts.isJsxSelfClosingElement(p) ||
+      ts.isJsxFragment(p)
+    ) {
+      return true;
+    }
+    p = p.parent;
+  }
+  return false;
+}
+
+function buildJsxElementInfo(
+  node: ts.JsxElement | ts.JsxSelfClosingElement,
+  sourceFile: ts.SourceFile,
+  source: string,
+): JsxElementInfo {
+  if (ts.isJsxSelfClosingElement(node)) {
+    const name = jsxTagText(node.tagName) ?? "<unknown>";
+    const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(
+      node.getStart(sourceFile),
+    );
+    const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(
+      node.getEnd(),
+    );
+    return {
+      name,
+      lines: [startLine + 1, endLine + 1],
+      attributes: buildAttributes(node.attributes, source),
+      children: [],
+      selfClosing: true,
+    };
+  }
+
+  const opening = node.openingElement;
+  const name = jsxTagText(opening.tagName) ?? "<unknown>";
+  const { line: startLine } = sourceFile.getLineAndCharacterOfPosition(
+    node.getStart(sourceFile),
+  );
+  const { line: endLine } = sourceFile.getLineAndCharacterOfPosition(
+    node.getEnd(),
+  );
+  const children: JsxNode[] = [];
+  for (const child of node.children) {
+    if (ts.isJsxText(child)) {
+      const text = child.text.replace(/\s+/g, " ").trim();
+      if (text.length === 0) continue;
+      children.push({ kind: "text", value: text });
+      continue;
+    }
+    if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
+      children.push({
+        kind: "element",
+        element: buildJsxElementInfo(child, sourceFile, source),
+      });
+      continue;
+    }
+    if (ts.isJsxFragment(child)) {
+      for (const grand of child.children) {
+        if (ts.isJsxElement(grand) || ts.isJsxSelfClosingElement(grand)) {
+          children.push({
+            kind: "element",
+            element: buildJsxElementInfo(grand, sourceFile, source),
+          });
+        }
+      }
+    }
+    // JsxExpression and other shapes are intentionally dropped from the
+    // child list — we only carry statically representable values.
+  }
+  return {
+    name,
+    lines: [startLine + 1, endLine + 1],
+    attributes: buildAttributes(opening.attributes, source),
+    children,
+    selfClosing: false,
+  };
+}
+
+function buildAttributes(
+  attrs: ts.JsxAttributes,
+  source: string,
+): Map<string, JsxAttributeValue> {
+  const out = new Map<string, JsxAttributeValue>();
+  for (const attr of attrs.properties) {
+    if (ts.isJsxSpreadAttribute(attr)) {
+      const exprSrc = source.slice(attr.expression.getStart(), attr.expression.getEnd());
+      out.set(`...${exprSrc}`, { kind: "spread", source: exprSrc });
+      continue;
+    }
+    if (!ts.isJsxAttribute(attr)) continue;
+    const name = jsxAttrName(attr.name);
+    if (!name) continue;
+    const init = attr.initializer;
+    if (init === undefined) {
+      out.set(name, { kind: "boolean", value: true });
+      continue;
+    }
+    if (ts.isStringLiteral(init)) {
+      out.set(name, { kind: "string", value: init.text });
+      continue;
+    }
+    if (ts.isJsxExpression(init)) {
+      if (init.expression === undefined) continue;
+      const expr = init.expression;
+      if (
+        ts.isStringLiteral(expr) ||
+        ts.isNoSubstitutionTemplateLiteral(expr)
+      ) {
+        out.set(name, { kind: "string", value: expr.text });
+        continue;
+      }
+      const exprSrc = source.slice(expr.getStart(), expr.getEnd());
+      out.set(name, { kind: "expression", source: exprSrc });
+    }
+  }
+  return out;
+}
+
+function jsxAttrName(name: ts.JsxAttributeName): string | undefined {
+  if (ts.isIdentifier(name)) return name.text;
+  // JsxNamespacedName ("xmlns:foo") — keep the joined form so detectors can
+  // pattern-match on the full attribute text.
+  if (ts.isJsxNamespacedName(name)) {
+    return `${name.namespace.text}:${name.name.text}`;
+  }
+  return undefined;
+}
+
+function jsxTagText(tag: ts.JsxTagNameExpression): string | undefined {
+  if (ts.isIdentifier(tag)) return tag.text;
+  if (ts.isPropertyAccessExpression(tag)) {
+    const head = jsxTagText(tag.expression);
+    const tail = tag.name.text;
+    return head ? `${head}.${tail}` : tail;
+  }
+  if (ts.isJsxNamespacedName(tag)) {
+    return `${tag.namespace.text}:${tag.name.text}`;
+  }
+  return undefined;
 }
