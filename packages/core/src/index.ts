@@ -54,11 +54,14 @@ export type {
   FindRelatedFilesOptions,
 } from "./context-related-files.js";
 export type { Detector, DetectorContext } from "./detector.js";
+export { circularDependencyDetector } from "./detectors/circular-dependency.js";
 export { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+export { deepImportDetector } from "./detectors/deep-import.js";
 export { directDateDetector } from "./detectors/direct-date.js";
 export { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+export { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
 export { layerViolationDetector } from "./detectors/layer-violation.js";

@@ -6,11 +6,14 @@ import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+import { deepImportDetector } from "./detectors/deep-import.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
 import { layerViolationDetector } from "./detectors/layer-violation.js";
@@ -69,6 +72,9 @@ export const builtInDetectors: Detector[] = [
   docsCodeDriftDetector,
   // Dependency-graph + architecture (require ctx.imports).
   layerViolationDetector,
+  circularDependencyDetector,
+  deepImportDetector,
+  highFanInFanOutDetector,
 ];
 
 export interface ScanOptions {
