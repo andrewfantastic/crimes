@@ -1,0 +1,84 @@
+import { extname } from "node:path";
+import ts from "typescript";
+import { collectDateUse } from "./dates.js";
+import { collectFunction } from "./functions.js";
+import { collectJsxRoot } from "./jsx.js";
+import { collectTopLevelNavLiterals } from "./nav.js";
+import { collectUiStringLiteral } from "./ui-strings.js";
+import {
+  countNonEmptyLines,
+  extractDefaultExport,
+  pickScriptKind,
+} from "./utils.js";
+import type {
+  DateUse,
+  JsxElementInfo,
+  NavLiteral,
+  ParseInput,
+  ParsedFile,
+  ParsedFunction,
+  UiStringLiteral,
+} from "./types.js";
+
+// Re-export every public type from the parse module so external imports
+// (`import type { ParsedFile, ... } from "@crimes/language-js"`) keep
+// working unchanged after the 0.7.0 split.
+export type {
+  DateUse,
+  FunctionKind,
+  FunctionShape,
+  JsxAttributeValue,
+  JsxElementInfo,
+  JsxNode,
+  NavLiteral,
+  NavLiteralEntry,
+  ParsedFile,
+  ParsedFunction,
+  ParseInput,
+  UiStringContext,
+  UiStringLiteral,
+} from "./types.js";
+
+export function parseFile(input: ParseInput): ParsedFile {
+  const ext = extname(input.absolutePath).toLowerCase();
+  const scriptKind = pickScriptKind(ext);
+  const sourceFile = ts.createSourceFile(
+    input.absolutePath,
+    input.source,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    scriptKind,
+  );
+
+  const functions: ParsedFunction[] = [];
+  const dateUses: DateUse[] = [];
+  const navLiterals: NavLiteral[] = [];
+  const uiStringLiterals: UiStringLiteral[] = [];
+  const jsxElements: JsxElementInfo[] = [];
+  let defaultExport: string | undefined;
+
+  const visit = (node: ts.Node): void => {
+    collectFunction(node, sourceFile, functions, input.absolutePath);
+    collectDateUse(node, sourceFile, dateUses);
+    collectUiStringLiteral(node, sourceFile, uiStringLiterals);
+    collectJsxRoot(node, sourceFile, input.source, jsxElements);
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(sourceFile, (node) => {
+    defaultExport = defaultExport ?? extractDefaultExport(node);
+    collectTopLevelNavLiterals(node, sourceFile, navLiterals);
+    visit(node);
+  });
+
+  const result: ParsedFile = {
+    lineCount: countNonEmptyLines(input.source),
+    functions,
+    dateNowOrNewDateUses: dateUses,
+    defaultExport,
+    navLiterals,
+    uiStringLiterals,
+  };
+  if (jsxElements.length > 0) result.jsxElements = jsxElements;
+  return result;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFile } from "./parse.js";
+import { parseFile } from "./parse/index.js";
 
 function parse(source: string, ext = ".ts") {
   return parseFile({ absolutePath: `/tmp/x${ext}`, source });

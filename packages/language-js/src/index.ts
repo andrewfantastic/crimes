@@ -1,6 +1,6 @@
 export { discoverFiles } from "./file-discovery.js";
 export type { DiscoverOptions } from "./file-discovery.js";
-export { parseFile } from "./parse.js";
+export { parseFile } from "./parse/index.js";
 export type {
   DateUse,
   FunctionKind,
@@ -15,4 +15,4 @@ export type {
   ParseInput,
   UiStringContext,
   UiStringLiteral,
-} from "./parse.js";
+} from "./parse/index.js";
