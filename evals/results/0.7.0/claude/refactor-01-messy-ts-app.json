@@ -1,0 +1,38 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:56:34.615Z",
+  "run_id": "f34d836e-259b-44a2-aa72-814e2ecc5ed8",
+  "response": "# Top 3 risk reductions in `src/billing.ts`\n\n## 1. Fix `calculateRefundPreview` and lift the comment-only refund rule into code\nTwo findings cluster here and reinforce each other:\n\n- **crime_00008 (False Identity, agent_risk 0.52)** — `calculateRefundPreview` (lines 40–44) reads as a pure preview but calls `saveRefundAudit` and `sendRefundEmail`. An agent will treat it as safe to call from anywhere (UI handlers, retries, dry-runs) and accidentally re-audit or re-email.\n- **crime_00011 (Logic in the Alibi, agent_risk 0.50)** — line 39 comment encodes a real policy (\"Only owners can refund enterprise plans unless billing support approves\") that the surrounding code doesn't obviously enforce. Comments don't run.\n\n**Change:** split into `computeRefundPreview` (pure, returns numbers) and an explicit `commitRefund` / `recordRefund` that performs the audit + email. Encode the owner/billing-support rule as a typed guard (e.g. `assertCanRefund(actor, plan)`) so the policy is enforceable and testable. This kills both findings with one refactor and is the single highest semantic-risk win in the file.\n\n## 2. Inject a clock — kill the 7 wall-time reads\n**crime_00004 (Temporal Recklessness, agent_risk 0.53)** flags 7 direct `Date.now()` / `new Date()` calls at lines 57, 63, 92, 198, 238, 250, 273 — sprinkled across billing periods, refund windows, and invoice timestamps. Any test that touches refund eligibility or invoice dating has to either monkey-patch globals or accept flaky behaviour.\n\n**Change:** add a `Clock` (or `now: () => number`) parameter to the public entry points, default to `Date.now` at the CLI/HTTP boundary, replace all 7 sites with `clock.now()`. Cheap, mechanical, unblocks deterministic tests for the refund/invoice paths — and `src/billing.test.ts` already has weak coverage (crime_00006 has zero asserts, crime_00016 uses weak matchers), so making the code testable is the prerequisite to fixing those.\n\n## 3. Delete the commented-out `legacyRefund` block\n**crime_00003 (Commented-Out Corpse, agent_risk 0.53)** flags lines 33–37 — a disabled snippet starting with `const legacyRefund = await loadRefund(user.id);`. Dead code in comments is the cheapest possible trap for an agent: it looks like a reference implementation and will get revived or copied into a \"fix.\"\n\n**Change:** delete it. If there's a real reason the new path replaced it, write one sentence of *why* (not the old code). This is a 30-second edit with outsized agent-risk reduction, and it cuts the 310-line \"God File\" (crime_00010) cleanly — splitting the rest of the file along refund / invoice / plan boundaries is a follow-up, but removing the corpse is a free first step.\n\n---\n\nWhat I deliberately left out: the `\"enterprise\"` literal scatter (crime_00007) is a cross-file problem better fixed in one pass across `api/plan.ts`, `jobs/plan-sync.ts`, and `ui/pricing.ts`, not from inside `billing.ts`; and the 4 TODOs (crime_00020) are below the threshold of \"actually changes how the file behaves.\"",
+  "structural_score": {
+    "passed": 1,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

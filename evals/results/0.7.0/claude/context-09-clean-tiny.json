@@ -1,0 +1,29 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:51:21.968Z",
+  "run_id": "45c9e81c-d82b-40c6-994b-825a2540df27",
+  "response": "`crimes context src/add.ts --format json` returned zero findings — no structural, dependency, duplication, testability, or churn risks flagged for this file or its surroundings (summary: 0 total, 0 high/medium/low).\n\n**Safe to extend.** No `agent_risk` signals (no misleading names, hidden side effects, or weak-test/churn hotspots in scope), and no blast-radius concerns from imports or fan-in. Proceed with the edit; re-run `crimes context src/add.ts` after the change if it grows non-trivially (large function, new side effects, or new imports across layers).",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

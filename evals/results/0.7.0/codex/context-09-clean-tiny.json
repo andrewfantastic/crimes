@@ -1,0 +1,29 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:51:33.594Z",
+  "run_id": "a9404b46-f2de-4070-9b14-ffd459f326eb",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e377e-432d-7b32-8005-9a737db618a7\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested file context command from the runner workspace and check whether it adds any file-specific notes beyond the provided clean scan.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"09-clean-tiny\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny\\\"\\n  },\\n  \\\"file\\\": \\\"src/add.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/add.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`crimes context src/add.ts --format json` found no issues.\\n\\nResult:\\n- Risk level: `none`\\n- Findings: `0`\\n- Agent guidance: none\\n- Related files: none\\n- Likely test: `src/add.test.ts`\\n\\nThe file is safe to extend. If you edit behavior in `src/add.ts`, the relevant test target is `src/add.test.ts`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":37175,\"cached_input_tokens\":30464,\"output_tokens\":183,\"reasoning_output_tokens\":0}}\n",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

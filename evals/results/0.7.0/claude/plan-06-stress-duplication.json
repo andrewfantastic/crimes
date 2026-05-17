@@ -1,0 +1,32 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:55:20.842Z",
+  "run_id": "3f4171b7-2052-4e85-a7ae-1e727017fca9",
+  "response": "## Refactor plan: two coherent steps\n\nThe scan caught the sanitize triplet (`crime_00001`) but missed the role-check triplet in `src/policy.ts` — each role function is only three lines, below the near-duplicate-block threshold. Both are real duplications, but they have different shapes and want different consolidations.\n\n### Step 1 — Collapse the three sanitisers into one canonical implementation\n\nThe three bodies are byte-identical modulo identifier renames (`raw`/`input` → param, `working`/`cleaned` → local). There is no real reason for three; the names suggest different intents but the code disagrees.\n\n1. Create `src/sanitize.ts` exporting a single `sanitize(input: string): string` with the existing body.\n2. Find call sites first: `rg \"sanitizeUserInput|sanitizeText|cleanMessage\" --type ts` across the fixture (and any consumer). Rewrite imports to point at the new module.\n3. Delete `src/sanitize-{a,b,c}.ts`. Do **not** leave re-export shims — there are only three call-site flavours and the rename is mechanical; shims would just preserve the smell.\n4. Add one Vitest file pinning the corner cases the body actually encodes: null/undefined → `\"\"`, the 1000-char cap, the `<`/`>` and `\\x` short-circuits, the punctuation-flood gate, the upper-ratio lowercasing threshold. The current code has zero tests (`test_gap: 1.0` in the finding), which is what makes future edits risky — fixing that is part of the refactor, not optional polish.\n\nRisk: medium, per the suggested action. The functions are pure and the bodies are identical, so behaviour preservation is auditable. The test file is the receipt.\n\n### Step 2 — Extract `isAdmin` from the three role checks, but keep the three permission functions\n\n`canEditBilling`, `canSeeAuditLog`, `canImpersonate` all evaluate `role === \"admin\"`. The temptation is to collapse them into a single helper. Resist that — they encode three distinct permissions that happen to share an implementation today. When \"editor\" eventually gains audit-log access, you want a one-line change in `canSeeAuditLog`, not a string-search through the codebase.\n\n1. Add a private `isAdmin(role: string): boolean` at the top of `src/policy.ts` (not exported — it's an implementation detail of the policy module).\n2. Rewrite each permission function as a one-liner: `export function canEditBilling(role: string) { return isAdmin(role); }` (or arrow form, project-style depending). Preserve names and signatures so call sites don't change.\n3. Add Vitest cases per permission: each currently allows only `\"admin\"` and rejects `\"editor\"`, `\"viewer\"`, `\"\"`. These tests also serve as the divergence seam — when a permission's policy changes, exactly one test file gains a case.\n\nRisk: low. Bodies remain semantically identical; the change is structural.\n\n### Why two steps and not one\n\nThey share a theme (\"duplication\") but their **right shape after refactor differs**:\n- Sanitisers → one symbol, three call-site renames, three files deleted.\n- Role checks → one private helper, three public functions preserved as divergence anchors.\n\nBundling them would hide that asymmetry behind a single \"dedup everything\" commit and make the policy decision (keep three named permissions) invisible in the diff. Land them as two commits so the reasoning shows up in review.\n\n### What I did not propose\n\n- A shared `permissions` package or registry — premature for three checks.\n- An options-bag sanitiser with knobs (`maxLength`, `allowAngleBrackets`) — there is no current caller asking for variation. Add knobs when a second behaviour is needed, not before.\n- Touching the crimes detector to catch the small-function role-check case — that's a `core` change, not a fixture refactor, and belongs in a separate conversation.",
+  "structural_score": {
+    "passed": 0,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

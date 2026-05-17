@@ -1,0 +1,44 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:49:25.331Z",
+  "run_id": "e1630436-ce2f-48ad-ae1a-978f2234089c",
+  "response": "The `crimes scan` output for this fixture is empty — `findings: []`, totals all zero. So based on this output alone, **no cycle was detected**, and I cannot honestly point at a specific import to break without inventing evidence.\n\nTwo possibilities worth distinguishing before proposing a fix:\n\n1. **There is no cycle.** The suspected runtime error has another cause (e.g. a TDZ issue from `const`-hoisting interaction, a stale build artifact, a barrel re-export that runs side effects at import time but isn't cyclic). The scan being clean is the answer.\n2. **There is a cycle that crimes missed.** Possible if the cycle goes through dynamic `import()`, requires, types-only imports, or paths excluded by default ignores.\n\nBefore recommending an edit, I'd want to verify against the fixture directly. Want me to:\n\n- Read `/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency` to look for cycles by hand (e.g. with `madge` semantics — follow static `import`/`require` graphs)?\n- Re-run `crimes scan` with `--all` or a lower threshold in case a low-severity cycle finding got filtered out of the default summary?\n- Check whether the fixture's entry file even resolves at runtime (reproduce the error first)?\n\nI'd rather confirm the cycle exists and where, than guess an import to delete from an empty report.",
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

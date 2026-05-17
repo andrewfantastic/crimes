@@ -1,0 +1,38 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T20:01:03.281Z",
+  "run_id": "99ddd4de-3726-4c01-b199-bba17f99dce6",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3786-b7f0-7392-99d4-a0ab6f68ec77\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Verdict: warn, not block.** There are no `high` severity findings. I would block only on `high`, or on `medium` findings with clearly release-breaking evidence. Here, the highest `agent_risk` is `0.61`, so the PR should merge only with cleanup tickets or follow-up acceptance.\\n\\n**Block Merge**\\nNone. Scan has `0` high findings, and no medium finding exceeds a clearly blocking agent-risk level.\\n\\n**Warn**\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00002` missing agent context | warn | `medium`, `agent_risk: 0.61`. Highest-risk item; repo lacks agent instructions despite shipping a CLI bin. |\\n| `crime_00005` direct date in `src/date.ts` | warn | `medium`, `agent_risk: 0.61`. Untestable wall-clock coupling in a likely shared date helper. |\\n| `crime_00007` scattered `\\\"enterprise\\\"` literal | warn | `medium`, `agent_risk: 0.60`. Duplicated domain policy across production areas. |\\n| `crime_00009` concept alias drift | warn | `medium`, `agent_risk: 0.58`. Tenant/account/team/workspace vocabulary drift can cause duplicated logic. |\\n| `crime_00012` duplicated navigation source | warn | `medium`, `agent_risk: 0.57`. Same destination has conflicting labels across nav files. |\\n| `crime_00013` TODO density in `src/todo.ts` | warn | `medium`, `agent_risk: 0.57`. Very dense unfinished markers make intent unclear. |\\n| `crime_00014` route metadata drift | warn | `medium`, `agent_risk: 0.56`. Billing route is labelled several different ways. |\\n| `crime_00003` commented-out code | warn | `medium`, `agent_risk: 0.53`. Stale code-like comments can mislead future edits. |\\n| `crime_00004` direct date in `src/billing.ts` | warn | `medium`, `agent_risk: 0.53`. Multiple direct clock reads in billing domain code. |\\n| `crime_00008` name/behavior mismatch | warn | `medium`, `agent_risk: 0.52`. `calculateRefundPreview` appears to send email/audit side effects. |\\n| `crime_00010` large file | warn | `medium`, `agent_risk: 0.50`. Slightly over threshold, but still a medium maintainability risk. |\\n| `crime_00011` logic in comments | warn | `medium`, `agent_risk: 0.50`. Business rule may live only in prose. |\\n| `crime_00006` weak test signal | warn | `medium`, `agent_risk: 0.46`. Medium severity, but lower agent risk; still should be fixed or deleted. |\\n| `crime_00015` docs-code drift | warn | `low`, `agent_risk: 0.51`. Low severity, but stale docs link has enough agent risk to call out. |\\n\\n**Ignore**\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00017` option bag | ignore | `low`, `agent_risk: 0.48`. Worth improving opportunistically, not PR-gating. |\\n| `crime_00018` return shape roulette | ignore | `low`, `agent_risk: 0.48`. Add explicit return type later if this API grows. |\\n| `crime_00019` negative flags | ignore | `low`, `agent_risk: 0.47`. Local readability risk only. |\\n| `crime_00021` orphaned `/account/subscription` | ignore | `low`, `agent_risk: 0.46`. Could be intentional/in-progress route. |\\n| `crime_00022` orphaned `/team` | ignore | `low`, `agent_risk: 0.46`. Same: needs product context before action. |\\n| `crime_00023` orphaned `/workspace/members` | ignore | `low`, `agent_risk: 0.46`. Same: not enough to hold merge. |\\n| `crime_00020` TODO density in billing | ignore | `low`, `agent_risk: 0.40`. Minor cleanup signal. |\\n| `crime_00016` weak assertion | ignore | `low`, `agent_risk: 0.34`. Weak, but lowest-risk finding in the scan. |\\n\\nI’d ask for follow-up issues covering the warning group, with `crime_00002`, `crime_00005`, and `crime_00007` first because they combine `medium` severity with `agent_risk >= 0.60`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":1102,\"reasoning_output_tokens\":78}}\n",
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

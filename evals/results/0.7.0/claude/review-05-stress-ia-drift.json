@@ -1,0 +1,50 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T20:01:32.205Z",
+  "run_id": "791d7281-131a-4288-be29-e3adddce3fef",
+  "response": "## Drift findings\n\nTwo `Orphaned Destination` findings — both low severity, confidence 0.65:\n\n1. `src/routes/billing-plans.ts` → `/billing-plans` — not in nav, docs, or any in-repo import\n2. `src/routes/workspace.ts` → `/workspace` — same pattern\n\nThe drift is one-directional: routes exist in `src/routes/` that `src/nav.ts` and `docs/routes.md` don't know about. Nothing's broken at runtime — users just can't reach them through the documented surface.\n\n## Recommendation: follow-up, not blocking\n\n**Why not blocking:**\n- No runtime failure, no behavior regression, no security implication\n- `severity: 0.4`, `blast_radius: 0` — the detector itself isn't asserting urgency\n- Confidence 0.65 means a dynamic reference (string-built URL, route registry) could plausibly be missed; treating these as P0 risks false-positive churn\n\n**Why still worth triaging before merge (not deferring indefinitely):**\n- IA drift is the compounding kind. Once routes exist outside the nav/docs surface, future agents either re-implement the same path, \"fix\" them as dead code, or build on top of stale assumptions\n- The fix is cheap on either branch: link it (one nav entry + doc line) or delete it\n- The author owes one answer per route: **in-flight** (link + add a tracking note) or **abandoned** (delete)\n\n**Suggested gate:** require the PR description to disposition each finding (link/retire), but don't fail CI on them. If a third orphan lands without disposition, escalate the rule.\n\n**Before acting on either:** spot-check for dynamic references (`fetch('/billing-plans')`, route-table imports, redirect maps) since the detector only checks static nav/doc/import edges.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

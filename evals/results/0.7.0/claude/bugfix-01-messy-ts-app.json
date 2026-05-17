@@ -1,0 +1,32 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:48:43.339Z",
+  "run_id": "b18783a1-2b4c-42b2-a487-3508024afc75",
+  "response": "# Most likely cause\n\n**`crime_00004` — Temporal Recklessness in `src/billing.ts`** (7 direct reads of `Date.now()` / `new Date()` at lines 57, 63, 92, 198, 238, 250, 273), with `src/date.ts` as a secondary offender (`crime_00005`, 5 more direct date reads).\n\nEvery one of those calls observes wall time at runtime. Tests can't pin a fixed moment without monkey-patching. That's exactly the failure mode \"fails on a date-boundary edge case\" describes:\n\n- a test computing an expected invoice period at `T` while billing.ts computes its own period at `T + ε` straddles midnight / month-end / DST / year rollover\n- multiple `Date.now()` calls within one operation mean the function can't even agree with *itself* about \"now\" — different lines see different moments\n- it's flaky, not deterministic, because it only manifests when CI happens to run near a boundary\n\nThe other findings don't fit the symptom: the weak tests (`crime_00006`, `crime_00016`) don't *fail*, they fail to assert; the commented-out `legacyRefund` (`crime_00003`) is inert; the `enterprise` literal scatter and `calculateRefundPreview`/`False Identity` findings point at correctness/agent-edit risks but not at timing flakiness.\n\n# Proposed fix\n\n1. **Introduce a clock abstraction** — a `Clock` interface with `now(): Date` (or `nowMs(): number`), with a `systemClock` default and a `fixedClock(date)` for tests.\n2. **Thread it through `billing.ts`** — accept `clock` as a dependency (constructor arg, module factory, or explicit parameter on the relevant entry points). Replace all 7 `Date.now()`/`new Date()` sites with `clock.now()`.\n3. **Compute \"now\" once per operation** — capture `const now = clock.now()` at the top of each public function and reuse it, so a single invoice run can't see two different moments across its 5–7 reads.\n4. **Apply the same pattern in `src/date.ts`** — those 5 direct reads will silently undo the fix if `billing.ts` calls into them.\n5. **Pin the failing test** with `fixedClock(new Date('YYYY-MM-DDT23:59:59.999Z'))` (or whichever boundary reproduces it) to lock in a regression test before changing logic.\n\nThis is a low-risk, mechanical change per the scan's own `suggested_actions.risk: \"low\"`, and it eliminates the flakiness root cause rather than papering over it with retries or time tolerances.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

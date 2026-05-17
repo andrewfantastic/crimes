@@ -1,0 +1,50 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T20:01:42.828Z",
+  "run_id": "f619c70c-d898-4852-ac96-8c4b53544550",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3787-92eb-7d93-be05-08838272c9ca\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- Low: `src/routes/billing-plans.ts` defines `/billing-plans`, but the scan found no reference from `src/nav.ts`, `docs/routes.md`, or any in-repo import.  \\n  Recommendation: follow-up unless this page is meant to be user-reachable in the current release. If it is shipped functionality, it becomes blocking-quality because users and future agents cannot discover the route from the IA map.\\n\\n- Low: `src/routes/workspace.ts` defines `/workspace`, with the same reachability gap: absent from nav, docs, and imports.  \\n  Recommendation: follow-up if it is an in-progress or intentionally hidden route. Blocking-quality only if `/workspace` is part of the intended product journey.\\n\\n**Assessment**\\n\\nBoth findings are IA drift, not correctness failures: severity is `low`, confidence is moderate at `0.65`, and blast radius is `0`. I would not block the branch on these by default.\\n\\nThe right cleanup is to decide per route: either add the destination to the relevant nav/docs journey, or delete/retire the route if it no longer serves a flow.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19000,\"cached_input_tokens\":17792,\"output_tokens\":286,\"reasoning_output_tokens\":52}}\n",
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

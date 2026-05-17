@@ -1,0 +1,44 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:58:39.273Z",
+  "run_id": "b9f802ce-f265-4611-ad15-816ed339ebc0",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nA small note on the scan: `crimes context` only surfaces the accessibility finding (`crime_00001`). The design-token escape and responsive fragility are visible in the source (and in the file's own header comment), but no detector keyed to those exists yet — so the refactor addresses all three issues the file was built to demonstrate, even though only one shows up in `findings[]`.\n\n### Proposed `src/Card.tsx`\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  if (onActivate) {\n    return (\n      <button\n        type=\"button\"\n        onClick={onActivate}\n        className=\"w-full max-w-2xl bg-brand-accent text-ink-900\"\n      >\n        {children}\n      </button>\n    );\n  }\n\n  return (\n    <div className=\"w-full max-w-2xl bg-brand-accent text-ink-900\">\n      {children}\n    </div>\n  );\n}\n```\n\n### Each change tied to its finding type\n\n1. **Accessibility (`accessible_interaction_risk`, crime_00001, line 7)** — The `<div onClick>` is replaced with a real `<button type=\"button\">` when the card is interactive, and the click handler is hoisted to an `onActivate` prop. A button is reachable by Tab, activatable by Enter/Space, and announced as a button by screen readers — no `role`/`tabIndex`/`aria-label` workarounds needed. When the card is non-interactive (no `onActivate`), it stays a `<div>` with no click handler at all, which is the safer default than leaving a fake button behind. The suggested action in the finding (`switch_to_button_or_add_aria`) recommends exactly this swap; preferring the real element over `role=\"button\"` avoids re-implementing keyboard semantics by hand.\n\n2. **Design-token escape (hex literals in inline `style`)** — `#ff00aa` and `#0a0a0a` are inlined hex values that bypass the design system: they can't be themed, can't be audited for contrast, and won't track palette changes. They're replaced with Tailwind utility classes that resolve to named tokens (`bg-brand-accent`, `text-ink-900`). The exact token names depend on the project's `tailwind.config.*`; if those keys don't exist yet, add them there rather than re-inlining hex. Inline `style` is also dropped entirely, which removes the per-render style object allocation as a small bonus.\n\n3. **Responsive fragility (fixed `width: 800`)** — A hard-coded 800px width overflows any viewport under 800px and refuses to grow on larger ones. It's replaced with `w-full max-w-2xl` so the card fills its container by default and caps at roughly the same visual width on wide screens (`max-w-2xl` ≈ 672px; pick `max-w-3xl` or define a custom `max-w-card` token if you want closer to 800). This makes the component work inside any layout slot without the parent having to clamp it.\n\n### Suggested follow-ups (out of scope for this fixture but worth flagging)\n\n- Add a snapshot/RTL test that asserts the rendered element is a `<button>` when `onActivate` is provided — this would close the `test_gap: 1.00` score on the existing finding.\n- If you want the design-token escape and fixed-pixel-width to actually show up in future scans, those would be new detectors in `packages/language-js` (e.g. `style_token_escape`, `fixed_pixel_layout`) feeding into `core`'s finding schema — they fit cleanly under the \"frontend agent-risk\" theme alongside `accessible_interaction_risk`.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

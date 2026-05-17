@@ -1,0 +1,50 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:57:32.489Z",
+  "run_id": "f1a2c4dd-3825-4ffe-8f75-940deb07fe9e",
+  "response": "## Confirming the duplication\n\n`crimes scan --format json` returns a single `near_duplicate_block` finding (`crime_00001`, medium severity, confidence 0.85) with hash `289f7da71f3a…` appearing in 3 files / 3 occurrences:\n\n- `src/sanitize-a.ts:2-28` — `sanitizeUserInput(raw: string)`\n- `src/sanitize-b.ts:2-28` — `sanitizeText(input: string)`\n- `src/sanitize-c.ts:2-28` — `cleanMessage(value: string)`\n\nReading the bodies confirms they are byte-for-byte identical aside from parameter/local-variable renames (`raw/working`, `input/cleaned`, `value/normalised`). Same `trim → strip control chars → collapse whitespace → 1000-char cap → leading-angle-bracket reject → \\x reject → punctuation-spam reject → all-caps downcase` pipeline.\n\n## Proposed refactor\n\nExtract one shared helper into a new `src/sanitize.ts` and have the three existing modules re-export from it. Grepping the fixture finds zero call sites for any of the three original names, so this can be done as a pure consolidation — no caller updates needed inside the fixture (downstream callers in a real repo would keep working via the re-exports).\n\n**Files that would change:**\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` *(new)* | Holds the single implementation. |\n| `src/sanitize-a.ts` | Body deleted; re-export `sanitizeUserInput` as an alias of the shared helper. |\n| `src/sanitize-b.ts` | Same — alias `sanitizeText`. |\n| `src/sanitize-c.ts` | Same — alias `cleanMessage`. |\n\nIf callers do exist outside the fixture, the aliases preserve the public surface; once they're migrated the three shim files can be deleted in a follow-up.\n\n## Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeOptions {\n  /** Hard cap on output length after whitespace collapse. Default 1000. */\n  maxLength?: number;\n  /** Reject (return \"\") when input starts with \"<\" or \">\". Default true. */\n  rejectAngleBrackets?: boolean;\n  /** Reject (return \"\") when input contains a literal \"\\x\" escape. Default true. */\n  rejectHexEscapes?: boolean;\n  /** Reject (return \"\") when run of !/? of length ≥3 appears >N times. Default 5. */\n  maxPunctuationRuns?: number;\n  /**\n   * If the uppercase-letter ratio exceeds this and the string is longer\n   * than `shoutMinLength`, lowercase the output. Default 0.9 / 30.\n   */\n  shoutRatio?: number;\n  shoutMinLength?: number;\n}\n\n/**\n * Normalise and validate untrusted user text.\n * Returns \"\" for null/undefined or any input that fails a reject rule.\n */\nexport function sanitize(input: string | null | undefined, opts?: SanitizeOptions): string;\n```\n\nDefaults exactly reproduce the current behaviour, so the three callers become one-liners:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize\";\n// src/sanitize-b.ts\nexport { sanitize as sanitizeText } from \"./sanitize\";\n// src/sanitize-c.ts\nexport { sanitize as cleanMessage } from \"./sanitize\";\n```\n\nRationale for the options object rather than a bare `(s: string) => string`: the magic numbers (`1000`, `5`, `0.9`, `30`) and the reject rules are the bits most likely to need per-call-site tuning once this is shared — surfacing them as options means future divergence happens through configuration, not by copy-pasting the body again. The current behaviour stays the zero-arg default so the consolidation itself is a no-op refactor.",
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

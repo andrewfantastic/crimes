@@ -1,0 +1,26 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:50:35.467Z",
+  "run_id": "90526568-057c-4285-be92-b202ad45e418",
+  "response": "## What `src/billing.ts` does\n\nFrom the scan signals (310 lines, 5 top-level functions, no source available beyond evidence excerpts): it's a billing module that handles **refund preview/processing** (`calculateRefundPreview` at L40-44, which calls `saveRefundAudit` and `sendRefundEmail`; plus a commented-out `legacyRefund` at L33-37) and **invoice creation** (per the `billing.test.ts` \"creates an invoice\" case). It reads the system clock heavily (7 sites between L57-273) and deals with the `\"enterprise\"` plan tier. A prose authorisation rule lives in a comment at L39: *\"Only owners can refund enterprise plans unless billing support approves.\"*\n\n## Related files to read before editing\n\n- **`src/billing.test.ts`** — both tests are weak (one has zero `expect`s, the other only uses a weak matcher). Don't trust them as a safety net.\n- **`src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`** — share the `\"enterprise\"` literal; any plan-tier change needs to be coordinated across all four.\n- **`src/date.ts`** — also flagged for Temporal Recklessness; likely the right place to wire a clock abstraction if you fix the time-coupling.\n- **`src/nav/registry.ts`, `src/nav/sidebar.ts`, `src/routes/settings/billing.tsx`** — the `/settings/billing` destination is labelled four different ways (component `PricingPage`, metadata title `Plans`, `<title>` `Subscription`, nav labels `Plans`/`Billing`). If you touch user-visible billing strings, expect drift.\n- **No `AGENTS.md` / `CLAUDE.md`** in this repo — no conventions doc to defer to.\n\n## Risks the scan flagged on `src/billing.ts`\n\n| Charge | Sev | Where | What to know |\n|---|---|---|---|\n| Commented-Out Corpse | med | L33-37 | Dead `legacyRefund` snippet — don't revive it. |\n| Temporal Recklessness | med | L57, 63, 92, 198, 238, 250, 273 | 7 direct `Date.now()`/`new Date()` calls; behaviour is wall-clock dependent. |\n| False Identity | med | `calculateRefundPreview` L40-44 | Name says pure preview, body calls `saveRefundAudit` + `sendRefundEmail`. Treat it as a write. |\n| God File | med | whole file | 310 lines, at the 300-line threshold. |\n| Logic in the Alibi | med | L39 | Refund authorisation rule lives only in a comment — not enforced by visible code nearby. Verify any refund path before changing it. |\n| String Sprinkles | med | \"enterprise\" | Same literal in 3 other files (api/jobs/ui). |\n| Unfinished Business | low | L183-308 | 4 TODO/FIXME/HACK/XXX markers — unclear which behaviour is final. |\n\n**Highest-impact thing to check before editing:** the L39 rule. There's no test coverage proving owner-vs-billing-support refund authorisation, and the function that should enforce it (`calculateRefundPreview`) has a name that hides the fact that it sends emails and writes audits.",
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

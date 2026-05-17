@@ -1,0 +1,38 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T20:00:36.148Z",
+  "run_id": "b3ed7bc4-be32-43ce-b4a9-cc683c9a7056",
+  "response": "# PR Review: 22 findings, 0 high · 13 medium · 9 low\n\nNo high-severity findings, so nothing is a hard stop. I'm using **block merge** only for findings that represent a concrete bug or false-safety pattern, not risk *signals*.\n\n## 🛑 Block merge (3)\n\n| ID | Charge | Sev / agent_risk | Why block |\n|---|---|---|---|\n| 00008 | False Identity — `calculateRefundPreview` does `saveRefundAudit` + `sendRefundEmail` | med / 0.52 | The name promises a pure read; the body mutates and sends mail. This is the exact pattern agents misuse most — call it from a render path or a retry, and you get duplicate refunds/emails. Rename or extract before merge. |\n| 00011 | Logic in the Alibi — *\"Only owners can refund enterprise plans unless billing support approves\"* (billing.ts:39) | med / 0.50 | An authorization rule that lives only in prose, on a file already flagged for side-effect-in-preview (00008). If the code doesn't encode it, real money moves under the wrong conditions. Encode as a guard + test, don't ship the comment as policy. |\n| 00006 | Test That Proves Nothing — `renders the enterprise plan` has 0 assertions | med / 0.46 | A green test with no `expect` is worse than no test: it shows up as coverage and protects nothing. Same file (`billing.test.ts`) is the only test file for the riskiest module. Either assert observable behaviour or delete it; don't merge a placebo. |\n\n## ⚠️ Warn (13)\n\nGenuine risk, worth filing fixes for — but no immediate bug.\n\n| ID | Charge | Sev / agent_risk | Note |\n|---|---|---|---|\n| 00002 | Missing Agent Context | med / 0.61 | High agent_risk; every agent edit starts blind. Add AGENTS.md before the next agent-assisted PR. |\n| 00004 | Temporal Recklessness (billing.ts × 7) | med / 0.53 | Billing + wall clock + no clock injection → flaky/untestable. |\n| 00005 | Temporal Recklessness (date.ts × 5) | med / 0.61 | Same charge, dedicated date module that doesn't abstract `now()` — that's the whole point of the module. |\n| 00007 | String Sprinkles — `\"enterprise\"` in 4 files | med / 0.60 | Plan literal scattered across api/billing/jobs/ui. Next \"enterprise\" rule will diverge. |\n| 00009 | Concept Alias Drift — tenant/account/org/team/workspace | med / 0.58 | 5 files, 4 vocabularies for one concept. Agents will accidentally fork logic. |\n| 00010 | God File — billing.ts at 310 LOC | med / 0.50 | Just over threshold; flag, don't block. Split when 00004/00008/00011 fixes happen. |\n| 00012 | Duplicated Navigation Source — `/settings/billing` labelled both \"Plans\" and \"Billing\" | med / 0.57 | User-visible inconsistency; close call vs. block. Warn because no functional break — but fix before docs ship. |\n| 00013 | TODO Density — todo.ts at 424/1k LOC | med / 0.57 | Filename is suspicious — likely a scratch file. Triage or delete. |\n| 00014 | Route Metadata Drift — `/settings/billing` has 4 competing labels | med / 0.56 | Same root cause as 00012; bundle fixes. |\n| 00003 | Commented-Out Corpse (billing.ts:33–37) | med / 0.53 | Dead `legacyRefund` snippet in the very file that has the refund bug magnet. Delete to reduce noise around 00008. |\n| 00018 | Return Shape Roulette — `resolvePaymentResult` | low / 0.48 | Low severity but 0% key overlap between branches → callers will guess wrong. Worth a type before someone extends it. |\n| 00021/22/23 | Orphaned Destinations — `/account/subscription`, `/team`, `/workspace/members` | low / 0.46 each | Three unreachable routes; could be in-flight (related to 00009 alias drift) or dead. Confirm intent — don't silently ship. |\n\n## ✅ Ignore (5)\n\nLow severity, low agent_risk, no nearby coupling to a blocked finding.\n\n| ID | Charge | Sev / agent_risk | Why ignore |\n|---|---|---|---|\n| 00015 | Docs-Code Drift — broken link `./setup.md` | low / 0.51 | Single doc link; cosmetic. |\n| 00016 | Weak test matcher in `creates an invoice` | low / 0.34 | Lowest agent_risk in the report; not a falsifying assertion, just a weak one. |\n| 00017 | Option Bag Junk Drawer — `describeCheckout(options)` | low / 0.48 | Local to `petty.ts`; small surface. |\n| 00019 | Negative Flag Maze — `!disableBilling && !skipRetry` | low / 0.47 | Two negatives, not a thicket. |\n| 00020 | TODO Density — billing.ts at 12.9/1k | low / 0.40 | Barely over threshold; once 00013/00010 are addressed this disappears in noise. |\n\n## How I drew the lines\n\n- **Block:** finding describes a *concrete* false-safety pattern (test that asserts nothing, name that lies, rule that isn't enforced). Severity alone wasn't enough — none of the findings are high — so I treated `agent_risk` as a tiebreaker only when combined with a real bug surface.\n- **Warn:** medium severity, *or* low severity + agent_risk ≥ 0.46 + part of a cluster (route/nav drift, tenant aliases). These compound — each one alone is small, the cluster isn't.\n- **Ignore:** low severity, isolated, agent_risk ≤ 0.51, no coupling to a blocked item.\n\n**One pattern worth calling out:** `billing.ts` carries 5 of the 22 findings (00003, 00004, 00008, 00010, 00011, 00020) including both block-level ones. Treat that file as the focus of the fix-up PR rather than scattering 22 small edits.",
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

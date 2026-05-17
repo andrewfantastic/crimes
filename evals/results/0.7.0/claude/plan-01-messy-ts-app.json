@@ -1,0 +1,38 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:53:18.073Z",
+  "run_id": "99f651ee-159b-4cb4-9bf6-e9a876372619",
+  "response": "# Triage plan — top 10 findings\n\nRanked by aggregate risk (severity × confidence × agent_risk). All 10 are medium severity; verdict JSON wasn't included in the input, so this ordering uses scan scores only.\n\n## Group 1 — IA / discoverability (fix first: cheap, high agent-risk leverage)\n\nThese are the things that mislead the *next agent* loading this repo. Fix before any structural work — otherwise refactors will entrench the wrong vocabulary.\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 1 | `crime_00002` | Missing Agent Context | (repo root) | **Fix now** | Add `AGENTS.md` / `CLAUDE.md`. Single highest leverage — every other finding gets re-litigated by every agent until this lands. Low risk, ~30 min. |\n| 2 | `crime_00014` | Route Metadata Drift | `src/routes/settings/billing.tsx` | **Fix now** | One destination labelled four ways (`Plans`, `Billing`, `PricingPage`, `Subscription`). Pick canonical name; touches finding #3 too. |\n| 3 | `crime_00012` | Duplicated Navigation Source | `src/nav/registry.ts` + `sidebar.ts` | **Fix now** | Same `/settings/billing` destination, divergent labels. Resolve as part of #2 — they're the same problem. |\n| 4 | `crime_00009` | Concept Alias Drift (tenant) | `docs/billing.md` + 4 others | **Defer** (decide first) | `account` vs `organisation` vs `team` vs `workspace` across docs + routes. Needs product decision, not a code fix. Park as ADR; don't auto-rename. |\n\n## Group 2 — Duplication / drift (fix together with Group 1)\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 5 | `crime_00007` | String Sprinkles (`\"enterprise\"`) | `src/api/plan.ts` + 3 | **Fix now** | Plan literal scattered across api/jobs/ui/billing. Centralise as a const/enum before adding more plan tiers. Medium risk — read all 4 call sites first. |\n\n## Group 3 — Structural / testability (fix after IA settles)\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 6 | `crime_00005` | Temporal Recklessness | `src/date.ts` | **Fix now** | `date.ts` is the natural home for a `Clock` abstraction. Land here first so #7 has somewhere to call into. |\n| 7 | `crime_00004` | Temporal Recklessness | `src/billing.ts` | **Fix now** | 7 raw `Date.now()`/`new Date()` in billing. Inject the clock added in #6. Tests currently can't pin a moment. |\n| 8 | `crime_00008` | False Identity (`calculateRefundPreview`) | `src/billing.ts` | **Fix now** | Name implies pure calculation; body calls `saveRefundAudit` + `sendRefundEmail`. Rename or extract — agents *will* call this from a dry-run path otherwise. |\n| 9 | `crime_00003` | Commented-Out Corpse | `src/billing.ts:33-37` | **Fix now** | Trivial deletion. Bundle into the same PR as #7/#8 since you're already in `billing.ts`. |\n\n## Group 4 — Git-history / housekeeping\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 10 | `crime_00013` | Unfinished Business | `src/todo.ts` | **Ignore / suppress** | 14 markers in a 32-line file with `todo` in its name — almost certainly a fixture or intentional scratchpad. Add to `.crimes/ignore` rather than triaging. Re-evaluate only if file gets imported. |\n\n## Suggested PR cadence\n\n1. **PR-1 (Group 1+2):** `AGENTS.md` + nav/route metadata consolidation + `\"enterprise\"` constant. No behaviour change.\n2. **PR-2 (Group 3):** `Clock` injection in `date.ts` + `billing.ts`, rename `calculateRefundPreview`, delete commented corpse. Behaviour-preserving with new tests.\n3. **PR-3 (Group 1 #4):** ADR on `tenant` vocabulary before any rename touches routes.\n4. **Suppress:** `crime_00013` (fixture file).\n\nItems below the top 10 worth noting before they rot: `crime_00010` (God File, billing.ts 310 LOC) and `crime_00011` (Logic in the Alibi) will naturally split out during PR-2 if the refund extraction in #8 is done properly — don't pre-plan them separately.",
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

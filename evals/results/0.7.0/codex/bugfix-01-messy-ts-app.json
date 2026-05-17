@@ -1,0 +1,32 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.0",
+  "timestamp": "2026-05-17T19:49:00.099Z",
+  "run_id": "8821891d-af9c-4e05-889f-7a815ffb720a",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e377b-df1b-73b1-8476-76917e0854fe\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Most likely cause: `crime_00004` / `direct_date` in [src/billing.ts](src/billing.ts), especially because the failure is date-boundary-related.\\n\\nThe scan says `billing.ts` reads wall time directly in 7 places: `Date.now()` and `new Date()` on lines `57, 63, 92, 198, 238, 250, 273`. That makes tests depend on the exact instant they run. Around midnight, month end, trial expiry, invoice cutoff, or timezone boundaries, two calls made milliseconds apart can land on different logical billing days.\\n\\nProposed fix: inject a clock into the billing code and use one captured `now` value per operation.\\n\\nExample shape:\\n\\n```ts\\nexport type Clock = {\\n  now(): Date;\\n};\\n\\nexport const systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n```\\n\\nThen billing functions should accept a clock, defaulting to `systemClock`:\\n\\n```ts\\nexport function createInvoice(input: InvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // use `now` everywhere in this operation\\n}\\n```\\n\\nTests can then pin the boundary:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-01T00:00:00.000Z\\\"),\\n};\\n\\ncreateInvoice(input, fixedClock);\\n```\\n\\nI would fix this before chasing the weaker test findings. The weak tests explain why the bug escaped; the direct clock reads are the likely source of the flakiness.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24630,\"cached_input_tokens\":12160,\"output_tokens\":346,\"reasoning_output_tokens\":22}}\n",
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
