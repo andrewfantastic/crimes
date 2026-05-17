@@ -49,6 +49,10 @@ existing file unless you pass `--force`.
       "test_callback": 200,
       "cli_command_registrar": 200,
       "unknown": 80
+    },
+    "largeFile": {
+      "domain": 300,
+      "test_file": 1500
     }
   },
 
@@ -117,6 +121,24 @@ at `low` / `medium`.
 
 `thresholds.largeFunction.domain` wins over the legacy
 `thresholds.largeFunctionLines` when both are set.
+
+### `thresholds.largeFile.<shape>`
+
+Per-shape `large_file` overrides (new in 0.6.0). Any subset is fine
+— unset shapes use the built-in defaults:
+
+| Shape       | Default threshold |
+| ----------- | ----------------- |
+| `domain`    | 300               |
+| `test_file` | 1500              |
+
+The `test_file` shape matches `**/*.{test,spec}.[jt]sx?` and files
+under `__tests__/`. Test suites legitimately grow large with many
+small `it()` blocks, so the budget is much higher and severity caps
+at `low` / `medium`.
+
+`thresholds.largeFile.domain` wins over the legacy
+`thresholds.largeFileLines` when both are set.
 
 ### `detectors.enable` / `detectors.disable`
 

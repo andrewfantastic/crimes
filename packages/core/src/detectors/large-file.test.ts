@@ -1,19 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG } from "../config.js";
+import { type CrimesConfig, DEFAULT_CONFIG } from "../config.js";
 import type { DetectorContext } from "../detector.js";
 import { largeFileDetector } from "./large-file.js";
 
-function makeCtx(lineCount: number): DetectorContext {
+function makeCtx(
+  lineCount: number,
+  opts: { file?: string; config?: CrimesConfig } = {},
+): DetectorContext {
+  const file = opts.file ?? "src/big.ts";
   return {
-    file: "src/big.ts",
-    absolutePath: "/tmp/big.ts",
+    file,
+    absolutePath: `/tmp/${file}`,
     source: "",
     parsed: {
       lineCount,
       functions: [],
       dateNowOrNewDateUses: [],
     },
-    config: DEFAULT_CONFIG,
+    config: opts.config ?? DEFAULT_CONFIG,
   };
 }
 
@@ -49,5 +53,81 @@ describe("largeFileDetector", () => {
   it("summary explains why large files are risky", async () => {
     const findings = await largeFileDetector.run(makeCtx(800));
     expect(findings[0]!.summary).toMatch(/coupling|context|edit/i);
+  });
+});
+
+describe("largeFileDetector — test_file shape", () => {
+  it("does not flag a 900-line `.test.ts` file (under the 1500 default)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(900, { file: "packages/core/src/reporter.test.ts" }),
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it("does not flag a 900-line file under `__tests__/`", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(900, { file: "packages/foo/src/__tests__/feature.ts" }),
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it("flags a 1700-line test file as low (between 1× and 2× threshold)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(1700, { file: "packages/core/src/context.spec.ts" }),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe("low");
+    expect(findings[0]!.evidence.join(" ")).toContain("test file");
+  });
+
+  it("escalates a 3500-line test file to medium (≥2× threshold)", async () => {
+    const findings = await largeFileDetector.run(
+      makeCtx(3500, { file: "packages/core/src/giant.test.ts" }),
+    );
+    expect(findings[0]!.severity).toBe("medium");
+  });
+
+  it("test_file agent_risk is lower than a same-size domain file", async () => {
+    const test = await largeFileDetector.run(
+      makeCtx(1800, { file: "packages/core/src/x.test.ts" }),
+    );
+    const domain = await largeFileDetector.run(
+      makeCtx(1800, { file: "packages/core/src/x.ts" }),
+    );
+    const testRisk = test[0]!.scores.agent_risk;
+    const domainRisk = domain[0]!.scores.agent_risk;
+    expect(testRisk).toBeDefined();
+    expect(domainRisk).toBeDefined();
+    expect(testRisk!).toBeLessThan(domainRisk!);
+  });
+
+  it("honours `thresholds.largeFile.test_file` override", async () => {
+    const config: CrimesConfig = {
+      ...DEFAULT_CONFIG,
+      thresholds: {
+        ...DEFAULT_CONFIG.thresholds,
+        largeFile: { test_file: 400 },
+      },
+    };
+    const findings = await largeFileDetector.run(
+      makeCtx(500, { file: "src/small.test.ts", config }),
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it("honours `thresholds.largeFile.domain` over legacy `largeFileLines`", async () => {
+    const config: CrimesConfig = {
+      ...DEFAULT_CONFIG,
+      thresholds: {
+        ...DEFAULT_CONFIG.thresholds,
+        largeFile: { domain: 1000 },
+      },
+    };
+    // 500 lines would normally hit the 300-line legacy default. With
+    // domain bumped to 1000, the same file is now under threshold.
+    const findings = await largeFileDetector.run(
+      makeCtx(500, { file: "src/big.ts", config }),
+    );
+    expect(findings).toEqual([]);
   });
 });

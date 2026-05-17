@@ -3,6 +3,13 @@ import type { Finding, Severity } from "../finding.js";
 
 const TODO_PATTERN = /\b(TODO|FIXME|XXX|HACK)\b/g;
 
+// Narrow self-reference exemption: a file that itself contains the literal
+// regex token sequence `TODO|FIXME|XXX|HACK` is the detector source (or a
+// fixture/test thereof) and would otherwise flag itself every scan. Matches
+// both `/\b(TODO|FIXME|XXX|HACK)\b/` and `"TODO|FIXME|XXX|HACK"` shapes; does
+// NOT match prose that merely mentions one marker name in passing.
+const SELF_REFERENCE_PATTERN = /TODO\s*\|\s*FIXME\s*\|\s*XXX\s*\|\s*HACK/;
+
 export const todoDensityDetector: Detector = {
   id: "todo_density",
   name: "TODO/FIXME Density",
@@ -14,6 +21,9 @@ export const todoDensityDetector: Detector = {
     "warnings that have become wallpaper.",
 
   run(ctx) {
+    // Skip files that *define* the marker set rather than carry markers.
+    if (SELF_REFERENCE_PATTERN.test(ctx.source)) return [];
+
     const matches = [...ctx.source.matchAll(TODO_PATTERN)];
     if (matches.length === 0) return [];
 

@@ -40,6 +40,18 @@ export interface CrimesConfig {
       cli_command_registrar?: number;
       unknown?: number;
     };
+    /**
+     * Per-shape `large_file` overrides. Any subset is fine — unset shapes
+     * use the built-in defaults documented in
+     * `packages/core/src/detectors/large-file.ts`.
+     *
+     * The `domain` entry wins over the legacy top-level
+     * `thresholds.largeFileLines` when both are set.
+     */
+    largeFile?: {
+      domain?: number;
+      test_file?: number;
+    };
   };
   /**
    * IA seed overrides. Always **additive** to
@@ -145,12 +157,20 @@ const largeFunctionShapesSchema = z
   })
   .strict();
 
+const largeFileShapesSchema = z
+  .object({
+    domain: z.number().int().positive().optional(),
+    test_file: z.number().int().positive().optional(),
+  })
+  .strict();
+
 const thresholdsSchema = z
   .object({
     largeFileLines: z.number().int().positive().optional(),
     largeFunctionLines: z.number().int().positive().optional(),
     todoDensityPerKLoc: z.number().int().nonnegative().optional(),
     largeFunction: largeFunctionShapesSchema.optional(),
+    largeFile: largeFileShapesSchema.optional(),
   })
   .strict();
 
@@ -285,6 +305,9 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
   if (override.$schema !== undefined) merged.$schema = override.$schema;
   if (override.thresholds?.largeFunction !== undefined) {
     merged.thresholds.largeFunction = { ...override.thresholds.largeFunction };
+  }
+  if (override.thresholds?.largeFile !== undefined) {
+    merged.thresholds.largeFile = { ...override.thresholds.largeFile };
   }
   if (override.detectors !== undefined) merged.detectors = override.detectors;
   if (override.ia !== undefined) merged.ia = override.ia;

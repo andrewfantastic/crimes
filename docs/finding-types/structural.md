@@ -76,17 +76,25 @@ domain threshold, kept for back-compat) and the per-shape
 
 ## God File (`large_file`)
 
-**What it detects.** Source files past
-`thresholds.largeFileLines` (default 300 lines) and carrying more
-than a handful of top-level functions. Counts non-empty lines so
-generated whitespace can't lower the count.
+**What it detects.** Source files past a per-shape line threshold.
+Counts non-empty lines so generated whitespace can't lower the count.
+
+| Shape       | Threshold              | Severity at threshold | Severity at 2× |
+| ----------- | ---------------------- | --------------------- | -------------- |
+| `domain`    | config (default 300)   | medium                | high           |
+| `test_file` | 1500                   | low                   | medium         |
+
+The `test_file` shape (new in 0.6.0) matches `**/*.{test,spec}.[jt]sx?`
+and files under `__tests__/`. Tests legitimately grow large with many
+small `it()` blocks, so the budget is much higher and severity caps
+at `low` / `medium`.
 
 **Example evidence.**
 
 ```text
-523 lines (1.7× the 300-line threshold)
-22 top-level functions
-top-level symbols: createBilling, refundCharge, applyCoupon, …
+523 non-empty lines
+1.7× the configured 300-line file threshold
+22 top-level functions declared in this file
 ```
 
 **Why it matters.** Files this size accumulate unrelated
@@ -97,7 +105,13 @@ isolation.
 **Suggested fix.** Identify cohesive groups of functions (data
 access, formatting, validation, transport) and extract each into its
 own file. Re-exporting from a barrel is fine if the consumers prefer
-the flat import.
+the flat import. For `test_file` shape, split into per-feature or
+per-scenario suites.
+
+**Configuration knobs.** `thresholds.largeFileLines` (legacy domain
+threshold, kept for back-compat) and the per-shape
+`thresholds.largeFile.<shape>` overrides. See
+[`docs/configuration.md`](../configuration.md).
 
 ---
 
@@ -124,6 +138,13 @@ or stop pretending the TODO is meaningful.
 **Suggested fix.** Convert load-bearing TODOs into tracker tickets
 referenced by id. Delete or close the rest. The detector doesn't
 care about marker style — `// TODO(@alex)` survives unchanged.
+
+**Self-reference exemption (new in 0.6.0).** A file whose own source
+contains the literal token sequence `TODO|FIXME|XXX|HACK` (i.e., it
+*defines* the marker pattern rather than carrying markers) is
+skipped. This stops the detector from flagging its own source and
+any fixture or test of the marker pattern. Prose that just mentions
+one marker name in passing is unaffected.
 
 ---
 

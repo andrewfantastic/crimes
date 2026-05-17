@@ -64,6 +64,28 @@ describe("todoDensityDetector", () => {
     expect(findings[0]!.severity).toBe("medium");
   });
 
+  it("exempts the detector source that defines the marker pattern", async () => {
+    // Mirrors the production detector: a file containing the literal
+    // `TODO|FIXME|XXX|HACK` token sequence is the detector source itself
+    // (or a fixture/test of it) and should not flag itself.
+    const src = [
+      "const TODO_PATTERN = /\\b(TODO|FIXME|XXX|HACK)\\b/g;",
+      "// TODO: this should not count",
+      "// FIXME: nor this",
+      "// XXX: nor this either",
+    ].join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src));
+    expect(findings).toEqual([]);
+  });
+
+  it("does NOT exempt prose that mentions one marker name", async () => {
+    // Counter-test: a comment that just says "TODO" without the full
+    // pipe-separated set should still count.
+    const src = Array.from({ length: 6 }, (_, i) => `// TODO: ${i}`).join("\n");
+    const findings = await todoDensityDetector.run(makeCtx(src, 100));
+    expect(findings).toHaveLength(1);
+  });
+
   it("reports line range spanning first to last marker", async () => {
     const src = [
       "export const a = 1;",
