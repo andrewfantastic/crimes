@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "node ./scripts/build.mjs",
   "outputDirectory": "dist",
-  "installCommand": "echo 'no install step required'",
+  "installCommand": "pnpm install --frozen-lockfile",
   "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,

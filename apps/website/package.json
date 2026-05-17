@@ -2,14 +2,19 @@
   "name": "@crimes/website",
   "version": "0.0.0",
   "private": true,
-  "description": "crimes.sh — marketing and docs site for crimes. Skeleton; will be replaced with Astro or Next.js.",
+  "description": "crimes.sh — Astro + Starlight site for the crimes CLI. Landing page lives in landing/; the /docs/ tree is generated from <repo>/docs/.",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "node ./scripts/build.mjs",
-    "dev": "node ./scripts/serve.mjs"
+    "dev": "node ./scripts/sync-docs.mjs && astro dev",
+    "preview": "astro preview"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.39.2",
+    "astro": "^6.3.3"
   }
 }

@@ -50,6 +50,12 @@ jobs:
           node packages/cli/dist/index.js scan examples/messy-ts-app --format json > /tmp/report.json
           node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/report.json','utf8')); if(!r.schema_version||!Array.isArray(r.findings))process.exit(1); console.log('schema',r.schema_version,'findings',r.findings.length)"
 
+      - name: Build website (landing + /docs Starlight site)
+        run: pnpm --filter @crimes/website build
+
+      - name: Verify /docs/ tree contains every expected page
+        run: node apps/website/scripts/verify-build.mjs
+
   publish-smoke:
     name: publish smoke (pack + install + run)
     runs-on: ubuntu-latest

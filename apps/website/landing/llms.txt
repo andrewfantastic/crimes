@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.5.0)
+## Commands (latest published v0.6.0)
 
 Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings
@@ -180,29 +180,75 @@ All additions are additive and backwards-compatible. `schema_version`
 stays at `"0.1.0"`. Live on npm. Release notes:
 https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.4.0.md
 
-## IA candidates deferred from v0.3.0 and v0.4.0
+## Detectors shipped in v0.6.0
 
-These remain in the long-term IA roadmap and are **not implemented**.
-Do not invoke or document them as available.
+Eighteen new detector types, grouped into four categories. All emit
+the standard `Finding` shape; cross-file findings populate
+`related_files`. Phrasing on the new detectors stays hedged ("appears
+to" / "may") — they are signal, not assertions of semantic truth.
 
-- `orphaned_destination` (charge: Orphaned Destination) — pages /
-  routes / screens unreachable from primary navigation, route
-  registries, sitemap metadata, or internal links. Needs route
-  discovery to mature.
-- `parallel_destination` (charge: Parallel Destination) — multiple
-  pages or flows that appear to serve the same user intent
-  (`/billing` vs `/settings/billing` vs `/account/subscription`;
-  `InviteUserModal` vs `AddTeamMemberDialog`). Needs near-duplicate
-  scoring to avoid noisy guesses.
-- `permission_ia_drift` (charge: Permission IA Drift) — navigation,
-  route guards, docs, and policy code describe access using different
-  roles or concepts. Requires policy / route-guard discovery.
-- `action_label_drift` (charge: Action Label Drift) — the same action
-  or object is labelled differently across UI copy and code
-  ("Delete" / "Remove" / "Archive"; "User" / "Member" / "Seat").
-- Command-drift variant of `docs_code_drift` — docs that reference a
-  CLI command the published `bin` no longer implements. Needs
-  deterministic command-registration scanning that is not yet shipped.
+Architecture / dependency graph:
+- `layer_violation` (charge: Layer Border Crossing) — an import that
+  crosses a forbidden boundary defined by `architecture.layers` +
+  `architecture.rules` in `crimes.config.json`.
+- `circular_dependency` (charge: Tangled Imports) — strongly-connected
+  components in the import graph (≥ 2 files).
+- `deep_import` (charge: Deep Import Abuse) — imports reaching
+  more than `n` segments deep into another package's source tree.
+- `high_fan_in_fan_out` (charge: Crowded Module) — files with unusually
+  high import fan-in and/or fan-out.
+
+Information-architecture completion:
+- `orphaned_destination` (charge: Orphaned Destination) — routes
+  declared in nav / IA index without a resolving source / route file.
+- `parallel_destination` (charge: Parallel Destination) — two nav-like
+  surfaces declaring different routes for the same canonical destination.
+- `permission_ia_drift` (charge: Permission IA Drift) — same role /
+  permission identifier categorised differently across surfaces.
+- `action_label_drift` (charge: Action Label Drift) — same domain
+  action labelled differently across surfaces.
+- `command_drift_docs_code_drift` (charge: Command Docs / Code Drift) —
+  docs reference a `bin` subcommand the CLI no longer implements.
+
+Frontend / UI agent-risk:
+- `design_token_escape` (charge: Design Token Escape) — hard-coded
+  colours / spacings / font sizes where the repo has a design-token
+  system.
+- `accessible_interaction_risk` (charge: Hidden Interaction) — JSX
+  element handles pointer events but has no accessible label.
+- `duplicate_component_shape` (charge: Duplicate Component Shape) —
+  two or more components with AST-hash-equivalent JSX shape.
+- `responsive_fragility` (charge: Responsive Fragility) — component
+  mixing many breakpoint-specific utilities or hard-pixel widths.
+- `copy_ia_drift` (charge: Copy / IA Drift, frontend variant) — nav
+  label and breadcrumb / page-title disagree on the same destination.
+- `visual_regression_review_hint` (charge: Visual Regression Review
+  Hint) — a changed line touches JSX in a way the heuristics suspect
+  will alter the rendered output.
+
+Duplication:
+- `exact_duplicate_block` (charge: Exact Duplicate Block) — function
+  bodies with identical AST hashes across two or more files.
+- `near_duplicate_block` (charge: Near-Duplicate Block) — function
+  bodies with high-similarity AST-hash bags but small deltas.
+- `duplicated_role_status_plan_check` (charge: Duplicated Policy
+  Logic) — same domain concept (role / status / plan) checked in
+  multiple files with different shapes.
+
+Per-finding scores (M2 completion in v0.6.0):
+- `scores.blast_radius` — normalised transitive-importer count.
+- `scores.churn` — normalised commits-in-window count.
+- `scores.test_gap` — three-tier signal from filesystem + import-graph
+  test discovery.
+- Unified `agent_risk` formula combines all five inputs. Documented in
+  `docs/scoring.md`.
+
+Additional v0.6.0 shape: `cli_command_registrar` for `large_function`
+— Commander-style `register*Command(program)` wrappers and their
+anonymous `.action(...)` callbacks no longer false-positive at the
+domain threshold.
+
+Full Starlight-rendered docs at https://crimes.sh/docs/.
 
 ## Shipped in v0.5.0 — suppressions, config, and explainability
 
@@ -270,13 +316,10 @@ https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
 ## Not shipped yet — do not invoke or document as available
 
-- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred (tracked for v0.6.0/v0.7.0 with its own plan).
 - `crimes ask` / LLM-assisted features — v1+.
-- Dependency-graph + duplication detectors — deferred.
-- Frontend / UI agent-risk detectors — deferred.
 - Homebrew tap + standalone binaries — deferred.
-- `architecture.layers` runtime enforcement (schema lands in v0.5.0; the consuming detector is its own future release).
 - Suppression expiry / owner (`expires_at`, `owner`) — designed but deferred.
+- Structured Claude + Codex evidence-capture hook — v0.7.0.
 
 ## Resources
 
