@@ -3,6 +3,7 @@ import type {
   BaselineCheckReport,
   ContextReport,
   DiffReport,
+  ExplainReport,
   HotspotsReport,
   ScanReport,
   VerdictReport,
@@ -63,6 +64,14 @@ export function formatBaselineCheckJsonReport(
 
 export function formatVerdictJsonReport(
   report: VerdictReport,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(report, null, pretty ? 2 : 0);
+}
+
+export function formatExplainJsonReport(
+  report: ExplainReport,
   options: JsonReportOptions = {},
 ): string {
   const pretty = options.pretty ?? true;

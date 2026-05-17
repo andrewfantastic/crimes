@@ -106,6 +106,12 @@ export const largeFunctionDetector: Detector = {
     "Flags functions whose body exceeds a per-shape line threshold " +
     "(domain code, React components, route handlers, page exports, " +
     "and test callbacks each carry their own budget).",
+  whyItMatters:
+    "Functions this large mix multiple responsibilities into one body. " +
+    "An agent editing one section often misses interactions in another, " +
+    "and the function becomes a magnet for further duplication. Smaller, " +
+    "named helpers give every editor — human or AI — a smaller surface " +
+    "to reason about per edit.",
 
   run(ctx) {
     const findings: Finding[] = [];

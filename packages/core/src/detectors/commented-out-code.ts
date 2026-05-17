@@ -27,6 +27,11 @@ export const commentedOutCodeDetector: Detector = {
   id: "commented_out_code",
   name: "Commented-Out Code",
   description: "Flags disabled code left behind in comments.",
+  whyItMatters:
+    "Disabled code in comments creates two diverging realities — the live " +
+    "implementation and the dormant alternative. Agents may copy from the " +
+    "comment without checking whether it was abandoned for a reason, and " +
+    "reviewers cannot tell which is canonical.",
 
   run(ctx) {
     const findings: Finding[] = [];

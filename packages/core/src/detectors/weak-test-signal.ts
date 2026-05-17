@@ -10,6 +10,11 @@ export const weakTestSignalDetector: Detector = {
   id: "weak_test_signal",
   name: "Weak Test Signal",
   description: "Flags tests that contain no meaningful assertion signal.",
+  whyItMatters:
+    "Tests that do not assert specific behaviour give the appearance of " +
+    "coverage without the safety. Agents reading the file see green " +
+    "checkmarks and assume the surrounding code is protected; small " +
+    "regressions ship without warning.",
 
   run(ctx) {
     if (!TEST_FILE.test(ctx.file) || looksTypeOnlyTest(ctx.file, ctx.source)) return [];

@@ -7,6 +7,11 @@ export const returnShapeRouletteDetector: Detector = {
   id: "return_shape_roulette",
   name: "Return Shape Roulette",
   description: "Flags functions that return substantially different object shapes across branches.",
+  whyItMatters:
+    "Functions that return different object shapes depending on input force " +
+    "every caller to discriminate at runtime. Adding a branch or changing " +
+    "one shape risks invalidating every consumer; agents tend to test only " +
+    "the path they were debugging.",
 
   run(ctx) {
     if (TEST_FILE.test(ctx.file)) return [];

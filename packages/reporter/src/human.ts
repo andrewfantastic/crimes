@@ -5,6 +5,7 @@ import type {
   ContextReport,
   ContextRisk,
   DiffReport,
+  ExplainReport,
   Finding,
   HighestSeverity,
   Hotspot,
@@ -625,5 +626,97 @@ function verdictLabel(v: Verdict, colour: ColourFns): string {
       return colour.dim(colour.bold(upper));
     case "mixed":
       return colour.yellow(colour.bold(upper));
+  }
+}
+
+export interface ExplainHumanReportOptions {
+  /** Disable ANSI colour output. */
+  noColor?: boolean;
+}
+
+/**
+ * Render a `crimes explain` report as a human-readable block. Always
+ * includes the suggested `crimes ignore <fingerprint> --reason "…"`
+ * command verbatim so an agent or human can copy it without re-deriving
+ * the fingerprint.
+ */
+export function formatExplainReport(
+  report: ExplainReport,
+  options: ExplainHumanReportOptions = {},
+): string {
+  const colour = options.noColor ? plainColour() : pc;
+  const f = report.finding;
+  const lines: string[] = [];
+
+  lines.push(colour.bold("CRIMES EXPLAIN"));
+  lines.push(`${colour.bold("charge:")}    ${f.charge}`);
+  lines.push(`${colour.bold("type:")}      ${f.type}`);
+  lines.push(
+    `${colour.bold("severity:")}  ${severityCell(f.severity, colour)}` +
+      `   ${colour.bold("confidence:")} ${f.confidence.toFixed(2)}`,
+  );
+  lines.push(`${colour.bold("file:")}      ${f.file}`);
+  if (f.symbol) {
+    lines.push(`${colour.bold("symbol:")}    ${f.symbol}`);
+  }
+  if (f.lines) {
+    const span = f.lines[0] === f.lines[1] ? `${f.lines[0]}` : `${f.lines[0]}–${f.lines[1]}`;
+    lines.push(`${colour.bold("lines:")}     ${span}`);
+  }
+  if (f.suppressed === true) {
+    lines.push(
+      `${colour.bold("suppressed:")} ${f.suppression_reason ?? "(no reason)"}`,
+    );
+  }
+
+  lines.push("");
+  lines.push(colour.bold("What this detector looks for"));
+  lines.push(`  ${report.detector.description}`);
+  lines.push("");
+  lines.push(colour.bold("Why it matters"));
+  lines.push(`  ${report.why_it_matters || "(no rationale text for this detector)"}`);
+
+  if (f.evidence.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Evidence"));
+    for (const ev of f.evidence) {
+      lines.push(`  · ${colour.dim(ev)}`);
+    }
+  }
+
+  if (f.suggested_actions && f.suggested_actions.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Suggested actions"));
+    for (const action of f.suggested_actions) {
+      lines.push(`  · ${action.kind} (risk: ${action.risk})`);
+      lines.push(`      ${action.description}`);
+    }
+  }
+
+  if (f.related_files && f.related_files.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Related files"));
+    for (const rel of f.related_files) {
+      lines.push(`  · ${colour.cyan(rel)}`);
+    }
+  }
+
+  lines.push("");
+  lines.push(
+    colour.bold("To suppress (only if the team has decided this is acceptable)"),
+  );
+  lines.push(`  ${report.suggested_suppression_command}`);
+
+  return lines.join("\n");
+}
+
+function severityCell(s: Severity, colour: ColourFns): string {
+  switch (s) {
+    case "high":
+      return colour.red(colour.bold(s));
+    case "medium":
+      return colour.yellow(colour.bold(s));
+    case "low":
+      return colour.dim(colour.bold(s));
   }
 }

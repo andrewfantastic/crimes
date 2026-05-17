@@ -48,6 +48,11 @@ export const logicInCommentsDetector: Detector = {
   id: "logic_in_comments",
   name: "Logic in Comments",
   description: "Flags comments that appear to carry business rules or safety constraints.",
+  whyItMatters:
+    "Rules that live only in prose are not enforceable. Anyone (or any " +
+    "agent) editing the file can drop the constraint without the type " +
+    "system, tests, or runtime guards catching the change. Encoding the " +
+    "rule in code is the only way to make it survive.",
 
   run(ctx) {
     const sourceLines = ctx.source.split(/\r?\n/);

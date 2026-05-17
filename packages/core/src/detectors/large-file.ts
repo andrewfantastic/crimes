@@ -5,6 +5,11 @@ export const largeFileDetector: Detector = {
   id: "large_file",
   name: "Large File",
   description: "Flags files that exceed a configurable line-count threshold.",
+  whyItMatters:
+    "Files this large are hard to read in one breath and exceed many " +
+    "agents' practical context budget. They concentrate unrelated changes, " +
+    "so every PR's diff is harder to review and easier to break. Splitting " +
+    "by responsibility keeps each module independently understandable.",
 
   run(ctx) {
     const threshold = ctx.config.thresholds.largeFileLines;

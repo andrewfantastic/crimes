@@ -17,6 +17,11 @@ export const missingAgentContextDetector: Detector = {
     "Flags repos that ship no agent-readable instruction files. Agents may " +
     "miss project conventions, commands, and safety checks when they have " +
     "nothing to load.",
+  whyItMatters:
+    "Agents land in repos without the project-specific commands, " +
+    "architecture rules, and safety checks the team takes for granted. " +
+    "Without AGENTS.md / CLAUDE.md / skill files, the agent invents its " +
+    "own conventions — usually badly.",
 
   run(ctx) {
     if (!ctx.ia) return [];

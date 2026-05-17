@@ -114,6 +114,7 @@ describe("scan", () => {
       id: "ia_sniffer",
       name: "IA Sniffer",
       description: "test-only detector that captures ctx.ia state",
+      whyItMatters: "",
       run(ctx: {
         ia?: { routes: { routePath: string }[] };
       }) {

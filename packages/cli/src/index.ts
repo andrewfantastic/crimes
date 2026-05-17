@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
 import { registerDiffCommand } from "./commands/diff.js";
+import { registerExplainCommand } from "./commands/explain.js";
 import { registerHotspotsCommand } from "./commands/hotspots.js";
 import { registerIgnoreCommand } from "./commands/ignore.js";
 import { registerInitCommand } from "./commands/init.js";
@@ -22,6 +23,7 @@ program
 
 registerInitCommand(program);
 registerIgnoreCommand(program);
+registerExplainCommand(program);
 registerScanCommand(program);
 registerContextCommand(program);
 registerHotspotsCommand(program);

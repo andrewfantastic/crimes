@@ -8,6 +8,11 @@ export const optionBagJunkDrawerDetector: Detector = {
   id: "option_bag_junk_drawer",
   name: "Option Bag Junk Drawer",
   description: "Flags broad object bags whose implicit shape is large or passed through helpers.",
+  whyItMatters:
+    "Generic options objects hide which fields are required, which are " +
+    "optional, and how they interact. Agents extending the call site often " +
+    "add or rename a key without understanding what depends on it; " +
+    "downstream consumers silently break.",
 
   run(ctx) {
     if (TEST_FILE.test(ctx.file)) return [];

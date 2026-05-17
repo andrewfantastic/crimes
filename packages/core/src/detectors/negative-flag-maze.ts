@@ -8,6 +8,11 @@ export const negativeFlagMazeDetector: Detector = {
   id: "negative_flag_maze",
   name: "Negative Flag Maze",
   description: "Flags conditionals that combine multiple negative flags.",
+  whyItMatters:
+    "Predicates built from multiple negative flags are easy to invert by " +
+    "accident. Agents simplifying or extending such conditions frequently " +
+    "flip the meaning, especially when the flag name and the surrounding " +
+    "logic disagree.",
 
   run(ctx) {
     if (TEST_FILE.test(ctx.file)) return [];

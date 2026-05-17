@@ -18,6 +18,11 @@ export const docsCodeDriftDetector: Detector = {
   description:
     "Flags documents that reference local files which no longer exist. " +
     "Broken doc links lead agents to follow stale instructions.",
+  whyItMatters:
+    "Documents that reference local files which no longer exist lead " +
+    "agents to follow stale instructions. Updating the docs in the same " +
+    "PR as the code change is the only durable fix; orphaned references " +
+    "compound silently over time.",
 
   run(ctx) {
     if (!ctx.ia) return [];

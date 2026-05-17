@@ -7,6 +7,11 @@ export const todoDensityDetector: Detector = {
   id: "todo_density",
   name: "TODO/FIXME Density",
   description: "Flags files with a high concentration of TODO, FIXME, XXX, or HACK markers.",
+  whyItMatters:
+    "A high density of TODO/FIXME comments tells readers the code does " +
+    "not match its intent. Agents tend to act on visible code without " +
+    "weighing the unbuilt promises around it, and reviewers skim past " +
+    "warnings that have become wallpaper.",
 
   run(ctx) {
     const matches = [...ctx.source.matchAll(TODO_PATTERN)];

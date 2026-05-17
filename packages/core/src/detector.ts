@@ -17,6 +17,14 @@ export interface Detector {
   name: string;
   /** One-line description of what this detector finds. */
   description: string;
+  /**
+   * One-paragraph rationale for `crimes explain`. Explains _why_ this kind
+   * of finding matters to agents and reviewers, not what the detector
+   * looks for (that is `description`). Deterministic — no LLM, no
+   * per-finding tailoring; the same string is shown for every finding of
+   * this type.
+   */
+  whyItMatters: string;
   run(ctx: DetectorContext): Promise<Finding[]> | Finding[];
 }
 

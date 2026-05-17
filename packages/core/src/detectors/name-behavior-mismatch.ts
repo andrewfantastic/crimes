@@ -28,6 +28,11 @@ export const nameBehaviorMismatchDetector: Detector = {
   id: "name_behavior_mismatch",
   name: "Name / Behaviour Mismatch",
   description: "Flags functions whose names imply safe reads or calculations while their bodies perform side effects.",
+  whyItMatters:
+    "A function whose name reads as a pure getter but does I/O, or a " +
+    "setter that fires side effects, surprises every caller. Agents triage " +
+    "code by names — a safe-sounding name often makes them call something " +
+    "dangerous from a hot loop.",
 
   run(ctx) {
     const lines = ctx.source.split(/\r?\n/);

@@ -9,6 +9,11 @@ export const magicDomainLiteralScatterDetector: Detector = {
   id: "magic_domain_literal_scatter",
   name: "Magic Domain Literal Scatter",
   description: "Flags repeated domain-looking literals spread across production files.",
+  whyItMatters:
+    "When the same domain string appears in many files, the team has " +
+    "accidentally created multiple sources of truth. Adding the next call " +
+    "site quietly duplicates policy; renaming or retiring the value " +
+    "requires finding every copy.",
 
   run(ctx) {
     if (!ctx.petty) return [];

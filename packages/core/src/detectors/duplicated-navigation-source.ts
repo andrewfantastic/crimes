@@ -18,6 +18,11 @@ export const duplicatedNavigationSourceDetector: Detector = {
   description:
     "Flags destinations that appear in multiple nav-like source files " +
     "with different labels -- a sign that one nav source is stale.",
+  whyItMatters:
+    "Multiple files declaring the same destination with different labels " +
+    "lead to UI inconsistency that only manifests on the screens nobody " +
+    "tests. Updating one source leaves the others stale; eventually the " +
+    "team forgets which one is real.",
 
   run(ctx) {
     if (!ctx.ia) return [];

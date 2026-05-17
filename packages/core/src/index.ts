@@ -40,6 +40,12 @@ export {
 } from "./context.js";
 export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
 export {
+  explain,
+  UnknownDetectorTypeError,
+  UnknownFindingError,
+} from "./explain.js";
+export type { ExplainOptions, ExplainReport } from "./explain.js";
+export {
   findRelatedFiles,
   RELATED_FILES_CAP,
 } from "./context-related-files.js";

@@ -21,6 +21,11 @@ export const routeMetadataDriftDetector: Detector = {
   description:
     "Flags routes whose path, file/component name, page title, and nav " +
     "labels appear to describe the destination differently.",
+  whyItMatters:
+    "When a route's path, page title, breadcrumb, and component name " +
+    "disagree, the product tells the user one story and the code tells " +
+    "reviewers another. Agents updating labels rely on whichever source " +
+    "they happen to see first, which is rarely the canonical one.",
 
   run(ctx) {
     if (!ctx.ia) return [];

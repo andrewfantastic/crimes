@@ -8,6 +8,11 @@ export const directDateDetector: Detector = {
   description:
     "Flags direct uses of Date.now() and new Date() — these make code hard to test and " +
     "introduce hidden timezone coupling.",
+  whyItMatters:
+    "Direct clock access makes behaviour non-deterministic in tests and " +
+    "couples logic to whichever timezone the process happens to run in. " +
+    "Injecting a clock keeps domain code reproducible and lets tests assert " +
+    "exact timing without freezing the whole process.",
 
   run(ctx) {
     const hits = ctx.parsed.dateNowOrNewDateUses;

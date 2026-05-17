@@ -19,6 +19,11 @@ export const conceptAliasDriftDetector: Detector = {
   description:
     "Flags repos where multiple seeded aliases from one concept group " +
     "describe overlapping product surface (routes, labels, nav, docs).",
+  whyItMatters:
+    "When the same product concept appears under different names in " +
+    "different files, agents extending one vocabulary quietly duplicate " +
+    "logic that already exists under another name. Reviewers reading " +
+    "later struggle to tell which alias is canonical.",
 
   run(ctx) {
     if (!ctx.ia) return [];
