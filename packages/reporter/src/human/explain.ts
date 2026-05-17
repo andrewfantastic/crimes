@@ -1,0 +1,153 @@
+import type { ExplainReport, Finding, Severity } from "@crimes/core";
+import type { ColourFns } from "./shared.js";
+import { pc, plainColour } from "./shared.js";
+
+export interface ExplainHumanReportOptions {
+  /** Disable ANSI colour output. */
+  noColor?: boolean;
+}
+
+/**
+ * Render a `crimes explain` report as a human-readable block. Always
+ * includes the suggested `crimes ignore <fingerprint> --reason "…"`
+ * command verbatim so an agent or human can copy it without re-deriving
+ * the fingerprint.
+ */
+export function formatExplainReport(
+  report: ExplainReport,
+  options: ExplainHumanReportOptions = {},
+): string {
+  const colour = options.noColor ? plainColour() : pc;
+  const f = report.finding;
+  const lines: string[] = [];
+
+  lines.push(colour.bold("CRIMES EXPLAIN"));
+  lines.push(`${colour.bold("charge:")}    ${f.charge}`);
+  lines.push(`${colour.bold("type:")}      ${f.type}`);
+  lines.push(
+    `${colour.bold("severity:")}  ${severityCell(f.severity, colour)}` +
+      `   ${colour.bold("confidence:")} ${f.confidence.toFixed(2)}`,
+  );
+  lines.push(`${colour.bold("file:")}      ${f.file}`);
+  if (f.symbol) {
+    lines.push(`${colour.bold("symbol:")}    ${f.symbol}`);
+  }
+  if (f.lines) {
+    const span = f.lines[0] === f.lines[1] ? `${f.lines[0]}` : `${f.lines[0]}–${f.lines[1]}`;
+    lines.push(`${colour.bold("lines:")}     ${span}`);
+  }
+  if (f.suppressed === true) {
+    lines.push(
+      `${colour.bold("suppressed:")} ${f.suppression_reason ?? "(no reason)"}`,
+    );
+  }
+
+  lines.push("");
+  lines.push(colour.bold("What this detector looks for"));
+  lines.push(`  ${report.detector.description}`);
+  lines.push("");
+  lines.push(colour.bold("Why it matters"));
+  lines.push(`  ${report.why_it_matters || "(no rationale text for this detector)"}`);
+
+  if (f.evidence.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Evidence"));
+    for (const ev of f.evidence) {
+      lines.push(`  · ${colour.dim(ev)}`);
+    }
+  }
+
+  const riskBlock = explainRiskProfileBlock(f, colour);
+  if (riskBlock.length > 0) {
+    lines.push("");
+    lines.push(...riskBlock);
+  }
+
+  if (f.suggested_actions && f.suggested_actions.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Suggested actions"));
+    for (const action of f.suggested_actions) {
+      lines.push(`  · ${action.kind} (risk: ${action.risk})`);
+      lines.push(`      ${action.description}`);
+    }
+  }
+
+  if (f.related_files && f.related_files.length > 0) {
+    lines.push("");
+    lines.push(colour.bold("Related files"));
+    for (const rel of f.related_files) {
+      lines.push(`  · ${colour.cyan(rel)}`);
+    }
+  }
+
+  lines.push("");
+  lines.push(
+    colour.bold("To suppress (only if the team has decided this is acceptable)"),
+  );
+  lines.push(`  ${report.suggested_suppression_command}`);
+
+  return lines.join("\n");
+}
+
+/**
+ * "Risk profile" section for `crimes explain`. Each per-finding score
+ * is shown alongside its raw evidence (commit count, importer count,
+ * test-coverage hint) so the user sees *why* the score is what it is.
+ * Returns an empty list when no scoring signal is present.
+ */
+function explainRiskProfileBlock(
+  finding: Finding,
+  colour: ColourFns,
+): string[] {
+  const { churn, test_gap, blast_radius } = finding.scores;
+  if (churn === undefined && test_gap === undefined && blast_radius === undefined) {
+    return [];
+  }
+  const lines: string[] = [];
+  lines.push(colour.bold("Risk profile"));
+  lines.push(
+    `  · churn:        ${(churn ?? 0).toFixed(2)} — ` +
+      churnExplain(churn ?? 0),
+  );
+  lines.push(
+    `  · test gap:     ${(test_gap ?? 0).toFixed(2)} — ` +
+      testGapExplain(test_gap ?? 0),
+  );
+  lines.push(
+    `  · blast radius: ${(blast_radius ?? 0).toFixed(2)} — ` +
+      blastRadiusExplain(blast_radius ?? 0),
+  );
+  return lines;
+}
+
+function churnExplain(score: number): string {
+  if (score === 0) return "no commits touched this file in the last 90 days";
+  if (score >= 1) return "20+ commits in the last 90 days (cap reached)";
+  return `~${Math.round(score * 20)} commits in the last 90 days`;
+}
+
+function testGapExplain(score: number): string {
+  if (score === 0) return "a test file imports this module";
+  if (score === 0.5) {
+    return "a sibling or __tests__ test file exists but does not import this module";
+  }
+  if (score >= 1) return "no sibling or __tests__ test file detected";
+  return "partial coverage signal";
+}
+
+function blastRadiusExplain(score: number): string {
+  if (score === 0) return "no other files import this one";
+  if (score >= 1) return "50+ transitive importers (cap reached)";
+  return `~${Math.round(score * 50)} transitive importers`;
+}
+
+function severityCell(s: Severity, colour: ColourFns): string {
+  switch (s) {
+    case "high":
+      return colour.red(colour.bold(s));
+    case "medium":
+      return colour.yellow(colour.bold(s));
+    case "low":
+      return colour.dim(colour.bold(s));
+  }
+}

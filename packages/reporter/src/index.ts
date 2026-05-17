@@ -9,7 +9,7 @@ export {
   formatHumanReport,
   formatScanFailOnLine,
   formatVerdictReport,
-} from "./human.js";
+} from "./human/index.js";
 export type {
   AuditSuppressionsHumanReportOptions,
   BaselineHumanReportOptions,
@@ -21,7 +21,7 @@ export type {
   HumanReportOptions,
   ScanFailOnLineOptions,
   VerdictHumanReportOptions,
-} from "./human.js";
+} from "./human/index.js";
 export {
   formatAuditSuppressionsJsonReport,
   formatBaselineCheckJsonReport,

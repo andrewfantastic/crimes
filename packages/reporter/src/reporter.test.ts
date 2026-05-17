@@ -17,7 +17,7 @@ import {
   formatHumanReport,
   formatScanFailOnLine,
   formatVerdictReport,
-} from "./human.js";
+} from "./human/index.js";
 import {
   formatBaselineCheckJsonReport,
   formatBaselineJsonReport,
