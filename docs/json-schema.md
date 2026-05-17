@@ -292,14 +292,35 @@ should treat unknown values defensively. The currently shipped values are:
 | `duplicated_navigation_source`  | `Duplicated Navigation Source` | no        | Same destination declared in multiple nav-like source files with different labels                |
 | `concept_alias_drift`           | `Concept Alias Drift`        | no          | A seeded alias group (e.g. `team` / `workspace` / `organisation`) spans multiple directories on product surface |
 | `docs_code_drift`               | `Docs-Code Drift`            | no          | Markdown document references a local file that does not exist on disk                            |
+| `orphaned_destination`          | `Orphaned Destination`       | no          | Route declared in nav / IA index but no source file or route file resolves the destination       |
+| `parallel_destination`          | `Parallel Destination`       | no          | Two nav-like surfaces declare different routes for the same canonical destination                |
+| `permission_ia_drift`           | `Permission IA Drift`        | no          | The same role / permission identifier appears with different IA categorisation across surfaces   |
+| `action_label_drift`            | `Action Label Drift`         | no          | Two surfaces label the same domain action differently ("Delete" vs "Remove")                     |
+| `command_drift_docs_code_drift` | `Command Docs / Code Drift`  | no          | Markdown references a `bin` subcommand the CLI no longer implements                              |
+| `layer_violation`               | `Layer Border Crossing`      | no          | An import crosses a forbidden boundary defined by `architecture.layers` + `architecture.rules`   |
+| `circular_dependency`           | `Tangled Imports`            | no          | Two or more files form an import cycle                                                           |
+| `deep_import`                   | `Deep Import Abuse`          | no          | An import reaches more than `n` segments deep into another package's source tree                 |
+| `high_fan_in_fan_out`           | `Crowded Module`             | no          | A file has unusually high import fan-in and/or fan-out                                           |
+| `design_token_escape`           | `Design Token Escape`        | no          | Hard-coded colours / spacings / font sizes in JSX where the repo has a design-token system       |
+| `accessible_interaction_risk`   | `Hidden Interaction`         | no          | A JSX element handles pointer events but has no accessible label                                 |
+| `duplicate_component_shape`     | `Duplicate Component Shape`  | yes         | Two or more components share an identical JSX shape (AST-hash equivalent)                        |
+| `responsive_fragility`          | `Responsive Fragility`       | no          | A component mixes many breakpoint-specific utilities or hard-pixel widths                        |
+| `copy_ia_drift`                 | `Copy / IA Drift (frontend)` | no          | A nav label and a breadcrumb / page-title disagree on the canonical name for the same destination |
+| `visual_regression_review_hint` | `Visual Regression Review Hint` | no       | A changed line touches JSX in a way the heuristics suspect will alter the rendered output         |
+| `exact_duplicate_block`         | `Exact Duplicate Block`      | yes         | Two or more function bodies / statement blocks share an identical AST hash                       |
+| `near_duplicate_block`          | `Near-Duplicate Block`       | yes         | Two function bodies share a high-similarity AST-hash bag with a small delta                      |
+| `duplicated_role_status_plan_check` | `Duplicated Policy Logic` | no         | The same domain concept (role, status, plan tier) is checked in multiple files with different shapes |
 
 Information-architecture findings (`missing_agent_context`,
 `route_metadata_drift`, `duplicated_navigation_source`,
-`concept_alias_drift`, `docs_code_drift`) are cross-file: their `file`
-field anchors the finding on the most useful single path, and
-`related_files` lists the other files involved.
-`magic_domain_literal_scatter` follows the same cross-file pattern for
-repeated domain literals.
+`concept_alias_drift`, `docs_code_drift`, `orphaned_destination`,
+`parallel_destination`, `permission_ia_drift`, `action_label_drift`,
+`command_drift_docs_code_drift`, `copy_ia_drift`) are cross-file:
+their `file` field anchors the finding on the most useful single
+path, and `related_files` lists the other files involved.
+`magic_domain_literal_scatter`, the duplication detectors, the
+dependency-graph detectors, and the frontend duplicate-component
+detector follow the same cross-file pattern.
 
 ### `charge`
 

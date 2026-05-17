@@ -306,3 +306,81 @@ This is intentional. Every IA finding must be **quotable verbatim** —
 the user, reviewer, or agent reading the report should be able to point
 at a line in a specific file and say "this is the evidence." Anything
 softer than that belongs in a PR comment, not a deterministic detector.
+
+---
+
+## New in 0.6.0
+
+Five additional IA detectors land in `crimes@0.6.0`. Each follows the
+same evidence-first contract above — concrete files, line numbers,
+and quoted literals; hedged phrasing on the summary; no LLM.
+
+### Orphaned Destination (`orphaned_destination`)
+
+A route declared in a nav / IA index (`registry.ts`, `sidebar.tsx`,
+sitemap) for which no source or route file resolves the destination.
+
+**Example evidence.**
+
+```text
+nav entry declares destination "/workspace/billing" at src/nav/sidebar.tsx:14
+no route file matches src/app/workspace/billing/{page,route}.{ts,tsx}
+no top-level export in any src/routes/** file declares this path
+```
+
+### Parallel Destination (`parallel_destination`)
+
+Two nav-like surfaces declare different routes for the same canonical
+destination — e.g. `/billing` vs `/account/billing` vs
+`/settings/subscription`.
+
+**Example evidence.**
+
+```text
+3 routes appear to resolve the same destination "billing"
+src/nav/sidebar.tsx:8  → /billing
+src/nav/header.tsx:14  → /account/billing
+src/nav/footer.tsx:22  → /settings/subscription
+```
+
+### Permission IA Drift (`permission_ia_drift`)
+
+The same role / permission identifier is categorised differently
+across surfaces — e.g. a nav source treats `billing-admin` as a
+sub-role of `admin` while a route guard treats it as a peer.
+
+**Example evidence.**
+
+```text
+role "billing-admin" appears with conflicting parents
+src/nav/admin.tsx:14   nests under "admin"
+src/middleware.ts:47   peers with "admin" and "moderator"
+```
+
+### Action Label Drift (`action_label_drift`)
+
+The same domain action labelled differently across surfaces. Reads
+the UI string literal index plus the IA alias seeds.
+
+**Example evidence.**
+
+```text
+"delete" / "remove" / "archive" used for the same action
+src/ui/MemberRow.tsx:22 → "Remove member"
+src/api/team.ts:14      → handler name "deleteMember"
+src/routes/team/index.tsx:47 → confirm dialog "Archive this user?"
+```
+
+### Command Docs / Code Drift (`command_drift_docs_code_drift`)
+
+Markdown that references a `bin` subcommand the CLI no longer
+implements. Variant of `docs_code_drift` that consumes the command
+registrar index instead of filesystem checks.
+
+**Example evidence.**
+
+```text
+docs/agent-usage.md:172 references `crimes ask`
+no `program.command("ask"...)` found in packages/cli/src/commands/
+no `register*Command` exports an "ask" subcommand
+```

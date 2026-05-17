@@ -4,11 +4,12 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.5.0` (npm) ✅ shipped —
-  _suppressions, config, and explainability_.
+- **Last published version:** `crimes@0.6.0` (npm) ✅ shipped —
+  _detector and scoring completion_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
-- **Previously shipped milestones:** `crimes@0.4.0` — _agent context
+  notes: [`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
+- **Previously shipped milestones:** `crimes@0.5.0` — _suppressions,
+  config, and explainability_ — `crimes@0.4.0` — _agent context
   quality and signal-to-noise_ — `crimes@0.3.0` — _information
   architecture crimes_ — and `crimes@0.2.0` — _branch and PR safety for
   humans and coding agents_. All live on npm and exercised by the
@@ -23,10 +24,10 @@ mirror, not a planning doc.
 | ----------------------------- | --------------------------------------------------------------------------------------- |
 | M0 — Repo foundation          | ✅ done (shipped in 0.1.0)                                                              |
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
-| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` still deferred (slipped to a future minor with its own plan). `0.4.0` adds shallow-clone awareness via `history_limited`. |
-| M3 — Agent context            | 🟢 expanded again in `0.5.0` — adds `crimes explain <id-or-fingerprint>` for the rung between "I see the charge" and "I commit to fix or suppress". Built on `crimes context` (0.1.0), cross-file `related_files` (0.3.0), and shape-aware `large_function` (0.4.0). |
+| M2 — Risk model               | ✅ completed in `0.6.0` — per-finding `scores.churn` / `test_gap` / `blast_radius` now populated by every scan from the import graph + git history + test-file index. Unified `agent_risk` formula. `crimes hotspots` (0.1.0) + shallow-clone awareness (0.4.0) remain alongside. |
+| M3 — Agent context            | 🟢 expanded again in `0.5.0` — adds `crimes explain <id-or-fingerprint>` for the rung between "I see the charge" and "I commit to fix or suppress". Built on `crimes context` (0.1.0), cross-file `related_files` (0.3.0), and shape-aware `large_function` (0.4.0 + `cli_command_registrar` in 0.6.0). |
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
-| M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
+| M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
 ---
@@ -505,62 +506,101 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ---
 
-## 🎯 Next target — `crimes@0.6.0` (planned)
+## ✅ Shipped in `crimes@0.6.0`
 
-> **Implementation plan:
-> [`DETECTOR_SCORING_COMPLETION_PLAN.md`](./DETECTOR_SCORING_COMPLETION_PLAN.md).**
-> Product framing, scope (must / should / could / defer), shared
-> infrastructure design (import graph, JSX inspection, AST hashing,
-> scoring data sources), per-detector specs for all six new tracks,
-> JSON schema implications, CI implications, test plan, docs/site
-> plan, risks, prompt sequence (A–O), success criteria, and a
-> dogfood appendix from running `crimes@0.5.0` against this repo
-> live there. This section is the status mirror.
+> **Theme: detector and scoring completion — closing M2 (per-finding
+> risk model) and M5 (full `/docs` site) plus the long tail of named
+> detectors from `PRD.md` §8.**
+>
+> Release notes: [`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
+> Implementation plan:
+> [`DETECTOR_SCORING_COMPLETION_PLAN.md`](./DETECTOR_SCORING_COMPLETION_PLAN.md).
 
-**Theme: detector and scoring completion.** After three product-
-surface releases (`0.3.0` IA crimes, `0.4.0` agent context quality,
-`0.5.0` suppressions / config / explainability), what's left from
-the PRD is detector breadth (§8) and the risk model (§10, M2). Plus
-M5 — the full docs site. 0.6.0 ships the lot.
+### Per-finding scores (M2 completion)
 
-Headline contents:
+- **`scores.blast_radius`** — normalised transitive-importer count,
+  derived from the new import graph.
+- **`scores.churn`** — normalised commits-in-window count, same
+  saturation curve as `crimes hotspots`.
+- **`scores.test_gap`** — three-tier signal from filesystem layout
+  plus import-graph test discovery.
+- **Unified `agent_risk` formula** — replaces hand-rolled per-detector
+  weighting. Documented in [`docs/scoring.md`](./docs/scoring.md).
 
-- **Per-finding scores** — `scores.churn`, `scores.test_gap`,
-  `scores.blast_radius` populated on every finding (M2 completion).
-  A unified `agent_risk` formula replaces hand-rolled per-detector
-  weighting.
-- **Shared infrastructure** — import graph,
-  JSX inspection layer, AST hashing, scoring data sources. Foundations
-  built once, reused by everything that follows.
-- **Architecture-layer enforcement** — the `architecture.layers`
-  config placeholder shipped in 0.5.0 gets a consuming detector
-  (`layer_violation`).
-- **Dependency-graph detectors** — `circular_dependency`,
-  `deep_import`, `high_fan_in_fan_out`.
-- **Remaining IA detectors** — `orphaned_destination`,
+### Shared infrastructure
+
+- **Import graph** under `packages/core/src/imports/` — language-pack
+  agnostic, built once per scan, consumed by dependency-graph
+  detectors and `scores.blast_radius`. Carries `imports_limited` on
+  the `ScanReport` when the graph hit its performance budget.
+- **JSX inspection layer** under `packages/core/src/jsx/` — shared by
+  every frontend detector.
+- **AST hashing** under `packages/core/src/ast-hash/` — backs
+  `exact_duplicate_block`, `near_duplicate_block`,
+  `duplicate_component_shape`.
+- **Scoring data sources** under `packages/core/src/scoring/` —
+  finalises every finding's score in one place; degrades gracefully
+  when git or the import graph are unavailable.
+
+### New detectors (18 total)
+
+- **Architecture / dependency graph** (4): `layer_violation`,
+  `circular_dependency`, `deep_import`, `high_fan_in_fan_out`.
+  `layer_violation` consumes `architecture.layers` +
+  `architecture.rules` (graduated from "reserved" in 0.5.0).
+- **IA completion** (5): `orphaned_destination`,
   `parallel_destination`, `permission_ia_drift`,
-  `action_label_drift`, command-drift variant of `docs_code_drift`.
-- **Frontend / UI agent-risk track** — `design_token_escape`,
+  `action_label_drift`, `command_drift_docs_code_drift`.
+- **Frontend / UI agent-risk** (6): `design_token_escape`,
   `accessible_interaction_risk`, `duplicate_component_shape`,
   `responsive_fragility`, `copy_ia_drift`,
   `visual_regression_review_hint`.
-- **Duplication detectors** — `exact_duplicate_block`,
-  `near_duplicate_block`, `duplicated_role_status_plan_check`, with
-  explicit overlap reconciliation vs already-shipped petty crimes.
-- **M5 — full `/docs` site** — Astro + Starlight at `crimes.sh/docs/`.
-- **Polish** — stderr breadcrumb when `detectors.disable` is wholesale.
+- **Duplication** (3): `exact_duplicate_block`,
+  `near_duplicate_block`, `duplicated_role_status_plan_check`.
 
-Out of scope for `0.6.0` (still deferred or rejected):
+### Shape-aware `cli_command_registrar`
 
-- **M6 — Homebrew tap / standalone binaries.** Deferred indefinitely;
-  re-evaluate when a user asks.
-- **Suppression `expires_at` / `owner`.** Rejected — added complexity
-  without enough benefit.
-- **Custom suppression matchers (glob/regex).** Deferred until
-  requested.
-- **Detector-level severity overrides in config.** Deferred until
-  needed.
-- **LLM-assisted modes / `crimes ask`.** Still v1+.
+A new `large_function` shape recognises Commander-style
+`register*Command(program)` wrappers and their `.action(...)`
+callbacks. Threshold 200, severity caps at `low` / `medium` — fixes
+the dominant false-positive cluster from the 0.5.0 dogfood signal.
+
+### `crimes hotspots <subdir>` enclosing-repo lookup
+
+Running `crimes hotspots packages` from a monorepo root now walks
+upward to find the enclosing git repo, runs `git log` with a
+pathspec scoped to the passed directory, and re-roots emitted paths
+relative to the scan root. Subdirs of a git repo no longer collapse
+to severity-only ranking.
+
+### M5 — full `/docs` site
+
+[`crimes.sh/docs/`](https://crimes.sh/docs/) — Astro + Starlight
+mounted at `/docs/`, every existing markdown page in
+[`docs/`](./docs/) routed under the new tree. The landing page at
+`crimes.sh/` is unchanged — `apps/website/landing/` holds the
+static files, `apps/website/src/content/docs/` is generated from the
+repo's `docs/` tree at build time.
+
+### Polish
+
+- **`detectors.disable` breadcrumb** — `crimes scan` / `context` /
+  `diff` emit a one-line stderr notice when `crimes.config.json`
+  disables ≥ 3 detectors. Suppressed when stdout is piped or
+  `--no-color` is set.
+
+### Schema additions (all optional / additive)
+
+- New `Finding.type` values for the 18 new detectors above.
+- `Finding.scores.blast_radius` / `scores.churn` / `scores.test_gap`
+  graduate from "reserved" to "populated by every scan".
+- `ScanReport.imports_limited?: true` + `imports_limited_reason?:
+  string` when the import graph hit its performance budget. Mirrors
+  `HotspotsReport.history_limited` from 0.4.0.
+- **No `schema_version` bump.** `crimes@0.5.0` consumers continue to
+  read every report without modification.
+
+The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
 ## 🎯 Then — `crimes@0.7.0` (sketched)
 

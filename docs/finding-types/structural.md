@@ -1,0 +1,154 @@
+# Structural findings
+
+Structural crimes flag file- and function-shaped code smells: bodies
+that are too long, too many TODOs, or testability issues that come
+from reaching for environment-coupled primitives in domain code.
+They're the oldest detector category — `crimes@0.1.0` shipped the
+first four — and the most fixture-tuned.
+
+For the wire format, see [`docs/json-schema.md`](../json-schema.md).
+For the agent workflow that consumes findings, see
+[`docs/agent-usage.md`](../agent-usage.md).
+
+## What ships
+
+| `Finding.type`     | Charge              | Severity range | Confidence |
+| ------------------ | ------------------- | -------------- | ---------- |
+| `large_function`   | God Function        | low-high       | 0.80-0.95  |
+| `large_file`       | God File            | medium-high    | 0.80-0.90  |
+| `todo_density`     | TODO Tombstone      | low-medium     | 0.75-0.85  |
+| `direct_date`      | Temporal Recklessness | medium       | 0.80       |
+
+All four emit the standard `Finding` shape. No schema bump is required.
+
+---
+
+## God Function (`large_function`)
+
+**What it detects.** Functions whose body exceeds a per-shape line
+threshold. The detector classifies each function into one of six
+shapes and applies a tailored budget per shape, so a 240-line
+`describe()` callback isn't charged at the same threshold as a
+240-line domain function.
+
+| Shape                   | Threshold | Severity at threshold | Severity at 2× |
+| ----------------------- | --------- | --------------------- | -------------- |
+| `domain`                | config (default 60) | medium | high |
+| `route_handler`         | 100       | medium                | high           |
+| `react_component`       | 200       | medium                | high           |
+| `page_export`           | 200       | medium                | high           |
+| `test_callback`         | 200       | low                   | medium         |
+| `cli_command_registrar` | 200       | low                   | medium         |
+| `unknown`               | 80        | medium                | high           |
+
+The `cli_command_registrar` shape (new in 0.6.0) recognises
+Commander-style `register*Command(program)` wrapper functions and the
+anonymous arrows passed to their `.action(...)` calls. The chain is
+declarative DSL, not branching logic, so a long body there shouldn't
+read like a domain god-function.
+
+**Example evidence.**
+
+```text
+lines 24–286 (263 lines)
+3.2× the React component threshold (200 lines)
+function declaration
+shape: React component (PascalCase name "PricingPage"; body returns JSX)
+```
+
+**Why it matters.** Bodies past the shape's threshold usually mix
+multiple responsibilities. An agent editing one section misses
+interactions in another, and the function becomes a magnet for
+further duplication. Smaller, named helpers give every editor — human
+or AI — a smaller surface to reason about per edit.
+
+**Suggested fix.** The `suggested_actions[0].description` is tailored
+to the shape: extract markup sections for React components, extract
+request parsing / authorisation / persistence for route handlers,
+move the action body into a named function for CLI registrars, etc.
+
+**Configuration knobs.** `thresholds.largeFunctionLines` (legacy
+domain threshold, kept for back-compat) and the per-shape
+`thresholds.largeFunction.<shape>` overrides. See
+[`docs/configuration.md`](../configuration.md).
+
+---
+
+## God File (`large_file`)
+
+**What it detects.** Source files past
+`thresholds.largeFileLines` (default 300 lines) and carrying more
+than a handful of top-level functions. Counts non-empty lines so
+generated whitespace can't lower the count.
+
+**Example evidence.**
+
+```text
+523 lines (1.7× the 300-line threshold)
+22 top-level functions
+top-level symbols: createBilling, refundCharge, applyCoupon, …
+```
+
+**Why it matters.** Files this size accumulate unrelated
+responsibilities and become harder to navigate by name. Splitting
+them by concern lets agents and reviewers reason about each piece in
+isolation.
+
+**Suggested fix.** Identify cohesive groups of functions (data
+access, formatting, validation, transport) and extract each into its
+own file. Re-exporting from a barrel is fine if the consumers prefer
+the flat import.
+
+---
+
+## TODO Tombstone (`todo_density`)
+
+**What it detects.** Files where the count of `TODO` / `FIXME` /
+`XXX` / `HACK` markers per 1k non-empty lines crosses
+`thresholds.todoDensityPerKLoc` (default 10).
+
+**Example evidence.**
+
+```text
+8 markers in 420 LOC (19.0 per 1k LOC)
+worst lines: 33, 47, 88, 102, 178
+```
+
+**Why it matters.** High marker density is a *map of the unowned
+work in the file*. Without context, an agent can't tell whether each
+TODO is "fix this before merging" or "we accepted this years ago" —
+so it either treats everything as urgent or learns to ignore the
+marker entirely. Reducing density forces the team to either resolve
+or stop pretending the TODO is meaningful.
+
+**Suggested fix.** Convert load-bearing TODOs into tracker tickets
+referenced by id. Delete or close the rest. The detector doesn't
+care about marker style — `// TODO(@alex)` survives unchanged.
+
+---
+
+## Temporal Recklessness (`direct_date`)
+
+**What it detects.** Domain code that reaches directly for
+`Date.now()` or `new Date()` rather than accepting an injectable
+clock. Files matching the test glob (`*.test.ts`, `*.spec.ts`,
+`__tests__/**`) are exempt — explicit test-time injection is the
+fix, not the smell.
+
+**Example evidence.**
+
+```text
+3 direct uses of `Date.now()` / `new Date()`
+lines: 18 (new Date), 47 (Date.now), 102 (new Date)
+file lives in domain path (no test-file shape)
+```
+
+**Why it matters.** A domain function that reads "now" from the
+process is untestable without monkeypatching, runs differently in
+prod vs CI, and silently fails timezone tests. Pass a clock — an
+`Injectable<() => Date>` or just a `now()` parameter — and the
+finding goes away.
+
+**Suggested fix.** Replace the direct call with a parameter on the
+nearest call boundary (`now()`, `clock`, etc.). Inject the real clock
+from the entry point and a fixed timestamp from tests.

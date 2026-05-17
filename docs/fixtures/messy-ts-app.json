@@ -3,13 +3,13 @@
   "report_type": "scan",
   "repo": {
     "name": "messy-ts-app",
-    "root": "/path/to/crimes/examples/messy-ts-app"
+    "root": "/Users/andrew/dev/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 19,
+    "total": 22,
     "high": 0,
     "medium": 13,
-    "low": 6
+    "low": 9
   },
   "findings": [
     {
@@ -29,7 +29,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.8
+        "agent_risk": 0.62,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -59,7 +62,10 @@
       "scores": {
         "severity": 0.45,
         "confidence": 0.9,
-        "agent_risk": 0.72
+        "agent_risk": 0.56,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -89,7 +95,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.85
+        "agent_risk": 0.56,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -119,7 +128,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.73
+        "agent_risk": 0.62,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -149,7 +161,10 @@
       "scores": {
         "severity": 0.45,
         "confidence": 0.88,
-        "agent_risk": 0.68
+        "agent_risk": 0.46,
+        "churn": 0.05,
+        "test_gap": 0,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -179,7 +194,10 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.85,
-        "agent_risk": 0.8
+        "agent_risk": 0.61,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -215,7 +233,10 @@
       "scores": {
         "severity": 0.55,
         "confidence": 0.8,
-        "agent_risk": 0.78
+        "agent_risk": 0.54,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -244,7 +265,10 @@
       "scores": {
         "severity": 0.55,
         "confidence": 0.75,
-        "agent_risk": 0.75
+        "agent_risk": 0.59,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -280,7 +304,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.71,
-        "agent_risk": 0.46
+        "agent_risk": 0.53,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -310,7 +337,10 @@
       "scores": {
         "severity": 0.5,
         "confidence": 0.71,
-        "agent_risk": 0.74
+        "agent_risk": 0.53,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -336,7 +366,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.7,
-        "agent_risk": 0.7
+        "agent_risk": 0.58,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -368,7 +401,10 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.7,
-        "agent_risk": 0.55
+        "agent_risk": 0.58,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -398,7 +434,10 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.65,
-        "agent_risk": 0.7
+        "agent_risk": 0.57,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -426,7 +465,10 @@
       "scores": {
         "severity": 0.35,
         "confidence": 0.9,
-        "agent_risk": 0.6
+        "agent_risk": 0.52,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -456,7 +498,10 @@
       "scores": {
         "severity": 0.25,
         "confidence": 0.78,
-        "agent_risk": 0.58
+        "agent_risk": 0.34,
+        "churn": 0.05,
+        "test_gap": 0,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -486,7 +531,10 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.74,
-        "agent_risk": 0.7
+        "agent_risk": 0.49,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -517,7 +565,10 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.73,
-        "agent_risk": 0.82
+        "agent_risk": 0.48,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -546,7 +597,10 @@
       "scores": {
         "severity": 0.25,
         "confidence": 0.72,
-        "agent_risk": 0.66
+        "agent_risk": 0.48,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
@@ -575,12 +629,108 @@
       "scores": {
         "severity": 0.2,
         "confidence": 0.7,
-        "agent_risk": 0.21
+        "agent_risk": 0.43,
+        "churn": 0.2,
+        "test_gap": 0.5,
+        "blast_radius": 0
       },
       "suggested_actions": [
         {
           "kind": "triage_todos",
           "description": "Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00021",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/account/subscription.tsx",
+      "summary": "Route /account/subscription appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /account/subscription",
+        "file: src/routes/account/subscription.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0,
+        "agent_risk": 0.47
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00022",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/team/index.tsx",
+      "summary": "Route /team appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /team",
+        "file: src/routes/team/index.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0,
+        "agent_risk": 0.47
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00023",
+      "type": "orphaned_destination",
+      "charge": "Orphaned Destination",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "src/routes/workspace/members.tsx",
+      "summary": "Route /workspace/members appears to be unreachable from any nav, doc link, or in-repo import. The page may be in flight, or it may have outlived the journey it was built for.",
+      "evidence": [
+        "route path: /workspace/members",
+        "file: src/routes/workspace/members.tsx",
+        "no nav source references this destination",
+        "no internal doc link references this destination",
+        "no in-repo import targets this route file"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.65,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0,
+        "agent_risk": 0.47
+      },
+      "suggested_actions": [
+        {
+          "kind": "link_or_retire",
+          "description": "Either link the destination from the relevant nav / docs, or remove it if the flow it served is gone.",
           "risk": "low"
         }
       ]

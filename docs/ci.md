@@ -97,6 +97,23 @@ git commit -m "Add crimes baseline"
 crimes baseline check --fail-on medium
 ```
 
+**Re-snapshot after a `crimes` upgrade.** `0.6.0` ships 18 new
+detector types. Those findings are — by definition — not in a
+baseline saved with `crimes@0.5.0` or earlier, so a CI run with
+`--fail-on medium` will start flagging them. The recommended path is
+to re-pin the baseline once per upgrade:
+
+```bash
+crimes baseline save
+git add .crimes/baseline.json
+git commit -m "Re-pin crimes baseline after 0.6.0 upgrade"
+```
+
+Or temporarily raise the gate to `high` until you've audited the new
+findings — only `circular_dependency` at ≥ 3 files defaults to
+`high`, so the gate stays meaningful even at the stricter
+threshold.
+
 Behaviour:
 
 - Loads `<repo>/.crimes/baseline.json`, runs a full repo scan, and

@@ -710,6 +710,14 @@ rely on them in agent instructions yet:
 | `crimes init [--force]`                | ✅ shipped (`0.5.0`)    |
 | `--show-suppressed` on `scan` / `context` / `baseline check` / `diff` / `verdict` | ✅ shipped (`0.5.0`) |
 | `Finding.suppressed` / `suppression_reason` / `*Report.suppressed_count` | ✅ shipped (`0.5.0`) |
+| Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` | ✅ shipped (`0.6.0`) |
+| Dependency-graph detectors (`layer_violation`, `circular_dependency`, `deep_import`, `high_fan_in_fan_out`) | ✅ shipped (`0.6.0`) |
+| IA completion (`orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift`, `command_drift_docs_code_drift`) | ✅ shipped (`0.6.0`) |
+| Frontend agent-risk (`design_token_escape`, `accessible_interaction_risk`, `duplicate_component_shape`, `responsive_fragility`, `copy_ia_drift`, `visual_regression_review_hint`) | ✅ shipped (`0.6.0`) |
+| Duplication (`exact_duplicate_block`, `near_duplicate_block`, `duplicated_role_status_plan_check`) | ✅ shipped (`0.6.0`) |
+| `large_function` `cli_command_registrar` shape | ✅ shipped (`0.6.0`) |
+| `crimes hotspots <subdir>` enclosing-repo lookup | ✅ shipped (`0.6.0`) |
+| `detectors.disable` stderr breadcrumb | ✅ shipped (`0.6.0`) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
 The pre/post-edit workflow works as plain `crimes scan <path> --format
@@ -769,10 +777,12 @@ workflow.
   `schema_version === "0.1.0"`, the shape documented in
   [`json-schema.md`](./json-schema.md) is stable.
 - Optional score fields (`scores.blast_radius`, `scores.churn`,
-  `scores.test_gap`) are **reserved** — they are documented in the
-  schema but only populated when later milestones add the underlying
-  signals (git history, cross-file analysis). Treat their absence as
-  "not computed", not "zero".
+  `scores.test_gap`) are **populated by every scan from `0.6.0`
+  onward** from the import graph, 90-day git churn, and the test-file
+  index. They remain optional in the schema so consumers can keep
+  tolerating absence in mixed-version environments (a `crimes scan`
+  from a fixture saved before `0.6.0` still parses cleanly). See
+  [`scoring.md`](./scoring.md) for the unified `agent_risk` formula.
 - `related_files` is populated by the IA detectors (since `0.3.0`).
   Treat its absence on a structural finding as "no cross-file context
   for this finding".

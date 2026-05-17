@@ -47,6 +47,7 @@ existing file unless you pass `--force`.
       "react_component": 200,
       "page_export": 200,
       "test_callback": 200,
+      "cli_command_registrar": 200,
       "unknown": 80
     }
   },
@@ -98,14 +99,21 @@ override below.
 Per-shape `large_function` overrides. Any subset is fine — unset shapes
 use the built-in defaults:
 
-| Shape             | Default threshold |
-| ----------------- | ----------------- |
-| `domain`          | 60                |
-| `route_handler`   | 100               |
-| `react_component` | 200               |
-| `page_export`     | 200               |
-| `test_callback`   | 200               |
-| `unknown`         | 80                |
+| Shape                   | Default threshold |
+| ----------------------- | ----------------- |
+| `domain`                | 60                |
+| `route_handler`         | 100               |
+| `react_component`       | 200               |
+| `page_export`           | 200               |
+| `test_callback`         | 200               |
+| `cli_command_registrar` | 200               |
+| `unknown`               | 80                |
+
+The `cli_command_registrar` shape (new in 0.6.0) covers Commander-
+style `register*Command(program)` wrapper functions and their
+anonymous `.action(...)` callbacks. The chain is declarative DSL,
+not branching logic, so the threshold is generous and severity caps
+at `low` / `medium`.
 
 `thresholds.largeFunction.domain` wins over the legacy
 `thresholds.largeFunctionLines` when both are set.
@@ -148,25 +156,36 @@ Override the on-disk suppressions file path. Defaults to
 root; absolute paths win unchanged. See
 [`suppressions.md`](./suppressions.md).
 
-### `architecture` (reserved)
+### `architecture` (consumed by `layer_violation` since 0.6.0)
 
-Schema-validated but not consumed in `0.5.0`. The shape mirrors
-`PRD.md` §18 so the eventual dependency-graph detector lands without
-having to revise the config schema:
+Defines named layers by file glob and explicit
+`from → cannotImport` rules. The `layer_violation` detector consumes
+both fields and emits one finding per imported file that crosses a
+forbidden boundary.
 
 ```jsonc
 {
   "architecture": {
     "layers": [
-      { "name": "ui", "pattern": "src/components/**" },
-      { "name": "domain", "pattern": "src/domain/**" }
+      { "name": "ui",     "pattern": "src/components/**" },
+      { "name": "domain", "pattern": "src/domain/**" },
+      { "name": "db",     "pattern": "src/db/**" }
     ],
     "rules": [
+      { "from": "ui",     "cannotImport": ["db", "domain"] },
       { "from": "domain", "cannotImport": ["ui"] }
     ]
   }
 }
 ```
+
+`pattern` is a glob matched against repo-relative POSIX paths.
+`from` and `cannotImport[]` reference layers by `name`. Layers that
+don't appear in any rule are still useful as documentation; the
+detector only emits findings when a `cannotImport` is violated.
+
+See [`docs/finding-types/dependency.md`](./finding-types/dependency.md)
+for the full detector contract and `PRD.md` §18 for the design intent.
 
 ## Worked examples
 

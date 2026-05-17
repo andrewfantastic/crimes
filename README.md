@@ -69,18 +69,53 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.5.0`
+## Status — `crimes@0.6.0`
 
-`crimes@0.5.0` is the latest published version on npm —
-_suppressions, config, and explainability_. It's the
-**product-surface** release: six new commands and a real config
-story, without adding any new detectors. Teams can now adopt `crimes`
-without fighting legitimate exceptions, tune detectors to their
-conventions, and read the long-form rationale for any finding before
-deciding to fix or suppress. Release notes:
-[`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
+`crimes@0.6.0` is the latest published version on npm — _detector
+and scoring completion_. After three product-surface releases in a
+row (`0.3.0` IA crimes, `0.4.0` agent context quality, `0.5.0`
+suppressions / config / explainability), `0.6.0` closes the two
+remaining PRD-named milestones: **M2** (per-finding `scores.churn`
+/ `test_gap` / `blast_radius` plus a unified `agent_risk` formula)
+and **M5** (full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/)
+via Astro + Starlight). Eighteen new detector types land alongside,
+grouped into four categories: dependency-graph, IA completion,
+frontend / UI agent-risk, and duplication. Release notes:
+[`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
 
-New in `0.5.0`:
+New in `0.6.0`:
+
+- **Per-finding scores.** Every `Finding.scores` carries real
+  `blast_radius`, `churn`, and `test_gap` values. See
+  [`docs/scoring.md`](./docs/scoring.md).
+- **18 new detector types** across dependency-graph, IA, frontend,
+  and duplication. See
+  [`docs/finding-types/dependency.md`](./docs/finding-types/dependency.md),
+  [`frontend.md`](./docs/finding-types/frontend.md),
+  [`duplication.md`](./docs/finding-types/duplication.md), and the
+  expanded [`ia.md`](./docs/finding-types/ia.md).
+- **Shape-aware `cli_command_registrar`** — Commander-style
+  `register*Command(program)` wrappers and their `.action(...)`
+  callbacks no longer false-positive at the domain threshold. Fixes
+  the dominant noise cluster from `0.5.0` self-scan.
+- **`crimes hotspots <subdir>`** now walks upward to find the
+  enclosing git repo, so a subdirectory inside a monorepo still gets
+  churn signal.
+- **`detectors.disable` stderr breadcrumb** — `crimes scan` /
+  `context` / `diff` print a one-line notice when
+  `crimes.config.json` has wholesale-disabled ≥ 3 detectors.
+  Suppressed when stdout is piped or `--no-color` is set.
+- **Full Starlight docs at [`crimes.sh/docs/`](https://crimes.sh/docs/)** —
+  every existing markdown page routed under the new tree; landing
+  page at `crimes.sh/` unchanged.
+
+After upgrading, run `crimes baseline save` to re-pin
+`.crimes/baseline.json` against the new detector slate, or use
+`--fail-on high` until you've audited the new findings (only
+`circular_dependency` at ≥ 3 files defaults to `high`).
+
+Earlier `0.5.0` work (_suppressions, config, and explainability_)
+remains shipped:
 
 - `crimes init` — bootstrap a starter `crimes.config.json`. See
   [`docs/configuration.md`](./docs/configuration.md).

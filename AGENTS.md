@@ -123,6 +123,24 @@ and `--show-suppressed` on every report-listing command. The
 suppressions file at `.crimes/suppressions.json` is intended to be
 committed; see [`docs/suppressions.md`](./docs/suppressions.md).
 
+**Shipped in `0.6.0`** — no new commands; every new capability
+surfaces through the existing command set. Per-finding
+`scores.churn` / `scores.test_gap` / `scores.blast_radius` populated
+by every scan plus a unified `agent_risk` formula
+([`docs/scoring.md`](./docs/scoring.md)). 18 new detector types
+across dependency-graph
+([`finding-types/dependency.md`](./docs/finding-types/dependency.md)),
+IA completion (added to
+[`finding-types/ia.md`](./docs/finding-types/ia.md)), frontend / UI
+agent-risk
+([`finding-types/frontend.md`](./docs/finding-types/frontend.md)),
+and duplication
+([`finding-types/duplication.md`](./docs/finding-types/duplication.md)).
+A new `cli_command_registrar` shape for `large_function` recognises
+Commander-style registrar wrappers and `.action(...)` callbacks.
+`crimes hotspots <subdir>` walks upward to the enclosing git repo.
+Full docs site at [`crimes.sh/docs/`](https://crimes.sh/docs/).
+
 **Not yet implemented** — do not invoke or reference these in generated docs:
 `crimes ask`. See [`docs/agent-usage.md`](./docs/agent-usage.md) for the
 full shipped/deferred matrix and
