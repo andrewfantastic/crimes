@@ -22,6 +22,43 @@ Per-version results land in `results/<crimes-version>/<agent>/`,
 committed to the repo. Subsequent releases compare against the pinned
 results to catch detector-tuning regressions.
 
+## Versioning policy (calibration bumps)
+
+The runner keys results by the `version` field of
+`packages/cli/package.json`. That version doubles as the **rubric
+version**: any change that moves pass rates *without* changing the
+product the agent is reasoning about gets a patch bump, even if no
+release is cut.
+
+Changes that trigger a calibration bump:
+
+- `evals/runner/src/score.ts` — structural scoring logic.
+- `evals/runner/src/judge.ts` and any judge prompts.
+- A scenario's `expected_artifacts` rubric in `evals/scenarios/*.json`.
+- A fixture whose finding set changes (`evals/fixtures/*`).
+
+Changes that do **not** trigger one (they bump for product reasons
+anyway when they release):
+
+- Detector code in `packages/core/` or `packages/language-js/`.
+- CLI output, config, docs.
+
+The procedure:
+
+1. Land the calibration change.
+2. Bump `packages/cli/package.json` `version` to the next patch in the
+   **same commit** as the change.
+3. Re-run `pnpm run evals` so the new baseline lands in
+   `results/<new-version>/`. Commit the directory alongside.
+4. Do **not** add a Changeset entry, do **not** publish, do **not** cut
+   a git tag — calibration bumps exist purely to redirect the results
+   directory and preserve historical baselines.
+
+The first calibration bump after a real release will usually show a
+pass-rate delta that is a measurement correction, not a quality
+improvement. Say so in the commit message — future readers shouldn't
+mistake a scorer fix for an agent improvement.
+
 ## Why it's not in CI as a fresh-agent runner
 
 The harness invokes the locally-installed `claude` and `codex` CLIs in

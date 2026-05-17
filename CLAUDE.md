@@ -93,6 +93,22 @@ Deferred to v0.2: `tests`, `baseline save`, `ignore`. Deferred to v1+: `ask`, `p
 - Binary is `crimes` (`bin.crimes` in `packages/cli/package.json`).
 - `npx crimes scan` is the canonical first-run command in all docs.
 
+## Eval calibration version bumps
+
+The `packages/cli/package.json` `version` field doubles as the eval
+**rubric version** — the runner writes results to
+`evals/results/<version>/`. Any change that moves eval pass rates
+without changing the product (scoring logic in
+`evals/runner/src/score.ts`, judge prompts in `judge.ts`, scenario
+`expected_artifacts`, fixture finding sets) gets a **patch bump in the
+same commit**, with **no release / no Changeset / no tag**. Re-run
+`pnpm run evals` so the new baseline lands in the new directory and
+commit it alongside. Full rule and rationale in
+[`evals/README.md` § Versioning policy](evals/README.md).
+
+When the first delta after a real release is a measurement correction
+rather than a quality improvement, say so in the commit message.
+
 ## Open questions (from PRD §26)
 
 These are unresolved and worth flagging before making decisions that depend on them: npm name availability, GitHub org name, MIT vs Apache-2.0 (currently MIT in `LICENSE`), Astro vs Next.js for the site, whether to include Python in v0, whether `crimes ask` ships in v0 as heuristic search. Don't guess — ask.
