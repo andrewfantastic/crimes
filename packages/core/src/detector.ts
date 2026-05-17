@@ -3,6 +3,7 @@ import type { CrimesConfig } from "./config.js";
 import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
 import type { ImportGraph } from "./imports/types.js";
+import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import type { PettyIndex } from "./petty/types.js";
 import type { ScoringContext } from "./scoring/build.js";
 
@@ -63,6 +64,15 @@ export interface DetectorContext {
    * read from this; file-local detectors ignore it.
    */
   imports?: ImportGraph;
+  /**
+   * Optional repo-wide JSX shape index. Populated by `scan` and
+   * `context`; absent only in stubs that don't exercise the
+   * `duplicate_component_shape` detector. The index groups
+   * "interesting" JSX subtrees by their structural shape hash so the
+   * detector can answer "does this shape appear in ≥3 distinct files?"
+   * without re-walking every file itself.
+   */
+  jsxShapeIndex?: JsxShapeIndex;
   /**
    * Optional per-file scoring context. Populated by `scan` and `context`;
    * absent in direct unit-test stubs. Core uses this to backfill

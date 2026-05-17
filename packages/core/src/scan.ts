@@ -16,6 +16,7 @@ import { deepImportDetector } from "./detectors/deep-import.js";
 import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
+import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 import { largeFileDetector } from "./detectors/large-file.js";
@@ -30,6 +31,7 @@ import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.
 import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
 import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
 import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
+import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
@@ -42,6 +44,8 @@ import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
+import { buildJsxShapeIndex } from "./jsx/shape-index.js";
+import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
@@ -90,6 +94,8 @@ export const builtInDetectors: Detector[] = [
   // Frontend / UI agent-risk (require ctx.parsed.jsxElements).
   designTokenEscapeDetector,
   accessibleInteractionRiskDetector,
+  duplicateComponentShapeDetector,
+  responsiveFragilityDetector,
 ];
 
 export interface ScanOptions {
@@ -151,6 +157,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // so that dependency-graph detectors and `scores.blast_radius` see the
   // full picture, not just the `--changed` slice.
   const imports = await safelyBuildImportGraph({ root, allFiles });
+  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
   // Scoring context: built once, queried per-finding during finalisation.
   // Always present (degrades gracefully when git is unavailable).
   const scoring = await safelyBuildScoringContext({
@@ -176,6 +183,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         ia,
         petty,
         imports,
+        jsxShapeIndex,
         scoring,
       });
       findings.push(...detectorFindings);
@@ -257,6 +265,17 @@ async function safelyBuildImportGraph(args: {
 }): Promise<ImportGraph | undefined> {
   try {
     return await buildImportGraph({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildJsxShapeIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<JsxShapeIndex | undefined> {
+  try {
+    return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }

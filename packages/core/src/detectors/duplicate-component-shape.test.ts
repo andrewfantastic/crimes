@@ -1,0 +1,98 @@
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { discoverFiles } from "@crimes/language-js";
+import { DEFAULT_CONFIG } from "../config.js";
+import type { DetectorContext } from "../detector.js";
+import { buildJsxShapeIndex } from "../jsx/shape-index.js";
+import { duplicateComponentShapeDetector } from "./duplicate-component-shape.js";
+
+async function makeRepo(files: Record<string, string>): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "crimes-dcs-"));
+  for (const [path, content] of Object.entries(files)) {
+    const full = join(dir, path);
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, content, "utf8");
+  }
+  return dir;
+}
+
+async function ctxFor(file: string, root: string): Promise<DetectorContext> {
+  const allFiles = await discoverFiles({
+    root,
+    include: DEFAULT_CONFIG.include,
+    exclude: DEFAULT_CONFIG.exclude,
+  });
+  const jsxShapeIndex = await buildJsxShapeIndex({ root, files: allFiles });
+  return {
+    file,
+    absolutePath: join(root, file),
+    source: "",
+    parsed: { lineCount: 0, functions: [], dateNowOrNewDateUses: [] },
+    config: DEFAULT_CONFIG,
+    jsxShapeIndex,
+  };
+}
+
+const CARD = `export default function C() {
+  return (
+    <Card>
+      <CardHeader>Title</CardHeader>
+      <CardBody>Body text</CardBody>
+      <CardFooter>Footer text</CardFooter>
+    </Card>
+  );
+}
+`;
+
+describe("duplicateComponentShapeDetector", () => {
+  it("fires on three files sharing the same JSX shape", async () => {
+    const root = await makeRepo({
+      "src/a/Card.tsx": CARD,
+      "src/b/Card.tsx": CARD,
+      "src/c/Card.tsx": CARD,
+    });
+    const ctx = await ctxFor("src/a/Card.tsx", root);
+    const findings = await duplicateComponentShapeDetector.run(ctx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.type).toBe("duplicate_component_shape");
+    expect(findings[0]!.severity).toBe("medium");
+    expect(findings[0]!.related_files).toEqual([
+      "src/b/Card.tsx",
+      "src/c/Card.tsx",
+    ]);
+  });
+
+  it("does not fire when only two files share the shape", async () => {
+    const root = await makeRepo({
+      "src/a/Card.tsx": CARD,
+      "src/b/Card.tsx": CARD,
+    });
+    const ctx = await ctxFor("src/a/Card.tsx", root);
+    const findings = await duplicateComponentShapeDetector.run(ctx);
+    expect(findings).toEqual([]);
+  });
+
+  it("anchors on the lex-first file (b should emit nothing)", async () => {
+    const root = await makeRepo({
+      "src/a/Card.tsx": CARD,
+      "src/b/Card.tsx": CARD,
+      "src/c/Card.tsx": CARD,
+    });
+    const ctxB = await ctxFor("src/b/Card.tsx", root);
+    const findings = await duplicateComponentShapeDetector.run(ctxB);
+    expect(findings).toEqual([]);
+  });
+
+  it("emits nothing when jsxShapeIndex is absent", async () => {
+    const findings = await duplicateComponentShapeDetector.run({
+      file: "src/a/Card.tsx",
+      absolutePath: "/tmp/src/a/Card.tsx",
+      source: "",
+      parsed: { lineCount: 0, functions: [], dateNowOrNewDateUses: [] },
+      config: DEFAULT_CONFIG,
+    });
+    expect(findings).toEqual([]);
+  });
+});

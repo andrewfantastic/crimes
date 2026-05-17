@@ -64,6 +64,7 @@ export { deepImportDetector } from "./detectors/deep-import.js";
 export { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 export { directDateDetector } from "./detectors/direct-date.js";
 export { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
+export { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 export { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 export { largeFileDetector } from "./detectors/large-file.js";
@@ -78,6 +79,7 @@ export { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.
 export { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
 export { parallelDestinationDetector } from "./detectors/parallel-destination.js";
 export { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
+export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
@@ -131,6 +133,8 @@ export {
 } from "./imports/build.js";
 export type { BuildImportGraphOptions } from "./imports/build.js";
 export type { ImportEdge, ImportGraph } from "./imports/types.js";
+export { buildJsxShapeIndex } from "./jsx/shape-index.js";
+export type { JsxShapeHit, JsxShapeIndex } from "./jsx/shape-index.js";
 export { findJsxElements, walkJsx } from "./jsx/walk.js";
 export type {
   JsxAttributeValue,

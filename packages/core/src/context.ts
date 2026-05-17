@@ -13,6 +13,8 @@ import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
+import { buildJsxShapeIndex } from "./jsx/shape-index.js";
+import type { JsxShapeIndex } from "./jsx/shape-index.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
@@ -264,6 +266,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   });
   const petty = await safelyBuildPettyIndex({ root, allFiles });
   const imports = await safelyBuildImportGraph({ root, allFiles });
+  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
   const scoring = await safelyBuildScoringContext({
     root,
     allFiles,
@@ -279,6 +282,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     ia,
     petty,
     imports,
+    jsxShapeIndex,
     scoring,
   });
 
@@ -369,6 +373,7 @@ async function runDetectorsOnTarget(args: {
   ia?: IaIndex;
   petty?: PettyIndex;
   imports?: ImportGraph;
+  jsxShapeIndex?: JsxShapeIndex;
   scoring?: ScoringContext;
 }): Promise<Finding[]> {
   const {
@@ -380,6 +385,7 @@ async function runDetectorsOnTarget(args: {
     ia,
     petty,
     imports,
+    jsxShapeIndex,
     scoring,
   } = args;
   if (!allFiles.includes(targetAbs)) return [];
@@ -399,6 +405,7 @@ async function runDetectorsOnTarget(args: {
       ia,
       petty,
       imports,
+      jsxShapeIndex,
       scoring,
     });
     findings.push(...detectorFindings);
@@ -450,6 +457,17 @@ async function safelyBuildPettyIndex(args: {
 }): Promise<PettyIndex | undefined> {
   try {
     return await buildPettyIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildJsxShapeIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<JsxShapeIndex | undefined> {
+  try {
+    return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }
