@@ -704,6 +704,8 @@ rely on them in agent instructions yet:
 | Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch`, `magic_domain_literal_scatter`, `weak_test_signal`, `option_bag_junk_drawer`, `return_shape_roulette`, `negative_flag_maze` | ✅ shipped (`0.3.0`) |
 | `crimes diff --fail-on new-high \| new-medium` | ✅ shipped (`0.5.0`) |
 | `crimes ignore <id-or-fingerprint> --reason "…"` | ✅ shipped (`0.5.0`) |
+| `crimes unignore <fingerprint>` | ✅ shipped (`0.5.0`) |
+| `crimes audit-suppressions` | ✅ shipped (`0.5.0`) |
 | `crimes explain <id-or-fingerprint> [--from <scan.json>]` | ✅ shipped (`0.5.0`) |
 | `crimes init [--force]`                | ✅ shipped (`0.5.0`)    |
 | `--show-suppressed` on `scan` / `context` / `baseline check` / `diff` / `verdict` | ✅ shipped (`0.5.0`) |
@@ -737,8 +739,27 @@ crimes ignore large_function::src/billing.ts::generateInvoice \
 `.crimes/suppressions.json`, which the team commits and reviews in
 PRs. Agents should phrase the reason as a single specific sentence
 naming the constraint or tracking issue — "too noisy" or "we know
-about this" are not acceptable suppression reasons. See
-[`docs/suppressions.md`](./suppressions.md).
+about this" are not acceptable suppression reasons.
+
+When a suppression becomes obsolete (issue resolved, code refactored,
+team decision reversed), remove it:
+
+```bash
+crimes unignore large_function::src/billing.ts::generateInvoice
+# → "Removed … from .crimes/suppressions.json. Commit the change …"
+```
+
+To audit the existing suppressions file — sorted by age, with
+automatic flags for stale (>180d), short (<16 chars), or vague
+reasons — run:
+
+```bash
+crimes audit-suppressions
+crimes audit-suppressions --format json
+```
+
+See [`docs/suppressions.md`](./suppressions.md) for the full
+workflow.
 
 ---
 
@@ -766,12 +787,13 @@ Default `crimes scan` is **advisory** — it always exits `0`, regardless of
 findings. The same goes for `crimes diff`, `crimes context`, `crimes
 hotspots`, and `crimes verdict` (without `--fail-on`).
 
-Three commands have an opt-in **gating** mode:
+Four commands have an opt-in **gating** mode:
 
 | Command                                                          | Exit `1` when …                                                                  |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `crimes scan --changed --fail-on low\|medium\|high`              | A finding in the changed set meets the severity threshold.                       |
 | `crimes baseline check --fail-on low\|medium\|high` (default `medium`) | A **new** finding (vs the saved baseline) meets the severity threshold.    |
+| `crimes diff --fail-on new-high\|new-medium` (`0.5.0`)           | A **new** finding in the diff meets the severity threshold.                      |
 | `crimes verdict --fail-on worse\|new-high\|new-medium`           | The configured verdict / severity threshold is hit.                              |
 
 All three share the same exit-code contract:
@@ -787,7 +809,7 @@ writes a human-readable error to stderr and emits no JSON, so consumers
 can distinguish "gate failed" from "command broke" without parsing.
 
 If you want to gate on a command that doesn't have `--fail-on` (e.g.
-`crimes diff` today, or plain `crimes scan`), gate on the JSON yourself:
+plain `crimes scan` without `--changed`), gate on the JSON yourself:
 
 ```bash
 crimes scan . --format json \

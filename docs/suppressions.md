@@ -84,8 +84,47 @@ entry without parsing the fingerprint.
 
 ## Removing a suppression
 
-There is no `crimes unignore` yet. Edit `.crimes/suppressions.json`
-by hand and delete the entry. The file is hand-reviewable by design.
+```bash
+crimes unignore large_function::src/billing.ts::generateInvoice
+# → "Removed … from .crimes/suppressions.json. Commit the change …"
+```
+
+`crimes unignore` is symmetric to `crimes ignore`:
+
+- Takes a stable fingerprint (no id support — once suppressed, there
+  is no per-scan id to look up).
+- `--dry-run` previews without writing.
+- `--file <path>` honours the same override as `crimes ignore`.
+- Exits `2` on an unknown fingerprint, with a pointer at
+  `crimes audit-suppressions`.
+
+The file is **never deleted** — an empty `suppressions: []` array
+stays so reviewers can see the file exists and has been intentionally
+cleared. Delete it by hand if you truly want it gone.
+
+## Auditing suppressions
+
+```bash
+crimes audit-suppressions
+crimes audit-suppressions --format json
+```
+
+Lists every entry sorted oldest first, with `age_days` and a per-entry
+`concerns` array. Entries are flagged when:
+
+- **`stale`** — older than 180 days.
+- **`short_reason`** — `reason.trim().length < 16`.
+- **`vague_reason`** — the reason reads as a deferral keyword (`tmp`,
+  `todo`, `wip`, `fixme`, `noisy`, `legacy`, `later`, `skip`,
+  `ignore`, `too noisy`, `we know …`).
+
+The human report groups entries into "Flagged" and "Active". The JSON
+output carries the same data under `report_type:
+"audit_suppressions"` — agents can re-sort or filter without
+re-running heuristics.
+
+Run it as part of a quarterly suppression review, or wire it into a
+nightly CI job that watches the count and reasons.
 
 ## Reviewing suppressions
 
@@ -93,11 +132,13 @@ The file is intended to be **committed**. Reviewers should:
 
 1. **Read the reason.** "TODO" or "too noisy" usually means the
    suppression is wrong — either fix the code or tune the detector.
+   `crimes audit-suppressions` surfaces these automatically.
 2. **Verify the fingerprint maps to a real, ongoing exception.** The
    denormalised `file` / `symbol` are there for this — you should
    recognise what is being suppressed without grepping the codebase.
-3. **Check the count.** A growing `.crimes/suppressions.json` is a
-   smell. `git log -p .crimes/suppressions.json` shows the trend.
+3. **Check the count and the ages.** A growing
+   `.crimes/suppressions.json` is a smell. `crimes audit-suppressions`
+   or `git log -p .crimes/suppressions.json` shows the trend.
 
 `crimes scan` prints `N findings suppressed; run with
 --show-suppressed to see.` when ≥1 entry matched. Use
@@ -123,7 +164,7 @@ threshold check.
 | ----------------------- | --------------------------- |
 | Repo-wide snapshot of pre-existing findings. | Per-finding deliberate exception with a reason. |
 | Forward-only — new findings are blocked. | Permanent — entries persist until you delete them. |
-| Written by `crimes baseline save`. | Written by `crimes ignore`. |
+| Written by `crimes baseline save`. | Written by `crimes ignore`; removed by `crimes unignore`; reviewed by `crimes audit-suppressions`. |
 | Read by `crimes baseline check`. | Read by every report-producing command. |
 | Use when adopting `crimes` for the first time. | Use when one specific finding is acceptable. |
 

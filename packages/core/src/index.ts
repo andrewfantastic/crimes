@@ -185,6 +185,7 @@ export {
   loadSuppressionsForRoot,
   MalformedSuppressionsError,
   partitionFindings,
+  removeSuppression,
   resolveOverridePath,
   SuppressionEntrySchema,
   SuppressionsSchema,
@@ -195,9 +196,22 @@ export type {
   ApplySuppressionsOptions,
   LoadSuppressionsResult,
   PartitionedFindings,
+  RemoveSuppressionOptions,
+  RemoveSuppressionResult,
   SuppressionEntry,
   Suppressions,
 } from "./suppressions.js";
+export {
+  auditSuppressions,
+  SUPPRESSION_MIN_REASON_LENGTH,
+  SUPPRESSION_STALE_AGE_DAYS,
+} from "./audit-suppressions.js";
+export type {
+  AuditConcern,
+  AuditSuppressionEntry,
+  AuditSuppressionsOptions,
+  AuditSuppressionsReport,
+} from "./audit-suppressions.js";
 export {
   judgeVerdict,
   NoDefaultBaseError,

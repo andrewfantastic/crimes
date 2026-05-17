@@ -73,7 +73,7 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 `crimes@0.5.0` is the latest published version on npm —
 _suppressions, config, and explainability_. It's the
-**product-surface** release: four new commands and a real config
+**product-surface** release: six new commands and a real config
 story, without adding any new detectors. Teams can now adopt `crimes`
 without fighting legitimate exceptions, tune detectors to their
 conventions, and read the long-form rationale for any finding before
@@ -88,6 +88,11 @@ New in `0.5.0`:
   specific finding with a required justification, persisted to
   `.crimes/suppressions.json` (intended to be committed). See
   [`docs/suppressions.md`](./docs/suppressions.md).
+- `crimes unignore <fingerprint>` — remove a suppression entry by
+  fingerprint; symmetric to `crimes ignore`, supports `--dry-run`.
+- `crimes audit-suppressions` — list every suppression with age and
+  flags for stale, short, or vague reasons. Reviewable in JSON or
+  human-readable form.
 - `crimes explain <id-or-fingerprint> [--from <scan.json>]` —
   deterministic long-form rationale for one finding plus the verbatim
   `crimes ignore` command line. See
@@ -195,12 +200,10 @@ Shipped in `crimes@0.2.0`:
 Deferred from `0.2.0` and still deferred after `0.3.0` (see
 [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for the full list):
 
-- **`crimes diff --fail-on new-high`** — gate on JSON or use
-  `crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
-  high` / `crimes baseline check` until this lands.
-- **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json`.
-- **`crimes explain <id>`** — long-form rationale.
-- **`crimes init`** + config plumbing.
+- **`crimes diff --fail-on new-high`** — _shipped in `0.5.0`_.
+- **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json` — _shipped in `0.5.0`_.
+- **`crimes explain <id>`** — _shipped in `0.5.0`_.
+- **`crimes init`** + config plumbing — _shipped in `0.5.0`_.
 - **`crimes ask`** / LLM-assisted modes — `v1+`.
 - **Dependency-graph detectors** (circular deps, layer violations) —
   target: `0.4.0+`.
@@ -258,10 +261,11 @@ them as shipped**):
 - **Command-drift variant of Docs-Code Drift** — docs that reference a
   CLI command the `bin` no longer implements.
 
-Supporting work also deferred — per-finding scores (`scores.churn` /
-`scores.test_gap` / `scores.blast_radius`), `crimes explain`,
-`crimes ignore` + `.crimes/suppressions.json`, `crimes init`, and
-`crimes diff --fail-on new-high`.
+Supporting work also deferred from `0.3.0`: per-finding scores
+(`scores.churn` / `scores.test_gap` / `scores.blast_radius` —
+**still deferred** as M2 work), `crimes explain`, `crimes ignore` +
+`.crimes/suppressions.json`, `crimes init`, and `crimes diff --fail-on
+new-high` (all four **shipped in `0.5.0`**).
 
 ## Shipped in `crimes@0.4.0`
 
@@ -339,7 +343,7 @@ them as shipped**):
   `permission_ia_drift`, `action_label_drift`, command-drift variant of
   `docs_code_drift`) — pre-empted by the "no more detectors before
   fixing noise" feedback; deferred.
-- **`crimes diff --fail-on new-high`** — deferred again.
+- **`crimes diff --fail-on new-high`** — _shipped in `0.5.0`_.
 - **`crimes ask` / LLM-assisted modes** — `v1+`.
 - **Homebrew tap + standalone binaries** — deferred until the CLI
   surface stabilises further.
@@ -616,10 +620,10 @@ moves from lines 37–240 to 42–246 stays `unchanged`. See
 for the full schema, fingerprint design, and known limitations (e.g. file
 renames register as a fix + new pair).
 
-Exit code is `0` today even when there are new findings — `--fail-on
-new-high` is deferred to `0.3.0`. Until then, gate on JSON, or use
+Advisory by default — pass `--fail-on new-high | new-medium` (shipped
+in `0.5.0`) to opt into a hard gate, or gate on JSON, or use
 `crimes verdict --fail-on new-high` / `crimes scan --changed --fail-on
-high` / `crimes baseline check` for a hard CI gate:
+high` / `crimes baseline check` for the equivalent CI gate:
 
 ```bash
 crimes diff origin/main...HEAD --format json \
@@ -985,9 +989,9 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 
 - **M0 — Repo foundation** ✅ (`0.1.0`)
 - **M1 — First working CLI** ✅ (`0.1.0`) — `crimes scan` with the structural-detector slice
-- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`), `HotspotsReport.history_limited` shallow-clone awareness ✅ (`0.4.0`); per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to `0.5.0+`
+- **M2 — Risk model** — `crimes hotspots` ✅ (`0.1.0`), `HotspotsReport.history_limited` shallow-clone awareness ✅ (`0.4.0`); per-finding `scores.churn` / `test_gap` / `blast_radius` still deferred (M2 work; tracked for a future minor)
 - **M3 — Agent context** — `crimes context <file>` ✅, `AGENTS.md` ✅, Claude skill ✅ (`0.1.0`); cross-file `related_files` ✅ on IA findings (`0.3.0`); deterministic neighbourhood `related_files` + monorepo-root auto-detection + shape-aware `large_function` ✅ (`0.4.0`)
-- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`); `--fail-on new-high` on `crimes diff` and per-finding `crimes ignore` still deferred
+- **M4 — Diff and CI** — `crimes scan --changed` ✅ (`0.1.0`), `crimes scan --changed --fail-on` ✅ (`0.2.0`), `crimes diff <base...head>` ✅ (`0.2.0`), `crimes baseline save` / `crimes baseline check` ✅ (`0.2.0`), `crimes verdict` ✅ (`0.2.0`), [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅ (`0.2.0`), `crimes diff --fail-on new-high | new-medium` ✅ (`0.5.0`), per-finding `crimes ignore` + `.crimes/suppressions.json` ✅ (`0.5.0`), `crimes unignore` + `crimes audit-suppressions` ✅ (`0.5.0`)
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 

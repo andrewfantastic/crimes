@@ -206,7 +206,7 @@ Do not invoke or document them as available.
 
 ## Shipped in v0.5.0 — suppressions, config, and explainability
 
-v0.5.0 is the product-surface release: four new commands and a real
+v0.5.0 is the product-surface release: six new commands and a real
 config story without any new detectors.
 
 - `crimes init [--force]` — bootstrap `crimes.config.json` with
@@ -216,6 +216,15 @@ config story without any new detectors.
   specific finding. Writes `.crimes/suppressions.json`,
   fingerprint-keyed, with a required non-empty `reason`. The file is
   intended to be committed and reviewed in PRs.
+- `crimes unignore <fingerprint>` — remove a suppression entry by
+  stable fingerprint. Symmetric to `crimes ignore`; supports
+  `--dry-run` and `--file <path>`. Empty `suppressions: []` is left
+  in place so the file frame is visible to reviewers.
+- `crimes audit-suppressions [--format human|json]` — list every
+  entry sorted oldest first, with `age_days` and per-entry concerns
+  (`stale` > 180 days, `short_reason` < 16 chars, `vague_reason` for
+  deferral keywords like `tmp` / `todo` / `wip` / `too noisy`).
+  Emits `report_type: "audit_suppressions"`.
 - `crimes explain <id-or-fingerprint> [--from <scan.json>]` —
   deterministic long-form rationale for one finding. Prints the
   detector description, a one-paragraph `why_it_matters`, the
@@ -248,8 +257,9 @@ bump**):
   `BaselineCheckReport`, `DiffReport`, `VerdictReport`.
 - `DiffReport.fail_on` / `DiffReport.failed` (only present with
   `--fail-on`).
-- New report types: `ExplainReport` (`report_type: "explain"`) and
-  on-disk `Suppressions` (`report_type: "suppressions"`).
+- New report types: `ExplainReport` (`report_type: "explain"`),
+  on-disk `Suppressions` (`report_type: "suppressions"`), and
+  `AuditSuppressionsReport` (`report_type: "audit_suppressions"`).
 
 Suppressions are applied **before** every `--fail-on` evaluation. A
 suppressed finding never trips a gate, regardless of severity or

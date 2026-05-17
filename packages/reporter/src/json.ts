@@ -1,4 +1,5 @@
 import type {
+  AuditSuppressionsReport,
   Baseline,
   BaselineCheckReport,
   ContextReport,
@@ -72,6 +73,14 @@ export function formatVerdictJsonReport(
 
 export function formatExplainJsonReport(
   report: ExplainReport,
+  options: JsonReportOptions = {},
+): string {
+  const pretty = options.pretty ?? true;
+  return JSON.stringify(report, null, pretty ? 2 : 0);
+}
+
+export function formatAuditSuppressionsJsonReport(
+  report: AuditSuppressionsReport,
   options: JsonReportOptions = {},
 ): string {
   const pretty = options.pretty ?? true;

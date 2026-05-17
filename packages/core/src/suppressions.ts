@@ -214,6 +214,84 @@ export async function appendSuppression(
   return { document: doc, path, updated: existed };
 }
 
+export interface RemoveSuppressionOptions {
+  /** Override the timestamp source for tests. */
+  now?: () => Date;
+  /** Crimes version string, recorded on the document. */
+  crimesVersion?: string;
+}
+
+export interface RemoveSuppressionResult {
+  /** Final document state. `undefined` when the file did not exist. */
+  document?: Suppressions;
+  /** Absolute path of the file. */
+  path: string;
+  /** True when an entry was removed; false when no matching fingerprint. */
+  removed: boolean;
+  /** The entry that was removed (only set when `removed: true`). */
+  entry?: SuppressionEntry;
+}
+
+/**
+ * Remove a suppression entry by stable fingerprint. Returns
+ * `{ removed: false }` when the file is absent or the fingerprint isn't
+ * present — the caller decides how to surface that.
+ *
+ * The document frame (top-level `schema_version`, `created_at`, etc.) is
+ * preserved when entries remain or when the file becomes empty;
+ * `updated_at` is bumped on a successful removal. The file is never
+ * deleted — an empty `suppressions: []` array stays so reviewers can
+ * see the file exists and has been intentionally cleared.
+ */
+export async function removeSuppression(
+  path: string,
+  fingerprint: string,
+  options: RemoveSuppressionOptions = {},
+): Promise<RemoveSuppressionResult> {
+  if (!existsSync(path)) {
+    return { path, removed: false };
+  }
+
+  const loaded = loadSuppressions(path);
+  const idx = loaded.entries.findIndex((s) => s.fingerprint === fingerprint);
+  if (idx < 0) {
+    const doc = readFullDocument(path);
+    return { document: doc, path, removed: false };
+  }
+
+  const removedEntry = loaded.entries[idx]!;
+  const remaining = loaded.entries.filter((_, i) => i !== idx);
+
+  const now = (options.now ?? (() => new Date()))();
+  const iso = now.toISOString();
+  const priorCreated = readCreatedAt(path) ?? iso;
+
+  const doc: Suppressions = {
+    schema_version: SCHEMA_VERSION,
+    report_type: "suppressions",
+    created_at: priorCreated,
+    updated_at: iso,
+    suppressions: remaining,
+  };
+  if (options.crimesVersion) doc.crimes_version = options.crimesVersion;
+
+  await writeFile(path, JSON.stringify(doc, null, 2) + "\n", "utf8");
+
+  return { document: doc, path, removed: true, entry: removedEntry };
+}
+
+/** Best-effort read of the full document for the "not found" case. */
+function readFullDocument(path: string): Suppressions | undefined {
+  try {
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw);
+    const result = SuppressionsSchema.safeParse(parsed);
+    return result.success ? result.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function readCreatedAt(path: string): string | undefined {
   try {
     const raw = readFileSync(path, "utf8");

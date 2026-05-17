@@ -10,6 +10,7 @@ import {
   loadSuppressions,
   MalformedSuppressionsError,
   partitionFindings,
+  removeSuppression,
 } from "./suppressions.js";
 
 async function tempPath(): Promise<string> {
@@ -331,5 +332,104 @@ describe("partitionFindings", () => {
     );
     expect(suppressedCount).toBe(0);
     expect(visible).toEqual(findings);
+  });
+});
+
+describe("removeSuppression", () => {
+  const NOW_ISO = "2026-06-01T12:00:00.000Z";
+
+  it("returns removed:false when the file is missing", async () => {
+    const path = await tempPath();
+    const result = await removeSuppression(
+      path,
+      "large_function::src/billing.ts::generateInvoice",
+    );
+    expect(result.removed).toBe(false);
+    expect(result.document).toBeUndefined();
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("returns removed:false when the fingerprint is not present", async () => {
+    const path = await tempPath();
+    await appendSuppression(
+      path,
+      {
+        fingerprint: "large_function::a.ts::a",
+        type: "large_function",
+        reason: "tracked in #1234",
+      },
+      { now: () => new Date("2026-05-01T12:00:00.000Z") },
+    );
+    const result = await removeSuppression(
+      path,
+      "large_function::missing.ts::nope",
+      { now: () => new Date(NOW_ISO) },
+    );
+    expect(result.removed).toBe(false);
+    expect(result.document?.suppressions).toHaveLength(1);
+  });
+
+  it("removes an existing entry, bumps updated_at, preserves created_at", async () => {
+    const path = await tempPath();
+    await appendSuppression(
+      path,
+      {
+        fingerprint: "large_function::a.ts::a",
+        type: "large_function",
+        file: "a.ts",
+        symbol: "a",
+        reason: "tracked in #1234",
+      },
+      { now: () => new Date("2026-05-01T12:00:00.000Z") },
+    );
+    const before = JSON.parse(readFileSync(path, "utf8"));
+    expect(before.suppressions).toHaveLength(1);
+    const originalCreatedAt = before.created_at;
+
+    const result = await removeSuppression(
+      path,
+      "large_function::a.ts::a",
+      { now: () => new Date(NOW_ISO) },
+    );
+    expect(result.removed).toBe(true);
+    expect(result.entry?.fingerprint).toBe("large_function::a.ts::a");
+
+    const after = JSON.parse(readFileSync(path, "utf8"));
+    expect(after.suppressions).toEqual([]);
+    expect(after.created_at).toBe(originalCreatedAt);
+    expect(after.updated_at).toBe(NOW_ISO);
+  });
+
+  it("leaves other entries untouched", async () => {
+    const path = await tempPath();
+    await appendSuppression(
+      path,
+      {
+        fingerprint: "large_function::a.ts::a",
+        type: "large_function",
+        reason: "tracked in #1234",
+      },
+    );
+    await appendSuppression(
+      path,
+      {
+        fingerprint: "large_function::b.ts::b",
+        type: "large_function",
+        reason: "tracked in #5678",
+      },
+    );
+
+    const result = await removeSuppression(
+      path,
+      "large_function::a.ts::a",
+      { now: () => new Date(NOW_ISO) },
+    );
+    expect(result.removed).toBe(true);
+
+    const after = JSON.parse(readFileSync(path, "utf8"));
+    expect(after.suppressions).toHaveLength(1);
+    expect(after.suppressions[0].fingerprint).toBe(
+      "large_function::b.ts::b",
+    );
   });
 });

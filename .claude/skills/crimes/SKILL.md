@@ -230,9 +230,10 @@ user approval.
 - It has no LSP, no watch mode, no editor integration.
 - It does not auto-fix. There is no `crimes --fix`.
 - These commands are **not yet implemented** and must not be invoked:
-  `crimes ask`. (`crimes init`, `crimes ignore`, `crimes explain`,
-  `crimes diff --fail-on new-high | new-medium`, and `--show-suppressed`
-  on every command that lists findings all shipped in `0.5.0`.)
+  `crimes ask`. (`crimes init`, `crimes ignore`, `crimes unignore`,
+  `crimes audit-suppressions`, `crimes explain`, `crimes diff
+  --fail-on new-high | new-medium`, and `--show-suppressed` on every
+  command that lists findings all shipped in `0.5.0`.)
 
 ## Suppressions and `crimes ignore`
 
@@ -256,7 +257,12 @@ the constraint or tracking issue — "too noisy" or "we know about
 this" are not acceptable suppression reasons. The CLI accepts either
 a per-scan id (`crime_00005`) or the stable fingerprint
 (`<type>::<file>::<symbol>`) and always persists by fingerprint.
-Suppressed findings never trip a `--fail-on` gate. See
+Suppressed findings never trip a `--fail-on` gate.
+
+When a suppression becomes obsolete, remove it with `crimes unignore
+<fingerprint>` (symmetric to `ignore`, supports `--dry-run`). To
+audit the file — sorted by age, flagging stale (>180d), short
+(<16 chars), or vague reasons — run `crimes audit-suppressions`. See
 [`../../../docs/suppressions.md`](../../../docs/suppressions.md).
 
 ## CI integration

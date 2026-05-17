@@ -1,4 +1,5 @@
 export {
+  formatAuditSuppressionsReport,
   formatBaselineCheckReport,
   formatBaselineSaveReport,
   formatContextHumanReport,
@@ -10,6 +11,7 @@ export {
   formatVerdictReport,
 } from "./human.js";
 export type {
+  AuditSuppressionsHumanReportOptions,
   BaselineHumanReportOptions,
   ContextHumanReportOptions,
   DiffHumanReportOptions,
@@ -20,6 +22,7 @@ export type {
   VerdictHumanReportOptions,
 } from "./human.js";
 export {
+  formatAuditSuppressionsJsonReport,
   formatBaselineCheckJsonReport,
   formatBaselineJsonReport,
   formatContextJsonReport,

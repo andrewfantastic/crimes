@@ -972,7 +972,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
           </li>
           <li class="done">
             <strong>v0.5.0 — suppressions, config, and
-            explainability.</strong> The product-surface release: four
+            explainability.</strong> The product-surface release: six
             new commands and a real config story without any new
             detectors. <code>crimes init</code> bootstraps
             <code>crimes.config.json</code> (zod-validated, with
@@ -984,7 +984,11 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             "…"</code> writes
             <code>.crimes/suppressions.json</code> (fingerprint-keyed,
             reason required, intended to be committed and reviewed in
-            PRs). <code>crimes explain &lt;id-or-fingerprint&gt;
+            PRs); <code>crimes unignore &lt;fingerprint&gt;</code>
+            removes entries symmetrically; <code>crimes
+            audit-suppressions</code> lists every entry by age and
+            flags stale, short, or vague reasons.
+            <code>crimes explain &lt;id-or-fingerprint&gt;
             [--from &lt;scan.json&gt;]</code> prints a deterministic
             long-form rationale per finding. <code>crimes diff
             --fail-on new-high | new-medium</code> completes the M4

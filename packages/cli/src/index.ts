@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { registerAuditSuppressionsCommand } from "./commands/audit-suppressions.js";
 import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
 import { registerDiffCommand } from "./commands/diff.js";
@@ -7,6 +8,7 @@ import { registerHotspotsCommand } from "./commands/hotspots.js";
 import { registerIgnoreCommand } from "./commands/ignore.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerScanCommand } from "./commands/scan.js";
+import { registerUnignoreCommand } from "./commands/unignore.js";
 import { registerVerdictCommand } from "./commands/verdict.js";
 
 // Injected at build time by tsup from this package's package.json.
@@ -23,6 +25,8 @@ program
 
 registerInitCommand(program);
 registerIgnoreCommand(program);
+registerUnignoreCommand(program);
+registerAuditSuppressionsCommand(program);
 registerExplainCommand(program);
 registerScanCommand(program);
 registerContextCommand(program);

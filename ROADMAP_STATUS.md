@@ -457,6 +457,17 @@ Tracked for `0.5.0` or later. **Do not** document them as shipped.
   `--show-suppressed` re-surfaces them annotated; the gate
   (`--fail-on`) always ignores suppressed entries regardless of
   display.
+- **`crimes unignore <fingerprint>`** — symmetric removal by stable
+  fingerprint. Supports `--file <path>` and `--dry-run`. Empty
+  `suppressions: []` is left in place rather than deleting the file,
+  so the frame stays visible in `git diff`.
+- **`crimes audit-suppressions [--format human|json]`** — list every
+  entry sorted oldest first, with `age_days` and per-entry concerns
+  (`stale` > 180 days, `short_reason` < 16 chars, `vague_reason` for
+  deferral keywords like `tmp` / `todo` / `wip` / `too noisy`).
+  Emits `report_type: "audit_suppressions"`. Closes the workflow:
+  add (`ignore`) → list (`audit-suppressions`) → remove
+  (`unignore`).
 
 ### Explainability
 

@@ -28,7 +28,8 @@ For how an agent should _use_ this output, see
 | [`BaselineCheckReport`](#baselinecheckreport-output-of-crimes-baseline-check) | `"baseline_check"` | `crimes baseline check`                       |
 | [`VerdictReport`](#verdictreport-output-of-crimes-verdict)        | `"verdict"`       | `crimes verdict`                                      |
 | [`ExplainReport`](#explainreport-output-of-crimes-explain)        | `"explain"`       | `crimes explain <id-or-fingerprint>`                  |
-| [`Suppressions`](#suppressions-on-disk-shape-of-crimessuppressionsjson) | `"suppressions"` | `crimes ignore` (on-disk file)                |
+| [`Suppressions`](#suppressions-on-disk-shape-of-crimessuppressionsjson) | `"suppressions"` | `crimes ignore` / `crimes unignore` (on-disk file)   |
+| [`AuditSuppressionsReport`](#auditsuppressionsreport-output-of-crimes-audit-suppressions) | `"audit_suppressions"` | `crimes audit-suppressions`            |
 | [Gate fields](#scan---changed---fail-on-gate-fields)              | _(optional)_      | `crimes scan --changed --fail-on …`                   |
 | [Suppression fields](#suppression-fields)                         | _(optional)_      | every report that lists findings                      |
 | [Stability guarantees](#stability-guarantees)                     |                   |                                                       |
@@ -1161,7 +1162,58 @@ the entry without parsing the fingerprint.
 The file is rewritten in full by `crimes ignore` — pretty-printed with
 2-space indent and a trailing newline so the diff is reviewable.
 Re-suppressing the same fingerprint updates `reason` and the top-level
-`updated_at`; the entry's `created_at` is preserved.
+`updated_at`; the entry's `created_at` is preserved. `crimes unignore`
+removes an entry by fingerprint and bumps `updated_at`; the file is
+never deleted (an empty `suppressions: []` stays so the frame is
+visible).
+
+---
+
+## `AuditSuppressionsReport` (output of `crimes audit-suppressions`)
+
+Lists every entry in `.crimes/suppressions.json` with per-entry age
+and concerns. Sorted oldest first. A missing file is not an error —
+the report sets `loaded: false` and `entries: []`; a present-but-
+malformed file exits `2` from the CLI with no JSON output.
+
+```ts
+interface AuditSuppressionsReport {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"audit_suppressions"`. */
+  report_type: "audit_suppressions";
+  /** Absolute path of the suppressions file (read or not). */
+  suppressions_path: string;
+  /** True when the file existed and was read; false on an empty/missing file. */
+  loaded: boolean;
+  /** ISO-8601 timestamp the audit ran. Drives `age_days`. */
+  generated_at: string;
+  /** Total entries (clean + flagged). */
+  total: number;
+  /** Number of entries with at least one concern. */
+  flagged_count: number;
+  /** Every entry, sorted oldest first. */
+  entries: AuditSuppressionEntry[];
+}
+
+interface AuditSuppressionEntry extends SuppressionEntry {
+  /** Whole-number days between `created_at` and `generated_at`. */
+  age_days: number;
+  /** Empty for clean entries; one or more of the concerns below. */
+  concerns: ("stale" | "short_reason" | "vague_reason")[];
+}
+```
+
+Concern semantics:
+
+| Concern | Meaning |
+| ------- | ------- |
+| `"stale"` | `age_days > 180`. |
+| `"short_reason"` | `reason.trim().length < 16`. |
+| `"vague_reason"` | The reason starts with a deferral keyword (`tmp`, `todo`, `wip`, `fixme`, `noisy`, `legacy`, `later`, `skip`, `ignore`) or matches `too noisy` / `we know …`. Only set when the reason is **not** already flagged as short. |
+
+The thresholds are fixed in this release. JSON consumers that want
+different rules can re-filter the `entries` array using the raw
+`age_days` and `reason` fields.
 
 ---
 
