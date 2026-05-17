@@ -61,6 +61,7 @@ interface Tally {
 }
 
 async function main(): Promise<void> {
+  const startMs = Date.now();
   const flags = parseFlags(process.argv.slice(2));
   const ctx = await loadRunContext(flags);
   if (!ctx) return;
@@ -98,8 +99,9 @@ async function main(): Promise<void> {
 
   const summary = buildSummary(crimesVersion, scenariosToRun, usableAgents, tally);
   await writeJsonAtomic(resolve(outDir, "summary.json"), summary);
+  const elapsed = formatDuration(Date.now() - startMs);
   process.stdout.write(
-    `\nevals: done. ${tally.total} run × scenario combinations.\n` +
+    `\nevals: done. ${tally.total} run × scenario combinations in ${elapsed}.\n` +
       `Results: ${outDir}\n`,
   );
 }
@@ -454,6 +456,16 @@ async function writeJsonAtomic(
 
 function round(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function formatDuration(ms: number): string {
+  const totalSec = Math.round(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 main().catch((err: unknown) => {
