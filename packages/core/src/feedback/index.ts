@@ -27,3 +27,13 @@ export type {
   ReadFeedbackOptions,
   ReadFeedbackResult,
 } from "./read.js";
+export {
+  RELEASE_NOTES,
+  RELEASE_NOTES_FALLBACK,
+  releaseNoteFor,
+} from "./release-notes.js";
+export { resurfacedSuppressions } from "./recheck.js";
+export type {
+  ResurfacedSuppression,
+  ResurfacedSuppressionsOptions,
+} from "./recheck.js";

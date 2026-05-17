@@ -199,7 +199,7 @@ describe("crimes feedback (write)", () => {
     expect(existsSync(join(root, ".crimes", "suppressions.json"))).toBe(false);
   });
 
-  it("re-feedback fp on a resurfaced finding records resurfaced_from", async () => {
+  it("re-feedback fp on a resurfaced finding records resurfaced_from + bumps the pin", async () => {
     const root = await makeRepo();
     // Hand-craft a suppression as if it were written by an earlier minor.
     const suppDir = join(root, ".crimes");
@@ -258,5 +258,173 @@ describe("crimes feedback (write)", () => {
     const entry = JSON.parse(lines[0]!);
     expect(entry.resurfaced_from).toBe("0.5");
     expect(entry.verdict).toBe("fp");
+
+    // The suppression pin is bumped to the current minor.
+    const doc = JSON.parse(
+      readFileSync(join(root, ".crimes", "suppressions.json"), "utf8"),
+    );
+    expect(doc.suppressions).toHaveLength(1);
+    expect(doc.suppressions[0].crimes_version_pinned).not.toBe("0.5");
+  });
+});
+
+describe("crimes feedback list", () => {
+  it("reports 'no feedback recorded yet' when the file is absent", async () => {
+    const root = await makeRepo();
+    const result = await runCli(["feedback", "list"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("No feedback recorded yet");
+  });
+
+  it("lists captured entries (latest verdict per fingerprint)", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "first"],
+      root,
+    );
+    await runCli(
+      ["feedback", FP, "--verdict", "tp", "--note", "I was wrong"],
+      root,
+    );
+    const result = await runCli(["feedback", "list"], root);
+    expect(result.exitCode).toBe(0);
+    // Only the latest verdict per fingerprint shows up — fp is shadowed by tp.
+    expect(result.stdout).toContain("[tp   ]");
+    expect(result.stdout).not.toMatch(/\[fp\s+\][\s\S]*large_function/);
+  });
+
+  it("--verdict filters to only the matching current verdict", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "stays fp"],
+      root,
+    );
+    const otherFp = "todo_density::billing.ts::";
+    await runCli(
+      ["feedback", otherFp, "--verdict", "known"],
+      root,
+    );
+    const result = await runCli(
+      ["feedback", "list", "--verdict", "fp"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(FP);
+    expect(result.stdout).not.toContain(otherFp);
+  });
+
+  it("--format json emits a FeedbackReport-shaped object", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    const result = await runCli(
+      ["feedback", "list", "--format", "json"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const doc = JSON.parse(result.stdout);
+    expect(doc.report_type).toBe("feedback");
+    expect(doc.scope).toBe("repo");
+    expect(doc.entries).toHaveLength(1);
+  });
+
+  it("--since with a malformed duration exits 2", async () => {
+    const root = await makeRepo();
+    const result = await runCli(
+      ["feedback", "list", "--since", "next-week"],
+      root,
+    );
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("--since");
+  });
+});
+
+describe("crimes feedback recheck", () => {
+  async function seedResurfaceableSuppression(root: string): Promise<void> {
+    const { mkdir, writeFile: wf } = await import("node:fs/promises");
+    await mkdir(join(root, ".crimes"), { recursive: true });
+    await wf(
+      join(root, ".crimes", "suppressions.json"),
+      JSON.stringify(
+        {
+          schema_version: "0.1.0",
+          report_type: "suppressions",
+          created_at: "2026-04-01T00:00:00.000Z",
+          updated_at: "2026-04-01T00:00:00.000Z",
+          suppressions: [
+            {
+              fingerprint: "direct_date::src/suppressions.test.ts::",
+              type: "direct_date",
+              file: "src/suppressions.test.ts",
+              reason: "Test-file injection — intentional",
+              created_at: "2026-04-01T00:00:00.000Z",
+              source: "feedback",
+              crimes_version_pinned: "0.5",
+            },
+            {
+              fingerprint: "large_function::src/x.ts::register",
+              type: "large_function",
+              file: "src/x.ts",
+              symbol: "register",
+              reason: "Commander DSL chain",
+              created_at: "2026-04-01T00:00:00.000Z",
+              source: "feedback",
+              crimes_version_pinned: "0.5",
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  }
+
+  it("reports nothing when there are no resurfaced suppressions", async () => {
+    const root = await makeRepo();
+    const result = await runCli(["feedback", "recheck"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("No resurfaced");
+  });
+
+  it("lists every resurfaced suppression with the release-notes hint", async () => {
+    const root = await makeRepo();
+    await seedResurfaceableSuppression(root);
+    const result = await runCli(["feedback", "recheck"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/findings? previously marked fp/);
+    expect(result.stdout).toContain("direct_date");
+    expect(result.stdout).toContain("large_function");
+    expect(result.stdout).toContain("Re-confirm fp:");
+    expect(result.stdout).toContain("Mark resolved:");
+  });
+
+  it("--detector filters to one detector type", async () => {
+    const root = await makeRepo();
+    await seedResurfaceableSuppression(root);
+    const result = await runCli(
+      ["feedback", "recheck", "--detector", "direct_date"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("direct_date");
+    expect(result.stdout).not.toContain("large_function");
+  });
+
+  it("--format json emits structured output with reconfirm/resolve commands", async () => {
+    const root = await makeRepo();
+    await seedResurfaceableSuppression(root);
+    const result = await runCli(
+      ["feedback", "recheck", "--format", "json"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const doc = JSON.parse(result.stdout);
+    expect(doc.report_type).toBe("feedback_recheck");
+    expect(doc.resurfaced).toHaveLength(2);
+    expect(doc.resurfaced[0].commands.reconfirm_fp).toMatch(/--verdict fp/);
+    expect(doc.resurfaced[0].commands.mark_resolved).toMatch(/--verdict tp/);
   });
 });

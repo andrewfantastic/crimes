@@ -35,8 +35,12 @@ export {
   latestPerFingerprint,
   MalformedFeedbackEntryError,
   readFeedback,
+  RELEASE_NOTES,
+  RELEASE_NOTES_FALLBACK,
+  releaseNoteFor,
   resolveFeedbackPath,
   resolveGlobalRollupPath,
+  resurfacedSuppressions,
   writeFeedbackEntry,
 } from "./feedback/index.js";
 export type {
@@ -46,6 +50,8 @@ export type {
   FeedbackVerdict,
   ReadFeedbackOptions,
   ReadFeedbackResult,
+  ResurfacedSuppression,
+  ResurfacedSuppressionsOptions,
   WriteFeedbackOptions,
   WriteFeedbackResult,
 } from "./feedback/index.js";

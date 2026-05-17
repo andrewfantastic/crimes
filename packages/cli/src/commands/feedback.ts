@@ -3,13 +3,22 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   appendSuppression,
+  latestPerFingerprint,
   loadConfig,
   loadSuppressions,
+  loadSuppressionsForRoot,
   minorKey,
+  readFeedback,
   removeSuppression,
   resolveFeedbackPath,
+  resolveGlobalRollupPath,
   resolveSuppressionsPath,
+  resurfacedSuppressions,
   writeFeedbackEntry,
+} from "@crimes/core";
+import type {
+  FeedbackEntry,
+  ResurfacedSuppression,
 } from "@crimes/core";
 import type { Command } from "commander";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
@@ -264,4 +273,268 @@ export function registerFeedbackCommand(program: Command): void {
         );
       },
     );
+
+  registerFeedbackListSubcommand(feedback);
+  registerFeedbackRecheckSubcommand(feedback);
+}
+
+// ---------- `crimes feedback list` ---------------------------------------
+
+interface FeedbackListOptions {
+  format: "human" | "json";
+  global: boolean;
+  since?: string;
+  verdict?: string;
+}
+
+function registerFeedbackListSubcommand(parent: Command): void {
+  parent
+    .command("list")
+    .description(
+      "List captured feedback entries (latest verdict per fingerprint).",
+    )
+    .option("--format <format>", "output format: human | json", "human")
+    .option(
+      "--global",
+      "read from the cross-project rollup at ~/.crimes/feedback-rollup.jsonl",
+      false,
+    )
+    .option(
+      "--since <duration>",
+      "only show entries within the last duration (e.g. 30d, 2w, 6h)",
+    )
+    .option(
+      "--verdict <verdict>",
+      "filter to fingerprints whose current verdict is one of: tp, fp, known",
+    )
+    .action(async function (this: Command, _options: FeedbackListOptions) {
+      // Commander parses parent-level options (--verdict, --note, --file)
+      // onto the parent command even when the subcommand redeclares them,
+      // so we read merged opts to pick up `--verdict fp` after the
+      // subcommand name. See feedback.test.ts for the failing case.
+      const options = this.optsWithGlobals() as FeedbackListOptions;
+      if (options.format !== "human" && options.format !== "json") {
+        process.stderr.write(
+          `crimes: unknown --format "${String(options.format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+      if (
+        options.verdict !== undefined &&
+        !isVerdict(options.verdict)
+      ) {
+        process.stderr.write(
+          'crimes: --verdict must be one of "tp", "fp", "known".\n',
+        );
+        process.exit(2);
+        return;
+      }
+
+      const path = options.global
+        ? resolveGlobalRollupPath()
+        : resolveFeedbackPath(resolve(process.cwd()));
+      const read = await readFeedback(path);
+
+      const sinceCutoff = options.since
+        ? parseSinceDuration(options.since)
+        : undefined;
+      if (options.since !== undefined && sinceCutoff === undefined) {
+        process.stderr.write(
+          `crimes: --since "${options.since}" not understood. Use e.g. 30d, 2w, 6h, 90m.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const latest = latestPerFingerprint(read.entries);
+      const sorted = Array.from(latest.values()).sort((a, b) =>
+        a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0,
+      );
+
+      const filtered = sorted.filter((e) => {
+        if (sinceCutoff && new Date(e.timestamp).getTime() < sinceCutoff) {
+          return false;
+        }
+        if (options.verdict && e.verdict !== options.verdict) return false;
+        return true;
+      });
+
+      if (options.format === "json") {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              schema_version: "0.1.0",
+              report_type: "feedback",
+              scope: options.global ? "global" : "repo",
+              source_file: path,
+              entries: filtered,
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        return;
+      }
+
+      process.stdout.write(formatFeedbackList(filtered, path, read.loaded));
+    });
+}
+
+function formatFeedbackList(
+  entries: FeedbackEntry[],
+  path: string,
+  loaded: boolean,
+): string {
+  if (!loaded) {
+    return `No feedback recorded yet (${path} does not exist).\n`;
+  }
+  if (entries.length === 0) {
+    return `No matching feedback entries in ${path}.\n`;
+  }
+  const lines: string[] = [
+    `${entries.length} feedback ${entries.length === 1 ? "entry" : "entries"} (latest verdict per fingerprint) — ${path}`,
+    "",
+  ];
+  for (const e of entries) {
+    const note = e.note ? ` "${e.note}"` : "";
+    const resurfaced =
+      e.resurfaced_from !== null
+        ? ` [resurfaced from ${e.resurfaced_from}]`
+        : "";
+    lines.push(
+      `  [${e.verdict.padEnd(5)}] ${e.timestamp}  ${e.fingerprint}${resurfaced}${note}`,
+    );
+  }
+  return lines.join("\n") + "\n";
+}
+
+function parseSinceDuration(input: string): number | undefined {
+  const match = input.trim().match(/^(\d+)([dwhms])$/i);
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  const unit = match[2]!.toLowerCase();
+  const ms =
+    unit === "d"
+      ? value * 86_400_000
+      : unit === "w"
+        ? value * 7 * 86_400_000
+        : unit === "h"
+          ? value * 3_600_000
+          : unit === "m"
+            ? value * 60_000
+            : unit === "s"
+              ? value * 1000
+              : undefined;
+  if (ms === undefined) return undefined;
+  return Date.now() - ms;
+}
+
+// ---------- `crimes feedback recheck` -----------------------------------
+
+interface FeedbackRecheckOptions {
+  format: "human" | "json";
+  detector?: string;
+}
+
+function registerFeedbackRecheckSubcommand(parent: Command): void {
+  parent
+    .command("recheck")
+    .description(
+      "Walk feedback-sourced suppressions whose pinned minor differs from the " +
+        "current crimes minor — the per-release review surface.",
+    )
+    .option("--format <format>", "output format: human | json", "human")
+    .option(
+      "--detector <type>",
+      "only show resurfaced suppressions of this detector type (e.g. large_function)",
+    )
+    .action(async function (this: Command, _options: FeedbackRecheckOptions) {
+      // Same parent-options bleed-through as the list subcommand —
+      // merge global opts so `--detector` after the subcommand name
+      // is honoured.
+      const options = this.optsWithGlobals() as FeedbackRecheckOptions;
+      if (options.format !== "human" && options.format !== "json") {
+        process.stderr.write(
+          `crimes: unknown --format "${String(options.format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const root = resolve(process.cwd());
+      let config;
+      try {
+        config = loadConfig(root);
+      } catch (error) {
+        if (isUserSetupError(error)) {
+          fatalUserError(error);
+          return;
+        }
+        throw error;
+      }
+      const suppressions = loadSuppressionsForRoot(root, config);
+      const resurfaced = resurfacedSuppressions(
+        suppressions.entries,
+        __CRIMES_VERSION__,
+        options.detector ? { detector: options.detector } : {},
+      );
+
+      const currentMinor = minorKey(__CRIMES_VERSION__);
+
+      if (options.format === "json") {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              schema_version: "0.1.0",
+              report_type: "feedback_recheck",
+              current_version: __CRIMES_VERSION__,
+              current_minor: currentMinor,
+              resurfaced: resurfaced.map((r) => ({
+                ...r,
+                commands: {
+                  reconfirm_fp: `crimes feedback ${r.fingerprint} --verdict fp`,
+                  mark_resolved: `crimes feedback ${r.fingerprint} --verdict tp`,
+                },
+              })),
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        return;
+      }
+
+      process.stdout.write(formatRecheck(resurfaced, currentMinor));
+    });
+}
+
+function formatRecheck(
+  resurfaced: ResurfacedSuppression[],
+  currentMinor: string,
+): string {
+  if (resurfaced.length === 0) {
+    return "No resurfaced feedback suppressions. Either every prior `fp` was confirmed on this minor, or none have been recorded yet.\n";
+  }
+  const lines: string[] = [
+    `${resurfaced.length} ${resurfaced.length === 1 ? "finding" : "findings"} previously marked fp (resurface for crimes ${currentMinor}):`,
+    "",
+  ];
+  resurfaced.forEach((r, i) => {
+    const location =
+      r.file !== undefined
+        ? r.symbol
+          ? `${r.file}:${r.symbol}`
+          : r.file
+        : r.fingerprint;
+    lines.push(
+      `[${i + 1}/${resurfaced.length}] ${r.type} — ${location}`,
+      `      Marked fp in ${r.crimes_version_pinned}: "${r.reason}"`,
+      `      In ${currentMinor}: ${r.hint}`,
+      `        Re-confirm fp: crimes feedback ${r.fingerprint} --verdict fp --note '<reason>'`,
+      `        Mark resolved: crimes feedback ${r.fingerprint} --verdict tp`,
+      "",
+    );
+  });
+  return lines.join("\n");
 }
