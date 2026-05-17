@@ -13,6 +13,7 @@ import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
+import { layerViolationDetector } from "./detectors/layer-violation.js";
 import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
@@ -66,6 +67,8 @@ export const builtInDetectors: Detector[] = [
   duplicatedNavigationSourceDetector,
   conceptAliasDriftDetector,
   docsCodeDriftDetector,
+  // Dependency-graph + architecture (require ctx.imports).
+  layerViolationDetector,
 ];
 
 export interface ScanOptions {

@@ -61,6 +61,7 @@ export { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
+export { layerViolationDetector } from "./detectors/layer-violation.js";
 export { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 export { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 export { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
