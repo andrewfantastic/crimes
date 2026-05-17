@@ -303,6 +303,18 @@ function resolveEdge(args: {
 function resolveOnDisk(candidate: string): string | undefined {
   // Direct hit.
   if (existsSync(candidate) && isFile(candidate)) return candidate;
+  // NodeNext / ESM-TS convention: the specifier may end in a JS-family
+  // extension even though the source file on disk is the corresponding
+  // TS one (`./foo.js` → `./foo.ts`, etc.). Strip and retry with the
+  // candidate extensions.
+  const jsExtMatch = candidate.match(/\.(jsx?|mjs|cjs)$/);
+  if (jsExtMatch) {
+    const base = candidate.slice(0, -jsExtMatch[0].length);
+    for (const ext of CANDIDATE_EXTENSIONS) {
+      const withExt = `${base}${ext}`;
+      if (existsSync(withExt) && isFile(withExt)) return withExt;
+    }
+  }
   // Try extensions.
   for (const ext of CANDIDATE_EXTENSIONS) {
     const withExt = `${candidate}${ext}`;

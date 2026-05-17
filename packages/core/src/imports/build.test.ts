@@ -86,6 +86,20 @@ describe("buildImportGraph", () => {
     expect(aOut[0]!.to).toBe("src/b.ts");
   });
 
+  it("resolves a NodeNext-style specifier where ./b.js means ./b.ts", async () => {
+    const root = await makeRepo({
+      "src/a.ts": `import { b } from "./b.js";\nexport const a = b;\n`,
+      "src/b.ts": `export const b = 1;\n`,
+    });
+    const files = await discover(root);
+    const graph = await buildImportGraph({ root, files });
+
+    const aOut = graph.out.get("src/a.ts") ?? [];
+    expect(aOut).toHaveLength(1);
+    expect(aOut[0]!.specifier).toBe("./b.js");
+    expect(aOut[0]!.to).toBe("src/b.ts");
+  });
+
   it("resolves an index re-export when the specifier names a directory", async () => {
     const root = await makeRepo({
       "src/a.ts": `import { b } from "./util";\nexport const a = b;\n`,
