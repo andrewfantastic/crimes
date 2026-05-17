@@ -28,6 +28,27 @@ export {
   loadConfigDetailed,
   resolveSuppressionsPath,
 } from "./config.js";
+export {
+  FEEDBACK_GLOBAL_RELATIVE_PATH,
+  FEEDBACK_RELATIVE_PATH,
+  FeedbackEntrySchema,
+  latestPerFingerprint,
+  MalformedFeedbackEntryError,
+  readFeedback,
+  resolveFeedbackPath,
+  resolveGlobalRollupPath,
+  writeFeedbackEntry,
+} from "./feedback/index.js";
+export type {
+  FeedbackEntry,
+  FeedbackReport,
+  FeedbackSummary,
+  FeedbackVerdict,
+  ReadFeedbackOptions,
+  ReadFeedbackResult,
+  WriteFeedbackOptions,
+  WriteFeedbackResult,
+} from "./feedback/index.js";
 export type {
   ConfigIssue,
   CrimesConfig,
