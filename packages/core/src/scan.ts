@@ -19,6 +19,8 @@ import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
+import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
 import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
@@ -27,6 +29,7 @@ import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
 import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
+import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
 import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
@@ -48,6 +51,8 @@ import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
 import { buildJsxShapeIndex } from "./jsx/shape-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
+import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
+import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
@@ -100,6 +105,10 @@ export const builtInDetectors: Detector[] = [
   duplicateComponentShapeDetector,
   responsiveFragilityDetector,
   visualRegressionReviewHintDetector,
+  // Duplication (require ctx.functionHashIndex / ctx.ia).
+  exactDuplicateBlockDetector,
+  nearDuplicateBlockDetector,
+  duplicatedRoleStatusPlanCheckDetector,
 ];
 
 export interface ScanOptions {
@@ -162,6 +171,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   // full picture, not just the `--changed` slice.
   const imports = await safelyBuildImportGraph({ root, allFiles });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
+  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
   // Scoring context: built once, queried per-finding during finalisation.
   // Always present (degrades gracefully when git is unavailable).
   const scoring = await safelyBuildScoringContext({
@@ -188,6 +198,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
         petty,
         imports,
         jsxShapeIndex,
+        functionHashIndex,
         scoring,
       });
       findings.push(...detectorFindings);
@@ -280,6 +291,17 @@ async function safelyBuildJsxShapeIndex(args: {
 }): Promise<JsxShapeIndex | undefined> {
   try {
     return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildFunctionHashIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<FunctionHashIndex | undefined> {
+  try {
+    return await buildFunctionHashIndex({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }

@@ -1,4 +1,5 @@
 import type { ParsedFile } from "@crimes/language-js";
+import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CrimesConfig } from "./config.js";
 import type { Finding } from "./finding.js";
 import type { IaIndex } from "./ia/types.js";
@@ -73,6 +74,14 @@ export interface DetectorContext {
    * without re-walking every file itself.
    */
   jsxShapeIndex?: JsxShapeIndex;
+  /**
+   * Optional repo-wide function-hash index. Populated by `scan` and
+   * `context`; absent in stubs. The duplication detectors read this
+   * to identify near-duplicate function bodies without re-hashing per
+   * detector. Two views: `byExact` for `exact_duplicate_block`,
+   * `byShape` for `near_duplicate_block`.
+   */
+  functionHashIndex?: FunctionHashIndex;
   /**
    * Optional per-file scoring context. Populated by `scan` and `context`;
    * absent in direct unit-test stubs. Core uses this to backfill

@@ -67,6 +67,8 @@ export { directDateDetector } from "./detectors/direct-date.js";
 export { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 export { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+export { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
+export { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
 export { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
@@ -75,6 +77,7 @@ export { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 export { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 export { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
 export { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
+export { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
 export { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 export { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 export { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
@@ -149,6 +152,11 @@ export {
   hashSlice,
 } from "./ast-hash/hash.js";
 export type { AstHash } from "./ast-hash/hash.js";
+export { buildFunctionHashIndex } from "./ast-hash/function-index.js";
+export type {
+  FunctionHashIndex,
+  FunctionHit,
+} from "./ast-hash/function-index.js";
 export {
   buildScoringContext,
   computeAgentRisk,

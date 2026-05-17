@@ -1,0 +1,104 @@
+import type { Detector } from "../detector.js";
+import type { Finding } from "../finding.js";
+import type { FunctionHit } from "../ast-hash/function-index.js";
+
+/**
+ * Fires when a function body is verbatim-identical (modulo whitespace
+ * and comments) across ≥2 files. Anchored on the lex-first file in the
+ * duplicate set so the per-file detector loop emits each finding
+ * exactly once.
+ *
+ * Token threshold ≥20 (set in the index builder) excludes trivial
+ * helpers — three duplicate one-liners is noise, three duplicate
+ * 30-line bodies is signal.
+ */
+export const exactDuplicateBlockDetector: Detector = {
+  id: "exact_duplicate_block",
+  name: "Exact Duplicate Block",
+  description:
+    "Flags function bodies that are verbatim-identical across two or " +
+    "more files.",
+  whyItMatters:
+    "Two copies of the same function body mean two places to keep in " +
+    "sync. Every fix has to land twice, every refactor too. Reviewers " +
+    "can't tell which one is the source of truth, and the next agent " +
+    "edits one and forgets the other.",
+
+  run(ctx) {
+    if (!ctx.functionHashIndex) return [];
+    const findings: Finding[] = [];
+    for (const [hash, hits] of ctx.functionHashIndex.byExact) {
+      const distinctFiles = new Set(hits.map((h) => h.file));
+      if (distinctFiles.size < 2) continue;
+      const anchor = [...distinctFiles].sort()[0]!;
+      if (anchor !== ctx.file) continue;
+      findings.push(
+        buildFinding({
+          type: "exact_duplicate_block",
+          charge: "Exact Duplicate Block",
+          severityFloor: "medium",
+          confidence: 0.95,
+          hash,
+          hits,
+          anchor,
+        }),
+      );
+    }
+    return findings;
+  },
+};
+
+export function buildFinding(args: {
+  type: string;
+  charge: string;
+  severityFloor: "medium";
+  confidence: number;
+  hash: string;
+  hits: FunctionHit[];
+  anchor: string;
+}): Finding {
+  const sortedSites = [...args.hits].sort((a, b) =>
+    a.file === b.file ? a.lines[0] - b.lines[0] : a.file.localeCompare(b.file),
+  );
+  const distinctFiles = Array.from(new Set(sortedSites.map((s) => s.file))).sort();
+
+  const evidence: string[] = [
+    `hash ${args.hash.slice(0, 12)}… across ${distinctFiles.length} file(s), ` +
+      `${sortedSites.length} occurrence(s)`,
+  ];
+  for (const site of sortedSites.slice(0, 5)) {
+    const sym = site.symbol ? ` (${site.symbol})` : "";
+    evidence.push(`${site.file}:${site.lines[0]}-${site.lines[1]}${sym}`);
+  }
+  if (sortedSites.length > 5) {
+    evidence.push(`+${sortedSites.length - 5} more occurrence(s)`);
+  }
+
+  return {
+    id: "",
+    type: args.type,
+    charge: args.charge,
+    severity: "medium",
+    confidence: args.confidence,
+    file: args.anchor,
+    summary:
+      `Function appears in ${distinctFiles.length} files with the same body. ` +
+      "Each fix has to land in every copy; extracting a shared helper would " +
+      "make the duplication explicit.",
+    evidence,
+    scores: {
+      severity: 0.55,
+      confidence: args.confidence,
+    },
+    suggested_actions: [
+      {
+        kind: "extract_shared_helper",
+        description:
+          "Promote the duplicated body into a shared helper module so " +
+          "future edits land once.",
+        risk: "medium",
+      },
+    ],
+    related_files: distinctFiles.filter((f) => f !== args.anchor),
+  };
+}

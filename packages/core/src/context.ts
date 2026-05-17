@@ -15,6 +15,8 @@ import { buildImportGraph } from "./imports/build.js";
 import type { ImportGraph } from "./imports/types.js";
 import { buildJsxShapeIndex } from "./jsx/shape-index.js";
 import type { JsxShapeIndex } from "./jsx/shape-index.js";
+import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
+import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
 import {
@@ -267,6 +269,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   const petty = await safelyBuildPettyIndex({ root, allFiles });
   const imports = await safelyBuildImportGraph({ root, allFiles });
   const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
+  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
   const scoring = await safelyBuildScoringContext({
     root,
     allFiles,
@@ -283,6 +286,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     petty,
     imports,
     jsxShapeIndex,
+    functionHashIndex,
     scoring,
   });
 
@@ -374,6 +378,7 @@ async function runDetectorsOnTarget(args: {
   petty?: PettyIndex;
   imports?: ImportGraph;
   jsxShapeIndex?: JsxShapeIndex;
+  functionHashIndex?: FunctionHashIndex;
   scoring?: ScoringContext;
 }): Promise<Finding[]> {
   const {
@@ -386,6 +391,7 @@ async function runDetectorsOnTarget(args: {
     petty,
     imports,
     jsxShapeIndex,
+    functionHashIndex,
     scoring,
   } = args;
   if (!allFiles.includes(targetAbs)) return [];
@@ -406,6 +412,7 @@ async function runDetectorsOnTarget(args: {
       petty,
       imports,
       jsxShapeIndex,
+      functionHashIndex,
       scoring,
     });
     findings.push(...detectorFindings);
@@ -468,6 +475,17 @@ async function safelyBuildJsxShapeIndex(args: {
 }): Promise<JsxShapeIndex | undefined> {
   try {
     return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
+  } catch {
+    return undefined;
+  }
+}
+
+async function safelyBuildFunctionHashIndex(args: {
+  root: string;
+  allFiles: string[];
+}): Promise<FunctionHashIndex | undefined> {
+  try {
+    return await buildFunctionHashIndex({ root: args.root, files: args.allFiles });
   } catch {
     return undefined;
   }
