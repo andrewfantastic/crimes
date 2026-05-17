@@ -499,7 +499,93 @@ Tracked for `0.5.0` or later. **Do not** document them as shipped.
 Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`
 remain **deferred** — M2 work touches every detector and deserves its
 own release rather than a wedge into the suppressions theme. Tracked
-for `0.6.0` or `0.7.0`.
+for `0.6.0`.
+
+The wedge stays the same: deterministic, local, JSON-first, no LLM.
+
+---
+
+## 🎯 Next target — `crimes@0.6.0` (planned)
+
+> **Implementation plan:
+> [`DETECTOR_SCORING_COMPLETION_PLAN.md`](./DETECTOR_SCORING_COMPLETION_PLAN.md).**
+> Product framing, scope (must / should / could / defer), shared
+> infrastructure design (import graph, JSX inspection, AST hashing,
+> scoring data sources), per-detector specs for all six new tracks,
+> JSON schema implications, CI implications, test plan, docs/site
+> plan, risks, prompt sequence (A–O), success criteria, and a
+> dogfood appendix from running `crimes@0.5.0` against this repo
+> live there. This section is the status mirror.
+
+**Theme: detector and scoring completion.** After three product-
+surface releases (`0.3.0` IA crimes, `0.4.0` agent context quality,
+`0.5.0` suppressions / config / explainability), what's left from
+the PRD is detector breadth (§8) and the risk model (§10, M2). Plus
+M5 — the full docs site. 0.6.0 ships the lot.
+
+Headline contents:
+
+- **Per-finding scores** — `scores.churn`, `scores.test_gap`,
+  `scores.blast_radius` populated on every finding (M2 completion).
+  A unified `agent_risk` formula replaces hand-rolled per-detector
+  weighting.
+- **Shared infrastructure** — import graph,
+  JSX inspection layer, AST hashing, scoring data sources. Foundations
+  built once, reused by everything that follows.
+- **Architecture-layer enforcement** — the `architecture.layers`
+  config placeholder shipped in 0.5.0 gets a consuming detector
+  (`layer_violation`).
+- **Dependency-graph detectors** — `circular_dependency`,
+  `deep_import`, `high_fan_in_fan_out`.
+- **Remaining IA detectors** — `orphaned_destination`,
+  `parallel_destination`, `permission_ia_drift`,
+  `action_label_drift`, command-drift variant of `docs_code_drift`.
+- **Frontend / UI agent-risk track** — `design_token_escape`,
+  `accessible_interaction_risk`, `duplicate_component_shape`,
+  `responsive_fragility`, `copy_ia_drift`,
+  `visual_regression_review_hint`.
+- **Duplication detectors** — `exact_duplicate_block`,
+  `near_duplicate_block`, `duplicated_role_status_plan_check`, with
+  explicit overlap reconciliation vs already-shipped petty crimes.
+- **M5 — full `/docs` site** — Astro + Starlight at `crimes.sh/docs/`.
+- **Polish** — stderr breadcrumb when `detectors.disable` is wholesale.
+
+Out of scope for `0.6.0` (still deferred or rejected):
+
+- **M6 — Homebrew tap / standalone binaries.** Deferred indefinitely;
+  re-evaluate when a user asks.
+- **Suppression `expires_at` / `owner`.** Rejected — added complexity
+  without enough benefit.
+- **Custom suppression matchers (glob/regex).** Deferred until
+  requested.
+- **Detector-level severity overrides in config.** Deferred until
+  needed.
+- **LLM-assisted modes / `crimes ask`.** Still v1+.
+
+## 🎯 Then — `crimes@0.7.0` (sketched)
+
+**Theme: structured testing and evidence hook into the user's
+workflow.** Once the detector slate is complete in 0.6.0, 0.7.0
+runs structured Claude + Codex testing against the full surface and
+wires ongoing feedback into the user's workflow as the evidence
+channel for 0.8.0+ tuning.
+
+Specifically:
+
+- A repeatable testing protocol that runs `crimes` against a set
+  of representative real-world repos using Claude Code and Codex CLI
+  on a set of representative tasks.
+- An evidence-capture format that records false positives, missed
+  detections, ergonomic gaps, and severity miscalibrations.
+- A workflow hook so ongoing use of `crimes` on the user's own
+  projects produces a trickle of evidence that informs subsequent
+  releases (rather than periodic large testing pushes).
+- Detector tuning based on the captured evidence — severity curves,
+  confidence scores, threshold adjustments, and shape-aware
+  exemptions (e.g., a `cli_command_registrar` shape for
+  `large_function`).
+
+Plan to be drafted after `0.6.0` ships.
 
 The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
