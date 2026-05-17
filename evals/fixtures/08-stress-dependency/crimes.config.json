@@ -1,0 +1,14 @@
+{
+  "architecture": {
+    "layers": [
+      { "name": "presentation", "pattern": "src/presentation/**" },
+      { "name": "application", "pattern": "src/application/**" },
+      { "name": "domain", "pattern": "src/domain/**" },
+      { "name": "infrastructure", "pattern": "src/infrastructure/**" }
+    ],
+    "rules": [
+      { "from": "domain", "cannotImport": ["presentation", "application", "infrastructure"] },
+      { "from": "application", "cannotImport": ["presentation"] }
+    ]
+  }
+}

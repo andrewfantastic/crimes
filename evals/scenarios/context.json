@@ -1,0 +1,44 @@
+[
+  {
+    "id": "context-01-messy-ts-app",
+    "fixture": "01",
+    "kind": "context",
+    "prompt": "You are about to edit src/billing.ts. Use `crimes context src/billing.ts --format json` to gather context. Summarise what the file does, which related files you would also need to read, and which risks the scan flagged.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_function"],
+      "referenced_files": ["src/billing.ts"]
+    },
+    "judge_questions": [
+      "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?",
+      "Did the agent list likely tests + related files before proposing changes?"
+    ]
+  },
+  {
+    "id": "context-09-clean-tiny",
+    "fixture": "09",
+    "kind": "context",
+    "prompt": "You are about to edit src/add.ts. Use `crimes context src/add.ts --format json` to gather context. Report what crimes found (or didn't find) and whether the file is safe to extend.",
+    "expected_artifacts": {
+      "referenced_files": ["src/add.ts"],
+      "forbidden_actions": ["large_function", "direct_date"]
+    },
+    "judge_questions": [
+      "Did the agent correctly recognise this as a clean fixture (no findings)?",
+      "Did the agent avoid inventing findings that aren't in the JSON output?"
+    ]
+  },
+  {
+    "id": "context-10-clean-typed",
+    "fixture": "10",
+    "kind": "context",
+    "prompt": "Use `crimes context src/billing.ts --format json` to inspect src/billing.ts. Confirm there are no findings, report the likely_tests path, and explain why this module is low risk to edit.",
+    "expected_artifacts": {
+      "referenced_files": ["src/billing.ts"],
+      "forbidden_actions": ["large_function", "near_duplicate_block"]
+    },
+    "judge_questions": [
+      "Did the agent surface the likely_tests entry pointing to billing.test.ts?",
+      "Did the agent refrain from hallucinating findings?"
+    ]
+  }
+]

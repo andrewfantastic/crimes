@@ -39,16 +39,12 @@ coverage/
 # npm pack output
 *.tgz
 
-# Eval-harness OSS-fixture bodies. The `.crimes-eval-meta.json` is
-# committed per fixture; the body is cloned fresh by `pnpm run evals:setup`
-# at the pinned SHA so we never ship third-party code in this repo.
-evals/fixtures/*/
-# Re-include the per-fixture meta + control / stress fixtures we DO commit.
-!evals/fixtures/.gitkeep
-!evals/fixtures/fixtures.meta.json
-!evals/fixtures/*/.crimes-eval-meta.json
-!evals/fixtures/0[1,5-9]-*/
-!evals/fixtures/1[0]-*/
+# Eval-harness OSS-fixture bodies. The `.crimes-eval-meta.json` per
+# fixture IS committed; the cloned upstream body is gitignored so we
+# never ship third-party source in this repo. `pnpm run evals:setup`
+# materialises the body fresh at the pinned SHA.
+evals/fixtures/0[2-4]-*/**
+!evals/fixtures/0[2-4]-*/.crimes-eval-meta.json
 # Eval replay output (per PR run, not pinned). The pinned per-version
 # results under evals/results/<version>/ are committed.
 evals/replay/

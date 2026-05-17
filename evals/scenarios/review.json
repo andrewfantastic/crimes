@@ -1,0 +1,30 @@
+[
+  {
+    "id": "review-01-messy-ts-app",
+    "fixture": "01",
+    "kind": "review",
+    "prompt": "Imagine a PR added the current state of this repo on top of an empty baseline. Use `crimes scan --format json` to enumerate findings and categorise each as: block merge / warn / ignore. Justify each category with the finding's severity + scores.agent_risk.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_function", "direct_date", "todo_density"],
+      "expected_priority": "large_function"
+    },
+    "judge_questions": [
+      "Did the agent's block/warn/ignore split align with severity (high → block, medium → warn, low → ignore)?",
+      "Did the agent justify deviations by citing scores.agent_risk specifically?"
+    ]
+  },
+  {
+    "id": "review-05-stress-ia-drift",
+    "fixture": "05",
+    "kind": "review",
+    "prompt": "Review the IA consistency across src/routes/, src/nav.ts, and docs/routes.md using `crimes scan --format json`. Identify the drift findings and recommend whether they're blocking-quality issues or follow-ups.",
+    "expected_artifacts": {
+      "referenced_findings": ["concept_alias_drift", "copy_ia_drift", "command_drift_docs_code_drift"],
+      "referenced_files": ["src/routes/teams.ts", "src/routes/workspace.ts", "docs/routes.md"]
+    },
+    "judge_questions": [
+      "Did the agent recognise that the same entities are referred to inconsistently across files?",
+      "Did the agent suggest a single normalised vocabulary rather than per-file patches?"
+    ]
+  }
+]

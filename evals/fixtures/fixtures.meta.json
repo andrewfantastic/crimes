@@ -1,4 +1,75 @@
 {
   "schema_version": "0.1.0",
-  "fixtures": []
+  "fixtures": [
+    {
+      "id": "01",
+      "path": "evals/fixtures/01-messy-ts-app",
+      "name": "messy-ts-app",
+      "kind": "symlink",
+      "purpose": "Existing bundled fixture (symlinked from examples/messy-ts-app). Sanity baseline — covers domain detectors broadly."
+    },
+    {
+      "id": "02",
+      "path": "evals/fixtures/02-react-dashboard",
+      "name": "react-dashboard",
+      "kind": "oss-clone",
+      "purpose": "Mid-size Next.js app — frontend track (token escape, a11y, responsive fragility, component shape duplication)."
+    },
+    {
+      "id": "03",
+      "path": "evals/fixtures/03-node-cli-tool",
+      "name": "node-cli-tool",
+      "kind": "oss-clone",
+      "purpose": "Reference Commander.js implementation — exercises cli_command_registrar shape recognition + IA detectors."
+    },
+    {
+      "id": "04",
+      "path": "evals/fixtures/04-monorepo",
+      "name": "monorepo",
+      "kind": "oss-clone",
+      "purpose": "Small TypeScript build tool — dependency-graph detectors (layer_violation, circular_dependency, deep_import, high_fan_in_fan_out)."
+    },
+    {
+      "id": "05",
+      "path": "evals/fixtures/05-stress-ia-drift",
+      "name": "stress-ia-drift",
+      "kind": "hand-crafted",
+      "purpose": "Plural/singular drift across routes, nav, and docs — exercises concept_alias_drift, copy_ia_drift, command_drift_docs_code_drift."
+    },
+    {
+      "id": "06",
+      "path": "evals/fixtures/06-stress-duplication",
+      "name": "stress-duplication",
+      "kind": "hand-crafted",
+      "purpose": "Three near-duplicate 30-line functions + a repeated role check — near_duplicate_block, duplicated_role_status_plan_check."
+    },
+    {
+      "id": "07",
+      "path": "evals/fixtures/07-stress-frontend",
+      "name": "stress-frontend",
+      "kind": "hand-crafted",
+      "purpose": "Hex literals in inline style, <div onClick> without role, fixed pixel widths — design_token_escape, accessible_interaction_risk, responsive_fragility."
+    },
+    {
+      "id": "08",
+      "path": "evals/fixtures/08-stress-dependency",
+      "name": "stress-dependency",
+      "kind": "hand-crafted",
+      "purpose": "Four-layer architecture with layer violations + a circular import + a deep import — layer_violation, circular_dependency, deep_import."
+    },
+    {
+      "id": "09",
+      "path": "evals/fixtures/09-clean-tiny",
+      "name": "clean-tiny",
+      "kind": "hand-crafted",
+      "purpose": "Control: one tiny well-tested function. Crimes scan should produce zero findings. Non-empty findings on this fixture are a regression."
+    },
+    {
+      "id": "10",
+      "path": "evals/fixtures/10-clean-typed",
+      "name": "clean-typed",
+      "kind": "hand-crafted",
+      "purpose": "Control: a small strict-TS module with a focused test suite. Stronger control — zero findings expected."
+    }
+  ]
 }

@@ -1,0 +1,6 @@
+{
+  "upstream": "https://github.com/egoist/tsup",
+  "sha": "abf86c0c1bd0d4ed2c69e2c2128b29bb9c43c6e8",
+  "license": "MIT",
+  "purpose": "Small TypeScript build tool — modest dependency graph exercises layer_violation, circular_dependency, deep_import, and high_fan_in_fan_out detectors at a manageable scan time."
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "plan-01-messy-ts-app",
+    "fixture": "01",
+    "kind": "plan",
+    "prompt": "Use `crimes scan --format json` and `crimes verdict --format json` to propose a triage order for the top 10 findings. Group by detector category (structural / git-history / IA / frontend / duplication) and tag each with the recommended response (fix now / defer / ignore).",
+    "expected_artifacts": {
+      "referenced_findings": ["large_function", "direct_date", "todo_density"],
+      "expected_priority": "large_function"
+    },
+    "judge_questions": [
+      "Did the agent group findings by category rather than by file?",
+      "Did the agent recommend defer/ignore decisions rather than blanket fix-everything?"
+    ]
+  },
+  {
+    "id": "plan-06-stress-duplication",
+    "fixture": "06",
+    "kind": "plan",
+    "prompt": "Use `crimes scan --format json` to enumerate the duplication findings. Propose a refactor plan that consolidates the three sanitise helpers AND the three role checks into a coherent two-step change set.",
+    "expected_artifacts": {
+      "referenced_findings": ["near_duplicate_block", "duplicated_role_status_plan_check"],
+      "expected_priority": "duplicated_role_status_plan_check"
+    },
+    "judge_questions": [
+      "Did the agent split the work into two coherent changes (sanitise consolidation + policy consolidation) rather than ten tiny patches?",
+      "Did the agent's plan call out where call sites would need updating after the refactor?"
+    ]
+  }
+]

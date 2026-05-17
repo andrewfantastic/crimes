@@ -1,7 +1,9 @@
 #!/usr/bin/env tsx
 import { execFile } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdtemp, rename, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { OssFixtureMeta } from "./types.js";
@@ -79,8 +81,7 @@ async function main(): Promise<void> {
       `evals:setup: cloning ${meta.upstream}@${meta.sha} into ${dir}\n`,
     );
     try {
-      await execFileAsync("git", ["clone", meta.upstream, dir], { cwd: REPO_ROOT });
-      await execFileAsync("git", ["-C", dir, "checkout", meta.sha]);
+      await cloneIntoExistingFixture(dir, meta);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       process.stderr.write(
@@ -89,6 +90,38 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       continue;
     }
+  }
+}
+
+/**
+ * Clone the upstream into a fixture directory that already exists (it
+ * holds the `.crimes-eval-meta.json`). `git clone` refuses to operate on
+ * a non-empty dir, so we clone into a tempdir and copy the contents in,
+ * preserving the meta file. The .git directory is dropped to keep the
+ * fixture body free of upstream commit history (the meta file pins the
+ * SHA; we don't need history at runtime).
+ */
+async function cloneIntoExistingFixture(
+  dir: string,
+  meta: OssFixtureMeta,
+): Promise<void> {
+  const temp = await mkdtemp(join(tmpdir(), "crimes-eval-clone-"));
+  const cloneDir = join(temp, "clone");
+  try {
+    await execFileAsync("git", ["clone", meta.upstream, cloneDir]);
+    await execFileAsync("git", ["-C", cloneDir, "checkout", meta.sha]);
+    await rm(join(cloneDir, ".git"), { recursive: true, force: true });
+    // Move every entry in cloneDir into dir, preserving the existing
+    // meta file. Skip any name collision (shouldn't happen — the
+    // fixture dir contains only `.crimes-eval-meta.json` at this point).
+    for (const entry of readdirSync(cloneDir)) {
+      const src = join(cloneDir, entry);
+      const dest = join(dir, entry);
+      if (existsSync(dest)) continue;
+      await rename(src, dest);
+    }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
   }
 }
 

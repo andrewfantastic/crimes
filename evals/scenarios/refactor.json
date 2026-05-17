@@ -1,0 +1,47 @@
+[
+  {
+    "id": "refactor-01-messy-ts-app",
+    "fixture": "01",
+    "kind": "refactor",
+    "prompt": "Reduce risk in src/billing.ts. Use `crimes context src/billing.ts` to understand the surface. List the top 3 things you'd change, with reasoning tied to specific findings.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_function", "direct_date"],
+      "referenced_files": ["src/billing.ts"],
+      "expected_priority": "large_function"
+    },
+    "judge_questions": [
+      "Did the agent correctly identify the largest function as the highest-risk item?",
+      "Did the agent's proposed refactor preserve the existing public API?"
+    ]
+  },
+  {
+    "id": "refactor-06-stress-duplication",
+    "fixture": "06",
+    "kind": "refactor",
+    "prompt": "Three files in src/ define near-duplicate sanitisation functions. Use `crimes scan --format json` to confirm the duplication and propose a refactor that consolidates them. List which files would change and what the public API of the consolidated function should look like.",
+    "expected_artifacts": {
+      "referenced_findings": ["near_duplicate_block", "exact_duplicate_block"],
+      "referenced_files": ["src/sanitize-a.ts", "src/sanitize-b.ts", "src/sanitize-c.ts"],
+      "expected_priority": "near_duplicate_block"
+    },
+    "judge_questions": [
+      "Did the agent propose a single consolidated function rather than three thin wrappers?",
+      "Did the agent address what callers should import after the refactor?"
+    ]
+  },
+  {
+    "id": "refactor-07-stress-frontend",
+    "fixture": "07",
+    "kind": "refactor",
+    "prompt": "Card.tsx has three frontend agent-risk findings. Use `crimes context src/Card.tsx` and propose a refactor that addresses the design-token escape, the accessibility hazard, and the responsive fragility. Tie each change to its finding type.",
+    "expected_artifacts": {
+      "referenced_findings": ["design_token_escape", "accessible_interaction_risk", "responsive_fragility"],
+      "referenced_files": ["src/Card.tsx"],
+      "expected_priority": "accessible_interaction_risk"
+    },
+    "judge_questions": [
+      "Did the agent suggest tailwind classes (or other design-token references) instead of hex literals?",
+      "Did the agent propose role + tabIndex (or convert the div to a real button) for the click handler?"
+    ]
+  }
+]
