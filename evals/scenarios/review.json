@@ -19,7 +19,7 @@
     "kind": "review",
     "prompt": "Review the IA consistency across src/routes/, src/nav.ts, and docs/routes.md using `crimes scan --format json`. Identify the drift findings and recommend whether they're blocking-quality issues or follow-ups.",
     "expected_artifacts": {
-      "referenced_findings": ["concept_alias_drift", "copy_ia_drift", "command_drift_docs_code_drift"],
+      "referenced_findings": ["concept_alias_drift", "orphaned_destination"],
       "referenced_files": ["src/routes/teams.ts", "src/routes/workspace.ts", "docs/routes.md"]
     },
     "judge_questions": [
