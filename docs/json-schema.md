@@ -27,7 +27,10 @@ For how an agent should _use_ this output, see
 | [`Baseline`](#baseline-on-disk-shape-of-crimesbaselinejson)       | `"baseline"`      | `crimes baseline save` (on-disk file)                 |
 | [`BaselineCheckReport`](#baselinecheckreport-output-of-crimes-baseline-check) | `"baseline_check"` | `crimes baseline check`                       |
 | [`VerdictReport`](#verdictreport-output-of-crimes-verdict)        | `"verdict"`       | `crimes verdict`                                      |
+| [`ExplainReport`](#explainreport-output-of-crimes-explain)        | `"explain"`       | `crimes explain <id-or-fingerprint>`                  |
+| [`Suppressions`](#suppressions-on-disk-shape-of-crimessuppressionsjson) | `"suppressions"` | `crimes ignore` (on-disk file)                |
 | [Gate fields](#scan---changed---fail-on-gate-fields)              | _(optional)_      | `crimes scan --changed --fail-on …`                   |
+| [Suppression fields](#suppression-fields)                         | _(optional)_      | every report that lists findings                      |
 | [Stability guarantees](#stability-guarantees)                     |                   |                                                       |
 
 ---
@@ -215,6 +218,15 @@ interface Finding {
    * `magic_domain_literal_scatter`). Absent on file-local findings.
    */
   related_files?: string[];
+  /**
+   * Only set when the consumer requested `--show-suppressed`. Indicates
+   * the finding matched an entry in `.crimes/suppressions.json` and would
+   * normally be hidden. Gate evaluation always ignores findings with
+   * `suppressed === true` regardless of display.
+   */
+  suppressed?: true;
+  /** Paired with `suppressed`. The reason recorded in the suppressions file. */
+  suppression_reason?: string;
 }
 ```
 
@@ -719,6 +731,19 @@ interface DiffReport {
    * `lines`, `evidence`, and per-scan `id` reflect HEAD.
    */
   unchanged_findings: Finding[];
+  /**
+   * Set only when `crimes diff --fail-on <threshold>` is used. Mirrors
+   * `ScanReport.fail_on` / `failed` — see the
+   * [Suppression fields](#suppression-fields) and
+   * [Stability guarantees](#stability-guarantees) sections.
+   */
+  fail_on?: "new-high" | "new-medium";
+  failed?: boolean;
+  /**
+   * See [Suppression fields](#suppression-fields). Only set when ≥1
+   * suppression matched on the new set.
+   */
+  suppressed_count?: number;
 }
 
 interface DiffSummary {
@@ -790,14 +815,23 @@ temp directories are cleaned up before the report is returned.
 
 ### Exit codes
 
-`crimes diff` is **advisory** — it exits `0` even when new findings are
-present. `--fail-on new-high` is still deferred (tracked for a future
-release; not in `0.3.0`). For a hard CI
-gate today, use one of `crimes verdict --fail-on new-high`,
-`crimes scan --changed --fail-on high`, or
-`crimes baseline check --fail-on …` — all three share the same exit-code
-contract (`0` pass, `1` blocked, `2` usage / environment error). Or
-gate on the JSON yourself:
+By default, `crimes diff` is **advisory** — it exits `0` regardless of
+how many new findings appear. Pass `--fail-on new-high | new-medium` to
+turn the command into a hard CI gate (added in `0.5.0`); the threshold
+matches `crimes verdict`'s thresholds. `--fail-on new-high` exits `1`
+when any new finding has `severity: "high"`; `--fail-on new-medium`
+exits `1` when any new finding is `"medium"` or `"high"`. Suppressed
+entries never trip the gate, regardless of `--show-suppressed`.
+
+For a hard CI gate you have four equivalent options sharing the same
+`0` pass / `1` blocked / `2` usage exit contract:
+
+- `crimes scan --changed --fail-on <severity>` (changed-set advisory)
+- `crimes diff <base...head> --fail-on new-high | new-medium`
+- `crimes baseline check --fail-on …`
+- `crimes verdict --fail-on worse | new-high | new-medium`
+
+Or gate on the JSON yourself:
 
 ```bash
 crimes diff origin/main...HEAD --format json \
@@ -1039,6 +1073,117 @@ Exit `2` is reserved for usage / environment errors:
 
 The JSON output is produced on stdout for exit `0` and `1`. Exit `2`
 writes a single human-readable error line to stderr and emits no JSON.
+
+---
+
+## `ExplainReport` (output of `crimes explain`)
+
+Long-form rationale for a single finding. Resolves either a per-scan id
+(`crime_00005`) or a stable fingerprint
+(`<type>::<file>::<symbol>`). Deterministic — same paragraph per
+detector type, no LLM, no per-finding tailoring.
+
+```ts
+interface ExplainReport {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"explain"`. */
+  report_type: "explain";
+  /** The matched finding, verbatim from the scan it came from. */
+  finding: Finding;
+  detector: {
+    /** Same string as `finding.type`. */
+    type: string;
+    /** Same string as `finding.charge`. */
+    charge: string;
+    /** One-line description of what the detector looks for. */
+    description: string;
+  };
+  /** One-paragraph rationale for why this kind of finding matters. */
+  why_it_matters: string;
+  /**
+   * Verbatim shell line that would suppress this finding. Always
+   * starts with `crimes ignore <fingerprint> --reason ` and ends with
+   * the placeholder `"<one-sentence justification>"`.
+   */
+  suggested_suppression_command: string;
+}
+```
+
+`crimes explain` does not exit non-zero unless the input id/fingerprint
+fails to resolve (exit `2`).
+
+---
+
+## `Suppressions` (on-disk shape of `.crimes/suppressions.json`)
+
+Hand-reviewable list of per-finding exceptions. Written by `crimes
+ignore`, intended to be committed. Matched findings are filtered out
+of every report's default view; `--show-suppressed` re-surfaces them
+annotated.
+
+```ts
+interface Suppressions {
+  schema_version: "0.1.0";
+  /** Discriminator. Always the literal `"suppressions"`. */
+  report_type: "suppressions";
+  /** ISO-8601 timestamp at which the file was first written. */
+  created_at: string;
+  /** ISO-8601 timestamp at which the file was last modified. */
+  updated_at: string;
+  /** Version of `crimes` that wrote the file last. Informational. */
+  crimes_version?: string;
+  suppressions: SuppressionEntry[];
+}
+
+interface SuppressionEntry {
+  /** Stable `<type>::<file>::<symbol>` identity. Required. */
+  fingerprint: string;
+  /** Denormalised — same as the type segment of `fingerprint`. */
+  type: string;
+  /** Denormalised — same as the file segment of `fingerprint`. */
+  file?: string;
+  /** Denormalised — same as the symbol segment of `fingerprint`. */
+  symbol?: string;
+  /** Required, non-empty. The team's justification. */
+  reason: string;
+  /** ISO-8601 timestamp at which this entry was first written. */
+  created_at: string;
+  /** Optional. Default from `git config user.email` when available. */
+  created_by?: string;
+}
+```
+
+The denormalised `type` / `file` / `symbol` fields are redundant for
+matching (only `fingerprint` drives it) but are load-bearing for human
+review: a reviewer scanning `git diff .crimes/suppressions.json` reads
+the entry without parsing the fingerprint.
+
+The file is rewritten in full by `crimes ignore` — pretty-printed with
+2-space indent and a trailing newline so the diff is reviewable.
+Re-suppressing the same fingerprint updates `reason` and the top-level
+`updated_at`; the entry's `created_at` is preserved.
+
+---
+
+## Suppression fields
+
+Every report that lists findings (`ScanReport`, `ContextReport`,
+`BaselineCheckReport`, `DiffReport`, `VerdictReport`) carries an
+optional `suppressed_count?: number` field. Present **only** when ≥1
+entry in `.crimes/suppressions.json` matched a finding in this
+invocation. Absent otherwise — JSON consumers should treat absent as
+equivalent to "no suppressions configured".
+
+The per-finding annotations only appear when `--show-suppressed` is set:
+
+- `Finding.suppressed?: true` — flags an entry that would otherwise be
+  filtered out.
+- `Finding.suppression_reason?: string` — the reason recorded in the
+  suppressions file.
+
+Gate semantics are independent of display: findings with `suppressed
+=== true` never trip a `--fail-on` gate on any command, whether or not
+`--show-suppressed` is on.
 
 ---
 

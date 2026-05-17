@@ -1,11 +1,13 @@
 import { resolve } from "node:path";
 import {
+  applyDiffFailOn,
   diff,
   InvalidDiffRangeError,
   NotAGitRepoError,
   parseDiffRange,
   UnknownGitRefError,
 } from "@crimes/core";
+import type { DiffFailOn } from "@crimes/core";
 import { formatDiffJsonReport, formatDiffReport } from "@crimes/reporter";
 import type { Command } from "commander";
 import { fatalUserError, isUserSetupError } from "../runtime-errors.js";
@@ -15,6 +17,13 @@ interface DiffCommandOptions {
   noColor: boolean;
   root?: string;
   showSuppressed: boolean;
+  failOn?: string;
+}
+
+const VALID_DIFF_FAIL_ON = new Set<DiffFailOn>(["new-high", "new-medium"]);
+
+function isDiffFailOn(value: string): value is DiffFailOn {
+  return VALID_DIFF_FAIL_ON.has(value as DiffFailOn);
 }
 
 export function registerDiffCommand(program: Command): void {
@@ -38,6 +47,10 @@ export function registerDiffCommand(program: Command): void {
       "include new findings filtered by .crimes/suppressions.json, annotated as suppressed",
       false,
     )
+    .option(
+      "--fail-on <threshold>",
+      "exit non-zero when threshold is hit on the new set: new-high | new-medium",
+    )
     .action(async (range: string, options: DiffCommandOptions) => {
       const root = resolve(options.root ?? process.cwd());
       const format = options.format;
@@ -45,6 +58,14 @@ export function registerDiffCommand(program: Command): void {
       if (format !== "human" && format !== "json") {
         process.stderr.write(
           `crimes: unknown --format "${String(format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      if (options.failOn !== undefined && !isDiffFailOn(options.failOn)) {
+        process.stderr.write(
+          `crimes: unknown --fail-on "${options.failOn}". Expected "new-high" or "new-medium".\n`,
         );
         process.exit(2);
         return;
@@ -86,18 +107,21 @@ export function registerDiffCommand(program: Command): void {
         throw error;
       }
 
+      const failOn = options.failOn as DiffFailOn | undefined;
+      const gatedReport = failOn !== undefined ? applyDiffFailOn(report, failOn) : report;
+
       if (format === "json") {
-        process.stdout.write(formatDiffJsonReport(report) + "\n");
-        return;
+        process.stdout.write(formatDiffJsonReport(gatedReport) + "\n");
+      } else {
+        process.stdout.write(
+          formatDiffReport(gatedReport, {
+            noColor: options.noColor || !process.stdout.isTTY,
+          }) + "\n",
+        );
       }
 
-      process.stdout.write(
-        formatDiffReport(report, {
-          noColor: options.noColor || !process.stdout.isTTY,
-        }) + "\n",
-      );
-
-      // Don't exit non-zero on new findings yet — `--fail-on new-high`
-      // lands later in the 0.2.0 slice alongside baseline support.
+      if (failOn !== undefined && gatedReport.failed === true) {
+        process.exit(1);
+      }
     });
 }

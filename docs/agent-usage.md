@@ -652,35 +652,16 @@ path sanitised:
     "name": "messy-ts-app",
     "root": "/path/to/crimes/examples/messy-ts-app"
   },
-  "summary": { "total": 20, "high": 1, "medium": 13, "low": 6 },
+  "summary": { "total": 19, "high": 0, "medium": 13, "low": 6 },
   "findings": [
-    {
-      "id": "crime_00001",
-      "type": "large_function",
-      "charge": "God Function",
-      "severity": "high",
-      "confidence": 0.95,
-      "file": "src/billing.ts",
-      "symbol": "generateInvoice",
-      "lines": [50, 253],
-      "summary": "generateInvoice spans 204 lines — past the 60-line threshold for a single function. Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.",
-      "evidence": [
-        "lines 50–253 (204 lines)",
-        "3.4× the configured 60-line threshold",
-        "function declaration"
-      ],
-      "scores": { "severity": 0.9, "confidence": 0.95, "agent_risk": 0.95 },
-      "suggested_actions": [
-        {
-          "kind": "extract_function",
-          "description": "Extract cohesive sections into named helpers so each responsibility can be read, tested, and edited in isolation.",
-          "risk": "low"
-        }
-      ]
-    }
-    // ...nineteen more findings elided. Full output:
-    //   docs/fixtures/messy-ts-app.json
-  ]
+    // …19 findings elided. The bundled fixture suppresses the
+    // `large_function::src/billing.ts::generateInvoice` God Function
+    // in .crimes/suppressions.json as a demonstration of the v0.5.0
+    // workflow — see docs/suppressions.md. Run with --show-suppressed
+    // to re-surface it annotated; rerun without the suppressions file
+    // to see the original 20-finding output.
+  ],
+  "suppressed_count": 1
 }
 ```
 
@@ -721,19 +702,43 @@ rely on them in agent instructions yet:
 | IA findings: `missing_agent_context`, `route_metadata_drift`, `duplicated_navigation_source`, `concept_alias_drift`, `docs_code_drift` | ✅ shipped (`0.3.0`) |
 | `Finding.related_files` populated on IA findings (human-rendered as "Also touches:") | ✅ shipped (`0.3.0`) |
 | Petty crimes: `commented_out_code`, `logic_in_comments`, `name_behavior_mismatch`, `magic_domain_literal_scatter`, `weak_test_signal`, `option_bag_junk_drawer`, `return_shape_roulette`, `negative_flag_maze` | ✅ shipped (`0.3.0`) |
-| `crimes diff --fail-on new-high`       | 🚧 deferred (v0.5.0 candidate) |
-| `crimes ignore <id>`                   | 🚧 deferred (v0.5.0 candidate) |
-| `crimes explain <id>`                  | 🚧 deferred (v0.5.0 candidate) |
-| `crimes init`                          | 🚧 deferred (v0.5.0 candidate) |
+| `crimes diff --fail-on new-high \| new-medium` | ✅ shipped (`0.5.0`) |
+| `crimes ignore <id-or-fingerprint> --reason "…"` | ✅ shipped (`0.5.0`) |
+| `crimes explain <id-or-fingerprint> [--from <scan.json>]` | ✅ shipped (`0.5.0`) |
+| `crimes init [--force]`                | ✅ shipped (`0.5.0`)    |
+| `--show-suppressed` on `scan` / `context` / `baseline check` / `diff` / `verdict` | ✅ shipped (`0.5.0`) |
+| `Finding.suppressed` / `suppression_reason` / `*Report.suppressed_count` | ✅ shipped (`0.5.0`) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
-Until the deferred items land, the pre/post-edit workflow works as
-plain `crimes scan <path> --format json` on the directory or file you
-are about to touch, `crimes diff <base...head>` for branch-level
-review, and `crimes verdict` for the one-line "did this branch help or
-hurt?" summary at the end of a task. For a hard CI gate, use any of
-`crimes scan --changed --fail-on`, `crimes baseline check --fail-on`,
-or `crimes verdict --fail-on` — see [`docs/ci.md`](./ci.md).
+The pre/post-edit workflow works as plain `crimes scan <path> --format
+json` on the directory or file you are about to touch, `crimes diff
+<base...head>` for branch-level review, and `crimes verdict` for the
+one-line "did this branch help or hurt?" summary at the end of a task.
+For a hard CI gate you have four equivalent options: `crimes scan
+--changed --fail-on`, `crimes baseline check --fail-on`, `crimes diff
+--fail-on new-high | new-medium`, and `crimes verdict --fail-on` — see
+[`docs/ci.md`](./ci.md).
+
+## Using suppressions in an agent loop
+
+When a finding turns out to be deliberate (a legacy module under
+rewrite, a route handler the team has agreed to keep monolithic, an
+alias kept for backwards compatibility), the right answer is **explain
+then ignore**, not silently skipping the report:
+
+```bash
+crimes explain large_function::src/billing.ts::generateInvoice
+# → reads the rationale; the agent (or human) decides this is acceptable
+crimes ignore large_function::src/billing.ts::generateInvoice \
+  --reason "Legacy billing module — rewrite tracked in #1234"
+```
+
+`crimes ignore` requires a `--reason` and persists it to
+`.crimes/suppressions.json`, which the team commits and reviews in
+PRs. Agents should phrase the reason as a single specific sentence
+naming the constraint or tracking issue — "too noisy" or "we know
+about this" are not acceptable suppression reasons. See
+[`docs/suppressions.md`](./suppressions.md).
 
 ---
 

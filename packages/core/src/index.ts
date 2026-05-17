@@ -72,12 +72,14 @@ export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js"
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 export {
+  applyDiffFailOn,
   classifyDiff,
   diff,
   InvalidDiffRangeError,
   parseDiffRange,
 } from "./diff.js";
 export type {
+  DiffFailOn,
   DiffOptions,
   DiffReport,
   DiffSummary,

@@ -115,11 +115,18 @@ If you are running against a checkout that has not been published to npm
 yet (e.g. an unreleased version on `main`), prefix everything above with
 `node packages/cli/dist/index.js` after running `pnpm build`.
 
+**Shipped in `0.5.0`** — `crimes init`, `crimes ignore
+<id-or-fingerprint> --reason "…"`, `crimes explain
+<id-or-fingerprint> [--from <scan.json>]`, `crimes diff --fail-on
+new-high | new-medium`, and `--show-suppressed` on every report-listing
+command. The suppressions file at `.crimes/suppressions.json` is
+intended to be committed; see
+[`docs/suppressions.md`](./docs/suppressions.md).
+
 **Not yet implemented** — do not invoke or reference these in generated docs:
-`crimes diff --fail-on new-high`, `crimes ignore`, `crimes explain`,
-`crimes init`, `crimes ask`. See
-[`docs/agent-usage.md`](./docs/agent-usage.md) for the full shipped/deferred
-matrix and [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.
+`crimes ask`. See [`docs/agent-usage.md`](./docs/agent-usage.md) for the
+full shipped/deferred matrix and
+[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.
 
 ## Project architecture
 

@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.4.0)
+## Commands (latest published v0.5.0)
 
 Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings
@@ -204,26 +204,69 @@ Do not invoke or document them as available.
   CLI command the published `bin` no longer implements. Needs
   deterministic command-registration scanning that is not yet shipped.
 
-## Next-target candidate — v0.5.0: suppressions and config (tentative)
+## Shipped in v0.5.0 — suppressions, config, and explainability
 
-Recommended headline for the next release: `crimes init` +
-`crimes.config.json` plumbing, `crimes ignore <id>` +
-`.crimes/suppressions.json`, and the long-deferred
-`crimes explain <id>` and `crimes diff --fail-on new-high`. The
-noise-reduction work in v0.4.0 removed most of the underlying demand
-for suppressions; v0.5.0 closes the M4 polish gap. Not yet implemented.
+v0.5.0 is the product-surface release: four new commands and a real
+config story without any new detectors.
+
+- `crimes init [--force]` — bootstrap `crimes.config.json` with
+  sensible defaults and inline pointers at the new knobs. Refuses to
+  overwrite without `--force`. Non-interactive on purpose.
+- `crimes ignore <id-or-fingerprint> --reason "…"` — suppress one
+  specific finding. Writes `.crimes/suppressions.json`,
+  fingerprint-keyed, with a required non-empty `reason`. The file is
+  intended to be committed and reviewed in PRs.
+- `crimes explain <id-or-fingerprint> [--from <scan.json>]` —
+  deterministic long-form rationale for one finding. Prints the
+  detector description, a one-paragraph `why_it_matters`, the
+  finding's evidence, suggested actions, related files, and the
+  verbatim `crimes ignore` command line. No LLM, no network.
+- `crimes diff --fail-on new-high | new-medium` — completes the M4
+  CI-gate trio. Exits `1` when any new finding meets the threshold.
+- `--show-suppressed` on `scan`, `context`, `baseline check`, `diff`,
+  `verdict` — re-surfaces matched findings annotated with
+  `suppressed: true` and `suppression_reason`.
+
+Config additions (all optional, all back-compat):
+
+- `thresholds.largeFunction.<shape>` — per-shape overrides for
+  `domain` / `route_handler` / `react_component` / `page_export` /
+  `test_callback` / `unknown`.
+- `detectors.enable` / `detectors.disable` — allowlist / blocklist on
+  detector ids. Unknown ids exit `2`.
+- `ia.aliasGroups` — additive to the built-in `DEFAULT_ALIAS_GROUPS`.
+- `suppressions.path` — override the suppressions file location.
+- `architecture.layers` / `architecture.rules` — reserved
+  placeholder, schema-validated but not consumed in v0.5.0.
+
+Schema additions (all optional / additive — **no `schema_version`
+bump**):
+
+- `Finding.suppressed` / `Finding.suppression_reason` (only present
+  with `--show-suppressed`).
+- `*Report.suppressed_count` on `ScanReport`, `ContextReport`,
+  `BaselineCheckReport`, `DiffReport`, `VerdictReport`.
+- `DiffReport.fail_on` / `DiffReport.failed` (only present with
+  `--fail-on`).
+- New report types: `ExplainReport` (`report_type: "explain"`) and
+  on-disk `Suppressions` (`report_type: "suppressions"`).
+
+Suppressions are applied **before** every `--fail-on` evaluation. A
+suppressed finding never trips a gate, regardless of severity or
+which gating command is used.
+
+Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
 ## Not shipped yet — do not invoke or document as available
 
-- `crimes diff --fail-on new-high` — deferred.
-- `crimes ignore <id>` + `.crimes/suppressions.json` — deferred (v0.5.0 candidate).
-- `crimes explain <id>` — deferred (v0.5.0 candidate).
-- `crimes init` + config plumbing — deferred (v0.5.0 candidate).
-- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred to v0.5.0+.
+- Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` — deferred (tracked for v0.6.0/v0.7.0 with its own plan).
 - `crimes ask` / LLM-assisted features — v1+.
-- Dependency-graph + duplication detectors — v0.5.0+.
-- Frontend / UI agent-risk detectors — v0.5.0+.
+- Dependency-graph + duplication detectors — deferred.
+- Frontend / UI agent-risk detectors — deferred.
 - Homebrew tap + standalone binaries — deferred.
+- `architecture.layers` runtime enforcement (schema lands in v0.5.0; the consuming detector is its own future release).
+- Suppression expiry / owner (`expires_at`, `owner`) — designed but deferred.
 
 ## Resources
 

@@ -2,9 +2,15 @@
 
 `crimes` is built for CI. Every gating command exits non-zero on the
 threshold you opt into, prints JSON when asked, and is deterministic — no
-LLM, no network, no state outside `.crimes/`. This page documents the three
-recommended CI integration modes and the ready-to-copy GitHub Actions
-example that ships with the repo.
+LLM, no network, no state outside `.crimes/`. This page documents the four
+recommended CI integration modes (one of which lands in `0.5.0`) and the
+ready-to-copy GitHub Actions example that ships with the repo.
+
+> **`0.5.0` additions:** the **`diff --fail-on new-high | new-medium`**
+> mode joins the three existing gate flavours, and
+> **`.crimes/suppressions.json`** is now applied *before* every gate
+> evaluation — a suppressed finding never trips a `--fail-on` check. See
+> [Suppressions vs baselines](#suppressions-vs-baselines) below.
 
 For the wire format, see [`docs/json-schema.md`](./json-schema.md). For the
 agent-loop equivalent of the same commands (pre-edit / post-edit), see
@@ -223,6 +229,39 @@ JSON outputs share `schema_version` and are stable across minor releases.
 
 ---
 
+## Suppressions vs baselines
+
+`crimes@0.5.0` introduces `.crimes/suppressions.json`. The file lives
+next to `.crimes/baseline.json` (and is intended to be committed
+alongside it) but the two solve different problems:
+
+| `.crimes/baseline.json` | `.crimes/suppressions.json` |
+| ----------------------- | --------------------------- |
+| Repo-wide snapshot of pre-existing findings. | Per-finding deliberate exception with a reason. |
+| Forward-only — new findings are blocked. | Permanent — entries persist until you delete them. |
+| Written by `crimes baseline save`. | Written by `crimes ignore`. |
+| Read by `crimes baseline check`. | Read by every report-producing command. |
+| Use when adopting `crimes` for the first time. | Use when one specific finding is acceptable. |
+
+Most teams want both: `baseline` to ignore legacy debt, `suppressions`
+to document the specific findings the team has triaged.
+
+### Suppressions and `--fail-on`
+
+Suppressions are applied **before** every `--fail-on` evaluation. A
+suppressed finding never trips a gate, regardless of severity or which
+of the four gating commands you run:
+
+- `crimes scan --changed --fail-on <severity>`
+- `crimes baseline check --fail-on <severity>`
+- `crimes diff --fail-on new-high | new-medium` (new in `0.5.0`)
+- `crimes verdict --fail-on worse | new-high | new-medium`
+
+Each command exposes a `suppressed_count` field in its JSON output
+when ≥1 entry matched; `--show-suppressed` re-surfaces them annotated
+without changing the gate verdict. See
+[`docs/suppressions.md`](./suppressions.md) for the full workflow.
+
 ## See also
 
 - [`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml) —
@@ -231,3 +270,7 @@ JSON outputs share `schema_version` and are stable across minor releases.
   command's JSON output.
 - [`docs/agent-usage.md`](./agent-usage.md) — the same gating commands
   used inside an agent loop instead of CI.
+- [`docs/suppressions.md`](./suppressions.md) — `.crimes/suppressions.json`
+  shape, workflow, and anti-patterns.
+- [`docs/configuration.md`](./configuration.md) — full
+  `crimes.config.json` reference.

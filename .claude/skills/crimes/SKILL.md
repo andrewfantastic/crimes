@@ -230,8 +230,34 @@ user approval.
 - It has no LSP, no watch mode, no editor integration.
 - It does not auto-fix. There is no `crimes --fix`.
 - These commands are **not yet implemented** and must not be invoked:
-  `crimes diff --fail-on new-high`, `crimes ignore`, `crimes explain`,
-  `crimes init`, `crimes ask`.
+  `crimes ask`. (`crimes init`, `crimes ignore`, `crimes explain`,
+  `crimes diff --fail-on new-high | new-medium`, and `--show-suppressed`
+  on every command that lists findings all shipped in `0.5.0`.)
+
+## Suppressions and `crimes ignore`
+
+When a specific finding is acceptable for a documented reason (a
+legacy module under rewrite, a route handler the team has agreed to
+keep monolithic, an alias kept for backwards compatibility), the
+right answer is **explain then ignore**, not silently skipping the
+report:
+
+```bash
+crimes explain large_function::src/billing.ts::generateInvoice
+# read the rationale, decide this is acceptable
+crimes ignore large_function::src/billing.ts::generateInvoice \
+  --reason "Legacy billing module — rewrite tracked in #1234"
+```
+
+`crimes ignore` requires a `--reason` and persists it to
+`.crimes/suppressions.json`, which the team commits and reviews in
+PRs. Always phrase the reason as a single specific sentence naming
+the constraint or tracking issue — "too noisy" or "we know about
+this" are not acceptable suppression reasons. The CLI accepts either
+a per-scan id (`crime_00005`) or the stable fingerprint
+(`<type>::<file>::<symbol>`) and always persists by fingerprint.
+Suppressed findings never trip a `--fail-on` gate. See
+[`../../../docs/suppressions.md`](../../../docs/suppressions.md).
 
 ## CI integration
 

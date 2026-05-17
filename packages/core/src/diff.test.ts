@@ -5,11 +5,14 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  applyDiffFailOn,
   classifyDiff,
   diff,
   InvalidDiffRangeError,
   parseDiffRange,
 } from "./diff.js";
+import type { DiffReport } from "./diff.js";
+import { SCHEMA_VERSION } from "./finding.js";
 import type { Finding } from "./finding.js";
 import {
   NotAGitRepoError,
@@ -368,3 +371,61 @@ async function readUtf8(path: string): Promise<string> {
   const { readFile } = await import("node:fs/promises");
   return await readFile(path, "utf8");
 }
+
+describe("applyDiffFailOn", () => {
+  function makeReport(newFindings: Finding[]): DiffReport {
+    return {
+      schema_version: SCHEMA_VERSION,
+      report_type: "diff",
+      repo: { name: "x", root: "/x" },
+      base: "main",
+      head: "HEAD",
+      summary: { new: newFindings.length, fixed: 0, unchanged: 0 },
+      new_findings: newFindings,
+      fixed_findings: [],
+      unchanged_findings: [],
+    };
+  }
+
+  it("new-high fails on any new high finding", () => {
+    const r = applyDiffFailOn(
+      makeReport([makeFinding({ severity: "high" })]),
+      "new-high",
+    );
+    expect(r.fail_on).toBe("new-high");
+    expect(r.failed).toBe(true);
+  });
+
+  it("new-high passes when only mediums are new", () => {
+    const r = applyDiffFailOn(
+      makeReport([makeFinding({ severity: "medium" })]),
+      "new-high",
+    );
+    expect(r.failed).toBe(false);
+  });
+
+  it("new-medium fails on a new medium finding", () => {
+    const r = applyDiffFailOn(
+      makeReport([makeFinding({ severity: "medium" })]),
+      "new-medium",
+    );
+    expect(r.failed).toBe(true);
+  });
+
+  it("ignores suppressed findings on the gate", () => {
+    const r = applyDiffFailOn(
+      makeReport([
+        makeFinding({ severity: "high", suppressed: true }),
+      ]),
+      "new-high",
+    );
+    expect(r.failed).toBe(false);
+  });
+
+  it("returns the input untouched apart from fail_on / failed", () => {
+    const input = makeReport([makeFinding({ severity: "low" })]);
+    const r = applyDiffFailOn(input, "new-high");
+    expect(r.new_findings).toEqual(input.new_findings);
+    expect(r.summary).toEqual(input.summary);
+  });
+});

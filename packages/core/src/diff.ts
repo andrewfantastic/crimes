@@ -28,6 +28,18 @@ export interface DiffOptions {
   showSuppressed?: boolean;
 }
 
+/**
+ * Threshold at which `crimes diff --fail-on` becomes a failing CI gate.
+ *
+ * - `"new-high"` — fail when any new finding has `severity: "high"`.
+ * - `"new-medium"` — fail when any new finding has `"medium"` or `"high"`.
+ *
+ * Mirrors `crimes verdict --fail-on`'s thresholds minus `"worse"` —
+ * `diff` doesn't carry a verdict, so the verdict-aware threshold is
+ * meaningless here.
+ */
+export type DiffFailOn = "new-high" | "new-medium";
+
 export interface DiffSummary {
   new: number;
   fixed: number;
@@ -55,6 +67,16 @@ export interface DiffReport {
    * Suppressions only apply to the **new** set in a diff.
    */
   suppressed_count?: number;
+  /**
+   * Severity threshold the CLI gated on. Only set when the user passed
+   * `--fail-on <threshold>` to `crimes diff`. Absent otherwise.
+   */
+  fail_on?: DiffFailOn;
+  /**
+   * True when at least one non-suppressed finding in `new_findings` meets
+   * `fail_on`. Only set when `fail_on` is set. Drives the gate exit code.
+   */
+  failed?: boolean;
 }
 
 export class InvalidDiffRangeError extends Error {
@@ -231,6 +253,23 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
   };
   if (suppressedCount > 0) report.suppressed_count = suppressedCount;
   return report;
+}
+
+/**
+ * Apply a {@link DiffFailOn} threshold to a diff report. Returns a new
+ * report carrying `fail_on` + `failed`. Suppressed entries in
+ * `new_findings` are ignored — gate semantics are independent of display.
+ */
+export function applyDiffFailOn(
+  report: DiffReport,
+  failOn: DiffFailOn,
+): DiffReport {
+  const failed = report.new_findings.some((f) => {
+    if (f.suppressed === true) return false;
+    if (failOn === "new-high") return f.severity === "high";
+    return f.severity === "high" || f.severity === "medium";
+  });
+  return { ...report, fail_on: failOn, failed };
 }
 
 async function scanRef(args: {

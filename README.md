@@ -69,18 +69,40 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.4.0`
+## Status — `crimes@0.5.0`
 
-`crimes@0.4.0` is the latest published version on npm — _agent
-context quality and signal-to-noise_. It targets the two
-highest-leverage gaps surfaced by Claude / Codex trials of `0.3.0`
-against real repos: (1) `crimes context` now tells agents what **else**
-to read before editing a target file, and (2) the existing detectors
-are quieter and more honest about what they searched. No new detectors
-shipped in `0.4.0` — every change raised the trust ratio of findings
-that already exist. Everything below is verified by the publish-tarball
-smoke test in CI on every commit. Release notes:
-[`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md).
+`crimes@0.5.0` is the latest published version on npm —
+_suppressions, config, and explainability_. It's the
+**product-surface** release: four new commands and a real config
+story, without adding any new detectors. Teams can now adopt `crimes`
+without fighting legitimate exceptions, tune detectors to their
+conventions, and read the long-form rationale for any finding before
+deciding to fix or suppress. Release notes:
+[`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
+
+New in `0.5.0`:
+
+- `crimes init` — bootstrap a starter `crimes.config.json`. See
+  [`docs/configuration.md`](./docs/configuration.md).
+- `crimes ignore <id-or-fingerprint> --reason "…"` — suppress one
+  specific finding with a required justification, persisted to
+  `.crimes/suppressions.json` (intended to be committed). See
+  [`docs/suppressions.md`](./docs/suppressions.md).
+- `crimes explain <id-or-fingerprint> [--from <scan.json>]` —
+  deterministic long-form rationale for one finding plus the verbatim
+  `crimes ignore` command line. See
+  [`docs/explain.md`](./docs/explain.md).
+- `crimes diff --fail-on new-high | new-medium` — completes the M4
+  CI-gate trio.
+- `--show-suppressed` on every command that lists findings.
+
+Earlier `0.4.0` work (_agent context quality and signal-to-noise_)
+remains shipped — `crimes context` tells agents what **else** to read
+before editing a target file, and existing detectors are quieter and
+more honest about what they searched. Release notes:
+[`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md). Everything
+below is verified by the publish-tarball smoke test in CI on every
+commit.
 
 - `crimes --help` / `crimes --version`
 - `crimes scan [path]` — directory scan, default top-10

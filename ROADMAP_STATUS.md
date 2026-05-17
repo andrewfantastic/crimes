@@ -4,13 +4,14 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.4.0` (npm) ✅ shipped — _agent
-  context quality and signal-to-noise_. `packages/cli/package.json`
-  tracks the latest shipped version. Release notes:
-  [`docs/releases/v0.4.0.md`](./docs/releases/v0.4.0.md).
-- **Previously shipped milestones:** `crimes@0.3.0` — _information
+- **Last published version:** `crimes@0.5.0` (npm) ✅ shipped —
+  _suppressions, config, and explainability_.
+  `packages/cli/package.json` tracks the latest shipped version. Release
+  notes: [`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
+- **Previously shipped milestones:** `crimes@0.4.0` — _agent context
+  quality and signal-to-noise_ — `crimes@0.3.0` — _information
   architecture crimes_ — and `crimes@0.2.0` — _branch and PR safety for
-  humans and coding agents_. Both are live on npm and exercised by the
+  humans and coding agents_. All live on npm and exercised by the
   publish-tarball smoke test in CI on every commit.
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
@@ -22,9 +23,9 @@ mirror, not a planning doc.
 | ----------------------------- | --------------------------------------------------------------------------------------- |
 | M0 — Repo foundation          | ✅ done (shipped in 0.1.0)                                                              |
 | M1 — First working CLI        | ✅ done (shipped in 0.1.0)                                                              |
-| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` deferred to 0.5.0+. `0.4.0` adds shallow-clone awareness via `history_limited`. |
-| M3 — Agent context            | 🟢 expanded again in `0.4.0` — `crimes context` + `AGENTS.md` + Claude skill (0.1.0); cross-file `related_files` on IA findings (0.3.0); deterministic neighbourhood `related_files`, monorepo-root auto-detection, shape-aware `large_function`, top-level `agent_guidance` ordering, and empty-field reasons (0.4.0). |
-| M4 — Diff and CI              | 🟢 0.2.0 shipped — `scan --changed [--base]` ✅, `scan --changed --fail-on` ✅, `diff` ✅, `baseline save` / `baseline check` ✅, `verdict` ✅, [`docs/ci.md`](./docs/ci.md) + [GitHub Actions example](./examples/github-actions/crimes.yml) ✅. `diff --fail-on new-high` and per-finding ignore / suppressions still deferred. |
+| M2 — Risk model               | 🟡 partial — `crimes hotspots` shipped; per-finding `scores.churn` / `test_gap` / `blast_radius` still deferred (slipped to a future minor with its own plan). `0.4.0` adds shallow-clone awareness via `history_limited`. |
+| M3 — Agent context            | 🟢 expanded again in `0.5.0` — adds `crimes explain <id-or-fingerprint>` for the rung between "I see the charge" and "I commit to fix or suppress". Built on `crimes context` (0.1.0), cross-file `related_files` (0.3.0), and shape-aware `large_function` (0.4.0). |
+| M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | 🟡 partial — npm + crimes.sh live; full `/docs` site still pending                       |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
 
@@ -419,47 +420,75 @@ Tracked for `0.5.0` or later. **Do not** document them as shipped.
 
 ---
 
-## 🎯 Next target — `crimes@0.5.0` (tentative)
+## ✅ Shipped in `crimes@0.5.0`
 
-> **Implementation plan:
-> [`SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md`](./SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md).**
-> Product framing, scope evaluation (must/should/could/defer), config
-> shape, suppression file design, `crimes explain` CLI, JSON schema
-> implications, CI semantics, prompt sequence, and success criteria for
-> `0.5.0` live there. This section is the status mirror.
+> **Theme: suppressions, config, and explainability — the three levers
+> teams need to adopt `crimes` without fighting legitimate exceptions.**
+>
+> Release notes: [`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
+> Implementation plan:
+> [`SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md`](./SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md).
 
-**Theme (recommended): suppressions, config, and explainability —
-the three levers teams need to adopt `crimes` without fighting
-legitimate exceptions.** The 0.4.0 release made existing detectors
-quieter and more trustworthy; 0.5.0 closes the M4 polish gap with the
-work that was deferred from 0.2.0 and 0.4.0:
+### Config + bootstrap
 
-- **`crimes init`** writes a starter `crimes.config.json` with
-  sensible defaults and inline pointers at the new knobs.
-- **Config loader extension** — `zod`-validated `CrimesConfig` with
-  per-shape `large_function` thresholds, `ia.aliasGroups`,
-  `detectors.{enable,disable}`, a `suppressions.path` override, and a
-  reserved `architecture.layers` placeholder.
+- **`crimes init [--force]`** writes a starter `crimes.config.json`
+  with sensible defaults and inline pointers at the new knobs.
+- **`zod`-validated `CrimesConfig`** carrying optional, back-compat
+  fields: per-shape `largeFunction` overrides
+  (`thresholds.largeFunction.<shape>`), `ia.aliasGroups` (additive to
+  `DEFAULT_ALIAS_GROUPS`), `detectors.enable` / `detectors.disable`
+  (errors on unknown ids), `suppressions.path` override, and a
+  reserved `architecture.layers` placeholder mirroring `PRD.md` §18.
+- **`ConfigParseError`** maps to CLI exit `2` with a single-line
+  message naming the malformed key.
+
+### Suppressions
+
 - **`.crimes/suppressions.json`** — fingerprint-keyed, `reason`
-  required, intended to be committed and reviewable in PRs.
-- **`crimes ignore <fingerprint-or-id> --reason "…"`** writes the
-  file; the `<type>::<file>::<symbol-or-empty>` fingerprint is the
-  same identity `crimes diff` and `crimes baseline` already use.
-- **Suppression application across `scan`, `context`,
-  `baseline check`, `diff`, `verdict`** — default-hide with
-  `suppressed_count`; `--show-suppressed` opt-in; never trips a
-  `--fail-on` gate on a suppressed finding.
-- **`crimes explain <id-or-fingerprint> [--from <scan.json>]`** prints
-  the long-form rationale per finding type — what the detector
-  observed, why it matters, what to do, and the exact
-  `crimes ignore` command to use if the team decides to live with it.
-- **`crimes diff --fail-on new-high | new-medium`** — completes the
-  M4 CI-gate trio (`scan --changed`, `baseline check`, `verdict`).
+  required, intended to be committed. Pretty-printed with 2-space
+  indent + trailing newline for review-friendly diffs.
+- **`crimes ignore <id-or-fingerprint> --reason "…"`** — id resolves
+  to a fingerprint via a fresh scan, then persists by fingerprint
+  (ids reassign every scan and are useless on disk). Re-suppressing
+  the same fingerprint updates `reason` instead of duplicating.
+  `--file`, `--dry-run`, and `--no-verify` available.
+- **Suppression application across `scan`, `context`, `baseline
+  check`, `diff`, `verdict`** — default-hide with `suppressed_count`;
+  `--show-suppressed` re-surfaces them annotated; the gate
+  (`--fail-on`) always ignores suppressed entries regardless of
+  display.
+
+### Explainability
+
+- **`crimes explain <id-or-fingerprint> [--from <scan.json>]`**
+  resolves either form and emits a deterministic long-form rationale
+  (`detector.description` + `whyItMatters` per detector + the
+  finding's evidence + the verbatim `crimes ignore` command line). No
+  LLM, no network — same wedge.
+- **`Detector.whyItMatters`** populated on every shipped detector
+  (17 in total).
+
+### CI gate completion
+
+- **`crimes diff --fail-on new-high | new-medium`** finally lands,
+  completing the M4 trio (`scan --changed`, `baseline check`,
+  `verdict`, `diff`). Suppressed entries never trip the gate.
+
+### Schema additions (all optional / additive)
+
+- `Finding.suppressed?: true` + `Finding.suppression_reason?: string`
+- `*Report.suppressed_count?: number` on `ScanReport`, `ContextReport`,
+  `BaselineCheckReport`, `DiffReport`, `VerdictReport`.
+- `DiffReport.fail_on?` + `DiffReport.failed?`.
+- New report types: `ExplainReport` (`report_type: "explain"`) and on-disk
+  `Suppressions` (`report_type: "suppressions"`).
+- **No `schema_version` bump.** `crimes@0.4.0` consumers continue to read
+  every report without modification.
 
 Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius`
-remain **deferred** in `SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md` §3.G —
-M2 work touches every detector and deserves its own release rather
-than a wedge into the suppressions theme.
+remain **deferred** — M2 work touches every detector and deserves its
+own release rather than a wedge into the suppressions theme. Tracked
+for `0.6.0` or `0.7.0`.
 
 The wedge stays the same: deterministic, local, JSON-first, no LLM.
 
