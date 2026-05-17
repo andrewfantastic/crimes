@@ -10,6 +10,7 @@
     "evals:setup": "tsx src/setup.ts",
     "evals:replay": "tsx src/replay.ts",
     "evals:diff": "tsx src/diff.ts",
+    "evals:verify-scenarios": "tsx src/verify-scenarios.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

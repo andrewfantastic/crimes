@@ -132,7 +132,31 @@ pnpm run evals -- --scenario refactor
 
 # Add the judge-model pass.
 pnpm run evals -- --judge
+
+# Sanity-check that every scenario's expected findings actually fire
+# on its fixture. Fails on any scenario↔fixture drift. Same gate the
+# evals-pr.yml workflow runs.
+pnpm --filter evals-runner evals:verify-scenarios
 ```
+
+## Scenario↔fixture coverage discipline
+
+Every entry in a scenario's `expected_artifacts.referenced_findings`
+or `expected_priority` MUST correspond to a detector type that the
+fixture's scan output actually contains. Otherwise we measure
+"agents being bad at finding things that don't exist" — which is how
+the 0.7.1 baseline ended up understating both agents by ~10–20pp
+(the bulk of failures were rubric-vs-fixture mismatches, not real
+agent misses).
+
+The `evals:verify-scenarios` script enforces this, runs in CI, and
+fails the build on drift. When you add or change a scenario:
+
+1. Run `pnpm --filter evals-runner evals:verify-scenarios` locally.
+2. If a referenced finding doesn't fire on the fixture: fix the
+   fixture to produce it (preferred — preserves the scenario's
+   intent), or shrink the scenario's `expected_artifacts` to match
+   what the fixture can legitimately stress.
 
 ## What's in the runner
 

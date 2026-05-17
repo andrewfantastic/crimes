@@ -51,6 +51,13 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Verify every scenario's expected findings actually fire on its fixture
+        # Fails the PR if a scenario references a detector type that
+        # `crimes scan` doesn't produce on the scenario's fixture. Catches
+        # scenario/fixture drift before it shows up as a silent pass-rate
+        # regression in the replay step below.
+        run: pnpm --filter evals-runner evals:verify-scenarios
+
       - name: Replay pinned results (no agent invocations)
         run: pnpm run evals:replay
 
