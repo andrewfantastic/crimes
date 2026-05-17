@@ -6,11 +6,10 @@
   "crimes_version": "0.5.0",
   "suppressions": [
     {
-      "fingerprint": "large_function::src/billing.ts::generateInvoice",
-      "type": "large_function",
+      "fingerprint": "commented_out_code::src/billing.ts::",
+      "type": "commented_out_code",
       "file": "src/billing.ts",
-      "symbol": "generateInvoice",
-      "reason": "Demonstration of the suppressions workflow — see docs/suppressions.md.",
+      "reason": "Demonstration of the suppressions workflow — see docs/suppressions.md. (The legacy refund snippet is kept in comments for one more release; will be deleted in v0.3.)",
       "created_at": "2026-05-17T11:30:00.000Z"
     }
   ]
