@@ -31,7 +31,26 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.6.0)
+## Commands (latest published v0.7.0)
+
+`crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
+feed the calibration loop:
+- `crimes feedback <fingerprint> --verdict {tp|fp|known} --note '...'`
+  — write a verdict. `fp` requires `--note` and writes a
+  feedback-sourced suppression pinned to the current crimes minor.
+- `crimes feedback list [--global] [--since 30d] [--verdict tp|fp|known]`
+- `crimes feedback summary [--global]` — by_verdict / by_detector /
+  by_version / by_repo (only with --global) aggregates.
+- `crimes feedback export [--format jsonl|md|json] [--append-global]`
+  — append-global pushes local entries to
+  `~/.crimes/feedback-rollup.jsonl`, deduped by
+  `(repo, timestamp, fingerprint)`.
+- `crimes feedback recheck [--detector <type>]` — per-release review
+  surface; walks every feedback-sourced suppression whose pinned
+  minor is older than the current one, prints the re-feedback
+  commands per resurfaced finding.
+
+
 
 Per-file / per-directory (shipped in v0.1.0):
 - `crimes scan .` — scan repo, print top findings

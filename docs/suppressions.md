@@ -82,6 +82,37 @@ omit it if your repo doesn't carry one. The denormalised `type` /
 reviewer scanning `git diff .crimes/suppressions.json` can read the
 entry without parsing the fingerprint.
 
+### Feedback-sourced suppressions (0.7.0)
+
+`crimes feedback ... --verdict fp` writes the same suppression file,
+but with two extra fields:
+
+```json
+{
+  "fingerprint": "direct_date::src/suppressions.test.ts::",
+  "type": "direct_date",
+  "file": "src/suppressions.test.ts",
+  "reason": "Test-file injection — intentional",
+  "created_at": "2026-05-20T12:00:00.000Z",
+  "source": "feedback",
+  "crimes_version_pinned": "0.7"
+}
+```
+
+- `source: "manual"` (the default when absent) — the long-standing
+  `crimes ignore` path. These suppressions stay silent forever.
+- `source: "feedback"` — managed by `crimes feedback`. These
+  **auto-resurface** when the crimes minor moves past
+  `crimes_version_pinned`. The next scan on a newer minor keeps the
+  finding in `findings[]` tagged `previously_suppressed: true`, the
+  human reporter prints a "⚠ Previously marked fp in 0.7" hint per
+  finding, and a one-line stderr breadcrumb tells you to run
+  `crimes feedback recheck`.
+
+The mechanism is what keeps the calibration loop alive across
+releases — see [`feedback.md`](./feedback.md#the-auto-resurface-loop)
+for the full lifecycle.
+
 ## Removing a suppression
 
 ```bash

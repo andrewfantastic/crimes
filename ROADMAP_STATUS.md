@@ -4,16 +4,17 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.6.0` (npm) ✅ shipped —
-  _detector and scoring completion_.
+- **Last published version:** `crimes@0.7.0` (npm) ✅ shipped —
+  _calibration and the evidence loop_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
-- **Previously shipped milestones:** `crimes@0.5.0` — _suppressions,
-  config, and explainability_ — `crimes@0.4.0` — _agent context
-  quality and signal-to-noise_ — `crimes@0.3.0` — _information
-  architecture crimes_ — and `crimes@0.2.0` — _branch and PR safety for
-  humans and coding agents_. All live on npm and exercised by the
-  publish-tarball smoke test in CI on every commit.
+  notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
+- **Previously shipped milestones:** `crimes@0.6.0` — _detector and
+  scoring completion_ — `crimes@0.5.0` — _suppressions, config, and
+  explainability_ — `crimes@0.4.0` — _agent context quality and
+  signal-to-noise_ — `crimes@0.3.0` — _information architecture
+  crimes_ — and `crimes@0.2.0` — _branch and PR safety for humans and
+  coding agents_. All live on npm and exercised by the publish-tarball
+  smoke test in CI on every commit.
 - **Published package:** [`crimes`](https://www.npmjs.com/package/crimes)
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
 - **Website:** [crimes.sh](https://crimes.sh) — live, deployed from this
@@ -503,6 +504,70 @@ own release rather than a wedge into the suppressions theme. Tracked
 for `0.6.0`.
 
 The wedge stays the same: deterministic, local, JSON-first, no LLM.
+
+---
+
+## ✅ Shipped in `crimes@0.7.0`
+
+> **Theme: calibration and the evidence loop — zero new detectors,
+> one new command (`crimes feedback`), plus the `evals/` agentic
+> harness so we can measure detector behaviour over time.**
+>
+> Release notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
+> Implementation plan:
+> [`CALIBRATION_EVIDENCE_LOOP_PLAN.md`](./CALIBRATION_EVIDENCE_LOOP_PLAN.md).
+
+### Track A — the dogfood feedback loop
+
+- **`crimes feedback <fingerprint> --verdict {tp|fp|known} --note`** —
+  capture per-finding verdicts. `fp` writes a feedback-sourced
+  suppression pinned to the current minor; the suppression
+  auto-resurfaces on the next minor for re-confirmation.
+- **`crimes feedback list / summary / export / recheck`** — read
+  paths plus the per-release review surface.
+- **Inline `Give feedback: …` hints** under every finding in
+  human-format output (suppressed on piped output / `--no-color` /
+  when 5+ entries already exist for the detector).
+- **Cross-project rollup** at `~/.crimes/feedback-rollup.jsonl` via
+  `crimes feedback export --append-global` (dedupes by
+  `(repo, timestamp, fingerprint)`).
+- **Per-detector release-notes map** powers
+  `crimes feedback recheck`'s "In 0.X: <hint>" copy.
+
+### Track B — the eval harness (`evals/`)
+
+- **10 fixtures × 12 scenarios** across 5 scenario kinds
+  (refactor / bugfix / review / context / plan).
+- **Runner** invokes locally-installed `claude` + `codex` CLIs in
+  non-interactive mode against the user's existing subscriptions —
+  no API keys, no per-call billing.
+- **Structural rubric** scores responses against `expected_artifacts`
+  (referenced findings, files, forbidden actions, priority);
+  **opt-in `--judge` pass** adds open-ended judging via the same
+  `claude` CLI in an evaluator role.
+- **`pnpm run evals:replay` + `evals:diff`** + GitHub Actions
+  `evals-pr.yml` workflow — replays cached agent outputs against
+  the PR's crimes build, posts a markdown diff comment with
+  per-agent pass-rate moves (±10% tolerance band).
+
+### Housekeeping (closing §20 dogfood items)
+
+- **`direct_date` skips test files** — closed the §20 false
+  positive. Shared `isTestFile()` helper consolidates 8 copies of
+  the regex.
+- **`reporter/src/human.ts` split** into 10 files under `human/`;
+  every file under 200 lines; byte-identical output.
+- **`language-js/src/parse.ts` split** into 12 files under `parse/`;
+  every file under 250 lines; byte-identical JSON output.
+
+Schema: `schema_version` stays at `"0.1.0"`. New fields are
+optional and additive:
+
+- `Finding.previously_suppressed?: true` +
+  `Finding.previous_suppression?: { pinned_version, reason }`.
+- `SuppressionEntry.source?: "manual" | "feedback"` +
+  `SuppressionEntry.crimes_version_pinned?: string`.
+- New `FeedbackReport` / `FeedbackRecheckReport` types.
 
 ---
 

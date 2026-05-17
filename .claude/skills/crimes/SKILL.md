@@ -234,20 +234,52 @@ user approval.
   `crimes audit-suppressions`, `crimes explain`, `crimes diff
   --fail-on new-high | new-medium`, and `--show-suppressed` on every
   command that lists findings all shipped in `0.5.0`. `0.6.0`
-  adds 18 new detector types — dependency-graph
-  (`layer_violation`, `circular_dependency`, `deep_import`,
-  `high_fan_in_fan_out`), IA completion (`orphaned_destination`,
-  `parallel_destination`, `permission_ia_drift`,
-  `action_label_drift`, `command_drift_docs_code_drift`), frontend /
-  UI agent-risk (`design_token_escape`,
-  `accessible_interaction_risk`, `duplicate_component_shape`,
-  `responsive_fragility`, `copy_ia_drift`,
-  `visual_regression_review_hint`), and duplication
-  (`exact_duplicate_block`, `near_duplicate_block`,
-  `duplicated_role_status_plan_check`) — plus real per-finding
-  `scores.churn` / `scores.test_gap` / `scores.blast_radius` and the
-  unified `agent_risk` formula documented at
-  `docs/scoring.md`. No new commands shipped in `0.6.0`.)
+  added 18 new detector types plus real per-finding `scores.churn`
+  / `scores.test_gap` / `scores.blast_radius` and the unified
+  `agent_risk` formula documented at `docs/scoring.md`. `0.7.0`
+  adds one new command — `crimes feedback` — and **zero** new
+  detectors; the 0.6.0 slate is what we calibrate against.)
+
+## `crimes feedback` (new in 0.7.0)
+
+The `crimes scan` / `context` / `diff` human output now prints a
+trailing one-line hint under every finding:
+
+```
+     Give feedback: crimes feedback large_function::src/billing.ts::generateInvoice --verdict {tp|fp}
+```
+
+When a user disagrees with a finding, recommend the `fp` form with
+a one-sentence note explaining why; that note becomes the
+suppression reason and persists in `.crimes/feedback.jsonl` +
+`.crimes/suppressions.json`:
+
+```bash
+crimes feedback large_function::src/billing.ts::generateInvoice \
+  --verdict fp \
+  --note "Builder pattern — DSL chain, not mixed responsibilities"
+```
+
+When a finding catches something real, `--verdict tp` records the
+hit (and removes any prior feedback-sourced suppression on the
+same fingerprint). `--verdict known` records awareness without
+silencing.
+
+**Read `previously_suppressed: true` on findings.** This flag means
+the finding *was* silenced under a previous crimes minor and has
+auto-resurfaced for re-confirmation. The accompanying
+`previous_suppression.{pinned_version, reason}` carries the prior
+verdict. Surface the alternate "⚠ Previously marked fp in 0.7"
+copy verbatim; do NOT silently re-suppress without asking the
+user.
+
+`crimes feedback recheck` walks every resurfaced suppression with
+per-detector release-notes hints + the exact `crimes feedback …
+--verdict fp|tp` commands the user can copy. Suggest it after any
+crimes minor bump.
+
+See [`../../../docs/feedback.md`](../../../docs/feedback.md) for the
+full lifecycle and the cross-project rollup workflow.
 
 ## Suppressions and `crimes ignore`
 

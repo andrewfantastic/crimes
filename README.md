@@ -69,21 +69,40 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.6.0`
+## Status — `crimes@0.7.0`
 
-`crimes@0.6.0` is the latest published version on npm — _detector
-and scoring completion_. After three product-surface releases in a
-row (`0.3.0` IA crimes, `0.4.0` agent context quality, `0.5.0`
-suppressions / config / explainability), `0.6.0` closes the two
-remaining PRD-named milestones: **M2** (per-finding `scores.churn`
-/ `test_gap` / `blast_radius` plus a unified `agent_risk` formula)
-and **M5** (full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/)
-via Astro + Starlight). Eighteen new detector types land alongside,
-grouped into four categories: dependency-graph, IA completion,
-frontend / UI agent-risk, and duplication. Release notes:
-[`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
+`crimes@0.7.0` is the latest published version on npm — _calibration
+and the evidence loop_. After 0.6.0 added 18 detectors in one batch,
+this release ships **zero new detectors** and one new command
+(`crimes feedback`). The goal is real-world signal — every scan
+becomes a calibration event, and an `evals/` agentic harness lets
+us catch detector-tuning regressions release-over-release. Release
+notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
 
-New in `0.6.0`:
+New in `0.7.0`:
+
+- **`crimes feedback <fingerprint> --verdict {tp|fp|known} --note '…'`** —
+  capture per-finding verdicts. `fp` writes a feedback-sourced
+  suppression that auto-resurfaces on the next crimes minor for
+  re-confirmation. See [`docs/feedback.md`](./docs/feedback.md).
+- **Inline `Give feedback: …` hints** under every finding in
+  human-format output so the loop is one keystroke away.
+- **`crimes feedback list / summary / export / recheck`** for the
+  read paths plus the per-release review surface.
+- **Cross-project rollup** at `~/.crimes/feedback-rollup.jsonl` via
+  `crimes feedback export --append-global`.
+- **`evals/` agentic harness** — 10 fixtures × ~12 scenarios ×
+  `claude` + `codex` (subscription-authenticated; no API keys).
+  Structural rubric scores agent responses; opt-in `--judge` pass
+  adds open-ended judgments. CI replays cached results against PRs
+  via `.github/workflows/evals-pr.yml`. See [`docs/evals.md`](./docs/evals.md).
+- **§20 dogfood housekeeping** — `direct_date` skips test files,
+  `reporter/src/human.ts` and `language-js/src/parse.ts` split
+  into per-responsibility files (byte-identical output).
+- Schema: `schema_version` stays at `"0.1.0"`. Every addition is
+  optional and back-compat.
+
+Earlier `0.6.0` work (_detector + scoring completion_) remains shipped:
 
 - **Per-finding scores.** Every `Finding.scores` carries real
   `blast_radius`, `churn`, and `test_gap` values. See

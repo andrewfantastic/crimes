@@ -30,8 +30,10 @@ For how an agent should _use_ this output, see
 | [`ExplainReport`](#explainreport-output-of-crimes-explain)        | `"explain"`       | `crimes explain <id-or-fingerprint>`                  |
 | [`Suppressions`](#suppressions-on-disk-shape-of-crimessuppressionsjson) | `"suppressions"` | `crimes ignore` / `crimes unignore` (on-disk file)   |
 | [`AuditSuppressionsReport`](#auditsuppressionsreport-output-of-crimes-audit-suppressions) | `"audit_suppressions"` | `crimes audit-suppressions`            |
+| [`FeedbackReport`](#feedbackreport-output-of-crimes-feedback-list--summary--export)       | `"feedback"`           | `crimes feedback list / summary / export`             |
 | [Gate fields](#scan---changed---fail-on-gate-fields)              | _(optional)_      | `crimes scan --changed --fail-on …`                   |
 | [Suppression fields](#suppression-fields)                         | _(optional)_      | every report that lists findings                      |
+| [Resurface fields](#resurface-fields)                             | _(optional)_      | every report that lists findings (0.7.0+)             |
 | [Stability guarantees](#stability-guarantees)                     |                   |                                                       |
 
 ---
@@ -228,6 +230,19 @@ interface Finding {
   suppressed?: true;
   /** Paired with `suppressed`. The reason recorded in the suppressions file. */
   suppression_reason?: string;
+  /**
+   * Set when the finding matched a feedback-sourced suppression whose
+   * pinned minor differs from the current crimes minor — the 0.7.0
+   * auto-resurface loop. The finding is kept in `findings[]` (NOT
+   * counted in `suppressed_count`) so the user can re-confirm `fp` or
+   * mark `tp`. Manual suppressions never resurface.
+   */
+  previously_suppressed?: true;
+  /** Paired with `previously_suppressed`. Carries the prior pin + reason. */
+  previous_suppression?: {
+    pinned_version: string;
+    reason: string;
+  };
 }
 ```
 
@@ -1192,6 +1207,19 @@ interface SuppressionEntry {
   created_at: string;
   /** Optional. Default from `git config user.email` when available. */
   created_by?: string;
+  /**
+   * Origin of this suppression. Defaults to `"manual"` when absent
+   * (i.e. the 0.5.0 / 0.6.0 file shape). Feedback entries participate
+   * in the 0.7.0 auto-resurface loop; manual entries never resurface.
+   */
+  source?: "manual" | "feedback";
+  /**
+   * The crimes minor this suppression was recorded against, e.g.
+   * `"0.7"`. Only meaningful when `source === "feedback"`. On scans
+   * whose minor differs from the pinned value, the matching finding
+   * resurfaces tagged `previously_suppressed: true`.
+   */
+  crimes_version_pinned?: string;
 }
 ```
 
@@ -1277,6 +1305,110 @@ The per-finding annotations only appear when `--show-suppressed` is set:
 Gate semantics are independent of display: findings with `suppressed
 === true` never trip a `--fail-on` gate on any command, whether or not
 `--show-suppressed` is on.
+
+---
+
+## `FeedbackReport` (output of `crimes feedback list / summary / export`)
+
+Per-repo or global rollup view of the captured feedback JSONL.
+`scope: "repo"` reads `.crimes/feedback.jsonl`; `scope: "global"`
+reads `~/.crimes/feedback-rollup.jsonl` (which carries a `repo` field
+per entry). Emitted by `--format json` from
+`crimes feedback list / summary / export`. `recheck` has its own
+shape (`feedback_recheck`) listed below.
+
+```ts
+interface FeedbackReport {
+  schema_version: "0.1.0";
+  report_type: "feedback";
+  scope: "repo" | "global";
+  /** Absolute path of the JSONL file read. */
+  source_file: string;
+  entries: FeedbackEntry[];
+  /** Aggregate roll-up. Always present from `summary`; optional from `list`/`export`. */
+  summary?: FeedbackSummary;
+}
+
+interface FeedbackEntry {
+  /** ISO 8601 timestamp of when the verdict was recorded. */
+  timestamp: string;
+  /** Full semver of the crimes version that produced the finding. */
+  crimes_version: string;
+  /** Stable `<type>::<file>::<symbol>` fingerprint — primary identity. */
+  fingerprint: string;
+  /** Convenience denormalisation of the detector id. */
+  finding_type: string;
+  verdict: "tp" | "fp" | "known";
+  /** Required when verdict is "fp" (it becomes the suppression reason). */
+  note: string | null;
+  /** sha256 of the scan JSON when `crimes feedback ... --file` was used. */
+  scan_hash: string | null;
+  /** Prior minor when this entry re-confirms / resolves a resurfaced fp. */
+  resurfaced_from: string | null;
+  /** Only present in the global rollup — absolute repo path. */
+  repo?: string;
+}
+
+interface FeedbackSummary {
+  total: number;
+  by_verdict: { tp: number; fp: number; known: number };
+  by_detector: Record<string, { tp: number; fp: number; known: number }>;
+  by_version: Record<string, number>;
+  /** Only present in global-rollup summaries. */
+  by_repo?: Record<string, number>;
+}
+```
+
+`crimes feedback recheck --format json` emits a sibling
+`feedback_recheck` report:
+
+```ts
+interface FeedbackRecheckReport {
+  schema_version: "0.1.0";
+  report_type: "feedback_recheck";
+  current_version: string;          // e.g. "0.7.0"
+  current_minor: string;            // e.g. "0.7"
+  resurfaced: Array<{
+    fingerprint: string;
+    type: string;
+    file?: string;
+    symbol?: string;
+    reason: string;
+    crimes_version_pinned: string;
+    /** Per-detector release-notes hint, or the generic fallback. */
+    hint: string;
+    /** Verbatim re-feedback commands the user can copy. */
+    commands: {
+      reconfirm_fp: string;
+      mark_resolved: string;
+    };
+  }>;
+}
+```
+
+---
+
+## Resurface fields
+
+Every report that lists findings (`ScanReport`, `ContextReport`,
+`DiffReport`, `BaselineCheckReport`) can carry per-finding resurface
+annotations in 0.7.0+ when a feedback-sourced suppression's pinned
+minor differs from the current crimes minor:
+
+- `Finding.previously_suppressed?: true` — set on every resurfaced
+  finding. The finding is kept in `findings[]` (unlike `suppressed`,
+  which is only kept when `--show-suppressed` is on), and is **not**
+  counted in `suppressed_count`.
+- `Finding.previous_suppression?: { pinned_version, reason }` — paired
+  with `previously_suppressed`. Carries the prior pin + the original
+  feedback note.
+
+Consumers can detect resurfaced findings without reading the
+suppressions file by walking `findings[]` and filtering on
+`previously_suppressed === true`. Counting them is what powers the
+"5 feedback-sourced suppressions resurface because they were pinned
+to 0.6" stderr breadcrumb the CLI prints on every scan after a minor
+bump.
 
 ---
 

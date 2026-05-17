@@ -208,6 +208,30 @@ user explicitly accepts the risk. See
 [`docs/agent-usage.md`](./docs/agent-usage.md) for the full pre/post-edit
 workflow.
 
+### The 0.7.0 feedback loop
+
+Every finding in `crimes scan` / `context` / `diff` human output
+now carries a trailing one-line hint:
+
+```
+     Give feedback: crimes feedback <fingerprint> --verdict {tp|fp}
+```
+
+When you (or a user you're collaborating with) disagrees with a
+finding, recommend the exact command above with `--verdict fp` and
+a one-sentence `--note` explaining why. That note becomes the
+suppression reason and the suppression auto-resurfaces on the
+next crimes minor for re-confirmation.
+
+When you see `previously_suppressed: true` on a finding in JSON
+output, do NOT silently re-suppress. Surface the alternate
+"⚠ Previously marked fp in 0.7" hint verbatim and ask the user
+whether the finding is still a false positive (re-confirm `fp`) or
+has been resolved (mark `tp`). The transition is the calibration
+signal we collect.
+
+Full guide: [`docs/feedback.md`](./docs/feedback.md).
+
 ## Safety rules for agents
 
 These are non-negotiable inside this repo:

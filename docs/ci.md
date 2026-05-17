@@ -279,6 +279,34 @@ when ≥1 entry matched; `--show-suppressed` re-surfaces them annotated
 without changing the gate verdict. See
 [`docs/suppressions.md`](./suppressions.md) for the full workflow.
 
+### Feedback-sourced suppressions across CI minor bumps (0.7.0+)
+
+Suppressions written by `crimes feedback ... --verdict fp` carry
+`source: "feedback"` and `crimes_version_pinned: "<minor>"`. They
+behave identically to `source: "manual"` suppressions for every
+gate **while the CI runner's crimes minor matches the pinned
+value**. On the first CI run after a crimes minor bump:
+
+- The matching findings *resurface* — they're kept in
+  `findings[]` (tagged `previously_suppressed: true`) instead of
+  being silenced.
+- `suppressed_count` does NOT include them, so existing JSON
+  consumers see the resurfaced finding as a normal finding.
+- Gates **will trip on resurfaced findings** at their original
+  severity. This is intentional: a freshly resurfaced
+  high-severity finding should pause the merge until the user has
+  re-confirmed `fp` or marked `tp`.
+
+The stderr breadcrumb the CLI prints on the first scan after a
+minor bump ("5 feedback-sourced suppressions resurface because
+they were pinned to 0.6 — run `crimes feedback recheck`") shows
+up in CI logs same as locally. Pin the crimes version your CI
+uses (`npm install -g crimes@<exact-version>`) if you want gate
+behaviour to be lock-step with the local developer experience.
+
+See [`docs/feedback.md`](./feedback.md#the-auto-resurface-loop) for
+the lifecycle.
+
 ## See also
 
 - [`examples/github-actions/crimes.yml`](../examples/github-actions/crimes.yml) —

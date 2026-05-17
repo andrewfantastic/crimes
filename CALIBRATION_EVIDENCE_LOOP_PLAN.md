@@ -1842,49 +1842,104 @@ crimes feedback recheck
 
 ---
 
-## 15. Appendix B — `crimes@0.6.0` dogfood signal
+## 15. Appendix B — `crimes@0.7.0` dogfood signal
 
-> **Placeholder.** Prompt A (or M, depending on whether we want
-> the baseline pre-fix or post-fix) populates this section by
-> running `crimes scan packages docs` against `main` and recording
-> the findings. Side-by-side comparison to §20 of
-> `DETECTOR_SCORING_COMPLETION_PLAN.md`.
+> Captured by `crimes scan packages docs --format json` against
+> `main` at the 0.7.0 release SHA — i.e. the *post*-0.7.0 baseline
+> (Prompt A's `direct_date` test-file exemption has landed, so the
+> §20 false positive on test files is no longer present here).
+> Side-by-side with §20 of `DETECTOR_SCORING_COMPLETION_PLAN.md`.
 
-Expected structure:
+### Findings on `crimes scan packages docs` (0.7.0)
 
-### Findings on `crimes scan packages docs` (0.6.0)
+**Total: 118 findings — 5 high, 99 medium, 14 low.**
 
-**Total: N findings (H high, M medium, L low).**
+Per-detector counts (top, by frequency):
+
+| Detector                  | Count | Notes |
+|---------------------------|-------|-------|
+| `exact_duplicate_block`   |    48 | Big new contributor in 0.6.0 — most fire on test-file or fixture boilerplate. Top tuning target for 0.8.0. |
+| `large_function`          |    44 | Three legitimate high-severity hits (`registerFeedbackCommand`, `analyseRoute`, `classifyShape`); rest are mediums on the new `human/<report>.ts` and `parse/*.ts` files post-split. |
+| `large_file`              |    12 | Two new highs from 0.7.0 work (`cli/src/commands/feedback.ts` and `core/src/context.ts`); the rest are docs / generated. |
+| `direct_date`             |     5 | All in non-test source files (the Prompt A fix held — zero test-file false positives). |
+| `todo_density`            |     4 | Mostly the rolling plan docs themselves. |
+| `option_bag_junk_drawer`  |     2 |  |
+| `weak_test_signal`        |     1 |  |
+| `name_behavior_mismatch`  |     1 |  |
+| `commented_out_code`      |     1 |  |
 
 ### Closed false positives from §20
 
-| §20 false positive | 0.6.0 fix | Closed? |
-|--------------------|-----------|---------|
-| Commander `register*Command` (8 functions) | `cli_command_registrar` shape | TBD |
-| `direct_date` in `suppressions.test.ts` | `test_file` exemption (Prompt A) | TBD |
-| `todo_density` on own source | self-reference exemption | TBD |
-| `reporter.test.ts` / `context.test.ts` God File | `test_file` shape | TBD |
+| §20 false positive | Fix | Closed? |
+|--------------------|-----|---------|
+| Commander `register*Command` (8 functions) | `cli_command_registrar` shape (0.6.0) | ✅ — no `register*Command` flagged in this scan |
+| `direct_date` in `suppressions.test.ts` | `test_file` exemption (Prompt A, 0.7.0) | ✅ — zero test files in the `direct_date` hit list |
+| `todo_density` on own source | self-reference exemption (0.6.0 Prompt P) | ✅ — `todo_density` only fires on plan docs, not detector source |
+| `reporter.test.ts` / `context.test.ts` God File | `test_file` shape for `large_file` (0.6.0) | ✅ — no test files in the `large_file` hit list |
 
-### New patterns introduced by 0.6.0 detectors
+### New patterns from 0.6.0 detectors (post-0.7.0 view)
 
-- `layer_violation` — N findings (TBD)
-- `circular_dependency` — N findings (TBD)
-- `deep_import` — N findings (TBD)
-- Duplication detectors — N findings (TBD)
-- IA detectors — N findings (TBD)
+- `exact_duplicate_block` — 48 findings. Dominant. Most fire on
+  fixture / scenario boilerplate (the new evals/ tree)
+  and on near-identical detector-test scaffolding. Strong candidate
+  for a per-fixture exemption shape in 0.8.0.
+- `layer_violation` / `circular_dependency` / `deep_import` —
+  **zero findings** on this scan. Either the codebase is layer-
+  clean (plausible — strict module boundaries are part of the
+  product) or these detectors need fixture-level exercise.
+  Both eval fixtures `08-stress-dependency` exist explicitly to
+  exercise them; tuning evidence will come from there.
+- IA detectors (`orphaned_destination`, `parallel_destination`,
+  `permission_ia_drift`, `action_label_drift`,
+  `command_drift_docs_code_drift`) — also zero. The
+  crimes monorepo is a CLI, not an app — IA detectors are
+  designed for product code. Stress fixture `05-stress-ia-drift`
+  covers them.
 
 ### Severity distribution shift
 
-| Severity | 0.5.0 (§20) | 0.6.0 (this) | Δ |
+| Severity | 0.5.0 (§20) | 0.7.0 (this) | Δ |
 |----------|-------------|--------------|---|
-| high     | 9           | TBD          | TBD |
-| medium   | 49          | TBD          | TBD |
-| low      | 10          | TBD          | TBD |
-| **total**| **68**      | **TBD**      | TBD |
+| high     | 9           | 5            | -4 |
+| medium   | 49          | 99           | +50 |
+| low      | 10          | 14           | +4 |
+| **total**| **68**      | **118**      | **+50** |
+
+The total roughly doubled. Almost all of the growth is in the
+`exact_duplicate_block` bucket (zero in 0.5.0 → 48 in 0.7.0)
+because the detector landed in 0.6.0 and crimes has accumulated
+its own internal boilerplate (test fixtures, near-duplicate split
+files) since then. The high-severity bucket dropped because the
+two large-file `test_file`-shape false positives from §20 are now
+correctly classified.
 
 ### Signal for 0.8.0+ tuning
 
-(TBD after Prompt M runs the baseline.)
+The empirical priorities, in rough order:
+
+1. **`exact_duplicate_block` per-shape threshold.** 48 findings is
+   well past the patience threshold for a real human. Most fire on
+   test/fixture boilerplate. Add a `test_file` / `fixture_file`
+   shape with a much higher threshold (or skip entirely on those
+   shapes by default) for 0.8.0.
+2. **`large_function` on the new split files.** The `human/*.ts`
+   and `parse/*.ts` files post-Prompt G/H sit just above the
+   medium threshold. The split was deliberate and the resulting
+   files are coherent — these are candidates for the user to mark
+   `fp` and watch resurface in 0.8.0 to validate the
+   `cli_command_registrar`-style shape work.
+3. **Dependency-graph detectors need real-world exercise.** Zero
+   findings on the crimes monorepo. Calibration evidence will
+   come from OSS fixtures (`02-react-dashboard`,
+   `03-node-cli-tool`, `04-monorepo`) once `pnpm run evals:setup`
+   materialises them.
+4. **`direct_date` real-world hits.** 5 findings — all in
+   non-test source (suppression timestamps, baseline timestamps,
+   feedback timestamps, audit timestamps). All five are
+   *expected* — these modules legitimately stamp `new Date()` at
+   the moment of writing. These are the next `crimes feedback fp`
+   candidates; resurfacing on 0.8.0 will check whether a clock
+   abstraction was introduced.
 
 ---
 

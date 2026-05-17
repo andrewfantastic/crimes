@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.6.0",
+            "softwareVersion": "0.7.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.6.0 · detector + scoring completion · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.7.0 · calibration + evidence loop · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1033,10 +1033,34 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               ><code>docs/releases/v0.6.0.md</code></a
             >.
           </li>
+          <li class="done">
+            <strong>v0.7.0 — calibration and the evidence loop.</strong>
+            Adds one new command, <code>crimes feedback</code>, with
+            five verbs (<code>write</code> / <code>list</code> /
+            <code>summary</code> / <code>export</code> /
+            <code>recheck</code>) for capturing per-finding verdicts.
+            <code>fp</code> verdicts auto-create suppressions pinned
+            to the current minor that resurface for re-confirmation on
+            the next minor — the closed loop that turns every scan
+            into a calibration event. Inline
+            <code>Give feedback: …</code> hints under every finding;
+            cross-project rollup at
+            <code>~/.crimes/feedback-rollup.jsonl</code>. Ships the
+            <code>evals/</code> agentic harness — 10 fixtures × 12
+            scenarios × <code>claude</code> + <code>codex</code> CLIs
+            (subscription-authenticated; no API keys) with structural
+            rubric scoring, opt-in judge pass, and a PR-replay GitHub
+            Actions workflow. Zero new detectors. Schema unchanged
+            (<code>schema_version: "0.1.0"</code>); five new optional
+            fields. Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.7.0.md"
+              ><code>docs/releases/v0.7.0.md</code></a
+            >.
+          </li>
           <li>
-            <strong>Later.</strong> Structured Claude + Codex testing
-            and an evidence-capture hook (<code>0.7.0</code>) for
-            threshold tuning, Homebrew tap, standalone
+            <strong>Later.</strong> Detector tuning driven by 0.7.0
+            calibration data (<code>0.8.0</code>), Homebrew tap, standalone
             macOS / Linux / Windows binaries, and optional LLM-assisted
             summaries.
           </li>
