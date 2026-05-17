@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -15,12 +15,16 @@ interface CliResult {
   exitCode: number;
 }
 
-async function runCli(args: string[], cwd: string): Promise<CliResult> {
+async function runCli(
+  args: string[],
+  cwd: string,
+  env: Record<string, string> = {},
+): Promise<CliResult> {
   return new Promise((resolvePromise) => {
     execFile(
       process.execPath,
       [CLI, ...args],
-      { cwd, encoding: "utf8" },
+      { cwd, encoding: "utf8", env: { ...process.env, ...env } },
       (error, stdout, stderr) => {
         if (error && typeof error.code === "number") {
           resolvePromise({ stdout, stderr, exitCode: error.code });
@@ -426,5 +430,168 @@ describe("crimes feedback recheck", () => {
     expect(doc.resurfaced).toHaveLength(2);
     expect(doc.resurfaced[0].commands.reconfirm_fp).toMatch(/--verdict fp/);
     expect(doc.resurfaced[0].commands.mark_resolved).toMatch(/--verdict tp/);
+  });
+});
+
+describe("crimes feedback summary", () => {
+  it("reports 'no feedback recorded yet' when the file is absent", async () => {
+    const root = await makeRepo();
+    const result = await runCli(["feedback", "summary"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("No feedback recorded yet");
+  });
+
+  it("renders a table grouped by verdict / detector / version", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    await runCli(
+      ["feedback", "todo_density::billing.ts::", "--verdict", "known"],
+      root,
+    );
+    const result = await runCli(["feedback", "summary"], root);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("By verdict:");
+    expect(result.stdout).toContain("fp");
+    expect(result.stdout).toContain("known");
+    expect(result.stdout).toContain("By detector (top 5 by fp count):");
+    expect(result.stdout).toContain("large_function");
+    expect(result.stdout).toContain("By crimes_version:");
+  });
+
+  it("--format json emits FeedbackReport with summary populated", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    const result = await runCli(
+      ["feedback", "summary", "--format", "json"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const doc = JSON.parse(result.stdout);
+    expect(doc.report_type).toBe("feedback");
+    expect(doc.summary).toBeDefined();
+    expect(doc.summary.total).toBe(1);
+    expect(doc.summary.by_verdict.fp).toBe(1);
+  });
+});
+
+describe("crimes feedback export", () => {
+  it("prints local entries as JSONL by default", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    const result = await runCli(["feedback", "export"], root);
+    expect(result.exitCode).toBe(0);
+    const lines = result.stdout.trim().split("\n");
+    expect(lines).toHaveLength(1);
+    const parsed = JSON.parse(lines[0]!);
+    expect(parsed.fingerprint).toBe(FP);
+  });
+
+  it("--format md renders a Markdown report grouped by detector", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    const result = await runCli(
+      ["feedback", "export", "--format", "md"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("# crimes feedback");
+    expect(result.stdout).toContain("## large_function");
+    expect(result.stdout).toContain("**[fp]**");
+  });
+
+  it("--format json emits FeedbackReport with entries + summary", async () => {
+    const root = await makeRepo();
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    const result = await runCli(
+      ["feedback", "export", "--format", "json"],
+      root,
+    );
+    expect(result.exitCode).toBe(0);
+    const doc = JSON.parse(result.stdout);
+    expect(doc.report_type).toBe("feedback");
+    expect(doc.entries).toHaveLength(1);
+    expect(doc.summary.by_verdict.fp).toBe(1);
+  });
+
+  it("--append-global stamps repo + dedupes across runs", async () => {
+    const { mkdtemp: mkdtempFn } = await import("node:fs/promises");
+    const root = await makeRepo();
+    const fakeHome = await mkdtempFn(join(tmpdir(), "crimes-rollup-home-"));
+    const env = { CRIMES_HOME: fakeHome };
+
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+
+    const first = await runCli(
+      ["feedback", "export", "--append-global"],
+      root,
+      env,
+    );
+    expect(first.exitCode).toBe(0);
+    expect(first.stdout).toContain("Appended 1 new entry");
+
+    // process.cwd() inside the spawned CLI resolves the temp dir to its
+    // realpath on macOS (/var/... → /private/var/...), so compare against
+    // the resolved path rather than the raw mkdtemp output.
+    const rootResolved = realpathSync(root);
+    const rollupPath = join(realpathSync(fakeHome), ".crimes", "feedback-rollup.jsonl");
+    const lines = readFileSync(rollupPath, "utf8").trim().split("\n");
+    expect(lines).toHaveLength(1);
+    const parsed = JSON.parse(lines[0]!);
+    expect(parsed.repo).toBe(rootResolved);
+
+    // Run again — should dedupe to zero appends.
+    const second = await runCli(
+      ["feedback", "export", "--append-global"],
+      root,
+      env,
+    );
+    expect(second.exitCode).toBe(0);
+    expect(second.stdout).toContain("Appended 0 new entries");
+    expect(second.stdout).toContain("1 entry was already present");
+  });
+
+  it("--global on summary reads from the rollup and includes by_repo", async () => {
+    const { mkdtemp: mkdtempFn } = await import("node:fs/promises");
+    const root = await makeRepo();
+    const fakeHome = await mkdtempFn(join(tmpdir(), "crimes-rollup-home2-"));
+    const env = { CRIMES_HOME: fakeHome };
+
+    await runCli(
+      ["feedback", FP, "--verdict", "fp", "--note", "x"],
+      root,
+    );
+    await runCli(
+      ["feedback", "export", "--append-global"],
+      root,
+      env,
+    );
+    const result = await runCli(
+      ["feedback", "summary", "--global", "--format", "json"],
+      root,
+      env,
+    );
+    expect(result.exitCode).toBe(0);
+    const doc = JSON.parse(result.stdout);
+    expect(doc.scope).toBe("global");
+    expect(doc.summary.by_repo).toBeDefined();
+    expect(doc.summary.by_repo[realpathSync(root)]).toBe(1);
   });
 });

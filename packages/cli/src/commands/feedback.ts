@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   appendSuppression,
+  appendToGlobalRollup,
+  buildFeedbackSummary,
   latestPerFingerprint,
   loadConfig,
   loadSuppressions,
@@ -18,6 +20,7 @@ import {
 } from "@crimes/core";
 import type {
   FeedbackEntry,
+  FeedbackSummary,
   ResurfacedSuppression,
 } from "@crimes/core";
 import type { Command } from "commander";
@@ -276,6 +279,8 @@ export function registerFeedbackCommand(program: Command): void {
 
   registerFeedbackListSubcommand(feedback);
   registerFeedbackRecheckSubcommand(feedback);
+  registerFeedbackSummarySubcommand(feedback);
+  registerFeedbackExportSubcommand(feedback);
 }
 
 // ---------- `crimes feedback list` ---------------------------------------
@@ -536,5 +541,244 @@ function formatRecheck(
       "",
     );
   });
+  return lines.join("\n");
+}
+
+// ---------- `crimes feedback summary` -----------------------------------
+
+interface FeedbackSummaryOptions {
+  format: "human" | "json";
+  global: boolean;
+}
+
+function registerFeedbackSummarySubcommand(parent: Command): void {
+  parent
+    .command("summary")
+    .description(
+      "Aggregate feedback into a quick-read table (by verdict, detector, version, repo).",
+    )
+    .option("--format <format>", "output format: human | json", "human")
+    .option(
+      "--global",
+      "read from ~/.crimes/feedback-rollup.jsonl instead of the local repo",
+      false,
+    )
+    .action(async function (this: Command, _options: FeedbackSummaryOptions) {
+      const options = this.optsWithGlobals() as FeedbackSummaryOptions;
+      if (options.format !== "human" && options.format !== "json") {
+        process.stderr.write(
+          `crimes: unknown --format "${String(options.format)}". Expected "human" or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const path = options.global
+        ? resolveGlobalRollupPath()
+        : resolveFeedbackPath(resolve(process.cwd()));
+      const read = await readFeedback(path);
+      const summary = buildFeedbackSummary(read.entries);
+
+      if (options.format === "json") {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              schema_version: "0.1.0",
+              report_type: "feedback",
+              scope: options.global ? "global" : "repo",
+              source_file: path,
+              entries: read.entries,
+              summary,
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        return;
+      }
+
+      process.stdout.write(
+        formatFeedbackSummary(summary, path, read.loaded, options.global),
+      );
+    });
+}
+
+function formatFeedbackSummary(
+  summary: FeedbackSummary,
+  path: string,
+  loaded: boolean,
+  isGlobal: boolean,
+): string {
+  if (!loaded) {
+    return `No feedback recorded yet (${path} does not exist).\n`;
+  }
+  const lines: string[] = [];
+  const scope = isGlobal ? "Global rollup" : "Local repo";
+  lines.push(
+    `${scope}: ${path}  (${summary.total} ${summary.total === 1 ? "entry" : "entries"} after latest-per-fingerprint)`,
+    "",
+    "By verdict:",
+  );
+  const totalForPct = summary.total === 0 ? 1 : summary.total;
+  for (const v of ["tp", "fp", "known"] as const) {
+    const n = summary.by_verdict[v];
+    const pct = Math.round((n / totalForPct) * 100);
+    lines.push(`  ${v.padEnd(5)} ${String(n).padStart(4)} (${pct}%)`);
+  }
+
+  const byDetectorByFp = Object.entries(summary.by_detector)
+    .map(([type, counts]) => ({ type, fp: counts.fp, total: counts.tp + counts.fp + counts.known }))
+    .filter((d) => d.fp > 0)
+    .sort((a, b) => b.fp - a.fp)
+    .slice(0, 5);
+  if (byDetectorByFp.length > 0) {
+    lines.push("", "By detector (top 5 by fp count):");
+    for (const d of byDetectorByFp) {
+      lines.push(`  ${d.type.padEnd(28)} ${String(d.fp).padStart(3)} fp`);
+    }
+  }
+
+  const versionEntries = Object.entries(summary.by_version).sort(
+    ([a], [b]) => (a < b ? 1 : a > b ? -1 : 0),
+  );
+  if (versionEntries.length > 0) {
+    lines.push("", "By crimes_version:");
+    for (const [v, n] of versionEntries) {
+      lines.push(`  ${v.padEnd(8)} ${String(n).padStart(4)}`);
+    }
+  }
+
+  if (summary.by_repo) {
+    const repoEntries = Object.entries(summary.by_repo).sort(
+      ([, a], [, b]) => b - a,
+    );
+    if (repoEntries.length > 0) {
+      lines.push("", "By repo:");
+      for (const [r, n] of repoEntries) {
+        lines.push(`  ${r.padEnd(40)} ${String(n).padStart(4)}`);
+      }
+    }
+  }
+  return lines.join("\n") + "\n";
+}
+
+// ---------- `crimes feedback export` -----------------------------------
+
+interface FeedbackExportOptions {
+  format: "jsonl" | "md" | "json";
+  appendGlobal: boolean;
+}
+
+function registerFeedbackExportSubcommand(parent: Command): void {
+  parent
+    .command("export")
+    .description(
+      "Print the local feedback JSONL or append it to the global rollup.",
+    )
+    .option(
+      "--format <format>",
+      "output format: jsonl (default, one entry per line) | md (Markdown report) | json (FeedbackReport)",
+      "jsonl",
+    )
+    .option(
+      "--append-global",
+      "append local entries to ~/.crimes/feedback-rollup.jsonl (deduplicated; safe to run repeatedly)",
+      false,
+    )
+    .action(async function (this: Command, _options: FeedbackExportOptions) {
+      const options = this.optsWithGlobals() as FeedbackExportOptions;
+      if (
+        options.format !== "jsonl" &&
+        options.format !== "md" &&
+        options.format !== "json"
+      ) {
+        process.stderr.write(
+          `crimes: unknown --format "${String(options.format)}". Expected "jsonl", "md", or "json".\n`,
+        );
+        process.exit(2);
+        return;
+      }
+
+      const root = resolve(process.cwd());
+      const localPath = resolveFeedbackPath(root);
+
+      if (options.appendGlobal) {
+        const globalPath = resolveGlobalRollupPath();
+        const result = await appendToGlobalRollup({
+          localPath,
+          globalPath,
+          repo: root,
+        });
+        process.stdout.write(
+          `Appended ${result.appended} new ${result.appended === 1 ? "entry" : "entries"} from ${localPath}\n` +
+            `  → ${globalPath}\n` +
+            `  (${result.skipped} ${result.skipped === 1 ? "entry was" : "entries were"} already present and skipped)\n`,
+        );
+        return;
+      }
+
+      const read = await readFeedback(localPath);
+      if (options.format === "jsonl") {
+        for (const e of read.entries) {
+          process.stdout.write(JSON.stringify(e) + "\n");
+        }
+        return;
+      }
+      if (options.format === "json") {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              schema_version: "0.1.0",
+              report_type: "feedback",
+              scope: "repo",
+              source_file: localPath,
+              entries: read.entries,
+              summary: buildFeedbackSummary(read.entries),
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        return;
+      }
+      // md
+      process.stdout.write(
+        formatFeedbackMarkdown(read.entries, localPath, read.loaded),
+      );
+    });
+}
+
+function formatFeedbackMarkdown(
+  entries: FeedbackEntry[],
+  path: string,
+  loaded: boolean,
+): string {
+  if (!loaded || entries.length === 0) {
+    return `# crimes feedback\n\nNo entries recorded (${path}).\n`;
+  }
+  const latest = latestPerFingerprint(entries);
+  const byDetector = new Map<string, FeedbackEntry[]>();
+  for (const e of latest.values()) {
+    const list = byDetector.get(e.finding_type) ?? [];
+    list.push(e);
+    byDetector.set(e.finding_type, list);
+  }
+  const sortedDetectors = Array.from(byDetector.keys()).sort();
+  const lines: string[] = [
+    "# crimes feedback",
+    "",
+    `Source: \`${path}\``,
+    `Entries (latest per fingerprint): ${latest.size}`,
+    "",
+  ];
+  for (const detector of sortedDetectors) {
+    const list = byDetector.get(detector)!;
+    lines.push(`## ${detector} (${list.length})`, "");
+    for (const e of list) {
+      const note = e.note ? ` — "${e.note}"` : "";
+      lines.push(`- **[${e.verdict}]** \`${e.fingerprint}\`${note}`);
+    }
+    lines.push("");
+  }
   return lines.join("\n");
 }

@@ -29,6 +29,8 @@ export {
   resolveSuppressionsPath,
 } from "./config.js";
 export {
+  appendToGlobalRollup,
+  buildFeedbackSummary,
   FEEDBACK_GLOBAL_RELATIVE_PATH,
   FEEDBACK_RELATIVE_PATH,
   FeedbackEntrySchema,
@@ -44,6 +46,8 @@ export {
   writeFeedbackEntry,
 } from "./feedback/index.js";
 export type {
+  AppendToGlobalRollupArgs,
+  AppendToGlobalRollupResult,
   FeedbackEntry,
   FeedbackReport,
   FeedbackSummary,
