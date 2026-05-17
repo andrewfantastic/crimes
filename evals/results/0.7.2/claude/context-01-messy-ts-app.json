@@ -1,0 +1,71 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:01:07.056Z",
+  "run_id": "4ab4ab27-dbbe-44ba-a51d-91f75b23e544",
+  "response": "## What `src/billing.ts` does\n\nA 310-line billing module with 5 top-level functions. Two stand out:\n\n- **`generateInvoice` (lines 50–253)** — a 204-line \"God Function\" that's the main workload of the file. Reads the system clock 7 times (lines 57, 63, 92, 198, 238, 250, 273), so it almost certainly handles dates/periods directly.\n- **`calculateRefundPreview` (lines 40–44)** — name suggests a pure calculation but actually calls `saveRefundAudit` and `sendRefundEmail` (a \"False Identity\" finding). A line-39 comment carries an unencoded rule: *\"Only owners can refund enterprise plans unless billing support approves.\"*\n\nAlso: 4 TODO/FIXME markers scattered through lines 183–308, and the `\"enterprise\"` plan string is hardcoded here rather than centralised.\n\n## Related files to read before editing\n\n1. **`src/billing.test.ts`** — current coverage is thin. `\"renders the enterprise plan\"` has zero asserts; `\"creates an invoice\"` only uses a weak matcher. Treat existing green tests as not load-bearing.\n2. **`src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`** — all duplicate the `\"enterprise\"` literal. Any change to enterprise-plan behaviour likely needs touching these.\n3. **`src/date.ts`** — also riddled with `Date.now()`/`new Date()`. If you introduce a clock abstraction here, do it consistently with that module.\n4. **`docs/billing.md`** — documents this area; uses `\"account\"` as an alias for `\"tenant\"` (concept-drift finding).\n5. **Refund side-effect helpers** (`saveRefundAudit`, `sendRefundEmail`) — wherever they're defined; needed to understand what `calculateRefundPreview` actually mutates.\n\n## Risks the scan flagged for this edit\n\n| # | Charge | Why it matters for an edit |\n|---|--------|----------------------------|\n| **crime_00001** (high) | God Function on `generateInvoice` | Sections of this function interact; an edit in one block can silently break another the agent never loaded. |\n| **crime_00010** (med) | God File (310 LOC) | Same risk at file level — coupling you didn't load into context. |\n| **crime_00004** (med) | Temporal Recklessness (7× clock reads) | Any behavioural change is hard to test deterministically without injecting a clock first. |\n| **crime_00008** (med) | False Identity on `calculateRefundPreview` | Don't treat it as pure — it audits and emails. Edits to \"just the calc\" can fire side effects. |\n| **crime_00011** (med) | Logic in the Alibi (line 39 comment) | The owners/billing-support refund rule isn't in the code. Refund-path edits must preserve or encode it explicitly. |\n| **crime_00007** (med) | `\"enterprise\"` literal scattered across 4 files | Plan-tier edits won't be local to `billing.ts`. |\n| **crime_00020** (low) | 4 TODOs in lines 183–308 | Unclear which logic is intentional vs. half-finished — verify before assuming behaviour. |\n\nThe high-severity item (`generateInvoice` God Function) is the dominant risk: extracting helpers before substantive edits would lower the chance of an invisible interaction, and would also make it tractable to write real asserts in `billing.test.ts`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:03:02.296Z",
+  "run_id": "9f90b5d7-bc24-495f-b092-00aa9a0f095e",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e382d-6a96-7af1-82c5-6e97a8ad9d65\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Block Merge**\\n\\n- `crime_00001` `src/billing.ts` `generateInvoice`: high severity, `agent_risk: 0.63`. A 204-line billing domain function is the only high finding and is large enough to make follow-up edits risky. This should be split or heavily tested before merge.\\n\\n**Warn**\\n\\n- `crime_00002` `src/api/plan.ts`: medium, `agent_risk: 0.61`. Missing agent context is a repo-wide maintainability risk, especially because the package has a CLI bin.\\n- `crime_00005` `src/date.ts`: medium, `agent_risk: 0.61`. Direct wall-clock usage with full test gap makes date behavior hard to pin.\\n- `crime_00007` `src/api/plan.ts`: medium, `agent_risk: 0.60`. Scattered `\\\"enterprise\\\"` policy across four production areas is likely to drift.\\n- `crime_00009` `docs/billing.md`: medium, `agent_risk: 0.58`. Tenant/account/team/workspace terminology drift can cause duplicate flows or mismatched policy.\\n- `crime_00012` `src/nav/registry.ts`: medium, `agent_risk: 0.57`. Same destination with different labels across nav sources is user-visible drift.\\n- `crime_00013` `src/todo.ts`: medium, `agent_risk: 0.57`. Very high TODO/FIXME density signals unfinished behavior.\\n- `crime_00014` `src/routes/settings/billing.tsx`: medium, `agent_risk: 0.56`. Route, component, title, and nav labels disagree.\\n- `crime_00004` `src/billing.ts`: medium, `agent_risk: 0.53`. Multiple direct date calls in billing domain code create nondeterminism.\\n- `crime_00008` `src/billing.ts` `calculateRefundPreview`: medium, `agent_risk: 0.52`. “Preview” naming hides side effects.\\n- `crime_00010` `src/billing.ts`: medium, `agent_risk: 0.50`. File is just over the large-file threshold; worth addressing near the god function work.\\n- `crime_00011` `src/billing.ts`: medium, `agent_risk: 0.50`. Access-control-like rule appears in a comment rather than enforced code.\\n- `crime_00006` `src/billing.test.ts`: medium, `agent_risk: 0.46`. Assertion-free test gives false confidence.\\n\\n**Ignore**\\n\\n- `crime_00015` `docs/teams.md`: low, `agent_risk: 0.51`. Stale doc link is real but not merge-blocking.\\n- `crime_00017` `src/petty.ts`: low, `agent_risk: 0.48`. Broad option bag is local cleanup.\\n- `crime_00018` `src/petty.ts`: low, `agent_risk: 0.48`. Mixed return shapes should be typed, but low severity.\\n- `crime_00019` `src/petty.ts`: low, `agent_risk: 0.47`. Negative flags are a readability risk, not a release blocker.\\n- `crime_00021` `src/routes/account/subscription.tsx`: low, `agent_risk: 0.46`. Orphaned route may be intentional or in progress.\\n- `crime_00022` `src/routes/team/index.tsx`: low, `agent_risk: 0.46`. Same orphaned-route concern, low severity.\\n- `crime_00023` `src/routes/workspace/members.tsx`: low, `agent_risk: 0.46`. Same orphaned-route concern, low severity.\\n- `crime_00020` `src/billing.ts`: low, `agent_risk: 0.40`. TODO density is worth cleanup but secondary to the high billing finding.\\n- `crime_00016` `src/billing.test.ts`: low, `agent_risk: 0.34`. Weak assertion should be improved, but the assertion-free medium finding is the stronger test issue.\\n\\nNet: I would block only on `crime_00001`; warn on all medium findings; ignore low findings for merge gating unless this PR claims production readiness for the affected routes/docs.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":12160,\"output_tokens\":960,\"reasoning_output_tokens\":42}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

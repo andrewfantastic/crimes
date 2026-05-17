@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:01:07.442Z",
+  "run_id": "d512a58c-c7b1-4df7-9d19-45e494427127",
+  "response": "The crimes scan output you provided shows zero findings — no high/medium/low severity issues — on the `09-clean-tiny` fixture.\n\n**Reading the JSON contract:**\n- `schema_version: \"0.1.0\"` — recognized, safe to consume.\n- `report_type: \"scan\"` — note this is `scan` output, not `context`. Either the scenario captured the wrong command, or in this case both render the same (no findings means no `risk.level`, no `agent_guidance`, no `likely_tests` to surface).\n- `summary.total: 0` with empty `findings[]` — nothing to triage.\n\n**Verdict on extending `src/add.ts`:** Safe. There are no structural, dependency, duplication, testability, or git/history findings against the file. No `agent_risk` flags, no churn hotspot, no large-function or duplication evidence — extending it is low-risk from a `crimes` perspective.\n\n**Caveats `crimes` deliberately does not cover:**\n- It is not a linter or security scanner — clean here means \"no risk charges,\" not \"code is correct.\"\n- Post-edit, re-run `crimes scan --changed --format json` to confirm the change didn't introduce a new finding (e.g., pushing the file past a size threshold or adding direct `Date.now()`/`Math.random()`/`process.env` calls in domain code).",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

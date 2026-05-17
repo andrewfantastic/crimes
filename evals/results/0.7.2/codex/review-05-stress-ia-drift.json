@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:03:04.727Z",
+  "run_id": "410dcb62-2369-44b4-befd-3f4e5906459e",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e382d-9af7-7a71-b5bd-2b87f8ea2058\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- `src/nav.ts` - `concept_alias_drift` is the main IA consistency issue. The tenant concept is split across `organisation`, `team`, and `workspace`, with matching route files under `src/routes/organisation.ts`, `src/routes/teams.ts`, and `src/routes/workspace.ts`. I’d treat this as **blocking-quality if this fixture represents a user-facing IA contract**, because future agents or contributors could extend the wrong vocabulary and create duplicate flows. At minimum, pick a canonical term and document intentional aliases.\\n\\n- `src/routes/billing-plans.ts` - `/billing-plans` is an orphaned destination. It has no nav, docs, or import reference. This is a **follow-up**, unless billing plans are meant to be part of the active journey. Then it should be linked from `src/nav.ts` or `docs/routes.md`.\\n\\n- `src/routes/organisation.ts` - `/organisation` is both part of the alias drift and orphaned. Because it overlaps with the tenant vocabulary problem, I’d classify this as **part of the same blocking-quality IA issue** if `/organisation`, `/workspace`, and `/teams` are competing names for the same product area.\\n\\n- `src/routes/workspace.ts` - `/workspace` is also orphaned and part of the same tenant alias group. Same recommendation: **blocking-quality only if it is an accidental duplicate of the canonical tenant area; otherwise follow-up to link or retire it intentionally**.\\n\\nOverall: no high-severity findings, so this is not a release-blocker on severity alone. The medium alias drift is the one that deserves blocking treatment if IA consistency is the review goal; the low orphaned routes are follow-ups unless they confirm the same duplicated tenant journey.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19607,\"cached_input_tokens\":12160,\"output_tokens\":399,\"reasoning_output_tokens\":38}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

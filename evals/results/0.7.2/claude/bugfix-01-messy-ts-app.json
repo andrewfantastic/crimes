@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:00:50.363Z",
+  "run_id": "8c471dd0-1132-48d3-980b-1fd6d503cb48",
+  "response": "# Most likely cause\n\n**`crime_00004` — Temporal Recklessness in `src/billing.ts`** (lines 57, 63, 92, 198, 238, 250, 273).\n\n`generateInvoice` reads the system clock 7 times directly (`Date.now()` ×5, `new Date()` ×2). On a date-boundary test, each call observes wall time at the moment it runs, so:\n\n- Two calls inside the same invoice can straddle midnight/month-end and disagree about \"today\", producing inconsistent due dates, proration windows, or period labels.\n- Tests can't pin a fixed moment without monkey-patching globals — anything that does work is order- and machine-dependent.\n\nThis is amplified by two neighbouring findings:\n\n- **`crime_00001` (God Function)** — `generateInvoice` is 204 lines mixing responsibilities, so the multiple clock reads are scattered through unrelated branches and easy to miss.\n- **`crime_00006` (Test That Proves Nothing)** — `\"renders the enterprise plan\"` has 0 assertions, so the test suite isn't actually catching the boundary case; it's just executing the path. The flakiness is probably surfacing in a sibling test that *does* assert, while this one silently passes.\n\n`crime_00005` (same pattern in `src/date.ts`) suggests there's already a date module that *should* be the choke point — but `billing.ts` is bypassing it and reading the clock inline.\n\n# Proposed fix\n\n1. **Inject a clock.** Add a `Clock` interface (`now(): Date`) and thread it through `generateInvoice` (constructor injection or a `{ now }` option, depending on how the module is consumed). Replace all 7 inline reads with a single `const now = clock.now()` captured once at the top of the function — that alone removes the straddle-midnight class of bug, even before tests change.\n2. **Route through `src/date.ts`.** Fix the same pattern there (`crime_00005`) so the date module is the only place that touches `Date` directly, and have `billing.ts` consume it.\n3. **Pin time in the failing test.** Use `vi.useFakeTimers()` / `vi.setSystemTime(...)` (Vitest is the stack) to reproduce the boundary deterministically, then add a real assertion to the empty `\"renders the enterprise plan\"` test so the boundary case is actually guarded going forward.\n4. **Don't refactor the God Function in the same change.** `crime_00001` is real but orthogonal — extracting helpers while also changing time semantics will make the bisect harder. Land the clock fix first, then split the function.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

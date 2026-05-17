@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:00:40.249Z",
+  "run_id": "21be1bba-06a6-4389-afeb-5e245fab882a",
+  "response": "**Break: `src/domain/billing.ts` → `src/presentation/invoice-view.ts`**\n\nThe cycle is `billing-flow.ts → billing.ts → invoice-view.ts → billing-flow.ts`. That `domain → presentation` edge is the one to remove, for three reasons:\n\n1. **It's the only edge that's also wrong on its own merits.** Finding #2 flags it as a layer violation (`domain cannotImport presentation`). The other two edges in the ring (`application → domain`, `presentation → application`) are directionally sane — application orchestrating domain, presentation rendering application flows. Removing the inverted edge fixes both crimes at once.\n\n2. **Domain should not know about views.** Whatever `billing.ts` is reaching into `invoice-view.ts` for is almost certainly a type, a formatter, or a helper that belongs in the domain layer (or in a shared module both can import). Move it down, not sideways.\n\n3. **Lowest blast radius for the fix.** The presentation→application and application→domain edges are doing real work (UI calling a flow, flow calling domain logic). Inverting either of those would require more restructuring than just relocating whatever the domain is borrowing from the view.\n\n**Concrete next step:** open `src/domain/billing.ts`, find the `import ... from '../presentation/invoice-view'`, and either (a) move the imported symbol into `src/domain/` (if it's a type/value that belongs there), or (b) if it's genuinely view-shaped, invert the dependency — have `invoice-view.ts` accept it as a parameter from the caller in `application/`. If the import is type-only, converting to `import type` also kills the runtime edge, but the layer violation stays — fix the structure, don't paper over it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

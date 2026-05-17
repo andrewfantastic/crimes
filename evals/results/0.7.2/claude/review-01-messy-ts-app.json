@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:03:48.553Z",
+  "run_id": "2136e5c7-d3eb-463f-88f7-49bd9f2b9c94",
+  "response": "# PR review verdict\n\n**Headline:** 1 BLOCK, 8 WARN, 13 IGNORE. The blocker is a 204-line refund/invoice function; everything else is fixable in follow-up.\n\n---\n\n## 🛑 BLOCK MERGE (1)\n\n### `crime_00001` — God Function `generateInvoice`\n- **Why:** severity=high (0.9), agent_risk=0.63, confidence=0.95. 204 lines is 3.4× the domain threshold and this is **billing/invoicing** code — the highest-blast-radius area in the repo. Combined with `crime_00004` (7× wall-clock reads in the same file) and `crime_00011` (rule-bearing comment about refund auth), any agent editing one part of `generateInvoice` is statistically going to miss interactions in another.\n- **Ask before merge:** extract cohesive sections into named helpers. This is the one finding where the cost of letting it in is real future regressions, not just code-smell debt.\n\n---\n\n## ⚠️ WARN (8) — fix in follow-up PRs, don't block this one\n\n| ID | Charge | Sev / agent_risk | Why warn (not ignore) |\n|---|---|---|---|\n| `crime_00008` | False Identity — `calculateRefundPreview` does side effects | 0.55 / 0.52 | Misleading name in a **refund** flow. `agent_risk` understates this — a name that lies in payments code is a category of bug worth surfacing loudly. Borderline-block; if the side effects include `sendRefundEmail` to real users, escalate. |\n| `crime_00002` | Missing Agent Context | 0.6 / 0.61 | Meta finding — won't break this PR, but every future PR is riskier without an AGENTS.md/CLAUDE.md. Worth a tracked ticket. |\n| `crime_00005` | Temporal Recklessness in `src/date.ts` | 0.6 / 0.61 | 5 wall-clock reads in a module literally called `date.ts` — that's the abstraction layer that should *fix* this, not propagate it. |\n| `crime_00004` | Temporal Recklessness in `src/billing.ts` | 0.6 / 0.53 | 7 raw `Date.now()`/`new Date()` calls in domain code makes the invoicing logic non-deterministic in tests. Pairs with the `generateInvoice` block — fix together. |\n| `crime_00007` | String Sprinkles — `\"enterprise\"` in 4 areas | 0.5 / 0.6 | The literal has already escaped into UI, jobs, API, and billing. One more PR and it'll be policy-by-grep. Centralise before the next plan-type lands. |\n| `crime_00009` | Concept Alias Drift — tenant/account/org/team/workspace | 0.55 / 0.58 | 4 aliases × 5 files. Real duplication risk but resolution is a design conversation, not a blocker. |\n| `crime_00012` + `crime_00014` | Duplicated Nav Source + Route Metadata Drift | 0.6 / 0.57, 0.6 / 0.56 | Same destination (`/settings/billing`) labelled 4 ways. These are one bug — fix in one PR. |\n| `crime_00011` | Logic in the Alibi — refund auth rule lives in a comment | 0.5 / 0.5 | \"Only owners can refund enterprise plans unless billing support approves\" is **load-bearing policy** sitting in prose. Encode it as a guard. Borderline-block if the comment is actually the only spec for that rule. |\n\n**Notable exclusions from warn:**\n- `crime_00006` (test with 0 asserts) — confidence is 0.88, but severity is only 0.45 and `test_gap=0`. Worth flagging in PR comments; deleting/asserting it is a 30-second fix. Calling this WARN rather than BLOCK because a single empty test isn't load-bearing.\n- `crime_00010` (large_file billing.ts 310 lines) — barely over threshold (1.0×). The `generateInvoice` block already covers the underlying problem.\n- `crime_00013` (TODO density in `src/todo.ts`) — the filename is `todo.ts`, so this might be by design / a fixture artefact. Either way, low blast radius.\n\n---\n\n## 💤 IGNORE (13) — note in passing, don't gate the merge\n\nAll have severity ≤ 0.4 **and** agent_risk ≤ 0.51:\n\n- `crime_00010`, `crime_00013` — covered above; bundled with their bigger relatives.\n- `crime_00015` — broken doc link to `./setup.md`. Cheap fix, but not a merge gate.\n- `crime_00016` — weakly-asserted test. Less severe than `crime_00006`.\n- `crime_00017`, `crime_00018`, `crime_00019` — all in `src/petty.ts`, all low. Bundle into a \"petty cleanup\" PR.\n- `crime_00020` — 4 TODOs in billing.ts (12.9/kLOC, threshold 10). Just barely tripped.\n- `crime_00021`, `crime_00022`, `crime_00023` — 3 orphaned routes. Probably in-flight work; ask the author whether they intend to wire them up or delete them, but not a block.\n\n---\n\n## Why the cut lines are where they are\n\nThe categorisation logic I'm applying:\n\n- **BLOCK** = severity ≥ 0.9 **or** (severity ≥ 0.7 AND agent_risk ≥ 0.6) **or** the finding is in a high-blast-radius domain (billing/auth/payments) with concrete evidence of correctness risk. Only `crime_00001` clears it cleanly.\n- **WARN** = severity 0.5–0.7 OR agent_risk ≥ 0.55, especially when the finding hints at compounding debt (multiple sources of truth, drift, hidden rules).\n- **IGNORE** = severity ≤ 0.4 AND agent_risk ≤ 0.51 AND no cross-finding amplification.\n\nThe agent_risk score is doing real work here — it's why `crime_00007` (\"enterprise\" scatter) outranks `crime_00010` (God File) even though both are severity 0.5–0.6. Centralising one literal now is cheaper than refactoring after the fourth area adds a fifth copy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

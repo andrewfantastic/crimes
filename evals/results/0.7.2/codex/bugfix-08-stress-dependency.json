@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:00:31.539Z",
+  "run_id": "6244e58a-9913-40b6-848e-2030657aeeb7",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e382b-459c-7712-ac92-a6e28180affe\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy:\\n\\n- It is part of the 3-file cycle:\\n  `billing-flow.ts -> billing.ts -> invoice-view.ts -> billing-flow.ts`\\n- It is also the explicit architecture violation:\\n  `domain` imports `presentation`, but the rule says `domain cannotImport presentation`.\\n- The domain layer should not know about invoice rendering/view code. That dependency points in the wrong direction and is the most likely runtime-cycle trigger.\\n\\nBest fix: move whatever `billing.ts` needs from `invoice-view.ts` into a neutral module, or invert the dependency.\\n\\nFor example:\\n\\n- If `billing.ts` only needs a type from `invoice-view.ts`, change it to `import type`, assuming no runtime value is needed.\\n- If it needs formatting/rendering behavior, extract a domain-owned interface or plain shared helper, e.g. `src/domain/invoice-types.ts` or `src/shared/invoice-format.ts`, then have both `billing.ts` and `invoice-view.ts` import that.\\n- Keep `invoice-view.ts` depending on domain data, not the other way around.\\n\\nI would not start by breaking the `billing-flow.ts` imports, because `application -> domain` and `presentation -> application` may be intentional orchestration paths. The clearly wrong edge is `domain -> presentation`, and removing it fixes both the cycle pressure and the layer violation.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19273,\"cached_input_tokens\":12160,\"output_tokens\":322,\"reasoning_output_tokens\":26}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:03:19.751Z",
+  "run_id": "bd574b08-e75c-4d06-841a-58bed3c4b6d7",
+  "response": "## Drift findings\n\nThe four findings are **one root issue with three symptoms**, not four independent problems:\n\n**Root cause — `crime_00001` Concept Alias Drift (medium, agent_risk 0.6)**\nThe \"tenant\" concept is referenced as three different words across nav and routes: `organisation`, `team`, `workspace`. `src/nav.ts` touches all three, and each alias has its own route file. This is exactly the kind of finding `agent_risk` is designed to surface — an agent told to \"add a setting to the team page\" will plausibly create a fourth variant rather than discover the existing one.\n\n**Symptoms — `crime_00003` and `crime_00004` Orphaned Destinations**\n`/organisation` and `/workspace` being unreachable is almost certainly *because* of the alias drift: nav likely settled on one term (probably `team` given the file `src/routes/teams.ts`) and the other two route files are stragglers that the nav no longer links to.\n\n**Unrelated — `crime_00002` `/billing-plans`**\nThis one is independent. Different domain, no overlap with the tenant aliases. Could be in-flight work or a genuinely dead route.\n\n## Recommendation\n\n**Blocking (fix before merge):**\n- `crime_00001` — pick the canonical term, update nav + docs + routes to match, document the choice. This is the high-leverage fix: resolving it will likely resolve the two related orphans too.\n- `crime_00003`, `crime_00004` — resolve as part of the alias-drift fix (either delete the stragglers or rename them to the canonical term). Don't fix in isolation; they're evidence for the same edit.\n\n**Follow-up (file a ticket, don't block):**\n- `crime_00002` `/billing-plans` — low severity, low confidence, no concept-drift entanglement. Ask the author whether it's in-flight; if not, link-or-retire in a separate change.\n\nThe aggregate-risk ranking is doing its job here: severity alone would have buried the alias drift under three \"orphan\" lows, but `agent_risk = 0.6` correctly floats the one that an agent extending this codebase will trip over.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

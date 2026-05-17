@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-17T23:01:55.776Z",
+  "run_id": "9cbed3e8-5b1b-43d6-880a-f2c794d30ed2",
+  "response": "# Triage plan — top 10 findings, plan-01-messy-ts-app\n\nTop 10 by aggregate risk (the scan order), grouped by category and tagged with recommended response. Categories `git-history` and `frontend` are empty in the top 10 — noted below.\n\n## Structural (7 findings — bulk of the work, almost all in `src/billing.ts`)\n\n| # | ID | Charge | Where | Action |\n|---|---|---|---|---|\n| 1 | crime_00001 | God Function | `billing.ts:50-253` (`generateInvoice`, 204 LOC, sev=high) | **fix now** — anchor of the cleanup |\n| 2 | crime_00004 | Temporal Recklessness | `billing.ts` (7× clock reads) | **fix now** — inject clock during #1 extract |\n| 3 | crime_00011 | Logic in the Alibi | `billing.ts:39` (refund rule in a comment) | **fix now** — encode as a guard while you're in this file |\n| 4 | crime_00008 | False Identity | `billing.ts:40` (`calculateRefundPreview` does I/O) | **fix now** — rename or split during #1 |\n| 5 | crime_00010 | God File | `billing.ts` (310 LOC) | **defer** — resolves as a side effect of #1 |\n| 6 | crime_00005 | Temporal Recklessness | `date.ts` (helper, 5× clock reads) | **fix now** — same clock injection from #2 |\n| 7 | crime_00006 | Test That Proves Nothing | `billing.test.ts:4-6` (0 asserts) | **fix now** — quick win, restores test signal before refactor |\n\n## Duplication (1)\n\n| # | ID | Charge | Where | Action |\n|---|---|---|---|---|\n| 8 | crime_00007 | String Sprinkles | `\"enterprise\"` across 4 files | **fix now** — centralise the literal before the 5th copy ships |\n\n## IA / agent-context (2)\n\n| # | ID | Charge | Where | Action |\n|---|---|---|---|---|\n| 9 | crime_00002 | Missing Agent Context | repo root (no AGENTS.md / CLAUDE.md) | **fix now** — cheap, unblocks every future agent run |\n| 10 | crime_00009 | Concept Alias Drift | `tenant / account / organisation / team / workspace` across 5 files | **defer** — needs a naming decision, not a mechanical fix; document the canonical term first |\n\n## Empty categories\n\n- **git-history** — no churn signal in this fixture (all `churn = 0`), so no hotspots surfaced. Re-run on a repo with real git history before treating this as \"clean\".\n- **frontend** — the nav / route IA findings (`crime_00012` Duplicated Navigation Source, `crime_00014` Route Metadata Drift) sit at #11–#13 and are the next wave once billing is tamed.\n\n## Suggested execution order\n\n1. **Wave A — billing.ts cleanup (single PR):** #1 → drag #2, #3, #4, #5, #7 along; #10 falls out for free.\n2. **Wave B — clock module:** #6 (`date.ts`) reuses the abstraction introduced in Wave A.\n3. **Wave C — consistency:** #8 (`\"enterprise\"` → constant).\n4. **Wave D — agent on-ramp:** #9 (AGENTS.md / CLAUDE.md).\n5. **Deferred:** #10 concept-alias drift — schedule once Wave A lands and you can pick a canonical term without churning a refactor in flight.\n\nNothing in the top 10 warrants **ignore** — every finding is either fixable now or a deliberate defer with a trigger condition.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
