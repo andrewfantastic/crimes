@@ -6,12 +6,14 @@ import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { deepImportDetector } from "./detectors/deep-import.js";
+import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
@@ -85,6 +87,9 @@ export const builtInDetectors: Detector[] = [
   circularDependencyDetector,
   deepImportDetector,
   highFanInFanOutDetector,
+  // Frontend / UI agent-risk (require ctx.parsed.jsxElements).
+  designTokenEscapeDetector,
+  accessibleInteractionRiskDetector,
 ];
 
 export interface ScanOptions {
