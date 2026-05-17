@@ -12,6 +12,7 @@ import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
 import { deepImportDetector } from "./detectors/deep-import.js";
 import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 import { directDateDetector } from "./detectors/direct-date.js";
@@ -35,6 +36,7 @@ import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
+import { visualRegressionReviewHintDetector } from "./detectors/visual-regression-review-hint.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -85,6 +87,7 @@ export const builtInDetectors: Detector[] = [
   parallelDestinationDetector,
   permissionIaDriftDetector,
   actionLabelDriftDetector,
+  copyIaDriftDetector,
   commandDriftDocsCodeDriftDetector,
   // Dependency-graph + architecture (require ctx.imports).
   layerViolationDetector,
@@ -96,6 +99,7 @@ export const builtInDetectors: Detector[] = [
   accessibleInteractionRiskDetector,
   duplicateComponentShapeDetector,
   responsiveFragilityDetector,
+  visualRegressionReviewHintDetector,
 ];
 
 export interface ScanOptions {

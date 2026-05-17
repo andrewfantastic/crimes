@@ -60,6 +60,7 @@ export { circularDependencyDetector } from "./detectors/circular-dependency.js";
 export { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 export { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 export { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+export { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
 export { deepImportDetector } from "./detectors/deep-import.js";
 export { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 export { directDateDetector } from "./detectors/direct-date.js";
@@ -83,6 +84,7 @@ export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
+export { visualRegressionReviewHintDetector } from "./detectors/visual-regression-review-hint.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 export {
   applyDiffFailOn,
