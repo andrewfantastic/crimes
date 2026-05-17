@@ -29,6 +29,7 @@ interface BaselineCheckCommandOptions {
   format: "human" | "json";
   noColor: boolean;
   failOn: string;
+  showSuppressed: boolean;
 }
 
 const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
@@ -105,6 +106,11 @@ export function registerBaselineCommand(program: Command): void {
       "minimum severity that causes a non-zero exit code: low | medium | high",
       "medium",
     )
+    .option(
+      "--show-suppressed",
+      "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
+    )
     .action(
       async (
         path: string | undefined,
@@ -134,6 +140,7 @@ export function registerBaselineCommand(program: Command): void {
           report = await checkBaseline({
             root,
             failOn: options.failOn,
+            showSuppressed: options.showSuppressed,
           });
         } catch (error) {
           if (

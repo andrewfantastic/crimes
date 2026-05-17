@@ -31,6 +31,11 @@ import { buildIaIndex } from "./ia/build.js";
 import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
 import { buildPettyIndex } from "./petty/build.js";
 import type { PettyIndex } from "./petty/types.js";
+import type {
+  ApplySuppressionsOptions,
+  SuppressionEntry,
+} from "./suppressions.js";
+import { partitionFindings } from "./suppressions.js";
 
 export const builtInDetectors: Detector[] = [
   // Structural / file-local detectors (run first; they make up the bulk of
@@ -150,6 +155,37 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     report.changed_files = changedAll;
   }
   return report;
+}
+
+/**
+ * Filter a {@link ScanReport} through the suppressions list. Returns a
+ * new report with `findings` partitioned, `summary` recomputed, and an
+ * optional `suppressed_count` set when ≥1 entry matched. Pure — does not
+ * mutate the input.
+ */
+export function applySuppressionsToScan(
+  report: ScanReport,
+  suppressions: SuppressionEntry[],
+  options: ApplySuppressionsOptions,
+): ScanReport {
+  const { visible, suppressedCount } = partitionFindings(
+    report.findings,
+    suppressions,
+    options,
+  );
+  const next: ScanReport = {
+    ...report,
+    summary: summariseVisible(visible),
+    findings: visible,
+  };
+  if (suppressedCount > 0) next.suppressed_count = suppressedCount;
+  return next;
+}
+
+function summariseVisible(findings: Finding[]): ScanSummary {
+  const summary: ScanSummary = { total: findings.length, high: 0, medium: 0, low: 0 };
+  for (const f of findings) summary[f.severity] += 1;
+  return summary;
 }
 
 async function safelyBuildPettyIndex(args: {
@@ -357,8 +393,10 @@ export function applyScanFailOn(
   report: ScanReport,
   failOn: FailOn,
 ): ScanReport {
-  const failed = report.findings.some((f) =>
-    severityAtLeast(f.severity, failOn),
+  // Suppressed findings (only present when --show-suppressed was set)
+  // never trip the gate — gate semantics are independent of display.
+  const failed = report.findings.some(
+    (f) => f.suppressed !== true && severityAtLeast(f.severity, failOn),
   );
   return { ...report, fail_on: failOn, failed };
 }

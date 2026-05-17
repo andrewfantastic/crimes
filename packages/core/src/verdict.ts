@@ -71,6 +71,11 @@ export interface VerdictReport {
   new_findings: Finding[];
   /** Findings present at `base` but not at `head`. */
   fixed_findings: Finding[];
+  /**
+   * Number of new findings filtered out by `.crimes/suppressions.json`.
+   * Only present when ≥1 suppression matched on the new set.
+   */
+  suppressed_count?: number;
 }
 
 export interface VerdictOptions {
@@ -84,6 +89,11 @@ export interface VerdictOptions {
   base?: string;
   /** Head ref. Defaults to `"HEAD"`. */
   head?: string;
+  /**
+   * When true, suppressed new findings stay in `new_findings` annotated
+   * with `suppressed: true` and `suppression_reason`. Defaults to false.
+   */
+  showSuppressed?: boolean;
 }
 
 export class NoDefaultBaseError extends Error {
@@ -290,10 +300,19 @@ export async function verdict(
 
   const base = options.base ?? (await resolveDefaultBase(root));
 
-  const diffReport = await diff({ root, base, head });
+  const showSuppressed = options.showSuppressed ?? false;
+  // Defer suppression handling to `diff()` — the diff already loads
+  // `.crimes/suppressions.json` from `root`, applies entries to the new
+  // set, and exposes the matched count via `suppressed_count`.
+  const diffReport = await diff({ root, base, head, showSuppressed });
 
+  // Gate logic must always evaluate against the unsuppressed slice of
+  // the new set, regardless of whether annotated entries are visible.
+  const gateNewFindings = diffReport.new_findings.filter(
+    (f) => f.suppressed !== true,
+  );
   const judged = judgeVerdict({
-    newFindings: diffReport.new_findings,
+    newFindings: gateNewFindings,
     fixedFindings: diffReport.fixed_findings,
   });
 
@@ -301,6 +320,7 @@ export async function verdict(
   // summary stays a strict superset of the diff summary.
   const summary: VerdictSummary = {
     ...judged.summary,
+    new: diffReport.new_findings.length,
     unchanged: diffReport.summary.unchanged,
   };
 
@@ -309,7 +329,7 @@ export async function verdict(
     summary,
   });
 
-  return {
+  const report: VerdictReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "verdict",
     repo: {
@@ -325,6 +345,10 @@ export async function verdict(
     new_findings: diffReport.new_findings,
     fixed_findings: diffReport.fixed_findings,
   };
+  if (diffReport.suppressed_count !== undefined) {
+    report.suppressed_count = diffReport.suppressed_count;
+  }
+  return report;
 }
 
 /**

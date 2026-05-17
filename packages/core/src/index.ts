@@ -33,7 +33,11 @@ export type {
   CrimesConfig,
   LoadConfigResult,
 } from "./config.js";
-export { context, findNearestPackageRoot } from "./context.js";
+export {
+  applySuppressionsToContext,
+  context,
+  findNearestPackageRoot,
+} from "./context.js";
 export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
 export {
   findRelatedFiles,
@@ -159,6 +163,7 @@ export type {
 } from "./hotspots.js";
 export {
   applyScanFailOn,
+  applySuppressionsToScan,
   builtInDetectors,
   filterDetectors,
   resolveAliasGroups,
@@ -166,6 +171,25 @@ export {
   UnknownDetectorError,
 } from "./scan.js";
 export type { ScanOptions } from "./scan.js";
+export {
+  appendSuppression,
+  loadSuppressions,
+  loadSuppressionsForRoot,
+  MalformedSuppressionsError,
+  partitionFindings,
+  resolveOverridePath,
+  SuppressionEntrySchema,
+  SuppressionsSchema,
+} from "./suppressions.js";
+export type {
+  AppendSuppressionOptions,
+  AppendSuppressionResult,
+  ApplySuppressionsOptions,
+  LoadSuppressionsResult,
+  PartitionedFindings,
+  SuppressionEntry,
+  Suppressions,
+} from "./suppressions.js";
 export {
   judgeVerdict,
   NoDefaultBaseError,

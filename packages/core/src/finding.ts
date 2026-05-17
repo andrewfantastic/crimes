@@ -51,6 +51,15 @@ export interface Finding {
   scores: FindingScores;
   suggested_actions?: SuggestedAction[];
   related_files?: string[];
+  /**
+   * Only set when the consumer requested `--show-suppressed`. Indicates
+   * the finding matched an entry in `.crimes/suppressions.json` and would
+   * normally be hidden from output. Gate evaluation always ignores
+   * findings with `suppressed === true`.
+   */
+  suppressed?: true;
+  /** Paired with `suppressed`. The reason recorded in the suppressions file. */
+  suppression_reason?: string;
 }
 
 export interface ScanSummary {
@@ -91,4 +100,11 @@ export interface ScanReport {
    * clean. Sorted, deduplicated.
    */
   changed_files?: string[];
+  /**
+   * Number of findings matched by an entry in `.crimes/suppressions.json`
+   * during this invocation. Only present when ≥1 suppression matched —
+   * absent otherwise, which is equivalent to "no suppressions configured"
+   * for downstream consumers.
+   */
+  suppressed_count?: number;
 }

@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { context } from "@crimes/core";
+import {
+  applySuppressionsToContext,
+  context,
+  loadConfig,
+  loadSuppressionsForRoot,
+} from "@crimes/core";
 import {
   formatContextHumanReport,
   formatContextJsonReport,
@@ -12,6 +17,7 @@ interface ContextCommandOptions {
   format: "human" | "json";
   noColor: boolean;
   root?: string;
+  showSuppressed: boolean;
 }
 
 export function registerContextCommand(program: Command): void {
@@ -27,6 +33,11 @@ export function registerContextCommand(program: Command): void {
     )
     .option("--format <format>", "output format: human | json", "human")
     .option("--no-color", "disable ANSI colour output")
+    .option(
+      "--show-suppressed",
+      "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
+    )
     .action(async (file: string, options: ContextCommandOptions) => {
       const format = options.format;
       if (format !== "human" && format !== "json") {
@@ -60,6 +71,15 @@ export function registerContextCommand(program: Command): void {
         report = await context({
           ...(options.root !== undefined ? { root: options.root } : {}),
           file: absoluteFile,
+        });
+        // `context()` resolves the scan root itself (nearest enclosing
+        // package.json by default); load suppressions from that same root
+        // so the .crimes/suppressions.json lines up with the report.
+        const resolvedRoot = report.repo.root;
+        const config = loadConfig(resolvedRoot);
+        const suppressions = loadSuppressionsForRoot(resolvedRoot, config);
+        report = applySuppressionsToContext(report, suppressions.entries, {
+          showSuppressed: options.showSuppressed,
         });
       } catch (error) {
         if (isUserSetupError(error)) {

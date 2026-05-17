@@ -14,6 +14,7 @@ interface DiffCommandOptions {
   format: "human" | "json";
   noColor: boolean;
   root?: string;
+  showSuppressed: boolean;
 }
 
 export function registerDiffCommand(program: Command): void {
@@ -31,6 +32,11 @@ export function registerDiffCommand(program: Command): void {
     .option(
       "--root <path>",
       "repository root to run the diff in (defaults to current directory)",
+    )
+    .option(
+      "--show-suppressed",
+      "include new findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
     )
     .action(async (range: string, options: DiffCommandOptions) => {
       const root = resolve(options.root ?? process.cwd());
@@ -62,6 +68,7 @@ export function registerDiffCommand(program: Command): void {
           root,
           base: parsed.base,
           head: parsed.head,
+          showSuppressed: options.showSuppressed,
         });
       } catch (error) {
         if (

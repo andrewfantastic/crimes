@@ -18,6 +18,11 @@ import {
   filterDetectors,
   resolveAliasGroups,
 } from "./scan.js";
+import type {
+  ApplySuppressionsOptions,
+  SuppressionEntry,
+} from "./suppressions.js";
+import { partitionFindings } from "./suppressions.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
@@ -84,6 +89,11 @@ export interface ContextReport {
    * what conventions were searched without a hit.
    */
   likely_tests_reason?: string;
+  /**
+   * Number of findings matched by an entry in `.crimes/suppressions.json`.
+   * Only present when ≥1 suppression matched.
+   */
+  suppressed_count?: number;
 }
 
 /**
@@ -309,6 +319,30 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   }
 
   return report;
+}
+
+/**
+ * Filter a {@link ContextReport} through the suppressions list. Same
+ * shape as {@link applySuppressionsToScan} — pure, returns a new report,
+ * recomputes the `risk` totals from the visible set.
+ */
+export function applySuppressionsToContext(
+  report: ContextReport,
+  suppressions: SuppressionEntry[],
+  options: ApplySuppressionsOptions,
+): ContextReport {
+  const { visible, suppressedCount } = partitionFindings(
+    report.findings,
+    suppressions,
+    options,
+  );
+  const next: ContextReport = {
+    ...report,
+    findings: visible,
+    risk: buildRisk(visible),
+  };
+  if (suppressedCount > 0) next.suppressed_count = suppressedCount;
+  return next;
 }
 
 async function runDetectorsOnTarget(args: {

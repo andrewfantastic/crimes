@@ -74,6 +74,16 @@ export function formatHumanReport(
     summaryLine(report, colour),
   );
 
+  if (report.suppressed_count && report.suppressed_count > 0) {
+    lines.push(
+      colour.dim(
+        `${report.suppressed_count} finding${
+          report.suppressed_count === 1 ? "" : "s"
+        } suppressed; run with --show-suppressed to see.`,
+      ),
+    );
+  }
+
   return lines.join("\n");
 }
 
@@ -106,6 +116,11 @@ function renderFinding(finding: Finding, n: number, colour: ColourFns): string[]
         `       ${colour.dim(`… and ${hidden} more (see JSON output)`)}`,
       );
     }
+  }
+  if (finding.suppressed === true) {
+    out.push(
+      `     ${colour.dim("Suppressed:")} ${finding.suppression_reason ?? "(no reason)"}`,
+    );
   }
   out.push(
     `     ${colour.dim(`id=${finding.id}  confidence=${finding.confidence.toFixed(2)}`)}`,

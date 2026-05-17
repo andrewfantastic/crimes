@@ -20,6 +20,7 @@ interface VerdictCommandOptions {
   base?: string;
   failOn?: string;
   root?: string;
+  showSuppressed: boolean;
 }
 
 const VALID_FAIL_ON = new Set<VerdictFailOn>([
@@ -52,6 +53,11 @@ export function registerVerdictCommand(program: Command): void {
       "--root <path>",
       "repository root to run the verdict in (defaults to current directory)",
     )
+    .option(
+      "--show-suppressed",
+      "include new findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
+    )
     .action(async (options: VerdictCommandOptions) => {
       const root = resolve(options.root ?? process.cwd());
       const format = options.format;
@@ -77,6 +83,7 @@ export function registerVerdictCommand(program: Command): void {
         report = await verdict({
           root,
           base: options.base,
+          showSuppressed: options.showSuppressed,
         });
       } catch (error) {
         if (

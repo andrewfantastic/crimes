@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { loadConfig } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type {
   Finding,
@@ -8,6 +9,10 @@ import type {
 } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { scan } from "./scan.js";
+import {
+  loadSuppressionsForRoot,
+  partitionFindings,
+} from "./suppressions.js";
 
 /**
  * Repo-relative path under which `crimes` writes the on-disk baseline.
@@ -96,6 +101,12 @@ export interface BaselineCheckReport {
   fixed_findings: BaselineEntry[];
   /** Current-scan findings matched by fingerprint to a baseline entry. */
   unchanged_findings: Finding[];
+  /**
+   * Number of new findings filtered out by `.crimes/suppressions.json`.
+   * Suppressions only apply to the **new** set; baseline entries are
+   * already a "this is fine" snapshot.
+   */
+  suppressed_count?: number;
 }
 
 export class BaselineNotFoundError extends Error {
@@ -151,6 +162,11 @@ export interface CheckBaselineOptions {
   path?: string;
   /** Severity threshold for the `failed` verdict. Defaults to `"medium"`. */
   failOn?: FailOn;
+  /**
+   * When true, suppressed new findings stay in `new_findings` annotated
+   * with `suppressed: true` and `suppression_reason`. Defaults to false.
+   */
+  showSuppressed?: boolean;
 }
 
 const SEVERITY_RANK: Record<Severity, number> = {
@@ -380,12 +396,29 @@ export async function checkBaseline(
       current: report.findings,
     });
 
+  // Suppressions apply only to the **new** set — baseline entries are
+  // already a "this is fine" snapshot, so suppressing them is a no-op.
+  const config = loadConfig(root);
+  const suppressions = loadSuppressionsForRoot(root, config);
+  const { visible: visibleNew, suppressedCount } = partitionFindings(
+    new_findings,
+    suppressions.entries,
+    { showSuppressed: options.showSuppressed ?? false },
+  );
+
+  // Gate-relevant counts always exclude suppressed entries (gate
+  // semantics are independent of display).
   const new_by_severity = { high: 0, medium: 0, low: 0 };
-  for (const f of new_findings) new_by_severity[f.severity] += 1;
+  for (const f of visibleNew) {
+    if (f.suppressed) continue;
+    new_by_severity[f.severity] += 1;
+  }
 
-  const failed = new_findings.some((f) => severityAtLeast(f.severity, failOn));
+  const failed = visibleNew.some(
+    (f) => f.suppressed !== true && severityAtLeast(f.severity, failOn),
+  );
 
-  return {
+  const result: BaselineCheckReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "baseline_check",
     repo: { name: basename(root), root },
@@ -395,15 +428,17 @@ export async function checkBaseline(
     summary: {
       total_baseline: baseline.findings.length,
       total_current: report.findings.length,
-      new: new_findings.length,
+      new: visibleNew.length,
       fixed: fixed_findings.length,
       unchanged: unchanged_findings.length,
       new_by_severity,
     },
-    new_findings,
+    new_findings: visibleNew,
     fixed_findings,
     unchanged_findings,
   };
+  if (suppressedCount > 0) result.suppressed_count = suppressedCount;
+  return result;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

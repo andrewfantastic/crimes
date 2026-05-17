@@ -1,4 +1,5 @@
 import { basename, resolve } from "node:path";
+import { loadConfig } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -8,6 +9,10 @@ import {
   NotAGitRepoError,
 } from "./git/changed-files.js";
 import { scan } from "./scan.js";
+import {
+  loadSuppressionsForRoot,
+  partitionFindings,
+} from "./suppressions.js";
 
 export interface DiffOptions {
   /** Absolute or relative path to the repo. Defaults to cwd. */
@@ -16,6 +21,11 @@ export interface DiffOptions {
   base: string;
   /** Head ref. Defaults to `"HEAD"`. */
   head?: string;
+  /**
+   * When true, suppressed new findings stay in `new_findings` annotated
+   * with `suppressed: true` and `suppression_reason`. Defaults to false.
+   */
+  showSuppressed?: boolean;
 }
 
 export interface DiffSummary {
@@ -40,6 +50,11 @@ export interface DiffReport {
    * scan, so line ranges, evidence, and the per-scan `id` reflect HEAD.
    */
   unchanged_findings: Finding[];
+  /**
+   * Number of new findings filtered out by `.crimes/suppressions.json`.
+   * Suppressions only apply to the **new** set in a diff.
+   */
+  suppressed_count?: number;
 }
 
 export class InvalidDiffRangeError extends Error {
@@ -185,7 +200,18 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
     headFindings,
   });
 
-  return {
+  // Suppressions apply only to the **new** set in a diff. Fixed and
+  // unchanged sets reflect prior state — suppressing those would hide
+  // information the reviewer needs.
+  const config = loadConfig(root);
+  const suppressions = loadSuppressionsForRoot(root, config);
+  const { visible: visibleNew, suppressedCount } = partitionFindings(
+    new_findings,
+    suppressions.entries,
+    { showSuppressed: options.showSuppressed ?? false },
+  );
+
+  const report: DiffReport = {
     schema_version: SCHEMA_VERSION,
     report_type: "diff",
     repo: {
@@ -195,14 +221,16 @@ export async function diff(options: DiffOptions): Promise<DiffReport> {
     base: options.base,
     head,
     summary: {
-      new: new_findings.length,
+      new: visibleNew.length,
       fixed: fixed_findings.length,
       unchanged: unchanged_findings.length,
     },
-    new_findings,
+    new_findings: visibleNew,
     fixed_findings,
     unchanged_findings,
   };
+  if (suppressedCount > 0) report.suppressed_count = suppressedCount;
+  return report;
 }
 
 async function scanRef(args: {

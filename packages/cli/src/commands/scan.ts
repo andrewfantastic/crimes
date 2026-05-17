@@ -1,6 +1,9 @@
 import { resolve } from "node:path";
 import {
   applyScanFailOn,
+  applySuppressionsToScan,
+  loadConfig,
+  loadSuppressionsForRoot,
   NotAGitRepoError,
   scan,
   UnknownGitRefError,
@@ -21,6 +24,7 @@ interface ScanCommandOptions {
   changed: boolean;
   base?: string;
   failOn?: string;
+  showSuppressed: boolean;
 }
 
 const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
@@ -49,6 +53,11 @@ export function registerScanCommand(program: Command): void {
     .option(
       "--fail-on <severity>",
       "with --changed, exit non-zero when a finding meets this severity: low | medium | high",
+    )
+    .option(
+      "--show-suppressed",
+      "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
+      false,
     )
     .action(async (path: string | undefined, options: ScanCommandOptions) => {
       const root = resolve(path ?? process.cwd());
@@ -87,11 +96,18 @@ export function registerScanCommand(program: Command): void {
       }
 
       let report;
+      let config;
       try {
+        config = loadConfig(root);
         report = await scan({
           root,
+          config,
           changed: options.changed,
           base: options.base,
+        });
+        const suppressions = loadSuppressionsForRoot(root, config);
+        report = applySuppressionsToScan(report, suppressions.entries, {
+          showSuppressed: options.showSuppressed,
         });
       } catch (error) {
         if (
