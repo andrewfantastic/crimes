@@ -908,3 +908,75 @@ describe("formatBaselineCheckJsonReport", () => {
     expect(parsed.failed).toBe(true);
   });
 });
+
+describe("inline feedback hints (0.7.0)", () => {
+  it("appends 'Give feedback: ...' under each finding when enabled", () => {
+    const out = formatHumanReport(sampleReport, {
+      noColor: false, // hints require colour mode to fire
+      feedbackHints: { entriesByDetector: {} },
+    });
+    expect(out).toContain("Give feedback: crimes feedback large_function::src/billing.ts::generateInvoice --verdict {tp|fp}");
+    expect(out).toContain("Give feedback: crimes feedback todo_density::src/todo.ts:: --verdict {tp|fp}");
+  });
+
+  it("is suppressed when noColor is true (piped / --no-color path)", () => {
+    const out = formatHumanReport(sampleReport, {
+      noColor: true,
+      feedbackHints: { entriesByDetector: {} },
+    });
+    expect(out).not.toContain("Give feedback:");
+  });
+
+  it("is omitted entirely when feedbackHints is unset", () => {
+    const out = formatHumanReport(sampleReport, { noColor: false });
+    expect(out).not.toContain("Give feedback:");
+  });
+
+  it("is suppressed for detectors at or above the per-detector cap (default 5)", () => {
+    const out = formatHumanReport(sampleReport, {
+      noColor: false,
+      feedbackHints: {
+        entriesByDetector: { large_function: 5, todo_density: 4 },
+      },
+    });
+    // large_function hit cap → no hint
+    expect(out).not.toContain("Give feedback: crimes feedback large_function");
+    // todo_density still below cap → hint stays
+    expect(out).toContain("Give feedback: crimes feedback todo_density");
+  });
+
+  it("honours a custom capPerDetector", () => {
+    const out = formatHumanReport(sampleReport, {
+      noColor: false,
+      feedbackHints: {
+        entriesByDetector: { large_function: 2 },
+        capPerDetector: 2,
+      },
+    });
+    expect(out).not.toContain("Give feedback: crimes feedback large_function");
+  });
+
+  it("uses the resurfaced variant for previously_suppressed findings", () => {
+    const report: ScanReport = {
+      ...sampleReport,
+      findings: [
+        {
+          ...sampleReport.findings[0]!,
+          previously_suppressed: true,
+          previous_suppression: {
+            pinned_version: "0.6",
+            reason: "Commander DSL chain",
+          },
+        },
+      ],
+      summary: { total: 1, high: 1, medium: 0, low: 0 },
+    };
+    const out = formatHumanReport(report, {
+      noColor: false,
+      feedbackHints: { entriesByDetector: {} },
+    });
+    expect(out).toContain("⚠ Previously marked fp in 0.6");
+    expect(out).toContain("Re-confirm: crimes feedback large_function");
+    expect(out).toContain("crimes feedback recheck");
+  });
+});

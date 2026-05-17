@@ -52,3 +52,19 @@ export function buildFeedbackSummary(
 
 /** Re-export so call sites can pull both from feedback/index. */
 export { latestPerFingerprint };
+
+/**
+ * Count feedback entries (raw, not latest-per-fingerprint) grouped by
+ * `finding_type`. Used by the reporter to decide whether to suppress
+ * the inline "Give feedback:" hint for a given detector — after 5+
+ * entries the user doesn't need the prompt anymore.
+ */
+export function countEntriesByDetector(
+  entries: FeedbackEntry[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const e of entries) {
+    counts[e.finding_type] = (counts[e.finding_type] ?? 0) + 1;
+  }
+  return counts;
+}

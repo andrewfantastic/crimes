@@ -18,7 +18,35 @@ import type {
   Verdict,
   VerdictReport,
 } from "@crimes/core";
+import { fingerprintFinding } from "@crimes/core";
 import pc from "picocolors";
+
+/**
+ * Inline "Give feedback: ..." hint configuration. When set on
+ * {@link HumanReportOptions} (or its `Context` / `Diff` / `Baseline`
+ * equivalents), every rendered finding gets a one-line trailing hint
+ * pointing at the `crimes feedback` command — or, for resurfaced
+ * findings, the alternate "Previously marked fp" prompt.
+ *
+ * Suppression rules (matches the 0.6.0 stderr breadcrumb):
+ *   • `noColor: true` on the report options suppresses hints entirely
+ *     (so piped / `--no-color` invocations stay clean).
+ *   • `disabled: true` here suppresses regardless of TTY.
+ *   • `entriesByDetector[finding.type] >= capPerDetector` suppresses
+ *     for that one detector — "once you've recorded 5 verdicts on
+ *     `large_function`, you don't need the prompt anymore."
+ *
+ * JSON output never goes through this renderer, so the structured
+ * contract is unaffected.
+ */
+export interface FeedbackHintOptions {
+  /** Per-detector count of feedback entries from `.crimes/feedback.jsonl`. */
+  entriesByDetector?: Record<string, number>;
+  /** Force-disable hints (still respects noColor). */
+  disabled?: boolean;
+  /** Threshold above which to suppress the hint. Default 5. */
+  capPerDetector?: number;
+}
 
 export interface HumanReportOptions {
   /** When true, every finding is shown. Otherwise the top N. */
@@ -27,9 +55,12 @@ export interface HumanReportOptions {
   topN?: number;
   /** Disable ANSI colour output. */
   noColor?: boolean;
+  /** Inline feedback hints (0.7.0). Suppressed when `noColor` is true. */
+  feedbackHints?: FeedbackHintOptions;
 }
 
 const DEFAULT_TOP_N = 10;
+const DEFAULT_FEEDBACK_HINT_CAP = 5;
 
 const RELATED_FILES_DISPLAY_CAP = 5;
 
@@ -62,6 +93,8 @@ export function formatHumanReport(
       lines.push(
         ...renderFinding(finding, idx + 1, colour, {
           alwaysShowRiskProfile: showAll,
+          feedbackHints: options.feedbackHints,
+          noColor: options.noColor === true,
         }),
       );
       lines.push("");
@@ -99,7 +132,11 @@ function renderFinding(
   finding: Finding,
   n: number,
   colour: ColourFns,
-  options: { alwaysShowRiskProfile?: boolean } = {},
+  options: {
+    alwaysShowRiskProfile?: boolean;
+    feedbackHints?: FeedbackHintOptions;
+    noColor?: boolean;
+  } = {},
 ): string[] {
   const lineRange = finding.lines
     ? `:${finding.lines[0]}${finding.lines[1] !== finding.lines[0] ? `-${finding.lines[1]}` : ""}`
@@ -140,7 +177,42 @@ function renderFinding(
   out.push(
     `     ${colour.dim(`id=${finding.id}  confidence=${finding.confidence.toFixed(2)}`)}`,
   );
+  appendFeedbackHint(out, finding, colour, options);
   return out;
+}
+
+/**
+ * Append the inline `Give feedback: ...` hint (or the resurfaced
+ * variant) to a rendered finding's line buffer. Mutates `out`. Returns
+ * silently when hints are disabled, when `noColor` is set, or when the
+ * per-detector cap is met.
+ */
+function appendFeedbackHint(
+  out: string[],
+  finding: Finding,
+  colour: ColourFns,
+  options: { feedbackHints?: FeedbackHintOptions; noColor?: boolean },
+): void {
+  if (options.noColor) return;
+  const hints = options.feedbackHints;
+  if (!hints || hints.disabled) return;
+  const cap = hints.capPerDetector ?? DEFAULT_FEEDBACK_HINT_CAP;
+  const count = hints.entriesByDetector?.[finding.type] ?? 0;
+  if (count >= cap) return;
+
+  const fp = fingerprintFinding(finding);
+  if (finding.previously_suppressed && finding.previous_suppression) {
+    out.push(
+      `     ${colour.dim(`⚠ Previously marked fp in ${finding.previous_suppression.pinned_version}. Re-confirm: crimes feedback ${fp} --verdict {tp|fp}`)}`,
+    );
+    out.push(
+      `     ${colour.dim("↳ See `crimes feedback recheck` to walk all resurfaced findings.")}`,
+    );
+    return;
+  }
+  out.push(
+    `     ${colour.dim(`Give feedback: crimes feedback ${fp} --verdict {tp|fp}`)}`,
+  );
 }
 
 /**
@@ -245,6 +317,8 @@ function plainColour(): ColourFns {
 export interface ContextHumanReportOptions {
   /** Disable ANSI colour output. */
   noColor?: boolean;
+  /** Inline feedback hints (0.7.0). Suppressed when `noColor` is true. */
+  feedbackHints?: FeedbackHintOptions;
 }
 
 export function formatContextHumanReport(
@@ -324,6 +398,8 @@ export function formatContextHumanReport(
       lines.push(
         ...renderFinding(finding, idx + 1, colour, {
           alwaysShowRiskProfile: true,
+          feedbackHints: options.feedbackHints,
+          noColor: options.noColor === true,
         }),
       );
       lines.push("");
@@ -475,6 +551,8 @@ function severityLabel(sev: HighestSeverity, colour: ColourFns): string {
 export interface DiffHumanReportOptions {
   /** Disable ANSI colour output. */
   noColor?: boolean;
+  /** Inline feedback hints (0.7.0). Suppressed when `noColor` is true. */
+  feedbackHints?: FeedbackHintOptions;
 }
 
 export function formatDiffReport(
@@ -503,6 +581,8 @@ export function formatDiffReport(
 export interface BaselineHumanReportOptions {
   /** Disable ANSI colour output. */
   noColor?: boolean;
+  /** Inline feedback hints (0.7.0). Suppressed when `noColor` is true. */
+  feedbackHints?: FeedbackHintOptions;
 }
 
 export function formatBaselineSaveReport(
@@ -576,7 +656,12 @@ export function formatBaselineCheckReport(
       // Baseline check has no --all knob; fall back to the default notable
       // gate (renderRiskProfileLine hides the line when all three signals
       // are ≤ 0.5).
-      lines.push(...renderFinding(finding, idx + 1, colour));
+      lines.push(
+        ...renderFinding(finding, idx + 1, colour, {
+          feedbackHints: options.feedbackHints,
+          noColor: options.noColor === true,
+        }),
+      );
       lines.push("");
     });
     if (lines[lines.length - 1] === "") lines.pop();

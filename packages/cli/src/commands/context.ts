@@ -3,9 +3,12 @@ import { isAbsolute, resolve } from "node:path";
 import {
   applySuppressionsToContext,
   context,
+  countEntriesByDetector,
   countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
+  readFeedback,
+  resolveFeedbackPath,
 } from "@crimes/core";
 import {
   formatContextHumanReport,
@@ -113,9 +116,18 @@ export function registerContextCommand(program: Command): void {
       if (format === "json") {
         process.stdout.write(formatContextJsonReport(report) + "\n");
       } else {
+        const effectiveNoColor = options.noColor || !process.stdout.isTTY;
+        const feedbackEntries = effectiveNoColor
+          ? []
+          : (
+              await readFeedback(resolveFeedbackPath(report.repo.root))
+            ).entries;
         process.stdout.write(
           formatContextHumanReport(report, {
-            noColor: options.noColor || !process.stdout.isTTY,
+            noColor: effectiveNoColor,
+            feedbackHints: {
+              entriesByDetector: countEntriesByDetector(feedbackEntries),
+            },
           }) + "\n",
         );
       }

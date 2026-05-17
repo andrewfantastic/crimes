@@ -2,10 +2,13 @@ import { resolve } from "node:path";
 import {
   BaselineNotFoundError,
   checkBaseline,
+  countEntriesByDetector,
   countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
   MalformedBaselineError,
+  readFeedback,
+  resolveFeedbackPath,
   saveBaseline,
 } from "@crimes/core";
 import type { FailOn } from "@crimes/core";
@@ -190,9 +193,17 @@ export function registerBaselineCommand(program: Command): void {
             formatBaselineCheckJsonReport(report) + "\n",
           );
         } else {
+          const effectiveNoColor =
+            options.noColor || !process.stdout.isTTY;
+          const feedbackEntries = effectiveNoColor
+            ? []
+            : (await readFeedback(resolveFeedbackPath(root))).entries;
           process.stdout.write(
             formatBaselineCheckReport(report, {
-              noColor: options.noColor || !process.stdout.isTTY,
+              noColor: effectiveNoColor,
+              feedbackHints: {
+                entriesByDetector: countEntriesByDetector(feedbackEntries),
+              },
             }) + "\n",
           );
         }

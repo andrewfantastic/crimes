@@ -37,7 +37,7 @@ export type {
   ResurfacedSuppression,
   ResurfacedSuppressionsOptions,
 } from "./recheck.js";
-export { buildFeedbackSummary } from "./summary.js";
+export { buildFeedbackSummary, countEntriesByDetector } from "./summary.js";
 export { appendToGlobalRollup } from "./rollup.js";
 export type {
   AppendToGlobalRollupArgs,

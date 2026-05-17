@@ -2,10 +2,13 @@ import { resolve } from "node:path";
 import {
   applyScanFailOn,
   applySuppressionsToScan,
+  countEntriesByDetector,
   countResurfacedByPinnedMinor,
   loadConfig,
   loadSuppressionsForRoot,
   NotAGitRepoError,
+  readFeedback,
+  resolveFeedbackPath,
   scan,
   UnknownGitRefError,
 } from "@crimes/core";
@@ -158,16 +161,23 @@ export function registerScanCommand(program: Command): void {
       if (format === "json") {
         process.stdout.write(formatJsonReport(gatedReport) + "\n");
       } else {
+        const effectiveNoColor = options.noColor || !process.stdout.isTTY;
+        const feedbackEntries = effectiveNoColor
+          ? []
+          : (await readFeedback(resolveFeedbackPath(root))).entries;
         process.stdout.write(
           formatHumanReport(gatedReport, {
             showAll: options.all,
-            noColor: options.noColor || !process.stdout.isTTY,
+            noColor: effectiveNoColor,
+            feedbackHints: {
+              entriesByDetector: countEntriesByDetector(feedbackEntries),
+            },
           }) + "\n",
         );
         if (failOn !== undefined) {
           process.stdout.write(
             formatScanFailOnLine(gatedReport, {
-              noColor: options.noColor || !process.stdout.isTTY,
+              noColor: effectiveNoColor,
             }) + "\n",
           );
         }

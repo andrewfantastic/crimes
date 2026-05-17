@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import {
   applyDiffFailOn,
+  countEntriesByDetector,
   countResurfacedByPinnedMinor,
   diff,
   InvalidDiffRangeError,
@@ -8,6 +9,8 @@ import {
   loadSuppressionsForRoot,
   NotAGitRepoError,
   parseDiffRange,
+  readFeedback,
+  resolveFeedbackPath,
   UnknownGitRefError,
 } from "@crimes/core";
 import type { DiffFailOn } from "@crimes/core";
@@ -146,9 +149,16 @@ export function registerDiffCommand(program: Command): void {
       if (format === "json") {
         process.stdout.write(formatDiffJsonReport(gatedReport) + "\n");
       } else {
+        const effectiveNoColor = options.noColor || !process.stdout.isTTY;
+        const feedbackEntries = effectiveNoColor
+          ? []
+          : (await readFeedback(resolveFeedbackPath(root))).entries;
         process.stdout.write(
           formatDiffReport(gatedReport, {
-            noColor: options.noColor || !process.stdout.isTTY,
+            noColor: effectiveNoColor,
+            feedbackHints: {
+              entriesByDetector: countEntriesByDetector(feedbackEntries),
+            },
           }) + "\n",
         );
       }

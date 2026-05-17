@@ -31,6 +31,7 @@ export {
 export {
   appendToGlobalRollup,
   buildFeedbackSummary,
+  countEntriesByDetector,
   FEEDBACK_GLOBAL_RELATIVE_PATH,
   FEEDBACK_RELATIVE_PATH,
   FeedbackEntrySchema,

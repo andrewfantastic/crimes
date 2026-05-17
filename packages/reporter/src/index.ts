@@ -16,6 +16,7 @@ export type {
   ContextHumanReportOptions,
   DiffHumanReportOptions,
   ExplainHumanReportOptions,
+  FeedbackHintOptions,
   HotspotsHumanReportOptions,
   HumanReportOptions,
   ScanFailOnLineOptions,
