@@ -82,6 +82,14 @@ export interface ScoreResult {
    * the agent.
    */
   response: string;
+  /**
+   * Derived from the scan JSON the agent was prompted with. Lets the
+   * scorer recognise findings referenced by `crime_NNNNN` id or by
+   * human charge name, not just by detector slug. Optional for
+   * backwards compatibility with pre-0.8 result files; replay
+   * re-derives by re-scanning the fixture when missing.
+   */
+  scan_context?: ScanContext;
   structural_score: {
     passed: number;
     failed: number;
@@ -92,4 +100,17 @@ export interface ScoreResult {
     per_question: JudgeQuestionScore[];
     model: string;
   };
+}
+
+/**
+ * Lookup maps the scorer uses to translate user-facing references
+ * (finding ids like `crime_00004`, charge names like
+ * `"Temporal Recklessness"`) back into the canonical detector slug
+ * (`direct_date`). Built from the same scan JSON the agent saw.
+ */
+export interface ScanContext {
+  /** `crime_00004` → `direct_date`. */
+  detector_id_by_finding_id: Record<string, string>;
+  /** `Temporal Recklessness` → `direct_date`. */
+  detector_id_by_charge: Record<string, string>;
 }

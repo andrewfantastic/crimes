@@ -1,5 +1,5 @@
 import { builtInDetectors } from "@crimes/core";
-import type { ExpectedArtifacts, ScoreDetail } from "./types.js";
+import type { ExpectedArtifacts, ScanContext, ScoreDetail } from "./types.js";
 
 /**
  * Set of every known detector id at runtime. Built from @crimes/core's
@@ -21,91 +21,123 @@ export interface StructuralScoreResult {
  * Apply the structural rubric (per §5.5 of the calibration plan) to an
  * agent's response. Deterministic, cheap — runs on every CI replay.
  *
- * Each `expected_artifacts` field becomes one check:
- *
- * - `referenced_findings`: scan the response for known detector-id
- *   strings; one match per expected id is a pass.
- * - `referenced_files`: regex-scan for file-path-shaped strings; one
- *   match per expected path is a pass.
- * - `forbidden_actions`: pass if NONE of the listed regex patterns
- *   appear; one fail tips the whole check.
- * - `expected_priority`: parse the first 200 chars for the leading
- *   detector-id; pass if it matches the expectation.
+ * The scorer accepts three equivalent ways for an agent to reference a
+ * finding: the detector slug (`direct_date`), the human charge name
+ * (`Temporal Recklessness`), or the per-scan id (`crime_00004`).
+ * Translation tables for the latter two come from the
+ * {@link ScanContext} the runner derived from the same scan JSON the
+ * agent was prompted with. When `scanContext` is omitted (replay
+ * against legacy result files), only slug matching is available.
  */
 export function scoreStructural(
   response: string,
   expected: ExpectedArtifacts,
+  scanContext?: ScanContext,
 ): StructuralScoreResult {
   const details: ScoreDetail[] = [];
+  const referenced = extractReferencedDetectorIds(response, scanContext);
 
-  if (expected.referenced_findings && expected.referenced_findings.length > 0) {
-    const matchedDetectors = extractDetectorIds(response);
-    for (const expectedId of expected.referenced_findings) {
-      const passed = matchedDetectors.has(expectedId);
-      details.push({
-        check: "referenced_findings",
-        expected: expectedId,
-        observed: passed ? expectedId : null,
-        passed,
-      });
-    }
-  }
-
-  if (expected.referenced_files && expected.referenced_files.length > 0) {
-    const matchedFiles = extractFilePaths(response);
-    for (const expectedFile of expected.referenced_files) {
-      const passed = matchedFiles.has(expectedFile);
-      details.push({
-        check: "referenced_files",
-        expected: expectedFile,
-        observed: passed ? expectedFile : null,
-        passed,
-      });
-    }
-  }
-
-  if (expected.forbidden_actions && expected.forbidden_actions.length > 0) {
-    let allClean = true;
-    const triggered: string[] = [];
-    for (const pattern of expected.forbidden_actions) {
-      if (new RegExp(pattern, "i").test(response)) {
-        allClean = false;
-        triggered.push(pattern);
-      }
-    }
-    details.push({
-      check: "forbidden_actions",
-      expected: expected.forbidden_actions,
-      observed: triggered,
-      passed: allClean,
-    });
-  }
-
-  if (expected.expected_priority !== undefined) {
-    const priority = extractLeadingDetectorId(response);
-    const passed = priority === expected.expected_priority;
-    details.push({
-      check: "expected_priority",
-      expected: expected.expected_priority,
-      observed: priority,
-      passed,
-    });
-  }
+  pushReferencedFindingsChecks(details, expected, referenced);
+  pushReferencedFilesChecks(details, expected, response);
+  pushForbiddenActionsCheck(details, expected, response);
+  pushPriorityCheck(details, expected, response, scanContext);
 
   const passed = details.filter((d) => d.passed).length;
   const failed = details.length - passed;
   return { passed, failed, details };
 }
 
+function pushReferencedFindingsChecks(
+  details: ScoreDetail[],
+  expected: ExpectedArtifacts,
+  referenced: Set<string>,
+): void {
+  if (!expected.referenced_findings || expected.referenced_findings.length === 0) {
+    return;
+  }
+  for (const expectedId of expected.referenced_findings) {
+    const passed = referenced.has(expectedId);
+    details.push({
+      check: "referenced_findings",
+      expected: expectedId,
+      observed: passed ? expectedId : null,
+      passed,
+    });
+  }
+}
+
+function pushReferencedFilesChecks(
+  details: ScoreDetail[],
+  expected: ExpectedArtifacts,
+  response: string,
+): void {
+  if (!expected.referenced_files || expected.referenced_files.length === 0) return;
+  const matched = extractFilePaths(response);
+  for (const expectedFile of expected.referenced_files) {
+    const passed = matched.has(expectedFile);
+    details.push({
+      check: "referenced_files",
+      expected: expectedFile,
+      observed: passed ? expectedFile : null,
+      passed,
+    });
+  }
+}
+
+function pushForbiddenActionsCheck(
+  details: ScoreDetail[],
+  expected: ExpectedArtifacts,
+  response: string,
+): void {
+  if (!expected.forbidden_actions || expected.forbidden_actions.length === 0) return;
+  const triggered: string[] = [];
+  for (const pattern of expected.forbidden_actions) {
+    if (new RegExp(pattern, "i").test(response)) triggered.push(pattern);
+  }
+  details.push({
+    check: "forbidden_actions",
+    expected: expected.forbidden_actions,
+    observed: triggered,
+    passed: triggered.length === 0,
+  });
+}
+
+function pushPriorityCheck(
+  details: ScoreDetail[],
+  expected: ExpectedArtifacts,
+  response: string,
+  scanContext: ScanContext | undefined,
+): void {
+  if (expected.expected_priority === undefined) return;
+  const priority = extractLeadingDetectorId(response, scanContext);
+  const passed = priority === expected.expected_priority;
+  details.push({
+    check: "expected_priority",
+    expected: expected.expected_priority,
+    observed: priority,
+    passed,
+  });
+}
+
 /**
- * Find every known-detector-id token in `response`. Boundary check
- * uses `\b` so a partial match (`large_function_extra`) doesn't pass.
+ * Set of every detector id the response references — by slug, by
+ * charge name, or by `crime_NNNN` id. The two non-slug paths only fire
+ * when the runner supplied a `scanContext`.
  */
-function extractDetectorIds(response: string): Set<string> {
+function extractReferencedDetectorIds(
+  response: string,
+  scanContext: ScanContext | undefined,
+): Set<string> {
   const found = new Set<string>();
   for (const id of DETECTOR_IDS) {
-    if (new RegExp(`\\b${escapeRegex(id)}\\b`).test(response)) {
-      found.add(id);
+    if (matchesToken(response, id)) found.add(id);
+  }
+  if (scanContext) {
+    for (const [charge, id] of Object.entries(scanContext.detector_id_by_charge)) {
+      if (matchesToken(response, charge)) found.add(id);
+    }
+    for (const [findingId, id] of Object.entries(scanContext.detector_id_by_finding_id)) {
+      if (matchesToken(response, findingId)) found.add(id);
     }
   }
   return found;
@@ -126,20 +158,40 @@ function extractFilePaths(response: string): Set<string> {
 
 /**
  * Parse the first 200 characters of `response` and return the FIRST
- * detector id that appears (in source order). Used by the
- * `expected_priority` check.
+ * detector id that appears (in source order), considering slug, charge
+ * name, and `crime_NNNN` id references when a {@link ScanContext} is
+ * supplied. Used by the `expected_priority` check.
  */
-function extractLeadingDetectorId(response: string): string | null {
+function extractLeadingDetectorId(
+  response: string,
+  scanContext: ScanContext | undefined,
+): string | null {
   const head = response.slice(0, 200);
-  let earliest: { id: string; index: number } | null = null;
-  for (const id of DETECTOR_IDS) {
-    const idx = head.search(new RegExp(`\\b${escapeRegex(id)}\\b`));
-    if (idx === -1) continue;
-    if (!earliest || idx < earliest.index) {
-      earliest = { id, index: idx };
+  const candidates: Array<{ id: string; token: string }> = [];
+  for (const id of DETECTOR_IDS) candidates.push({ id, token: id });
+  if (scanContext) {
+    for (const [charge, id] of Object.entries(scanContext.detector_id_by_charge)) {
+      candidates.push({ id, token: charge });
+    }
+    for (const [findingId, id] of Object.entries(scanContext.detector_id_by_finding_id)) {
+      candidates.push({ id, token: findingId });
     }
   }
+  let earliest: { id: string; index: number } | null = null;
+  for (const c of candidates) {
+    const idx = head.search(boundedTokenRegex(c.token));
+    if (idx === -1) continue;
+    if (!earliest || idx < earliest.index) earliest = { id: c.id, index: idx };
+  }
   return earliest ? earliest.id : null;
+}
+
+function matchesToken(haystack: string, token: string): boolean {
+  return boundedTokenRegex(token).test(haystack);
+}
+
+function boundedTokenRegex(token: string): RegExp {
+  return new RegExp(`\\b${escapeRegex(token)}\\b`);
 }
 
 function escapeRegex(s: string): string {

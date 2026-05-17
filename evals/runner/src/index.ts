@@ -11,6 +11,7 @@ import { invokeClaude } from "./agents/claude.js";
 import { invokeCodex } from "./agents/codex.js";
 import type { AgentRunResult } from "./agents/claude.js";
 import { runJudge } from "./judge.js";
+import { buildScanContext, runScan } from "./scan-helpers.js";
 import { scoreStructural } from "./score.js";
 import type {
   FixtureRegistryEntry,
@@ -32,7 +33,6 @@ const FIXTURES_REGISTRY = resolve(
 );
 const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
 const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
-const CLI_DIST = resolve(REPO_ROOT, "packages", "cli", "dist", "index.js");
 
 const AGENTS = ["claude", "codex"] as const;
 type Agent = (typeof AGENTS)[number];
@@ -43,65 +43,32 @@ interface CliFlags {
   scenario?: ScenarioKind;
   judge: boolean;
   bail: boolean;
+  concurrency: number;
+}
+
+interface WorkItem {
+  scenario: Scenario;
+  fixture: FixtureRegistryEntry;
+  agent: Agent;
+}
+
+interface Tally {
+  total: number;
+  passByAgent: Map<string, number>;
+  totalByAgent: Map<string, number>;
+  passByAgentKind: Map<string, number>;
+  totalByAgentKind: Map<string, number>;
 }
 
 async function main(): Promise<void> {
   const flags = parseFlags(process.argv.slice(2));
+  const ctx = await loadRunContext(flags);
+  if (!ctx) return;
 
-  if (!existsSync(FIXTURES_REGISTRY)) {
-    process.stdout.write(
-      `evals: ${FIXTURES_REGISTRY} not found — run \`pnpm run evals:setup\` first.\n`,
-    );
-    return;
-  }
-  const registry = JSON.parse(
-    readFileSync(FIXTURES_REGISTRY, "utf8"),
-  ) as FixturesRegistry;
-  const allScenarios = loadScenarios();
-
-  if (registry.fixtures.length === 0 || allScenarios.length === 0) {
-    process.stdout.write(
-      "evals: nothing to run (registry or scenarios empty).\n",
-    );
-    return;
-  }
-
-  // Required agents based on flags. Default: both. Filter by --agent.
-  const requestedAgents: Agent[] = flags.agent ? [flags.agent] : [...AGENTS];
-
-  // Detect missing CLIs at startup; skip agents that aren't available.
-  const usableAgents: Agent[] = [];
-  for (const agent of requestedAgents) {
-    if (await hasCommand(agent)) {
-      usableAgents.push(agent);
-    } else {
-      process.stderr.write(
-        `evals: \`${agent}\` CLI not found on PATH — skipping ${agent} runs. ` +
-          `Install it and re-authenticate, then re-run.\n`,
-      );
-    }
-  }
-  if (usableAgents.length === 0) {
-    process.stderr.write(
-      "evals: no agent CLIs available. Install `claude` and/or `codex` and retry.\n",
-    );
-    process.exit(2);
-    return;
-  }
-
-  // Filter fixtures / scenarios by flags.
-  const fixturesToRun = registry.fixtures.filter(
-    (f) => !flags.fixture || f.id === flags.fixture,
-  );
-  const scenariosToRun = allScenarios.filter((s) => {
-    if (flags.scenario && s.kind !== flags.scenario) return false;
-    return fixturesToRun.some((f) => f.id === s.fixture);
-  });
-
-  if (scenariosToRun.length === 0) {
-    process.stdout.write(
-      "evals: no scenarios match the supplied filters.\n",
-    );
+  const { fixturesToRun, scenariosToRun, usableAgents } = ctx;
+  const items = buildWorkItems(fixturesToRun, scenariosToRun, usableAgents);
+  if (items.length === 0) {
+    process.stdout.write("evals: no scenarios match the supplied filters.\n");
     return;
   }
 
@@ -109,20 +76,99 @@ async function main(): Promise<void> {
   const outDir = resolve(RESULTS_DIR, crimesVersion);
   mkdirSync(outDir, { recursive: true });
 
-  const summary = {
-    crimes_version: crimesVersion,
-    total_scenarios: 0,
-    per_agent: {} as Record<string, { structural_pass_rate: number; scenarios_run: number }>,
-    per_scenario_kind: {} as Record<ScenarioKind, Record<string, number>>,
-  };
-  const passByAgent = new Map<string, number>();
-  const totalByAgent = new Map<string, number>();
-  const passByAgentKind = new Map<string, number>();
-  const totalByAgentKind = new Map<string, number>();
+  const scanCache = new Map<string, Promise<string>>();
+  const tally = createTally();
+  let completed = 0;
 
-  let runCount = 0;
-  for (const scenario of scenariosToRun) {
-    const fixture = fixturesToRun.find((f) => f.id === scenario.fixture);
+  await runPool(items, flags.concurrency, async (item) => {
+    const seq = ++completed;
+    process.stdout.write(
+      `evals: [${seq}/${items.length}] ${item.agent} × ${item.scenario.id} (${item.fixture.name})\n`,
+    );
+    try {
+      await processOne({ item, scanCache, flags, outDir, crimesVersion, tally });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `evals: ${item.agent} × ${item.scenario.id} failed: ${message}\n`,
+      );
+      if (flags.bail) throw err;
+    }
+  });
+
+  const summary = buildSummary(crimesVersion, scenariosToRun, usableAgents, tally);
+  await writeJsonAtomic(resolve(outDir, "summary.json"), summary);
+  process.stdout.write(
+    `\nevals: done. ${tally.total} run × scenario combinations.\n` +
+      `Results: ${outDir}\n`,
+  );
+}
+
+interface RunContext {
+  fixturesToRun: FixtureRegistryEntry[];
+  scenariosToRun: Scenario[];
+  usableAgents: Agent[];
+}
+
+async function loadRunContext(flags: CliFlags): Promise<RunContext | null> {
+  if (!existsSync(FIXTURES_REGISTRY)) {
+    process.stdout.write(
+      `evals: ${FIXTURES_REGISTRY} not found — run \`pnpm run evals:setup\` first.\n`,
+    );
+    return null;
+  }
+  const registry = JSON.parse(
+    readFileSync(FIXTURES_REGISTRY, "utf8"),
+  ) as FixturesRegistry;
+  const allScenarios = loadScenarios();
+  if (registry.fixtures.length === 0 || allScenarios.length === 0) {
+    process.stdout.write("evals: nothing to run (registry or scenarios empty).\n");
+    return null;
+  }
+
+  const requestedAgents: Agent[] = flags.agent ? [flags.agent] : [...AGENTS];
+  const usableAgents = await filterAvailableAgents(requestedAgents);
+  if (usableAgents.length === 0) {
+    process.stderr.write(
+      "evals: no agent CLIs available. Install `claude` and/or `codex` and retry.\n",
+    );
+    process.exit(2);
+    return null;
+  }
+
+  const fixturesToRun = registry.fixtures.filter(
+    (f) => !flags.fixture || f.id === flags.fixture,
+  );
+  const scenariosToRun = allScenarios.filter((s) => {
+    if (flags.scenario && s.kind !== flags.scenario) return false;
+    return fixturesToRun.some((f) => f.id === s.fixture);
+  });
+  return { fixturesToRun, scenariosToRun, usableAgents };
+}
+
+async function filterAvailableAgents(requested: Agent[]): Promise<Agent[]> {
+  const usable: Agent[] = [];
+  for (const agent of requested) {
+    if (await hasCommand(agent)) {
+      usable.push(agent);
+    } else {
+      process.stderr.write(
+        `evals: \`${agent}\` CLI not found on PATH — skipping ${agent} runs. ` +
+          `Install it and re-authenticate, then re-run.\n`,
+      );
+    }
+  }
+  return usable;
+}
+
+function buildWorkItems(
+  fixtures: FixtureRegistryEntry[],
+  scenarios: Scenario[],
+  agents: Agent[],
+): WorkItem[] {
+  const items: WorkItem[] = [];
+  for (const scenario of scenarios) {
+    const fixture = fixtures.find((f) => f.id === scenario.fixture);
     if (!fixture) continue;
     const fixtureDir = resolve(REPO_ROOT, fixture.path);
     if (!existsSync(fixtureDir)) {
@@ -131,107 +177,167 @@ async function main(): Promise<void> {
       );
       continue;
     }
-    const scanJson = await runScan(fixtureDir);
+    for (const agent of agents) items.push({ scenario, fixture, agent });
+  }
+  return items;
+}
 
-    for (const agent of usableAgents) {
-      runCount += 1;
-      process.stdout.write(
-        `evals: [${runCount}] ${agent} × ${scenario.id} (${fixture.name})\n`,
-      );
-      const runId = randomUUID();
-      let agentResult: AgentRunResult;
-      try {
-        agentResult = await invokeAgent(agent, scenario, scanJson);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(
-          `evals: ${agent} × ${scenario.id} failed: ${message}\n`,
-        );
-        if (flags.bail) process.exit(1);
-        continue;
-      }
-      const structural = scoreStructural(
-        agentResult.response,
-        scenario.expected_artifacts,
-      );
-      const result: ScoreResult = {
-        scenario: scenario.id,
-        agent,
-        crimes_version: crimesVersion,
-        timestamp: new Date().toISOString(),
-        run_id: runId,
-        response: agentResult.response,
-        structural_score: structural,
-      };
+interface ProcessOneArgs {
+  item: WorkItem;
+  scanCache: Map<string, Promise<string>>;
+  flags: CliFlags;
+  outDir: string;
+  crimesVersion: string;
+  tally: Tally;
+}
 
-      if (flags.judge) {
-        try {
-          const judge = await runJudge({
-            scenario,
-            response: agentResult.response,
-          });
-          if (judge) result.judge_score = judge;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          process.stderr.write(
-            `evals: judge pass failed for ${scenario.id} — ${message}\n`,
-          );
-        }
-      }
+async function processOne(args: ProcessOneArgs): Promise<void> {
+  const { item, scanCache, flags, outDir, crimesVersion, tally } = args;
+  const fixtureDir = resolve(REPO_ROOT, item.fixture.path);
+  const scanJson = await getCachedScan(scanCache, fixtureDir);
+  const scanContext = buildScanContext(scanJson);
 
-      // Tally for summary.
-      summary.total_scenarios += 1;
-      const all = structural.passed + structural.failed;
-      passByAgent.set(agent, (passByAgent.get(agent) ?? 0) + structural.passed);
-      totalByAgent.set(agent, (totalByAgent.get(agent) ?? 0) + all);
-      const kindKey = `${scenario.kind}::${agent}`;
-      passByAgentKind.set(
-        kindKey,
-        (passByAgentKind.get(kindKey) ?? 0) + structural.passed,
-      );
-      totalByAgentKind.set(
-        kindKey,
-        (totalByAgentKind.get(kindKey) ?? 0) + all,
-      );
+  const agentResult = await invokeAgent(item.agent, item.scenario, scanJson);
+  const structural = scoreStructural(
+    agentResult.response,
+    item.scenario.expected_artifacts,
+    scanContext,
+  );
 
-      const agentDir = resolve(outDir, agent);
-      mkdirSync(agentDir, { recursive: true });
-      await writeJsonAtomic(
-        resolve(agentDir, `${scenario.id}.json`),
-        result,
+  const result: ScoreResult = {
+    scenario: item.scenario.id,
+    agent: item.agent,
+    crimes_version: crimesVersion,
+    timestamp: new Date().toISOString(),
+    run_id: randomUUID(),
+    response: agentResult.response,
+    scan_context: scanContext,
+    structural_score: structural,
+  };
+
+  if (flags.judge) {
+    try {
+      const judge = await runJudge({ scenario: item.scenario, response: agentResult.response });
+      if (judge) result.judge_score = judge;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `evals: judge pass failed for ${item.scenario.id} — ${message}\n`,
       );
     }
   }
 
-  // Build summary.json.
-  for (const agent of usableAgents) {
-    const total = totalByAgent.get(agent) ?? 0;
-    const pass = passByAgent.get(agent) ?? 0;
-    summary.per_agent[agent] = {
+  updateTally(tally, item, structural);
+  const agentDir = resolve(outDir, item.agent);
+  mkdirSync(agentDir, { recursive: true });
+  await writeJsonAtomic(resolve(agentDir, `${item.scenario.id}.json`), result);
+}
+
+function getCachedScan(
+  cache: Map<string, Promise<string>>,
+  fixtureDir: string,
+): Promise<string> {
+  let existing = cache.get(fixtureDir);
+  if (!existing) {
+    existing = runScan(fixtureDir);
+    cache.set(fixtureDir, existing);
+  }
+  return existing;
+}
+
+function createTally(): Tally {
+  return {
+    total: 0,
+    passByAgent: new Map(),
+    totalByAgent: new Map(),
+    passByAgentKind: new Map(),
+    totalByAgentKind: new Map(),
+  };
+}
+
+function updateTally(
+  tally: Tally,
+  item: WorkItem,
+  structural: { passed: number; failed: number },
+): void {
+  tally.total += 1;
+  const all = structural.passed + structural.failed;
+  tally.passByAgent.set(item.agent, (tally.passByAgent.get(item.agent) ?? 0) + structural.passed);
+  tally.totalByAgent.set(item.agent, (tally.totalByAgent.get(item.agent) ?? 0) + all);
+  const kindKey = `${item.scenario.kind}::${item.agent}`;
+  tally.passByAgentKind.set(kindKey, (tally.passByAgentKind.get(kindKey) ?? 0) + structural.passed);
+  tally.totalByAgentKind.set(kindKey, (tally.totalByAgentKind.get(kindKey) ?? 0) + all);
+}
+
+function buildSummary(
+  crimesVersion: string,
+  scenarios: Scenario[],
+  agents: Agent[],
+  tally: Tally,
+): Record<string, unknown> {
+  const perAgent: Record<string, { structural_pass_rate: number; scenarios_run: number }> = {};
+  for (const agent of agents) {
+    const total = tally.totalByAgent.get(agent) ?? 0;
+    const pass = tally.passByAgent.get(agent) ?? 0;
+    perAgent[agent] = {
       structural_pass_rate: total === 0 ? 0 : round(pass / total),
-      scenarios_run: scenariosToRun.length,
+      scenarios_run: scenarios.length,
     };
   }
-  for (const scenario of scenariosToRun) {
+  const perKind: Record<ScenarioKind, Record<string, number>> = {} as Record<
+    ScenarioKind,
+    Record<string, number>
+  >;
+  for (const scenario of scenarios) {
     const kind = scenario.kind as ScenarioKind;
-    if (!summary.per_scenario_kind[kind]) summary.per_scenario_kind[kind] = {};
-    for (const agent of usableAgents) {
+    if (!perKind[kind]) perKind[kind] = {};
+    for (const agent of agents) {
       const key = `${kind}::${agent}`;
-      const total = totalByAgentKind.get(key) ?? 0;
-      const pass = passByAgentKind.get(key) ?? 0;
-      summary.per_scenario_kind[kind][agent] = total === 0 ? 0 : round(pass / total);
+      const total = tally.totalByAgentKind.get(key) ?? 0;
+      const pass = tally.passByAgentKind.get(key) ?? 0;
+      perKind[kind][agent] = total === 0 ? 0 : round(pass / total);
     }
   }
-  await writeJsonAtomic(resolve(outDir, "summary.json"), summary);
+  return {
+    crimes_version: crimesVersion,
+    total_scenarios: tally.total,
+    per_agent: perAgent,
+    per_scenario_kind: perKind,
+  };
+}
 
-  process.stdout.write(
-    `\nevals: done. ${summary.total_scenarios} run × scenario combinations.\n` +
-      `Results: ${outDir}\n`,
-  );
+/**
+ * Minimal promise pool: schedules at most `concurrency` `worker` calls in
+ * flight at a time. Each worker is called with the work item; rejected
+ * workers abort future scheduling but in-flight workers still drain.
+ */
+async function runPool<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  const lanes = Math.max(1, Math.min(concurrency, items.length));
+  let cursor = 0;
+  let aborted = false;
+  const launch = async (): Promise<void> => {
+    while (!aborted) {
+      const idx = cursor++;
+      if (idx >= items.length) return;
+      try {
+        await worker(items[idx]!);
+      } catch {
+        aborted = true;
+        return;
+      }
+    }
+  };
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < lanes; i += 1) workers.push(launch());
+  await Promise.all(workers);
 }
 
 function parseFlags(args: string[]): CliFlags {
-  const flags: CliFlags = { judge: false, bail: false };
+  const flags: CliFlags = { judge: false, bail: false, concurrency: 4 };
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i]!;
     if (arg === "--judge") flags.judge = true;
@@ -259,6 +365,14 @@ function parseFlags(args: string[]): CliFlags {
         );
         process.exit(2);
       }
+    } else if (arg === "--concurrency") {
+      const raw = args[++i];
+      const value = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
+      if (!Number.isInteger(value) || value < 1) {
+        process.stderr.write("evals: --concurrency must be a positive integer\n");
+        process.exit(2);
+      }
+      flags.concurrency = value;
     } else if (arg.startsWith("--")) {
       process.stderr.write(`evals: unknown flag ${arg}\n`);
       process.exit(2);
@@ -294,13 +408,6 @@ async function hasCommand(command: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function runScan(fixtureDir: string): Promise<string> {
-  const { stdout } = await execFileAsync("node", [CLI_DIST, "scan", fixtureDir, "--format", "json"], {
-    maxBuffer: 1024 * 1024 * 32,
-  });
-  return stdout;
 }
 
 async function readCrimesVersion(): Promise<string> {

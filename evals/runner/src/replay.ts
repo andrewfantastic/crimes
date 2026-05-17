@@ -3,13 +3,25 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildScanContext, runScan } from "./scan-helpers.js";
 import { scoreStructural } from "./score.js";
-import type { Scenario, ScoreResult } from "./types.js";
+import type {
+  FixturesRegistry,
+  ScanContext,
+  Scenario,
+  ScoreResult,
+} from "./types.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..", "..");
 const RESULTS_DIR = resolve(REPO_ROOT, "evals", "results");
 const SCENARIOS_DIR = resolve(REPO_ROOT, "evals", "scenarios");
+const FIXTURES_REGISTRY = resolve(
+  REPO_ROOT,
+  "evals",
+  "fixtures",
+  "fixtures.meta.json",
+);
 const REPLAY_DIR = resolve(REPO_ROOT, "evals", "replay");
 
 /**
@@ -36,9 +48,13 @@ async function main(): Promise<void> {
 
   const scenarios = loadScenarios();
   const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
+  const fixtureDirById = loadFixtureDirMap();
 
   const versionDir = resolve(RESULTS_DIR, latest.version);
   const replayCrimesVersion = await readCrimesVersion();
+  // Memoize re-derived scan contexts per fixture — only used as a
+  // fallback when a stored result predates `scan_context`.
+  const scanContextCache = new Map<string, Promise<ScanContext | null>>();
 
   let count = 0;
   for (const agentEntry of readdirSync(versionDir, { withFileTypes: true })) {
@@ -60,9 +76,13 @@ async function main(): Promise<void> {
         );
         continue;
       }
+      const scanContext =
+        stored.scan_context ??
+        (await deriveScanContext(scenario, fixtureDirById, scanContextCache));
       const structural = scoreStructural(
         stored.response,
         scenario.expected_artifacts,
+        scanContext ?? undefined,
       );
       const replayed: ScoreResult = {
         scenario: stored.scenario,
@@ -73,6 +93,7 @@ async function main(): Promise<void> {
         response: stored.response,
         structural_score: structural,
       };
+      if (scanContext) replayed.scan_context = scanContext;
       if (stored.judge_score) replayed.judge_score = stored.judge_score;
 
       const outDir = resolve(REPLAY_DIR, agentName);
@@ -111,6 +132,50 @@ function compareSemverDesc(a: string, b: string): number {
     if (av !== bv) return bv - av;
   }
   return 0;
+}
+
+function loadFixtureDirMap(): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!existsSync(FIXTURES_REGISTRY)) return out;
+  try {
+    const registry = JSON.parse(
+      readFileSync(FIXTURES_REGISTRY, "utf8"),
+    ) as FixturesRegistry;
+    for (const f of registry.fixtures) out.set(f.id, resolve(REPO_ROOT, f.path));
+  } catch {
+    // surfaced by the runner already; ignore here
+  }
+  return out;
+}
+
+/**
+ * Fallback path for result files written before `scan_context` shipped.
+ * Re-runs `crimes scan` on the scenario's fixture so the scorer can do
+ * charge-name and `crime_NNNN` lookups even when scoring legacy results.
+ * Returns null when the fixture is gone (e.g. setup hasn't run) — the
+ * scorer then degrades to slug-only matching.
+ */
+async function deriveScanContext(
+  scenario: Scenario,
+  fixtureDirById: Map<string, string>,
+  cache: Map<string, Promise<ScanContext | null>>,
+): Promise<ScanContext | null> {
+  const fixtureDir = fixtureDirById.get(scenario.fixture);
+  if (!fixtureDir || !existsSync(fixtureDir)) return null;
+  let pending = cache.get(fixtureDir);
+  if (!pending) {
+    pending = runScan(fixtureDir)
+      .then((json) => buildScanContext(json))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(
+          `evals:replay: could not re-scan ${fixtureDir} for scan_context — ${message}\n`,
+        );
+        return null;
+      });
+    cache.set(fixtureDir, pending);
+  }
+  return pending;
 }
 
 function loadScenarios(): Scenario[] {
