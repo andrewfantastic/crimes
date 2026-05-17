@@ -22,42 +22,56 @@ Per-version results land in `results/<crimes-version>/<agent>/`,
 committed to the repo. Subsequent releases compare against the pinned
 results to catch detector-tuning regressions.
 
-## Versioning policy (calibration bumps)
+## Versioning policy (eval baseline bumps)
 
 The runner keys results by the `version` field of
-`packages/cli/package.json`. That version doubles as the **rubric
-version**: any change that moves pass rates *without* changing the
-product the agent is reasoning about gets a patch bump, even if no
-release is cut.
+`packages/cli/package.json`. That version doubles as the **eval
+baseline version**. Between releases we're in continuous improvement:
+any change that would move the eval baseline gets a patch bump,
+without cutting a release.
 
-Changes that trigger a calibration bump:
+Two kinds of change trigger a baseline bump:
+
+**Calibration changes** (measurement apparatus):
 
 - `evals/runner/src/score.ts` — structural scoring logic.
 - `evals/runner/src/judge.ts` and any judge prompts.
 - A scenario's `expected_artifacts` rubric in `evals/scenarios/*.json`.
 - A fixture whose finding set changes (`evals/fixtures/*`).
 
-Changes that do **not** trigger one (they bump for product reasons
-anyway when they release):
+**Product changes that affect findings** (what crimes produces):
 
-- Detector code in `packages/core/` or `packages/language-js/`.
-- CLI output, config, docs.
+- New detectors, detector bug fixes that change what fires.
+- Scoring formula tweaks (`packages/core/src/scoring/*`).
+- Anything in `packages/core/` / `packages/language-js/` that changes
+  the contents of `findings[]` for the same input code.
+
+Changes that do **not** trigger a bump:
+
+- CLI output formatting (human renderer changes that don't alter
+  `--format json` content).
+- Docs, comments, tests, internal refactors.
 
 The procedure:
 
-1. Land the calibration change.
+1. Land the change.
 2. Bump `packages/cli/package.json` `version` to the next patch in the
    **same commit** as the change.
 3. Re-run `pnpm run evals` so the new baseline lands in
    `results/<new-version>/`. Commit the directory alongside.
 4. Do **not** add a Changeset entry, do **not** publish, do **not** cut
-   a git tag — calibration bumps exist purely to redirect the results
-   directory and preserve historical baselines.
+   a git tag — patch bumps in continuous-improvement mode exist purely
+   to redirect the results directory and preserve historical baselines.
 
-The first calibration bump after a real release will usually show a
-pass-rate delta that is a measurement correction, not a quality
-improvement. Say so in the commit message — future readers shouldn't
-mistake a scorer fix for an agent improvement.
+When we're ready to ship, cut a real semver release (minor for new
+features, major for breaking changes). The accumulated patch bumps
+roll into that release version.
+
+A baseline delta can be a **measurement correction** (a scorer or
+fixture fix moved numbers without changing the product) or a **product
+delta** (a detector started or stopped firing). Distinguish the two in
+the commit message — future readers shouldn't confuse a scorer fix
+with an agent improvement, or a detector bug fix with a regression.
 
 ## Why it's not in CI as a fresh-agent runner
 

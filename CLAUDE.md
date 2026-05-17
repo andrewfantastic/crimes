@@ -93,21 +93,26 @@ Deferred to v0.2: `tests`, `baseline save`, `ignore`. Deferred to v1+: `ask`, `p
 - Binary is `crimes` (`bin.crimes` in `packages/cli/package.json`).
 - `npx crimes scan` is the canonical first-run command in all docs.
 
-## Eval calibration version bumps
+## Eval baseline version bumps
 
 The `packages/cli/package.json` `version` field doubles as the eval
-**rubric version** — the runner writes results to
-`evals/results/<version>/`. Any change that moves eval pass rates
-without changing the product (scoring logic in
-`evals/runner/src/score.ts`, judge prompts in `judge.ts`, scenario
-`expected_artifacts`, fixture finding sets) gets a **patch bump in the
-same commit**, with **no release / no Changeset / no tag**. Re-run
-`pnpm run evals` so the new baseline lands in the new directory and
-commit it alongside. Full rule and rationale in
-[`evals/README.md` § Versioning policy](evals/README.md).
+**baseline version** — the runner writes results to
+`evals/results/<version>/`. Between releases we're in continuous
+improvement: any change that would move the eval baseline — whether
+it's a **calibration change** (scoring logic, judge prompts, scenario
+rubrics, fixture finding sets) or a **product change** that affects
+findings (detector fixes, new detectors, scoring formula tweaks) —
+gets a **patch bump in the same commit**, with **no release / no
+Changeset / no tag**. Re-run `pnpm run evals` so the new baseline
+lands in the new directory and commit it alongside.
 
-When the first delta after a real release is a measurement correction
-rather than a quality improvement, say so in the commit message.
+We cut a real semver release (minor for new features, major for
+breaking changes) when we're ready to ship — at which point the
+accumulated patch bumps roll into the release version. Full rule and
+rationale in [`evals/README.md` § Versioning policy](evals/README.md).
+
+When a delta is a measurement correction rather than a quality
+improvement (or vice versa), say so in the commit message.
 
 ## Open questions (from PRD §26)
 
