@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:33:30.651Z",
+  "run_id": "327aee7b-79f1-41e1-acdb-15bd4b0cf0ea",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3925-1ab1-7721-99b5-ae9ec3cc6fb6\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Most likely cause: `crime_00004` / `direct_date` in [src/billing.ts](src/billing.ts). The billing path reads wall-clock time directly in `generateInvoice` (`Date.now()` / `new Date()` on lines 57, 63, 92, 198, 238, 250) and elsewhere around line 273. That is exactly the kind of risk factor that creates date-boundary flakes: one branch may calculate period start/end, due dates, proration, or invoice timestamps using slightly different “now” values if the test runs across midnight, month-end, DST, or timezone boundaries.\\n\\nSecondary risk: `generateInvoice` is a 204-line god function, so the date logic is probably mixed with invoice construction, discounts, reminders, and status handling. That makes it easy for one hidden `Date.now()` to survive even if a test pins another date input.\\n\\nProposed fix: inject a single clock value into billing logic and derive all invoice dates from that one instant.\\n\\n```ts\\ntype Clock = {\\n  now(): Date;\\n};\\n\\nconst systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n\\nexport function generateInvoice(input: GenerateInvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // use `now` everywhere in this invoice calculation\\n  // avoid Date.now() / new Date() inside the function body\\n}\\n```\\n\\nThen update tests to pass a fixed clock:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-31T12:00:00.000Z\\\"),\\n};\\n\\nconst invoice = generateInvoice(input, fixedClock);\\n```\\n\\nThe important part is not just “mock Date”; it is making `generateInvoice` observe time once, explicitly. That removes the date-boundary race and gives tests a stable fixture for month-end/timezone cases.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":431,\"reasoning_output_tokens\":40}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

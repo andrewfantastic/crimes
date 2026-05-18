@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:35:57.532Z",
+  "run_id": "a590f03e-c1ba-49cc-ba31-e5152547226e",
+  "response": "## Confirmed duplication\n\nThe crimes scan output matches what's in the files:\n\n- **`src/sanitize-a.ts:10-36` `sanitizeUserInput`**, **`src/sanitize-b.ts:9-35` `sanitizeText`**, **`src/sanitize-c.ts:9-35` `cleanMessage`** — byte-identical apart from local-variable renaming (`working` / `cleaned` / `normalised`) and the exported function name. Same null guard, same `String().trim()`, same control-char strip, same 1000-char cap, same `<`/`>` and `\\x` early-outs, same `[!?]{3,}` punctuation gate, same caps-ratio downcasing. There is no behavioural divergence to preserve.\n\n## Refactor proposal\n\n**Consolidated module:** `src/sanitize.ts`\n\n```ts\nexport function sanitize(input: unknown): string {\n  if (input === null || input === undefined) return \"\";\n  let working = String(input).trim();\n  working = working.replace(/[\\x00-\\x1f]/g, \"\");      // same intent as the existing [ -] strip\n  working = working.replace(/\\s+/g, \" \");\n  if (working.length > 1000) working = working.slice(0, 1000);\n  if (working.length === 0) return \"\";\n  if (working.startsWith(\"<\") || working.startsWith(\">\")) return \"\";\n  if (working.includes(\"\\\\x\")) return \"\";\n  if ((working.match(/[!?]{3,}/g) ?? []).length > 5) return \"\";\n  const upperRatio =\n    working.replace(/[^A-Z]/g, \"\").length /\n    (working.replace(/\\s/g, \"\").length || 1);\n  if (upperRatio > 0.9 && working.length > 30) working = working.toLowerCase();\n  return working;\n}\n```\n\nNotes on the signature:\n- `input: unknown` is honest — each variant accepts `null`/`undefined` at runtime despite the `(x: string)` type. Callers that pass strings still typecheck.\n- One exported name, `sanitize`. The three existing names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) are arbitrary aliases and should not survive as re-exports — that just re-creates the multiple-sources-of-truth problem the refactor exists to remove.\n\n## Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — contains `sanitize` |\n| `src/sanitize-a.ts` | **delete** (after migrating call sites of `sanitizeUserInput` → `sanitize`) |\n| `src/sanitize-b.ts` | **delete** (after migrating `sanitizeText` → `sanitize`) |\n| `src/sanitize-c.ts` | **delete** (after migrating `cleanMessage` → `sanitize`) |\n| any call site importing the three old names | update import path + name |\n\nThe fixture has no external call sites of these three sanitizers, so deletion is safe here; in a real repo, do the rename pass first and remove the old files in the same commit so search-and-replace stays atomic.\n\n## What the refactor deliberately does *not* consolidate\n\nThe scan also flagged two related items that look adjacent but should be handled separately, not folded into `sanitize`:\n\n1. **`assertAdminA/B/C`** (the `duplicated_role_status_plan_check` finding) — these have *different* semantics: A is `role === \"admin\"`, B widens to `|| \"owner\"`, C is the negation `role !== \"admin\"`. Collapsing them into one helper would silently change behaviour. The right move is a `src/policy.ts`-style module exposing distinct predicates (`isAdmin`, `isAdminOrOwner`, `isNotAdmin`), then migrate each call site to the predicate it actually wants. Out of scope for the sanitiser consolidation.\n2. **`recordSanitiseEvent`** in `telemetry-a.ts` / `telemetry-b.ts` (the `exact_duplicate_block` finding) — these are byte-identical and should collapse to a single `src/telemetry.ts`. That also resolves the two `Temporal Recklessness` findings against `Date.now()` to one location, where a `now: () => number` parameter can be injected.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

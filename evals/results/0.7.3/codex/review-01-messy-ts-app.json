@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:36:29.644Z",
+  "run_id": "c9de8960-6dc0-4be9-9853-34c7809675e6",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3927-9c0e-7ac1-8064-14b764faf98d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Review Finding**\\n\\nI would **block merge on 4 findings**, **warn on 14**, and **ignore/defer 4**. Rubric: block for `high`, or `medium` with `agent_risk >= 0.60` because this PR is introducing the whole repo from zero baseline.\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `large_function` in `src/billing.ts` | **Block merge** | `high`, `agent_risk: 0.63`. A 204-line domain function is the clearest merge blocker. |\\n| `crime_00002` `missing_agent_context` | **Block merge** | `medium`, `agent_risk: 0.61`. For an agent-risk tool fixture/repo, missing agent instructions are material. |\\n| `crime_00004` `direct_date` in `src/billing.ts` | **Warn** | `medium`, `agent_risk: 0.53`. Real testability risk, but below blocker threshold. |\\n| `crime_00005` `direct_date` in `src/date.ts` | **Block merge** | `medium`, `agent_risk: 0.61`. High enough risk, and `test_gap: 1` makes this brittle from day one. |\\n| `crime_00006` weak test signal | **Warn** | `medium`, `agent_risk: 0.46`. Bad test, but low enough risk to fix after merge if tracked. |\\n| `crime_00007` scattered `\\\"enterprise\\\"` literal | **Block merge** | `medium`, `agent_risk: 0.60`. Cross-area policy duplication is exactly the kind of drift that gets worse immediately. |\\n| `crime_00008` misleading `calculateRefundPreview` | **Warn** | `medium`, `agent_risk: 0.52`. Side-effect/name mismatch is risky, but scoped. |\\n| `crime_00009` tenant alias drift | **Warn** | `medium`, `agent_risk: 0.58`. Close to blocker, but docs/code vocabulary drift can be accepted with follow-up. |\\n| `crime_00010` large file | **Warn** | `medium`, `agent_risk: 0.50`. Borderline threshold overage; the large function is the real blocker. |\\n| `crime_00011` logic in comment | **Warn** | `medium`, `agent_risk: 0.50`. Should become a guard/test, but not merge-blocking alone. |\\n| `crime_00012` duplicated nav source | **Warn** | `medium`, `agent_risk: 0.57`. User-facing drift risk; track before more nav edits. |\\n| `crime_00013` TODO density in `src/todo.ts` | **Warn** | `medium`, `agent_risk: 0.57`. Very noisy file, but likely fixture-like/localized. |\\n| `crime_00014` route metadata drift | **Warn** | `medium`, `agent_risk: 0.56`. Product polish/navigation consistency risk, not a hard stop. |\\n| `crime_00015` stale docs link | **Warn** | `low`, `agent_risk: 0.51`. Low severity, but agent risk crosses 0.50 due to stale instructions. |\\n| `crime_00016` weak assertion | **Ignore** | `low`, `agent_risk: 0.34`. Too small to gate or warn heavily in this review. |\\n| `crime_00017` option bag | **Warn** | `low`, `agent_risk: 0.48`. Low severity, but `test_gap: 1`; worth tracking if this API grows. |\\n| `crime_00018` return shape roulette | **Warn** | `low`, `agent_risk: 0.48`. Low severity, but explicit return type would cheaply reduce ambiguity. |\\n| `crime_00019` negative flag maze | **Ignore** | `low`, `agent_risk: 0.47`. Minor readability concern. |\\n| `crime_00020` TODO density in `billing.ts` | **Ignore** | `low`, `agent_risk: 0.40`. Already covered by broader `billing.ts` findings. |\\n| `crime_00021` orphaned `/account/subscription` | **Warn** | `low`, `agent_risk: 0.46`. Low severity, but route reachability should be confirmed. |\\n| `crime_00022` orphaned `/team` | **Warn** | `low`, `agent_risk: 0.46`. Same route lifecycle concern. |\\n| `crime_00023` orphaned `/workspace/members` | **Warn** | `low`, `agent_risk: 0.46`. Same route lifecycle concern. |\\n\\nThe suppressed finding is not present in the findings list, so I would not categorize it from this output.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":12160,\"output_tokens\":1167,\"reasoning_output_tokens\":112}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:33:57.463Z",
+  "run_id": "c594521b-bfef-43cb-9fa0-9b2fa7c819be",
+  "response": "`crimes context src/add.ts` returned an empty report: `total: 0`, no high/medium/low findings. The repo (`09-clean-tiny`) has no detected structural, dependency, duplication, testability, or churn risks touching this file.\n\n**Safe to extend.** No god functions, deep nesting, circular deps, or churn hotspots flagged around `src/add.ts`. The fixture name (`clean-tiny`) is consistent with this — a small, clean module with nothing for the detectors to latch onto.\n\nCaveats worth noting:\n- Absence of findings ≠ absence of risk. Crimes flags *change risk* and *agent risk*, not correctness or design — a clean report means nothing reckless was detected, not that any edit is automatically sound.\n- The output is from a `scan` (`report_type: \"scan\"`), not a per-file `context` report. If you wanted the file-scoped context view with neighbors/imports/dependents, the `context` subcommand would surface that — but here there's nothing to surface anyway.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

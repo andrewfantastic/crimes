@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:35:45.390Z",
+  "run_id": "96c563c2-099a-4131-9ea9-e742f3cee814",
+  "response": "## Proposed refactor for `src/Card.tsx`\n\n```tsx\nimport styles from \"./Card.module.css\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  return (\n    <button type=\"button\" className={styles.card} onClick={onActivate}>\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </button>\n  );\n}\n```\n\n```css\n/* Card.module.css */\n.card {\n  width: 100%;\n  max-width: var(--size-card-max, 64rem);   /* was 800px hard cap */\n  padding: var(--space-6);\n  background: var(--color-surface-accent);  /* was #ff00aa */\n  color: var(--color-fg-default);           /* was #0a0a0a */\n  border: 1px solid var(--color-border);    /* was #cccccc */\n  box-shadow: var(--shadow-sm);             /* was 0 2px 4px rgb(0,0,0) */\n  outline-color: var(--color-focus-ring);   /* was #1a73e8 */\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 15rem;\n  gap: var(--space-4);\n}\n\n.body {\n  font-size: clamp(1rem, 1vw + 0.875rem, 1.125rem); /* was 18px fixed */\n  color: var(--color-fg-muted);\n}\n\n.sidebar { font-size: var(--font-size-sm); color: var(--color-fg-subtle); }\n\n@media (max-width: 40rem) {\n  .card { grid-template-columns: 1fr; }     /* collapse on mobile */\n}\n```\n\n### How each change maps to a finding\n\n| Finding | Change |\n|---|---|\n| **`accessible_interaction_risk`** (crime_00001) — `<div onClick>` is unreachable by keyboard/screen reader | Promoted the outer element to `<button type=\"button\">` with a named `onActivate` prop. Keyboard focus, Enter/Space activation, and accessible role come for free — no `role`/`tabIndex`/key-handler band-aid needed. |\n| **`design_token_escape`** (crime_00002) — 9 raw literals across color/px/rgb/shadow | Every literal replaced with a CSS custom property (`--color-*`, `--space-*`, `--shadow-*`). Future agents extending the component now have to *name* what they want, which makes drift visible in review. |\n| **`responsive_fragility`** (crime_00003) — `width: 800px`, `width: 720px`, `fontSize: 18px`, no `@media` | Outer `width: 800` → `width: 100%` + `max-width` in `rem`. Inner `width: 720` → `minmax(0, 1fr)` grid column. `fontSize: 18` → `clamp()` so it scales with viewport. Added an `@media (max-width: 40rem)` rule that collapses the sidebar so the layout works on phones. |\n\n### Notes on agent-risk impact\n\n- Replacing the `<div onClick>` with a `<button>` also removes a *silent* a11y trap an LLM is likely to copy-forward when adding a second clickable region — the new shape forces correct semantics by construction.\n- Moving styles out of inline `style={{}}` into a CSS module means scoring will no longer keep tripping on this file every time someone tweaks a color; the detector's evidence surface drops to zero.\n- The new `onActivate` prop name is deliberately behavior-named rather than `onClick`, so the call site reads as an intent rather than a DOM event — easier for agents to wire to keyboard shortcuts later.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

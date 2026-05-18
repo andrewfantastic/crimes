@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:33:46.921Z",
+  "run_id": "67316652-6057-4d56-9f4a-9247f788848d",
+  "response": "**Most likely cause: `crime_00004` — Temporal Recklessness in `src/billing.ts`.**\n\n`generateInvoice` reads wall time 7 separate times (5× `Date.now()`, 2× `new Date()`) at lines 57, 63, 92, 198, 238, 250, 273. Across a 204-line function (`crime_00001`, God Function), those calls can straddle a boundary mid-execution — month rollover, DST shift, midnight UTC, year-end. Two reads that the author assumed were \"the same moment\" can land in different periods, producing inconsistent billing windows, prorations, or due dates. That's the classic profile of a test that passes 99% of the time and fails right at the boundary.\n\nThe supporting evidence in the report:\n- `crime_00006` — `\"renders the enterprise plan\"` has zero assertions, so the suite isn't actually pinning behaviour.\n- `crime_00016` — `\"creates an invoice\"` uses only weak matchers.\n- No clock abstraction exists (the same crime fires again in `src/date.ts`, `crime_00005`).\n\nSo tests are weak *and* the code depends on wall time. Flake is inevitable near boundaries.\n\n**Proposed fix (matches the finding's `inject_clock` action):**\n\n1. Introduce a `Clock` seam — `interface Clock { now(): Date }` — with a default `systemClock` and a `fixedClock(date)` for tests.\n2. Take it as a parameter (or module-level injected default) in `generateInvoice`. Replace every `Date.now()` / `new Date()` with **one** `const now = clock.now()` captured at the top of the function, then derive every period/cutoff from that single value. This kills the \"two reads, two moments\" bug class outright.\n3. Do the same refactor in `src/date.ts` so helpers don't sneak wall-time reads back in.\n4. Add a regression test with `fixedClock(new Date(\"2026-01-31T23:59:59.999Z\"))` (and one at a DST transition for the local-time path, if applicable). These are the boundaries the current suite can't express without monkey-patching.\n\nThe God Function and the missing assertions are real but secondary — they explain *why nobody caught this*, not *what's failing*. Fix the clock first; the extraction in `crime_00001` becomes easier once `now` is a single parameter instead of seven scattered reads.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

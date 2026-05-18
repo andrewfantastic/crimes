@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:33:41.056Z",
+  "run_id": "155ab951-fe13-406b-bf34-402c003a4064",
+  "response": "## Cycle and the break\n\nThe runtime cycle is:\n\n```\napplication/billing-flow.ts  →  domain/billing.ts  →  presentation/invoice-view.ts  →  application/billing-flow.ts\n```\n\n**Break the `domain → presentation` edge** — remove the `import { renderInvoice }` in `src/domain/billing.ts:2`.\n\n### Why that edge\n\nThree reasons, in priority order:\n\n1. **It's the only edge that's also wrong on its own.** crimes flagged it independently as a `layer_violation` (`domain cannotImport presentation`). The other two edges (`application → domain`, `presentation → application`) are at worst awkward, not architecturally invalid. Cutting this one resolves both findings (`crime_00001` and `crime_00002`) with one change.\n2. **Direction of change.** Domain is supposed to be the stable core; presentation depends on it, not the reverse. `chargeCustomer` calling `renderInvoice` is the inversion — the domain function is producing a rendered string, which is presentation's job.\n3. **Smallest blast radius.** `chargeCustomer` has one call site (`runBillingFlow`). Refactor: domain returns the charge result (e.g. `{ amount }` or just `amount`), and the caller in application — or presentation — formats it. No new shared module needed.\n\n### Minimal fix\n\n```ts\n// src/domain/billing.ts\nexport function chargeCustomer(amount: number): number {\n  return amount; // pure domain — no rendering\n}\n```\n\n```ts\n// src/application/billing-flow.ts — composes domain + presentation\nimport { chargeCustomer } from \"../domain/billing.js\";\nimport { renderInvoice } from \"../presentation/invoice-view.js\";\n\nexport function runBillingFlow(): string {\n  return renderInvoice(chargeCustomer(100));\n}\n```\n\n```ts\n// src/presentation/invoice-view.ts — no longer calls back into application\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\n```\n\nThat leaves a clean layering: `application → { domain, presentation }`, no cycle, no layer violation. The `deep_import` finding (`crime_00003`) is unrelated and stays — fix separately by using `some-pkg`'s public entry.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

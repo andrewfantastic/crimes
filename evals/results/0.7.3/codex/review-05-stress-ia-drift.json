@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:36:42.880Z",
+  "run_id": "9e4b3cdf-8b40-472b-bc0e-fd34ffcd8dce",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3928-1974-7223-b24c-6b6994274853\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n1. `src/nav.ts` - `concept_alias_drift` - medium  \\n   The tenant IA is split across `organisation`, `team`, and `workspace`, with each term backed by a route file. This is the main IA consistency issue because future edits may extend the wrong concept or create duplicate flows.\\n\\n   Recommendation: **blocking-quality if this branch is meant to ship IA/navigation changes**. Pick a canonical product term, document intentional aliases if any, and align `src/nav.ts`, `src/routes/*`, and `docs/routes.md`.\\n\\n2. `src/routes/billing-plans.ts` - `orphaned_destination` - low  \\n   `/billing-plans` is not reachable from nav, docs, or imports.\\n\\n   Recommendation: **follow-up**, unless billing plans are part of the intended user journey for this change. Link it from the relevant nav/docs or retire it.\\n\\n3. `src/routes/organisation.ts` - `orphaned_destination` - low  \\n   `/organisation` exists but is unreachable, while `organisation` also participates in the tenant alias drift.\\n\\n   Recommendation: **tie this to the blocking IA cleanup**. If `organisation` is not the canonical term, remove/redirect/rename it. If it is canonical, link it deliberately.\\n\\n4. `src/routes/workspace.ts` - `orphaned_destination` - low  \\n   `/workspace` exists but is unreachable, also part of the tenant alias drift.\\n\\n   Recommendation: **tie this to the blocking IA cleanup** for the same reason as `/organisation`.\\n\\nOverall: the standalone orphaned `/billing-plans` route is a low-risk follow-up. The tenant vocabulary drift across `organisation`, `team`, and `workspace` is the one I would treat as blocking for quality if this scenario is specifically testing IA consistency.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19607,\"cached_input_tokens\":12160,\"output_tokens\":406,\"reasoning_output_tokens\":32}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:34:58.364Z",
+  "run_id": "59e9ef7a-fc51-4530-9f1e-d92f51b60701",
+  "response": "# Triage plan — top 10\n\nOrdered by aggregate risk (agent_risk + severity), then grouped by detector category. No git-history or frontend findings cracked the top 10 (all churn=0 in this fixture; nav/route findings sit at #12–#14).\n\n## Structural (6)\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 1 | crime_00001 | God Function | `src/billing.ts:50-253` `generateInvoice` | **fix now** | 204-line function, highest agent_risk (0.63). Splitting it also collapses #9 (large_file) and de-risks #3 and #10. Do this first. |\n| 3 | crime_00005 | Temporal Recklessness | `src/date.ts:4-22` | **fix now** | This is `date.ts` itself — the file most likely to *become* the clock abstraction. Land a `now()`/clock interface here before touching billing. |\n| 5 | crime_00006 | Test That Proves Nothing | `src/billing.test.ts:4-6` | **fix now** | Zero asserts = false safety net while you refactor #1. Either assert behaviour or delete. ~5 min. |\n| 7 | crime_00008 | False Identity | `src/billing.ts:40-44` `calculateRefundPreview` | **fix now** | Misleading name + side effects — rename or extract the audit/email call. Cheap and unblocks safe edits to billing. |\n| 10 | crime_00011 | Logic in the Alibi | `src/billing.ts:39` | **fix now** | Hidden refund-permission rule in a comment. Encode as a guard before the surrounding code grows another caller. |\n| 4 | crime_00004 | Temporal Recklessness | `src/billing.ts:57-273` (7×) | **defer** | Same fix as #3, just larger surface. Defer until the clock abstraction from #3 exists, then sweep billing. |\n| 9 | crime_00010 | God File | `src/billing.ts` (310 LOC) | **defer** | Borderline (1.0× threshold) and resolves naturally once #1/#7 split out helpers. Re-scan after structural fixes; don't refactor twice. |\n\n## IA (2)\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 2 | crime_00002 | Missing Agent Context | repo root | **fix now** | Cheapest high-leverage fix in the report. A 1-page `AGENTS.md` documenting the `messy` bin and conventions removes a class of confident-wrong edits. Do alongside #1. |\n| 8 | crime_00009 | Concept Alias Drift | `tenant` group across 5 files | **defer** | Needs a product/design call (canonical term: tenant? account? workspace?). Don't rename until a human picks. Track as backlog. |\n\n## Duplication (1)\n\n| # | ID | Charge | File | Action | Why |\n|---|---|---|---|---|---|\n| 6 | crime_00007 | String Sprinkles | `\"enterprise\"` in 4 files | **fix now** | Domain literal scattered across api/billing/jobs/ui = duplicated policy waiting to drift. Land a `Plan` enum/constant before the next feature touches plans. |\n\n## Git-history (0)\n\nNo churn data in fixture — all findings show `churn: 0`. Nothing to triage from this category.\n\n## Frontend (0 in top 10)\n\nThe interesting frontend findings — `duplicated_navigation_source` (#12), `route_metadata_drift` (#14), three `orphaned_destination`s (#20–22) — all ranked below the top 10. They're worth a **second wave** after structural cleanup, because they're symptoms of the same `enterprise`/tenant vocabulary mess that #6 and #8 surface.\n\n## Suggested execution order\n\n1. **#2** (`AGENTS.md`) — 15 min, unblocks every later edit\n2. **#5** (clock test) and **#6** (`date.ts` abstraction) — paired commits\n3. **#1** (split `generateInvoice`) → naturally resolves #9 and #4\n4. **#7** (`calculateRefundPreview` rename) and **#10** (encode refund rule)\n5. **#6** (`Plan` constant)\n6. Re-scan, then revisit #8 with a human, and tackle the deferred frontend wave.\n\nNothing in the top 10 is **ignore**-grade — every finding has evidence and a cheap suggested action. The two `defer`s (#4, #8, #9) are blocked on upstream work or a design decision, not low confidence.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:35:07.007Z",
+  "run_id": "28bb33c6-9ed4-4d4d-9320-a6f4d2ec0556",
+  "response": "# Refactor plan — duplication consolidation\n\n**Important precondition (from reading the files):** the three \"admin\" guards look duplicate by scan but are **semantically distinct**:\n\n- `assertAdminA` → `role === \"admin\"`\n- `assertAdminB` → `role === \"admin\" || role === \"owner\"` (owner also passes)\n- `assertAdminC` → `role !== \"admin\"` (negation — true when *not* admin)\n\nCollapsing all three into one `isAdmin` would silently change behaviour in B and C. The plan preserves their meanings under clearer names.\n\nThe `policy.ts` trio (`canEditBilling`, `canSeeAuditLog`, `canImpersonate`) genuinely is the simple `role === \"admin\"` shape — those are safe to delegate.\n\n---\n\n## Step 1 — consolidate the sanitisers\n\n**Goal:** kill `crime_00002` (3-way near-duplicate body) without breaking call sites.\n\n1. Create `src/sanitize/core.ts` with a single exported function `sanitize(value: string): string` containing the shared 25-line body from sanitize-a/b/c (the `trim → replace → length-cap → leading-bracket → \\x → punctuation → upper-ratio` pipeline).\n2. Rewrite `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` so each one keeps its **public export name** (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) but the body is just `return sanitize(value)`. The admin-guard exports (`assertAdminA/B/C`) stay in place for now — they're handled in step 2.\n3. No call-site changes required: every import keeps working.\n\n**Verification:** import each wrapper in a small test, feed the inputs used in evidence (length>1000, leading `<`, `\\x`, punctuation>5, all-caps>30 chars) and assert identical output to the pre-refactor version.\n\n**Risk:** low. Bodies are byte-identical modulo variable names; wrappers preserve the API.\n\n---\n\n## Step 2 — consolidate the role checks\n\n**Goal:** kill `crime_00003` (`\"admin\"` literal across 4 files, 2 expression shapes) **without** flattening the three distinct semantics.\n\n1. Create `src/roles.ts` with three named predicates:\n   - `isAdmin(role)` → `role === \"admin\"`\n   - `hasElevatedAccess(role)` → `role === \"admin\" || role === \"owner\"`\n   - `isNonAdmin(role)` → `!isAdmin(role)`\n2. Rewrite `src/policy.ts`: each of `canEditBilling`, `canSeeAuditLog`, `canImpersonate` becomes `return isAdmin(role)`. This removes 4 of the 6 reported occurrences in one file.\n3. In each sanitise file, replace the local guard body with a one-liner delegation:\n   - `assertAdminA` → `return isAdmin(role)`\n   - `assertAdminB` → `return hasElevatedAccess(role)`\n   - `assertAdminC` → `return isNonAdmin(role)`\n   Keep the `assertAdminA/B/C` names exported so external callers don't break — they're now thin aliases.\n\n**Verification:** unit-test `roles.ts` with `\"admin\"`, `\"owner\"`, `\"viewer\"`, `\"\"`; spot-check `canEditBilling(\"admin\") === true` and `assertAdminB(\"owner\") === true` and `assertAdminC(\"admin\") === false` to prove B and C semantics survived.\n\n**Risk:** medium. The trap is treating B and C as duplicates of A — the named predicates exist specifically to prevent that.\n\n---\n\n## What this leaves behind (intentional)\n\n- `crime_00001` (telemetry-a/b exact duplicate) and `crime_00004/00005` (`Date.now()` in telemetry) are **out of scope** for this plan. They want a separate `telemetry/core.ts` + clock injection — sequencing them after the sanitise/role work avoids tangling four refactors into one PR.\n- After step 2, the next `crimes scan` should drop `crime_00002` and `crime_00003`; telemetry findings remain and become the next change set.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:34:20.870Z",
+  "run_id": "40717b71-9e3f-42ef-810f-b942cb44507d",
+  "response": "**No findings.** `risk.level: \"none\"`, `findings: []`, `total: 0`.\n\n**Likely tests:** `src/billing.test.ts`\n\n**Why this module is low risk to edit:**\n- Zero crimes on the file — no structural, dependency, duplication, testability, or history-based findings fired.\n- A colocated test file (`src/billing.test.ts`) already exists, so behaviour changes are catchable by re-running it.\n- `agent_guidance` is empty and `related_files` is empty — the report explicitly notes \"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\", i.e. the blast radius of an edit is contained to this one file.\n- No `agent_risk` flags to slow you down — nothing here is \"easy for an LLM to misread, duplicate, or break\".\n\nRead `src/billing.ts` and `src/billing.test.ts` before editing, then re-run the test after.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

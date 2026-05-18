@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:36:36.273Z",
+  "run_id": "097f3c55-a423-44ff-bcb8-09b6759cc229",
+  "response": "## Review: IA drift in `05-stress-ia-drift`\n\nThe four findings aren't independent — they're **one underlying problem expressed twice**, plus one unrelated orphan.\n\n### The real story: tenant-concept fork\n\n`crime_00001` flags that \"tenant\" has three live aliases — `organisation`, `team`, `workspace` — and `nav.ts` references all three. `crime_00003` and `crime_00004` then show that `/organisation` and `/workspace` are **orphaned** (no nav, no doc, no import). So nav.ts *mentions* the aliases but only actually routes users to `/teams`. The other two routes are dead branches of the same forked vocabulary.\n\nThat cluster — alias drift + two orphans whose names *are* the aliases — is **blocking-quality**:\n\n- An agent extending \"the workspace settings page\" will write code that users can never reach.\n- An agent extending \"the organisation page\" will duplicate logic that already lives under `teams.ts`.\n- Docs (`docs/routes.md`) and nav are out of sync with the route filesystem, so neither is trustworthy as a source of truth.\n\nResolution before merge: pick the canonical term (the nav points at `/teams`, so `team` is the de facto winner), delete `organisation.ts` and `workspace.ts` or redirect them, and align `nav.ts` + `docs/routes.md` on one vocabulary.\n\n### Follow-up: `/billing-plans`\n\n`crime_00002` is structurally identical to the other orphans but has no alias-drift partner. That's the classic \"in-flight feature or abandoned flow\" signature — could be a half-built page someone's still working on. **Follow-up**, not blocking: ask the author whether to link it from nav/docs or retire it.\n\n### Summary\n\n| Finding | Verdict |\n|---|---|\n| `crime_00001` Concept Alias Drift (medium) | **Blocking** — root cause |\n| `crime_00003` `/organisation` orphan | **Blocking** — symptom of the fork |\n| `crime_00004` `/workspace` orphan | **Blocking** — symptom of the fork |\n| `crime_00002` `/billing-plans` orphan | **Follow-up** — unrelated, likely in-flight |\n\nThe medium severity on the drift finding plus the elevated `agent_risk` (0.6) is doing the right work here: local severity is modest, but the *agent-facing* cost — duplicate work under parallel names — is the actual hazard, which is exactly what should gate merge.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

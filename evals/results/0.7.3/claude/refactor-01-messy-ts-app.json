@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.3",
+  "timestamp": "2026-05-18T03:35:14.620Z",
+  "run_id": "c92b5427-6280-43e4-8c71-7fe6d4f42502",
+  "response": "# Top 3 changes for `src/billing.ts`\n\n**1. Break up `generateInvoice` (lines 50–253).**\nThis is the high-severity God Function — 204 lines, 3.4× the 60-line domain threshold (`crime_00001`). It's also the main reason the file as a whole trips God File at 310 lines (`crime_00010`); splitting the function will likely retire both findings. Extract cohesive sections (line-item assembly, tax/discount math, totals, persistence/email side effects) into named helpers so an agent editing one concern can't silently break another it never loaded into context. Expect this to also reduce the surface area where `Date.now()` calls hide.\n\n**2. Fix `calculateRefundPreview` (lines 40–44) and encode the rule on line 39.**\nTwo findings stack on the same 6 lines: False Identity (`crime_00008` — the `calculate*` prefix promises a pure read but the body calls `saveRefundAudit` and `sendRefundEmail`) and Logic in the Alibi (`crime_00011` — the comment *\"Only owners can refund enterprise plans unless billing support approves\"* describes a rule that isn't encoded in nearby code). Split into a pure `previewRefund(...)` returning the computed shape, plus an explicit `commitRefund(...)` that does the audit + email, and turn the comment into a named guard like `canRefundEnterprise(role, approvals)` covered by a test. The misleading name plus a hidden authorisation rule is exactly the combination that gets an agent to confidently ship a broken refund flow.\n\n**3. Inject a clock to kill the 7 direct `Date` calls (lines 57, 63, 92, 198, 238, 250, 273).**\nTemporal Recklessness (`crime_00004`) — five `Date.now()` and two `new Date()` reads scattered through the domain logic. Right now the only test in `billing.test.ts` that touches this file is the assertion-free \"renders the enterprise plan\" (`crime_00006`), so behaviour around dates is effectively unprotected. Take a `clock: () => Date` (or `now: () => number`) parameter on `generateInvoice` and the refund helpers, default it to `() => new Date()` at the CLI/API boundary, and you can pin time in tests without monkey-patching. Do this *after* step 1 so you're injecting into smaller, already-extracted helpers rather than threading a parameter through a 200-line body.\n\nSkipped from the top 3 but worth queuing next: centralising the `\"enterprise\"` literal (`crime_00007`, 4 files) once the refund/invoice rules above have a clear home to live in.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}
