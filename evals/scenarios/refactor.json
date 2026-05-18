@@ -1,5 +1,20 @@
 [
   {
+    "id": "refactor-01-plural-mismatch",
+    "fixture": "01",
+    "kind": "refactor",
+    "prompt": "Clean up name/type mismatches in src/api/state.ts. Use `crimes scan src/api/state.ts --format json` to find every `singular_plural_type_mismatch` finding. For each declaration flagged, propose either (a) a rename to match the type's shape, or (b) a type change to match the name's shape — and explain which side carries the intended meaning. Quote the finding's evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["singular_plural_type_mismatch"],
+      "referenced_files": ["src/api/state.ts"],
+      "expected_priority": "singular_plural_type_mismatch"
+    },
+    "judge_questions": [
+      "Did the agent name both flagged declarations (e.g. `users: User`, `invoice: Invoice[]`) and propose a specific fix for each rather than a generic guideline?",
+      "Did the agent's proposal reason about which side (name vs type) carries the intended semantics, not just default to renaming?"
+    ]
+  },
+  {
     "id": "refactor-01-mixed-utc",
     "fixture": "01",
     "kind": "refactor",

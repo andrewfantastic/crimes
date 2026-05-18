@@ -1,5 +1,19 @@
 [
   {
+    "id": "context-01-boolean-naming",
+    "fixture": "01",
+    "kind": "context",
+    "prompt": "You are about to add a new `archived` flag to the billing API. Use `crimes context src/api/state.ts --format json` to find existing boolean-typed declarations whose names don't follow the project's prefix convention. Name the two specific identifiers that violate the convention and quote one finding evidence line verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["boolean_naming_drift"],
+      "referenced_files": ["src/api/state.ts"]
+    },
+    "judge_questions": [
+      "Did the agent identify at least two of the unprefixed booleans (e.g. `paid`, `expired`, `stale`) by name?",
+      "Did the agent quote a finding-evidence line verbatim and propose `is`/`has`/`should`-prefixed alternatives rather than restating the rule generically?"
+    ]
+  },
+  {
     "id": "context-01-locale-drift",
     "fixture": "01",
     "kind": "context",
