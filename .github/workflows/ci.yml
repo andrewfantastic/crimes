@@ -50,10 +50,16 @@ jobs:
           node packages/cli/dist/index.js scan examples/messy-ts-app --format json > /tmp/report.json
           node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/report.json','utf8')); if(!r.schema_version||!Array.isArray(r.findings))process.exit(1); console.log('schema',r.schema_version,'findings',r.findings.length)"
 
+      # The website pulls in Astro 6, which requires Node >=22.12. The
+      # rest of the matrix (Node 20) still validates the published
+      # crimes CLI against its engines.node ">=18" contract; only the
+      # website step needs the newer toolchain.
       - name: Build website (landing + /docs Starlight site)
+        if: matrix.node == '22'
         run: pnpm --filter @crimes/website build
 
       - name: Verify /docs/ tree contains every expected page
+        if: matrix.node == '22'
         run: node apps/website/scripts/verify-build.mjs
 
   publish-smoke:
