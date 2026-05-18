@@ -425,4 +425,4 @@ https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md
 - JSON schema:    https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md
 - IA detectors:   https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md
 - Sample output:  https://github.com/andrewfantastic/crimes/blob/main/docs/fixtures/messy-ts-app.json
-- Roadmap status: https://github.com/andrewfantastic/crimes/blob/main/ROADMAP_STATUS.md
+- Roadmap status: https://github.com/andrewfantastic/crimes/blob/main/docs/roadmap.md
