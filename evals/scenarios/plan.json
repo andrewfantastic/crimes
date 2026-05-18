@@ -55,5 +55,20 @@
       "Did the agent prioritise high fan-in files (e.g. src/utils.ts) over high fan-out files because blast-radius cuts deeper on importers?",
       "Did the agent quote the actual fan-in / fan-out numbers from the finding evidence rather than paraphrasing 'lots of imports'?"
     ]
+  },
+  {
+    "id": "plan-01-hardcoded-local-path",
+    "fixture": "01",
+    "kind": "plan",
+    "prompt": "Plan a portability sweep for this codebase: every developer-specific path baked into source needs to go. Use `crimes scan --format json` to enumerate every `hardcoded_local_path` finding. For each path flagged, propose the specific replacement and explain whether it should go through `os.homedir()` (the user's home is the natural anchor), `process.env.<NAME>` (a deploy-supplied base directory), or a relative path resolved from the repo root. Don't paraphrase — quote the literal path from each finding's evidence.",
+    "expected_artifacts": {
+      "referenced_findings": ["hardcoded_local_path"],
+      "referenced_files": ["src/api/files.ts"],
+      "expected_priority": "hardcoded_local_path"
+    },
+    "judge_questions": [
+      "Did the agent distinguish between `os.homedir()` (user-anchored), `process.env.*` (env-anchored), and relative paths (repo-anchored) rather than recommending one for everything?",
+      "Did the agent quote at least one literal path from the finding evidence verbatim rather than paraphrasing 'a hardcoded home directory'?"
+    ]
   }
 ]

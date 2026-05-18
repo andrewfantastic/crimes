@@ -57,5 +57,20 @@
       "Did the agent pick a specific test from the weak_test_signal findings and propose the exact assertion the test is missing?",
       "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?"
     ]
+  },
+  {
+    "id": "bugfix-01-sync-io-hotpath",
+    "fixture": "01",
+    "kind": "bugfix",
+    "prompt": "A production handler that used to respond in milliseconds is now stalling under concurrent load — p99 latency spiked and the event loop is reporting lag. Use `crimes scan src/api/files.ts --format json` to find the per-request blocking call(s) responsible. Quote the finding's evidence verbatim, name the specific sync method(s) involved, and propose the smallest async migration that preserves the function's public signature. Don't paper over the symptom with caching — fix the blocking call itself.",
+    "expected_artifacts": {
+      "referenced_findings": ["sync_io_in_hotpath"],
+      "referenced_files": ["src/api/files.ts"],
+      "expected_priority": "sync_io_in_hotpath"
+    },
+    "judge_questions": [
+      "Did the agent name at least one specific synchronous method (`existsSync`, `statSync`, or `readFileSync`) from the finding's evidence rather than 'sync I/O' generically?",
+      "Did the agent's fix swap each `*Sync` call for its async counterpart (`fs.promises.*` or `fs.readFile` with `await`) instead of recommending a cache, a worker thread, or a `setImmediate` wrapper?"
+    ]
   }
 ]

@@ -99,5 +99,20 @@
       "Did the agent point out that route_metadata_drift carries the highest agent_risk because the wrong-labelled surface is the one an extending agent reads first?",
       "Did the agent propose fixing the broken docs link by either creating the missing file or removing the reference, rather than 'flagging for later'?"
     ]
+  },
+  {
+    "id": "review-01-hardcoded-localhost",
+    "fixture": "01",
+    "kind": "review",
+    "prompt": "A PR adds an `adminUrl()` helper to src/api/files.ts that returns the admin dashboard URL. Use `crimes scan src/api/files.ts --format json` to find the `hardcoded_localhost` finding. Quote the literal URL from the finding's evidence and explain whether you'd block the PR or request changes. Recommend the specific configuration mechanism (env var name, settings module location, framework runtime-config slot) the URL should move to — don't stop at 'use config'.",
+    "expected_artifacts": {
+      "referenced_findings": ["hardcoded_localhost"],
+      "referenced_files": ["src/api/files.ts"],
+      "expected_priority": "hardcoded_localhost"
+    },
+    "judge_questions": [
+      "Did the agent quote the literal URL (e.g. `localhost:3000`) from the finding evidence rather than paraphrasing 'a hardcoded URL'?",
+      "Did the agent name a specific replacement mechanism (`process.env.ADMIN_URL`, a settings module path, etc.) rather than stopping at the generic 'move to config' recommendation?"
+    ]
   }
 ]
