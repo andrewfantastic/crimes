@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:58:22.989Z",
+  "run_id": "5dd871a5-269c-41ff-b5ff-ea6b024422e7",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThree findings, three changes — each addresses one finding type and removes its evidence.\n\n---\n\n### 1. `accessible_interaction_risk` (line 22)\n\nThe outer `<div onClick>` is the interactive element but has no role, label, or keyboard affordance. The straight fix is to make it the right element — a `<button>` — rather than reach for ARIA. `<button>` gives keyboard focus, Enter/Space activation, screen-reader semantics, and the focus ring for free; `role=\"button\" + tabIndex + onKeyDown` only re-implements those.\n\n```tsx\n<button type=\"button\" onClick={handleClick} className={styles.card}>\n  …\n</button>\n```\n\nIf the outer element must stay a `<div>` for layout reasons, the minimum fix is `role=\"button\"`, `tabIndex={0}`, an `aria-label`, and an `onKeyDown` that fires the same handler on Enter/Space — but prefer the real element.\n\n### 2. `design_token_escape` (9 raw values at lines 16–20, 24, 27)\n\nEvery `#hex`, `rgb(...)`, and shadow string in the `style={{ … }}` block is bypassing the design system. The fix has two parts:\n\n- **Move presentation out of inline `style`.** Inline styles defeat tokens by construction — there's nowhere for a `var(--…)` reference to live cleanly. Switch to CSS Modules / Tailwind / styled-components — whatever this project already uses.\n- **Replace each literal with the matching token.** Concretely: `background: var(--color-accent)`, `color: var(--color-fg-default)`, `borderColor: var(--color-border-subtle)`, `boxShadow: var(--shadow-sm)`, `outlineColor: var(--color-focus-ring)`, and the two secondary text greys (`#333`, `#666`) → `var(--color-fg-muted)` / `var(--color-fg-subtle)`. If a token doesn't exist yet (the magenta `#ff00aa` likely doesn't), that's the signal to add one rather than smuggle the hex through.\n\nThis kills all four evidence kinds (`color`, `px`, `rgb`, `shadow`) the detector flagged.\n\n### 3. `responsive_fragility` (lines 12, 24, 27 — fixed widths, fixed `fontSize`, no `@media`)\n\n`width: 800` and the two nested fixed widths (`720`, `240`) will overflow any viewport narrower than 800px. The fixed `fontSize: 18` compounds it. Fix the container and the children together:\n\n- **Container:** drop `width: 800` and `height: 600`. Use `width: 100%` with a `max-width` cap (keep the existing `maxWidth: 1024` — it's already correct). Let content drive height.\n- **Children:** replace `width: 720` / `width: 240` with a CSS grid or flex layout (e.g. `grid-template-columns: minmax(0, 1fr) 240px`) that collapses to a single column under a breakpoint.\n- **Typography:** swap `fontSize: 18` / `14` for `rem` values from the type scale, or `clamp(0.875rem, 0.8rem + 0.3vw, 1.125rem)` if fluid sizing is wanted.\n- **Add a breakpoint:** one `@media (max-width: 640px)` rule that switches the grid to `grid-template-columns: 1fr` and tightens padding. The detector specifically flags the *absence* of `@media` — adding even one removes that piece of evidence.\n\n---\n\n### Net effect against the report\n\n| Finding | Removed by |\n|---|---|\n| `accessible_interaction_risk` | `<div onClick>` → `<button>` (or full ARIA quartet) |\n| `design_token_escape` | All 9 raw values → tokens via CSS Modules/Tailwind |\n| `responsive_fragility` | Fixed widths → `max-width` + grid; fixed `fontSize` → `rem`/`clamp`; add one `@media` query |\n\nA re-scan after these changes should drop the file to zero findings — none of the three detectors have remaining evidence to fire on.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

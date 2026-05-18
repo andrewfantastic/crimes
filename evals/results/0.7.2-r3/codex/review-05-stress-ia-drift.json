@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:02:39.930Z",
+  "run_id": "52f587e0-0a31-42d6-92ee-1701875f050e",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3908-e63f-7533-99d1-457915c18351\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- **Medium: `concept_alias_drift` in `src/nav.ts`**\\n  The tenant concept is split across `organisation`, `team`, and `workspace`, with matching route files under `src/routes/`. This is the main IA drift finding. It can cause future contributors or agents to add parallel navigation/routes/docs for the same domain concept.\\n\\n  **Recommendation:** Treat as a **blocking-quality issue** if this branch is meant to ship IA/navigation changes. Pick one canonical product term, then either rename/consolidate the routes or explicitly document the aliases in `docs/routes.md`. If these are intentionally distinct concepts, the docs need to say how they differ.\\n\\n- **Low: orphaned `/billing-plans` in `src/routes/billing-plans.ts`**\\n  No nav entry, docs link, or import points at it.\\n\\n  **Recommendation:** **Follow-up**, unless the route is expected to be user-reachable in this change. Link it from nav/docs if it is real; otherwise remove it or mark it as intentionally hidden.\\n\\n- **Low: orphaned `/organisation` in `src/routes/organisation.ts`**\\n  This overlaps with the alias drift: it exists as a tenant-like destination but is not reachable.\\n\\n  **Recommendation:** Usually a **blocking-quality issue only because it compounds the tenant IA drift**. Resolve alongside the canonical term decision.\\n\\n- **Low: orphaned `/workspace` in `src/routes/workspace.ts`**\\n  Same pattern as `/organisation`: tenant-like concept, route exists, not reachable.\\n\\n  **Recommendation:** **Blocking if part of the canonical tenant flow**, otherwise a follow-up to retire or intentionally document as hidden/in-flight.\\n\\n**Overall**\\n\\nThe blocking concern is not the low orphan findings individually; it is the combined IA inconsistency around tenant/team/workspace/organisation. I would block on clarifying that vocabulary and making `src/routes/`, `src/nav.ts`, and `docs/routes.md` agree. `/billing-plans` can be tracked separately as a lower-priority reachability cleanup.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19607,\"cached_input_tokens\":17792,\"output_tokens\":463,\"reasoning_output_tokens\":42}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

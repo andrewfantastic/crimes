@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:02:27.569Z",
+  "run_id": "22834096-2637-4e4e-90a4-fba1aa2190eb",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3908-8eaf-7951-8a21-c44ad68b7fb7\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Block Merge**\\n\\n- `crime_00001` `large_function` in `src/billing.ts`: **high**, `agent_risk: 0.63`. This is the only high-severity finding and it sits in billing domain logic, with a 204-line function. For a PR adding the repo from scratch, this should block until split or covered by stronger tests.\\n- `crime_00002` `missing_agent_context` in `src/api/plan.ts`: **medium**, `agent_risk: 0.61`. The repo exposes a CLI but ships no agent-readable project instructions. Since this project is being evaluated for agent risk, that is merge-blocking context debt.\\n- `crime_00005` `direct_date` in `src/date.ts`: **medium**, `agent_risk: 0.61`. A time helper module with multiple direct wall-clock reads and full test gap is likely to make date behavior nondeterministic across the app.\\n- `crime_00007` `magic_domain_literal_scatter`: **medium**, `agent_risk: 0.60`. The `\\\"enterprise\\\"` plan literal is already scattered across four production areas. That is duplicated policy at repo introduction time.\\n\\n**Warn**\\n\\n- `crime_00004` `direct_date` in `src/billing.ts`: **medium**, `agent_risk: 0.53`. Risky, but lower than the dedicated date module case because test gap is partial.\\n- `crime_00006` `weak_test_signal`: **medium**, `agent_risk: 0.46`. A no-assert test is misleading, but it is localized and easy to fix.\\n- `crime_00008` `name_behavior_mismatch`: **medium**, `agent_risk: 0.52`. Side effects hidden behind `calculateRefundPreview` are meaningful billing risk, but not quite a standalone blocker.\\n- `crime_00009` `concept_alias_drift`: **medium**, `agent_risk: 0.58`. The tenant/account/team/workspace vocabulary drift should be resolved or documented soon.\\n- `crime_00010` `large_file`: **medium**, `agent_risk: 0.50`. Real maintainability signal, but mostly secondary to the blocking `generateInvoice` finding in the same file.\\n- `crime_00011` `logic_in_comments`: **medium**, `agent_risk: 0.50`. A prose-only authorization/refund rule deserves a warning because it can be missed during edits.\\n- `crime_00012` `duplicated_navigation_source`: **medium**, `agent_risk: 0.57`. Two labels for the same destination will cause UI drift.\\n- `crime_00013` `todo_density` in `src/todo.ts`: **medium**, `agent_risk: 0.57`. Very noisy unfinished-work signal; warn unless this file is explicitly fixture/demo-only.\\n- `crime_00014` `route_metadata_drift`: **medium**, `agent_risk: 0.56`. Four competing labels for `/settings/billing` should be cleaned up, but it is not a merge blocker by itself.\\n- `crime_00015` `docs_code_drift`: **low**, `agent_risk: 0.51`. Low severity, but the agent risk is high enough to warn because stale docs can mislead future edits.\\n- `crime_00017` `option_bag_junk_drawer`: **low**, `agent_risk: 0.48`. Warn due to full test gap and implicit API shape.\\n- `crime_00018` `return_shape_roulette`: **low**, `agent_risk: 0.48`. Warn because inconsistent return shapes without an explicit type are easy to misuse.\\n- `crime_00019` `negative_flag_maze`: **low**, `agent_risk: 0.47`. Minor but worth flagging before extending the condition.\\n- `crime_00021` `orphaned_destination`: **low**, `agent_risk: 0.46`.\\n- `crime_00022` `orphaned_destination`: **low**, `agent_risk: 0.46`.\\n- `crime_00023` `orphaned_destination`: **low**, `agent_risk: 0.46`.\\n\\n**Ignore**\\n\\n- `crime_00016` `weak_test_signal`: **low**, `agent_risk: 0.34`. Weak assertion, but low severity and low agent risk. Track only if touching billing tests.\\n- `crime_00020` `todo_density` in `src/billing.ts`: **low**, `agent_risk: 0.40`. This is below the warning threshold I would use here and is already covered by stronger billing-file findings.\\n\\nNet: I would block on 4 findings, warn on 16, and ignore 2. The merge blockers are the high-risk billing function plus medium findings with `agent_risk >= 0.60`; the rest are cleanup warnings unless they sit directly in the changed area of a follow-up PR.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":17792,\"output_tokens\":1102,\"reasoning_output_tokens\":49}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

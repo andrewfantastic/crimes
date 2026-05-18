@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:26.580Z",
+  "run_id": "57ace60e-f5a3-4bb0-ab05-1642b2991b1e",
+  "response": "## Cycle\n\n`src/application/billing-flow.ts` → `src/domain/billing.ts` → `src/presentation/invoice-view.ts` → `src/application/billing-flow.ts`\n\n## Recommendation: break `domain/billing.ts → presentation/invoice-view.ts`\n\nThat edge is the one to cut, and `crimes` is telling you so with two findings stacked on the same import:\n\n1. **`crime_00002` layer violation** — `domain cannotImport presentation`. Domain is the innermost layer; it must not know about how invoices are rendered. Every other edge in the ring is layer-legal:\n   - `application → domain` ✅ (application orchestrates domain)\n   - `presentation → application` ✅ (UI calls into the flow)\n   - `domain → presentation` ❌ ← inverts the dependency direction\n2. **`crime_00001` circular dependency** — removing any one edge breaks the cycle, but only this edge also fixes an architectural defect. Cutting either of the other two would require inventing a contrived workaround in a layer that was correctly placed.\n\n## How to break it\n\nWhatever `billing.ts` is reaching into `invoice-view.ts` for is almost certainly one of:\n\n- **A type** (e.g. `InvoiceViewModel`) — convert to `import type { … } from '../presentation/invoice-view'`. Type-only imports are erased at compile time and contribute **zero** runtime edges, so the cycle disappears without moving code. Cheapest fix.\n- **A shared value/helper** (formatter, constant, shape) — extract it into a neutral module (e.g. `src/domain/invoice-types.ts` or `src/shared/`) that both `domain` and `presentation` import from. `presentation` keeps depending on `domain`; `domain` no longer reaches sideways.\n- **A function `domain` calls on the rendered view** — that's a true inversion; introduce an interface owned by `domain` (e.g. `InvoicePresenter`) and have `presentation` implement it. `domain` depends on its own port, not on the adapter.\n\nIn priority order: try the `import type` conversion first (one-line fix, no architectural change), then extraction, then dependency-inversion via an interface.\n\n## Why not break one of the other two edges\n\n- Cutting `application → domain` would force the billing flow to duplicate domain logic — worse than the cycle.\n- Cutting `presentation → application` would orphan the view from the flow it renders — also worse.\n\nOnly the `domain → presentation` edge is *both* load-bearing-for-the-cycle *and* architecturally wrong. Fix it once, resolve both findings.\n\n## Sidebar: `crime_00003` is unrelated\n\nThe `some-pkg/dist/internal/private/helper.js` deep import lives in `billing-flow.ts` and has nothing to do with the cycle — address it separately by switching to the package's public entry point.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

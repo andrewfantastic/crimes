@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:59:28.050Z",
+  "run_id": "1554dd79-55ea-4719-a4d0-4cf1023d5c58",
+  "response": "# Review verdict: hold for changes\n\nRubric I'm applying:\n- **Block** — sev ≥ 0.7, **or** sev ≥ 0.5 with agent_risk ≥ 0.5 in a safety-critical area (billing/refund logic).\n- **Warn** — sev ≥ 0.4 or agent_risk ≥ 0.5: worth fixing, not a merge blocker on its own.\n- **Ignore** — sev < 0.3 and agent_risk < 0.5: noise on this PR; address opportunistically.\n\n## Block merge (3)\n\n| ID | Charge | sev / agent_risk | Why block |\n|---|---|---|---|\n| 00001 | God Function `generateInvoice` (204 LOC) | 0.90 / 0.63 | Only `high` finding. 3.4× the domain-function threshold inside billing. Future agent edits to one branch will silently miss interactions in another — exactly the failure mode `agent_risk` is meant to flag. |\n| 00004 | Temporal Recklessness in `src/billing.ts` (7 clock reads) | 0.60 / 0.53 | Wall-clock reads scattered through invoice generation. Tests can't pin time without monkey-patching, and the file has no real assertions to fall back on. In billing this is invoice-correctness risk, not style. |\n| 00008 | False Identity `calculateRefundPreview` | 0.55 / 0.52 | Name says pure preview, body calls `saveRefundAudit` + `sendRefundEmail`. Refund side effects under a \"preview\" verb is the kind of mislabelling that causes double-refunds when an agent calls it speculatively. Promoted to block on domain (refunds + audit trail). |\n\n## Warn — fix before next release, don't block this merge (14)\n\nHigher-impact warnings (sev ≥ 0.5 **or** agent_risk ≥ 0.55):\n\n- **00002** Missing Agent Context (0.60 / 0.61) — repo-level, predates this PR; flag to follow up.\n- **00005** Temporal Recklessness in `src/date.ts` (0.60 / 0.61) — utility module, lower blast than 00004 but same fix.\n- **00007** \"enterprise\" literal in 4 files (0.50 / 0.60) — duplicated policy risk; centralise before a 5th copy lands.\n- **00009** Concept Alias Drift (account/organisation/team/workspace) (0.55 / 0.58) — pick canonical term.\n- **00010** God File `billing.ts` 310 LOC (0.60 / 0.50) — only 1.0× threshold; will resolve when 00001 is extracted.\n- **00011** Logic in the Alibi: \"Only owners can refund enterprise plans…\" (0.50 / 0.50) — unencoded refund rule next to 00008. Encode as a guard.\n- **00012** Duplicated Navigation Source `/settings/billing` (0.60 / 0.57) — two labels (Plans vs Billing).\n- **00014** Route Metadata Drift `/settings/billing` (0.60 / 0.56) — 4 names for one destination.\n\nMedium warnings (sev 0.35–0.45):\n\n- **00006** Test with 0 assertions in `src/billing.test.ts` (0.45 / 0.46) — actively misleads; delete or assert. Borderline block given the billing context, but it's a single test.\n- **00013** 14 TODO/FIXME in `src/todo.ts` (0.40 / 0.57) — 424/1k LOC is severe density; triage required even if individual markers are small.\n- **00015** Broken doc link `docs/teams.md → ./setup.md` (0.35 / 0.51) — agents will follow stale instructions.\n- **00021–00023** Orphaned routes `/account/subscription`, `/team`, `/workspace/members` (0.40 / 0.46 each) — three dead destinations cluster with 00009 (alias drift across the same surfaces). Could be in-flight work, but unlinked routes are typically half-finished refactors. Ask the author before merging which are intentional.\n\n## Ignore on this PR (5)\n\n| ID | Charge | sev / agent_risk |\n|---|---|---|\n| 00016 | Weak-matcher test \"creates an invoice\" | 0.25 / 0.34 |\n| 00017 | Option Bag `describeCheckout` | 0.30 / 0.48 |\n| 00018 | Return Shape Roulette `resolvePaymentResult` | 0.30 / 0.48 |\n| 00019 | Negative Flag Maze (`!disableBilling && !skipRetry`) | 0.25 / 0.47 |\n| 00020 | 4 TODOs in `billing.ts` (12.9/1k LOC, barely over threshold) | 0.20 / 0.40 |\n\nAll in `src/petty.ts` or just above noise floor. Worth a cleanup pass, not a review comment.\n\n## Summary\n\n**3 block / 14 warn / 5 ignore.** The blockers cluster in billing: one giant function (00001), wall-clock reads inside it (00004), and a misnamed refund function with side effects (00008). Recommend hold until those three are addressed; the rest can ship as a follow-up tracking issue.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

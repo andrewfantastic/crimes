@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:43.769Z",
+  "run_id": "2f23e579-1d29-4f7d-b0fd-db12026b484d",
+  "response": "Crimes returned **zero findings** for `src/add.ts` in `09-clean-tiny`:\n\n- `summary.total: 0` — no high/medium/low findings\n- `findings: []` — nothing tripped any detector\n- `schema_version: 0.1.0` (recognized)\n\n**Verdict: safe to extend.** No structural, dependency, duplication, testability, or churn-related risks were flagged. Since the scan output above is `scan` shape (not `context`), there's no `risk.level`, `likely_tests[]`, or `agent_guidance[]` to consult — but a clean scan on a tiny file is the strongest possible green light. Proceed with the edit; re-run `crimes scan src/add.ts --format json` after to confirm you didn't introduce a new finding.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

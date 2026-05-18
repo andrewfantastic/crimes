@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:01:32.613Z",
+  "run_id": "afe5daf8-eaff-4e92-820d-6b75c4570f5c",
+  "response": "# Top 3 changes for `src/billing.ts`\n\n**1. Break up `generateInvoice` (crime_00001 + crime_00010)**\nThe function spans lines 50–253 — 204 lines, 3.4× the 60-line domain threshold — and the file as a whole is 310 lines (just over the God File threshold). These are the same problem at two scales: one bloated function is dragging the whole module past its limit. Extract cohesive sections (line-item assembly, tax/discount math, persistence, notification) into named helpers in sibling files. This is the single highest-leverage move because it simultaneously lowers `agent_risk` on the God Function (0.63, the highest score in the report) and pulls the file back under the 300-line ceiling. Bonus: the 4 in-function TODOs (crime_00020, lines 183–308) become easier to triage once each lives inside a small, named helper.\n\n**2. Fix `calculateRefundPreview` — rename + encode the hidden rule (crime_00008 + crime_00011)**\nThese two findings sit on adjacent lines (39 and 40–44) and describe the same trap. The comment at line 39 says *\"Only owners can refund enterprise plans unless billing support approves\"* — a real authorization rule that isn't visible in code. Meanwhile the function named `calculateRefundPreview` actually calls `saveRefundAudit` and `sendRefundEmail`, so the \"preview\" name lies to callers and agents. Split it into a pure `calculateRefundPreview` (no side effects) and an `issueRefund` (audit + email), and lift the owner/billing-support check into a named guard like `assertCanRefund(actor, plan)` that throws or returns a typed result. The comment becomes redundant once the guard exists — delete it.\n\n**3. Inject a clock (crime_00004)**\n7 direct `Date.now()` / `new Date()` calls scattered across lines 57, 63, 92, 198, 238, 250, 273. Domain code reading the wall clock means the billing tests (already weak — see crime_00006 with zero assertions) can't pin a fixed moment without monkey-patching. Thread a `clock: { now(): number }` through the module — easiest as a defaulted parameter on `generateInvoice` after the extraction in step 1 — and replace every direct call. This is what unblocks writing the real assertions the test file is missing today.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

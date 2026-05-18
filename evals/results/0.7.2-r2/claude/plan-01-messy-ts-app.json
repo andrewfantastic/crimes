@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:57:14.181Z",
+  "run_id": "7f752d34-1b56-4c32-9bee-3fddfed157a7",
+  "response": "# Triage Order: Top 10 Findings\n\nRanked by aggregate risk (agent_risk × confidence, with severity as tiebreaker).\n\n## Structural\n\n**1. `crime_00001` — God Function: `generateInvoice` (src/billing.ts:50–253)** → **Fix now**\n204-line domain function at 3.4× threshold, high severity, 0.95 confidence. This is the only `high` in the report and the spine that several other findings hang off (the file's TODOs, temporal calls, misleading-name function, and large-file flag all live here). Extract cohesive sections into helpers.\n\n**2. `crime_00010` — God File: src/billing.ts (310 LOC)** → **Defer (bundle with #1)**\nJust over the 300-line threshold. Don't split as a separate effort — falls out naturally once `generateInvoice` is decomposed.\n\n**3. `crime_00008` — False Identity: `calculateRefundPreview`** → **Fix now**\n\"Preview\" name hides `saveRefundAudit` + `sendRefundEmail` side effects. Cheap rename or extract, and high payoff because agents will treat it as pure on the next edit.\n\n## Duplication / IA (information architecture)\n\n**4. `crime_00007` — String Sprinkles: \"enterprise\" literal in 4 areas** → **Fix now**\nDomain literal scattered across `api/`, `billing.ts`, `jobs/`, `ui/`. Centralizing into a constant/enum is a small change that prevents the next agent from adding a fifth copy with subtly different policy.\n\n**5. `crime_00012` — Duplicated Navigation Source (`/settings/billing`)** → **Fix now**\nSame destination, two labels (\"Plans\" vs \"Billing\") across `registry.ts` and `sidebar.ts`. Tightly coupled to #6 — fix together.\n\n**6. `crime_00014` — Route Metadata Drift (`/settings/billing`)** → **Fix now (with #5)**\nPath, component (`PricingPage`), `metadata.title` (\"Plans\"), `<title>` (\"Subscription\"), and two nav labels all disagree. Pick canonical name; resolves #5 in the same pass.\n\n**7. `crime_00009` — Concept Alias Drift: tenant/account/organisation/team/workspace** → **Defer**\nReal problem, but consolidating vocabulary across docs + routes is a larger refactor than the others. Document the canonical term now; consolidate when one of those routes is next touched.\n\n## Testability / Determinism\n\n**8. `crime_00004` — Temporal Recklessness in billing.ts (7 calls)** → **Fix now (with #1)**\nFive `Date.now()` + two `new Date()` in the same God Function. Inject a clock as part of the #1 extraction — the two refactors share files and tests.\n\n**9. `crime_00002` — Missing Agent Context** → **Fix now**\nNo AGENTS.md / CLAUDE.md / SKILL.md. Trivial to add and amplifies the value of every other fix (next agent loads the conventions). Tag #1's outcome and the \"enterprise\" constant location in it.\n\n## Git-history / Process\n\n**10. `crime_00006` — Test That Proves Nothing (\"renders the enterprise plan\")** → **Fix now**\nZero assertions. Either assert real behaviour or delete — leaving it gives agents false coverage signal for the very subsystem (#1) we're about to refactor.\n\n---\n\n### Quick action summary\n\n| Group | Fix now | Defer | Ignore |\n|---|---|---|---|\n| Structural | #1, #3 | #2 (bundle w/ #1) | — |\n| Duplication / IA | #4, #5, #6 | #7 | — |\n| Testability | #8 (bundle w/ #1), #9 | — | — |\n| Git-history / Process | #10 | — | — |\n\n**Nothing in the top 10 warrants \"ignore\"** — `crimes verdict` would surface the same picture. The natural execution order is **#9 (cheap, multiplies value) → #1 + #8 + #2 + #10 (one billing.ts work session) → #3 → #4 → #5/#6 → #7 (later)**.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

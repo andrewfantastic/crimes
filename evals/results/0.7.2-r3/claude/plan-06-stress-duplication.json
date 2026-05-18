@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:01:15.715Z",
+  "run_id": "58a55b37-ddc6-4285-8bf5-fce3f1ea8ede",
+  "response": "## Refactor plan: stress-duplication fixture\n\nTwo steps, sequenced deliberately. Policy first, sanitise second — the three sanitise helpers each contain a `role === \"admin\"` check, so consolidating sanitise before centralising the role check would just bury the duplicated literal inside the new shared helper.\n\n### Step 1 — Extract the policy function (addresses crime_00003)\n\n**Goal:** One source of truth for \"is this caller an admin?\" so the rule can't drift across files.\n\n**Changes:**\n- New file `src/policy/roles.ts` exporting a single `isAdmin(role: string): boolean` (or `isAdmin(user)` if the call sites pass a user object — check at edit time).\n- Replace every `role === \"admin\"` site reported in evidence:\n  - `src/policy.ts` lines 1, 3, 8, 13 (all four occurrences)\n  - `src/sanitize-a.ts:7`, plus the `+2 more` in `sanitize-b.ts` and `sanitize-c.ts`\n- Keep the function pure — no logging, no telemetry. The literal `\"admin\"` should now appear in exactly one place.\n\n**Verification:**\n- `rg '\"admin\"' src/` returns one hit (the definition in `roles.ts`).\n- `crimes scan --format json` no longer reports `crime_00003`.\n\n**Risk:** Low. Pure mechanical substitution; no behaviour change. Existing tests (if any) should pass unchanged.\n\n### Step 2 — Extract the shared sanitise helper (addresses crime_00002)\n\n**Goal:** Collapse `sanitizeUserInput` / `sanitizeText` / `cleanMessage` into one implementation. Step 1 must land first so the role-gated branch inside each variant already routes through `isAdmin`.\n\n**Changes:**\n- New file `src/sanitize/index.ts` exporting a single `sanitize(input: string, ctx: { role: string }): string` (signature derived from the union of the three call sites — confirm by reading lines 10–36, 9–35, 9–35 before writing).\n- Body is the de-duplicated near-duplicate logic, with the admin branch calling `isAdmin(ctx.role)` from Step 1.\n- Update each caller of `sanitizeUserInput`, `sanitizeText`, and `cleanMessage` to import `sanitize` instead.\n- Delete `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` once no imports reference them (verify with `rg`).\n- Three names collapsing into one is itself a small API change — if any of the three are exported from a package entry point, leave a thin re-export shim for one release cycle and note the rename in the changelog. If they're internal-only, just delete.\n\n**Verification:**\n- `crimes scan --format json` no longer reports `crime_00002` (and `crime_00003` stays gone).\n- Existing tests pass; add a single unit test pinning the consolidated behaviour for both the admin and non-admin paths.\n\n**Risk:** Medium. The three variants were *near*-duplicates, not exact — diff them carefully before declaring a winning implementation. If any divergence is intentional (rather than drift), encode it as a parameter rather than silently dropping it.\n\n### Out of scope for this change set\n\n- `crime_00001` (duplicate `recordSanitiseEvent` in `telemetry-a/b.ts`) and `crime_00004` / `crime_00005` (Temporal Recklessness in the same two files) are real, but they're a separate concern — telemetry, not sanitise/policy. Fold them into a follow-up \"consolidate telemetry + inject clock\" change so this PR stays reviewable. Mention them in the PR description as known-and-tracked.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

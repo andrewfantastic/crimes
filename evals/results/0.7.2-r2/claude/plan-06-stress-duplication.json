@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:57:38.521Z",
+  "run_id": "d21983bc-08fa-48b5-8340-60e1da5892a8",
+  "response": "## Refactor plan: consolidate sanitise + role checks\n\nTwo ordered steps. Policy first because the sanitise helpers contain the role check — unifying the predicate first means step 2 collapses to a single helper with a clean dependency, instead of inlining `role === \"admin\"` into a \"shared\" helper that still bakes in the literal.\n\n### Step 1 — Extract the `\"admin\"` policy predicate (crime_00003)\n\n**Scope:** 7 call sites across 4 files (`policy.ts` ×4, `sanitize-a.ts:7`, plus the +2 in `sanitize-b.ts` / `sanitize-c.ts`).\n\n**Change:**\n- In `src/policy.ts`, add `export function isAdmin(role: string): boolean { return role === \"admin\"; }`.\n- Replace every `role === \"admin\"` with `isAdmin(role)`. In `policy.ts` this also dedupes the 4 internal checks against itself — they all call the new function.\n- Import `isAdmin` into `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` ahead of step 2 (the import will survive the next step).\n\n**Why this is safe to ship on its own:** pure rename of a boolean expression. No behaviour change, no new module surface area beyond one exported function. Tests that pass today will pass after.\n\n**Verification:** `rg 'role\\s*===\\s*\"admin\"'` should return zero hits after this step. `crime_00003` should drop out of the next `crimes scan`.\n\n### Step 2 — Extract the shared sanitise helper (crime_00002)\n\n**Scope:** the three near-duplicate functions — `sanitizeUserInput` (`sanitize-a.ts:10-36`), `sanitizeText` (`sanitize-b.ts:9-35`), `cleanMessage` (`sanitize-c.ts:9-35`).\n\n**Change:**\n- Create `src/sanitize.ts` exporting a single `sanitize(input: string, role: string): string` whose body is the consolidated version of the three near-duplicates (reconcile the small per-copy drifts deliberately — pick the strictest rule per branch and note the choice in the commit message; this is where duplication has been hiding silent divergence).\n- Internally, the new helper calls `isAdmin(role)` from step 1 instead of comparing the literal.\n- In `sanitize-a/b/c.ts`, replace the function bodies with one-line delegations to `sanitize(...)`, keeping the existing exported names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) so callers don't move. This keeps the diff to one file's worth of new logic plus three trivial re-exports.\n\n**Why this order matters:** if step 2 ran first, the consolidated helper would either (a) still contain `role === \"admin\"` — leaving `crime_00003` unresolved and now centralised in a misleading place — or (b) be edited twice. Doing policy first means step 2's diff is purely \"merge three near-duplicates,\" which is the change that actually needs review.\n\n**Verification:** `crime_00002` should drop out. The three wrapper exports can be removed in a follow-up once callers are migrated to `sanitize` directly — explicitly out of scope for this change set to keep the blast radius small.\n\n### Out of scope (flagged, not addressed)\n\n- `crime_00001` (exact duplicate `recordSanitiseEvent` in `telemetry-a/b.ts`) — same pattern, but unrelated to sanitise/role and worth a separate commit.\n- `crime_00004` / `crime_00005` (`Date.now()` in the telemetry files) — handle together with crime_00001 via clock injection in the telemetry helper, not here.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:56.897Z",
+  "run_id": "1c31813f-9c47-4363-83fe-83a9a60d7d04",
+  "response": "## `src/billing.ts` — context report\n\n**Findings:** none. `risk.level: \"none\"`, all severity buckets at 0.\n\n**Likely tests:** `src/billing.test.ts` (deterministic sibling-test inference — no other neighbourhood signal was found).\n\n**Why this is low risk to edit:**\n- **No detector hits.** No structural, dependency, duplication, testability, or churn findings — nothing flagged across any of the v0 detector families.\n- **No agent_guidance entries.** The context report explicitly notes \"no findings on this file and no deterministic related files,\" so there's no hidden coupling for an agent to trip over.\n- **No related_files signal.** No IA finding linking it elsewhere, no shared domain tokens, no domain-prefix filenames, no same-directory siblings — meaning the blast radius of changes is contained to this file.\n- **Sibling test exists.** `src/billing.test.ts` is right next to it, so a change can be validated immediately without hunting for coverage.\n\nNet: small, isolated, well-tested module with no flagged complexity, duplication, or temporal/env coupling — safe target for confident edits.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

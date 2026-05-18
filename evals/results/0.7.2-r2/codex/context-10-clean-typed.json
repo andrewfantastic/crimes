@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:59.974Z",
+  "run_id": "1da49bd7-b000-492b-879d-25dfcdc00204",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3903-a9cc-7682-a7ce-9efcd390788b\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested `crimes context` against the fixture so the answer is based on the command output, then I’ll extract the findings and likely test path.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node ../../packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node ../../packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"node:internal/modules/cjs/loader:1478\\n  throw err;\\n  ^\\n\\nError: Cannot find module '/Users/andrew/dev/crimes/evals/packages/cli/dist/index.js'\\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1475:15)\\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1048:27)\\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1072:10)\\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1093:12)\\n    at Module._load (node:internal/modules/cjs/loader:1261:25)\\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\\n    at node:internal/main/run_main_module:33:47 {\\n  code: 'MODULE_NOT_FOUND',\\n  requireStack: []\\n}\\n\\nNode.js v25.9.0\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The first invocation used the wrong relative path to the local CLI from inside the fixture. I’m rerunning with the repo-root-relative binary path.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node ../../../packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node ../../../packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"10-clean-typed\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/10-clean-typed\\\"\\n  },\\n  \\\"file\\\": \\\"src/billing.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/billing.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"`crimes context src/billing.ts --format json` reports no findings.\\n\\nRisk summary for `src/billing.ts`:\\n\\n```json\\n{\\n  \\\"level\\\": \\\"none\\\",\\n  \\\"high\\\": 0,\\n  \\\"medium\\\": 0,\\n  \\\"low\\\": 0,\\n  \\\"total\\\": 0\\n}\\n```\\n\\nLikely test path: `src/billing.test.ts`\\n\\nThis module is low risk to edit because `crimes` found no file-level findings, no agent guidance items, and no deterministic related files that suggest hidden coupling. The scan context also shows the fixture has zero findings overall, so edits are starting from a clean, typed surface rather than a risky or already-fragile area.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":56448,\"cached_input_tokens\":38016,\"output_tokens\":446,\"reasoning_output_tokens\":78}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

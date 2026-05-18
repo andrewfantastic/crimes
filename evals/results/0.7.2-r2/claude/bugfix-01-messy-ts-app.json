@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:22.175Z",
+  "run_id": "c7d83970-e22f-4cc7-ae05-31ee41f7c317",
+  "response": "## Most likely cause\n\n**`crime_00004` — Temporal Recklessness in `src/billing.ts`.** Seven direct reads of `Date.now()` / `new Date()` at lines 57, 63, 92, 198, 238, 250, 273 — all inside the `generateInvoice` God Function (lines 50–253, `crime_00001`). Every call observes wall time at runtime, so any test that exercises billing-period math will flip behaviour at month/year/DST/UTC boundaries depending on *when* the suite runs. `src/date.ts` (`crime_00005`) has the same problem and is presumably what `billing.ts` is calling into, so the rot is on both sides of the boundary.\n\nTwo amplifiers explain why this isn't already caught:\n- `crime_00006` — `\"renders the enterprise plan\"` has **zero** assertions, so it can't fail no matter what date hits it.\n- `crime_00016` — `\"creates an invoice\"` uses only weak matchers, so it passes on any object-shaped output, masking off-by-one period math.\n\nCombined: real date bugs slip through because the tests don't assert the values that would change at a boundary, and the production code reads the clock seven times in one function so reproducing the failure locally is a coin flip.\n\n## Proposed fix\n\n1. **Inject a clock.** Add a `Clock` interface (`now(): Date`) and thread it through `generateInvoice` (and the helpers in `src/date.ts`). Default to a `systemClock` in production, pass a `fixedClock(new Date('2026-02-28T23:59:59Z'))` in tests. Replace all 7 sites in `billing.ts` and 5 in `date.ts`.\n2. **Pin the failing boundary in a new test** *before* changing the code — e.g. invoice generated at `2026-02-28T23:59:59.500Z` for a monthly plan should still bill February, not March. Use the injected clock so it's deterministic.\n3. **Strengthen `creates an invoice`** to assert the period start/end dates, not just truthiness — otherwise the regression that's flaking today walks back in tomorrow.\n4. **Don't extract `generateInvoice` in the same change.** The God Function (`crime_00001`) is the right next refactor, but doing it concurrently with a clock injection makes the diff unreviewable and risks a different bug. Land the clock fix, then split.\n\nStep 1 is the minimum to make the boundary test deterministic; steps 2–3 are what keep it from regressing. The God Function and the `enterprise` literal scatter (`crime_00007`) are real but unrelated to this bug — separate PRs.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:02:02.463Z",
+  "run_id": "12803dc6-71eb-4b17-82cf-9456304b4fc7",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThree findings, three concrete fixes — each tied to the detector that raised it.\n\n### 1. `accessible_interaction_risk` (line 10) → swap the `<div onClick>` for a real `<button>`\n\nA `<div>` with `onClick` is invisible to keyboard users (no tab stop, no Enter/Space activation) and announces as a generic group to screen readers. The cheapest correct fix is to use the semantic element that already carries those behaviors:\n\n```tsx\n<button type=\"button\" onClick={handleClick} className={styles.card}>\n  …\n</button>\n```\n\nIf the card must remain a `<div>` for layout reasons (e.g., it contains other interactive children, which would be invalid inside a button), make the interaction explicit instead:\n\n```tsx\n<div\n  role=\"button\"\n  tabIndex={0}\n  aria-label=\"Open card\"\n  onClick={handleClick}\n  onKeyDown={(e) => { if (e.key === \"Enter\" || e.key === \" \") handleClick(); }}\n>\n```\n\nPrefer the first form. The second is a workaround and you have to remember the keyboard handler — that's exactly the kind of thing an agent extending this file later will forget.\n\n### 2. `design_token_escape` (9 raw values on lines 10/24/27) → route every color/spacing through the theme\n\nThe detector flagged `#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, plus the `#333` / `#666` text colors. Move them into the project's token layer (CSS variables, a `theme.ts`, or whatever the design system uses) and reference by name:\n\n```tsx\n// theme.ts\nexport const tokens = {\n  color: {\n    surface: \"var(--color-surface)\",        // was #ff00aa\n    textPrimary: \"var(--color-text-primary)\", // was #0a0a0a / #333\n    textMuted: \"var(--color-text-muted)\",     // was #666\n    border: \"var(--color-border)\",            // was #cccccc\n    focus: \"var(--color-focus)\",              // was #1a73e8\n  },\n  shadow: { card: \"var(--shadow-card)\" },     // was 0 2px 4px rgb(0,0,0)\n  space: { md: \"var(--space-md)\" },           // was 24\n};\n```\n\n```tsx\n<button\n  type=\"button\"\n  className={styles.card}            // styles read tokens via CSS vars\n  onClick={handleClick}\n>\n```\n\nMoving styles into a CSS module / styled component (rather than inline `style={…}`) also eliminates the \"next agent copies the literal\" failure mode the detector is worried about — there's no literal left in the JSX to copy.\n\n### 3. `responsive_fragility` (lines 12, 24, 27 — `width: 800`, `width: 720`, `width: 240`, `fontSize: 18`; no `@media`) → fluid widths + intrinsic typography\n\nFixed pixel widths over ~640px overflow the viewport on phones. Replace them with a `max-width` + `width: 100%` pattern and use a fluid type scale:\n\n```css\n/* card.module.css */\n.card {\n  width: 100%;\n  max-width: 50rem;        /* was width: 800px */\n  padding: var(--space-md);\n  background: var(--color-surface);\n  color: var(--color-text-primary);\n  box-shadow: var(--shadow-card);\n}\n\n.body { flex: 1 1 0; font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.125rem); } /* was 18px */\n.sidebar { flex: 0 0 15rem; font-size: 0.875rem; color: var(--color-text-muted); }\n\n@media (max-width: 640px) {\n  .layout { flex-direction: column; }\n  .sidebar { flex-basis: auto; }\n}\n```\n\nThe `@media` query is what flips the detector's \"no `@media` query found in the file\" evidence to a passing state, and `clamp()` removes the fixed `18px` body type.\n\n### Resulting component\n\n```tsx\nimport styles from \"./card.module.css\";\n\nexport function Card({ children, onActivate }: {\n  children: React.ReactNode;\n  onActivate: () => void;\n}) {\n  return (\n    <button type=\"button\" className={styles.card} onClick={onActivate}>\n      <div className={styles.layout}>\n        <div className={styles.body}>{children}</div>\n        <div className={styles.sidebar}>sidebar</div>\n      </div>\n    </button>\n  );\n}\n```\n\nThat single rewrite clears all three findings: the semantic `<button>` resolves `accessible_interaction_risk`, every literal is now a token reference for `design_token_escape`, and the fluid widths + `@media` query close out `responsive_fragility`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

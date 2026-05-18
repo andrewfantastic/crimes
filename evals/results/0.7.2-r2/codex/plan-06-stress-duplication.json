@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:57:17.407Z",
+  "run_id": "ae52419b-3e93-4ca0-acfe-00d4b75d81ff",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3903-f2a7-7e31-963a-0f179c3c5103\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Duplication Findings**\\n\\n`crimes scan --format json` reports three duplication findings relevant to this plan:\\n\\n1. `crime_00001` - `exact_duplicate_block`\\n   - `src/telemetry-a.ts`\\n   - `src/telemetry-b.ts`\\n   - Same `recordSanitiseEvent` body in both files.\\n\\n2. `crime_00002` - `near_duplicate_block`\\n   - `src/sanitize-a.ts` `sanitizeUserInput`\\n   - `src/sanitize-b.ts` `sanitizeText`\\n   - `src/sanitize-c.ts` `cleanMessage`\\n   - Three sanitise helpers with effectively the same implementation.\\n\\n3. `crime_00003` - `duplicated_role_status_plan_check`\\n   - `src/policy.ts`\\n   - `src/sanitize-a.ts`\\n   - `src/sanitize-b.ts`\\n   - `src/sanitize-c.ts`\\n   - Repeated checks against `\\\"admin\\\"` across multiple expression shapes.\\n\\n**Two-Step Refactor Plan**\\n\\nStep 1: Consolidate role policy first.\\n\\nCreate or extend a single policy API in `src/policy.ts`, for example:\\n\\n```ts\\nexport function isAdminRole(role: string): boolean {\\n  return role === \\\"admin\\\";\\n}\\n```\\n\\nThen replace the duplicated role checks in:\\n\\n- `src/policy.ts`\\n- `src/sanitize-a.ts`\\n- `src/sanitize-b.ts`\\n- `src/sanitize-c.ts`\\n\\nwith calls to that shared function.\\n\\nThis should be the first step because the sanitise helpers likely depend on the admin-role branching. Centralising policy first keeps the later sanitise extraction from preserving duplicated policy logic inside the new helper.\\n\\nStep 2: Extract one shared sanitise helper.\\n\\nAdd a shared helper, for example `src/sanitize.ts`, that owns the common sanitisation flow and delegates role behavior to `isAdminRole`.\\n\\nThen update the existing public functions to become thin compatibility wrappers:\\n\\n```ts\\nexport function sanitizeUserInput(input: string, role: string): string {\\n  return sanitizeInput(input, role);\\n}\\n\\nexport function sanitizeText(input: string, role: string): string {\\n  return sanitizeInput(input, role);\\n}\\n\\nexport function cleanMessage(input: string, role: string): string {\\n  return sanitizeInput(input, role);\\n}\\n```\\n\\nThis preserves the existing exported names while making future sanitisation changes land in one place.\\n\\nI would leave the telemetry duplicate and `Date.now()` findings for a separate change set unless the user asked for all duplication. Mixing telemetry extraction into the same patch would broaden the behavioral surface beyond the requested sanitise and role-policy consolidation.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19931,\"cached_input_tokens\":12160,\"output_tokens\":614,\"reasoning_output_tokens\":75}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

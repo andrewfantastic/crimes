@@ -1,0 +1,71 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:29.818Z",
+  "run_id": "62dbb1e8-a562-4bee-b92b-388ead08ae4d",
+  "response": "# src/billing.ts — context summary\n\n## What the file does\nA 310-line domain module with 5 top-level functions covering billing logic. Its centerpiece is `generateInvoice` (lines 50–253, 204 lines), and it includes `calculateRefundPreview` (lines 40–44) which despite its name performs side effects (`saveRefundAudit`, `sendRefundEmail`). The file hard-codes the `\"enterprise\"` plan literal, reads wall-clock time in 7 places, and carries a prose-only authorization rule in a comment at line 39: *\"Only owners can refund enterprise plans unless billing support approves.\"*\n\n## Files to read before editing\n- **`src/billing.test.ts`** — the only test file, and it's weak (one zero-assertion test, one with only weak matchers). Don't trust a green bar here.\n- **`src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`** — all share the `\"enterprise\"` literal. Any plan-shape change ripples to these.\n- **`src/date.ts`** — also flagged for Temporal Recklessness; likely candidate for / blocker to a shared clock abstraction.\n- **Definitions of `saveRefundAudit` and `sendRefundEmail`** — referenced by `calculateRefundPreview`, needed to understand the hidden side-effect surface.\n- **`src/routes/account/subscription.tsx`** and friends — concept-alias drift around tenant/account/organisation, relevant if the edit touches who-owns-what.\n\n## Risks the scan flagged on this file\n| Severity | Charge | Detail |\n|---|---|---|\n| **high** | God Function | `generateInvoice` is 3.4× the 60-line domain threshold |\n| medium | Temporal Recklessness | 5× `Date.now()` + 2× `new Date()` across lines 57, 63, 92, 198, 238, 250, 273 |\n| medium | False Identity | `calculateRefundPreview` reads pure but writes (audit + email) |\n| medium | String Sprinkles | `\"enterprise\"` duplicated across 4 production files |\n| medium | God File | 310 lines, just over the 300 threshold |\n| medium | Logic in the Alibi | refund rule lives in a comment, not in code |\n| low | Unfinished Business | 4 TODO/FIXME/HACK/XXX markers (lines 183–308) |\n\n## Practical implication for the edit\nBefore touching `generateInvoice` or refund logic: pin a clock, treat `calculateRefundPreview` as side-effecting, and assume the `\"enterprise\"` literal and the comment-rule at line 39 both need to move (or at minimum be honored) anywhere policy is changed. The tests will not catch regressions — add assertions if you change behavior.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

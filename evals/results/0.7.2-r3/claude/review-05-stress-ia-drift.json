@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:02:34.007Z",
+  "run_id": "04070c3d-e53b-4874-8511-57322a80ed61",
+  "response": "## IA drift review\n\n**Root cause: the alias drift (crime_00001) and two of the orphans are the same problem.**\n\n`src/nav.ts` references `organisation`, `team`, and `workspace` as if they were three concepts. The routes exist for all three (`organisation.ts`, `teams.ts`, `workspace.ts`), but only `teams.ts` is actually linked — so `/organisation` (crime_00003) and `/workspace` (crime_00004) show up as orphans *because* the vocabulary is split. Fix the alias and the orphans collapse with it.\n\n`/billing-plans` (crime_00002) is unrelated — independent orphan, in-flight or stale.\n\n## Recommendation\n\n| Finding | Verdict | Reason |\n|---|---|---|\n| crime_00001 — Concept Alias Drift (`tenant` group) | **Blocking** | Highest agent_risk (0.6). Three names for one concept is exactly the kind of thing an agent will reinforce by adding logic under whichever alias it sees first. Pick a canonical term (the PRD-style \"canonical + deliberate aliases\" pattern), update `nav.ts` + `docs/routes.md`, and either redirect or delete the non-canonical route files. |\n| crime_00003, crime_00004 — orphans `/organisation`, `/workspace` | **Resolved by 00001** | Don't fix in isolation; they go away when the alias decision is made. |\n| crime_00002 — orphan `/billing-plans` | **Follow-up** | Low severity, no IA-correctness implication. Confirm with the route's author whether it's WIP (link it) or abandoned (delete it). Safe to leave a TODO. |\n\nThe alias drift is the only one I'd block a PR on; the rest are housekeeping that falls out for free once that's decided.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

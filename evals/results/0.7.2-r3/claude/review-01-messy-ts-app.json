@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:02:54.697Z",
+  "run_id": "4968d769-dbe6-4b39-b79a-9d05feae0e63",
+  "response": "# PR review: `01-messy-ts-app` baseline introduction\n\n**Headline:** 1 hard block + 2 escalated to block by interaction. Refund flow is the standout — three findings (`crime_00008`, `crime_00011`, plus the time-dependent invoice logic) compose into a single agent footgun that's worse than any of them alone.\n\n**Decision threshold I'm using:**\n- **Block** — high severity, OR mediums whose `agent_risk ≥ 0.5` *and* sit on a correctness-critical path (billing, refunds, money), OR mediums that compose with other findings to mask business rules\n- **Warn** — must address but not before merge; medium severity OR low severity that actively misleads\n- **Ignore** — fix opportunistically; low impact, cosmetic, or already covered by a bigger finding\n\n---\n\n## Block merge (3)\n\n| ID | Charge | Sev / agent_risk | Why it blocks |\n|---|---|---|---|\n| `crime_00001` | God Function — `generateInvoice` 204 lines | **0.9 / 0.63** | Only `high` in the report. 3.4× threshold inside `billing.ts`. Anything else we add to invoicing lands on top of a function nobody can hold in their head. Refactor before further billing work, not after. |\n| `crime_00008` | False Identity — `calculateRefundPreview` sends email + writes audit | 0.55 / 0.52 | Sub-block scores in isolation, but a name that promises \"preview\" while issuing refund-side-effects is exactly the agent-risk failure mode `crimes` is built for. An agent told \"just compute the preview\" will fire emails. Block on the *kind* of risk, not just the number. |\n| `crime_00011` | Logic in the Alibi — refund authorisation rule lives in a comment | 0.5 / 0.5 | \"Only owners can refund enterprise plans unless billing support approves\" — that's a regulated business rule sitting in prose four lines above the function flagged in `crime_00008`. Comment-rule + misleading-name + temporal coupling (`crime_00004`) at the same file is a refund flow nobody should merge as-is. |\n\nThe three above are tightly coupled (all in `src/billing.ts` lines 39–57). I'd ask the PR author to address them as one unit.\n\n---\n\n## Warn (12)\n\nMust fix, but not blocking merge. Grouped by theme.\n\n**Agent context & domain literals**\n- `crime_00002` — Missing Agent Context (0.6 / 0.61). Repo ships no `AGENTS.md` / `CLAUDE.md`. High `agent_risk` for a structural finding. Warn rather than block because it's repo-wide hygiene, not a defect in this PR's code.\n- `crime_00007` — String Sprinkles `\"enterprise\"` in 4 files / 4 areas (0.5 / 0.6). One more copy and it's de-facto duplicated policy. Centralise before adding another plan tier.\n- `crime_00009` — Concept Alias Drift, tenant/account/org/team/workspace (0.55 / 0.58). Five terms for one concept across docs and routes. Pick one.\n\n**Time-dependent billing (correctness-adjacent)**\n- `crime_00004` — Temporal Recklessness in `src/billing.ts` × 7 calls (0.6 / 0.53). Invoice generation reading wall time means tests can't pin a moment. Should be block-grade in a vacuum, but is partly subsumed by `crime_00001` (any extract pass will inject a clock).\n- `crime_00005` — Temporal Recklessness in `src/date.ts` × 5 calls (0.6 / 0.61). Central date utility, `test_gap` 1.0. Fix alongside `crime_00004`.\n\n**Navigation / routing drift**\n- `crime_00012` — Duplicated Navigation Source, `/settings/billing` labeled \"Plans\" vs \"Billing\" (0.6 / 0.57).\n- `crime_00014` — Route Metadata Drift, `/settings/billing` labeled four different ways across path/file/component/title/nav (0.6 / 0.56). Picks up the same destination as `crime_00012`.\n- `crime_00021/22/23` — three Orphaned Destinations: `/account/subscription`, `/team`, `/workspace/members` (0.4 / 0.46 each). Three abandoned routes in one PR is a smell worth raising as a single warn — feature was likely half-extracted. Either link them or delete them.\n\n**Structure & process**\n- `crime_00010` — God File `billing.ts` 310 lines (0.6 / 0.5). Partly resolved by addressing `crime_00001`; warn rather than double-block.\n- `crime_00006` — Test That Proves Nothing, \"renders the enterprise plan\" — zero assertions (0.45 / 0.46). Misleading test signal; delete or assert. Pair with `crime_00016`.\n- `crime_00013` — Unfinished Business in `src/todo.ts`, 14 TODO/FIXME at 424/1k LOC (0.4 / 0.57). The density itself is the signal — agents can't tell load-bearing from aspirational.\n\n---\n\n## Ignore (7)\n\nLow impact, fix opportunistically, or already covered by a higher finding.\n\n| ID | Charge | Sev / agent_risk | Reason to ignore |\n|---|---|---|---|\n| `crime_00015` | Docs-Code Drift, `docs/teams.md → ./setup.md` missing | 0.35 / 0.51 | Single dead link in a doc. Trivial fix. |\n| `crime_00016` | Test That Proves Nothing, \"creates an invoice\" weak matcher | 0.25 / 0.34 | Same category as `crime_00006`; fix as part of that warn. |\n| `crime_00017` | Option Bag Junk Drawer, `describeCheckout` | 0.3 / 0.48 | Petty crime — name the shape when it next changes. |\n| `crime_00018` | Return Shape Roulette, `resolvePaymentResult` 3 shapes | 0.3 / 0.48 | Annoying but contained to `petty.ts`. |\n| `crime_00019` | Negative Flag Maze, `!disableBilling && !skipRetry` | 0.25 / 0.47 | Cosmetic; rename when the condition next grows. |\n| `crime_00020` | Unfinished Business in `billing.ts`, 12.9/1k LOC | 0.2 / 0.4 | Just over threshold. Resolve naturally during `crime_00001` refactor. |\n\n---\n\n## Cross-finding patterns worth flagging on the PR\n\n1. **Refund cluster** (`crime_00001` + `crime_00008` + `crime_00011` + `crime_00004` lines 50–57): four findings in 220 lines, all on the refund/invoice path. Treat as one refactor.\n2. **`/settings/billing` identity crisis** (`crime_00012` + `crime_00014`): same destination, two findings, four labels — fix together.\n3. **Half-finished tenant feature** (`crime_00009` + `crime_00021–23`): three orphan routes (`/account`, `/team`, `/workspace`) plus the five-word concept drift across those exact files suggests a partially abandoned tenancy rename. The PR author should confirm intent before merge.\n\n**Bottom line:** I'd block on the refund cluster (1, 8, 11), accept the warn list as PR comments, and let the ignore list ride.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "name_behavior_mismatch",
+        "passed": false
+      }
+    ]
+  }
+}

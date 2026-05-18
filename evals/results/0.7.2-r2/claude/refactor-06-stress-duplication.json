@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:58:27.263Z",
+  "run_id": "8e419c42-78ab-4aba-8e6a-d9ce919e6a49",
+  "response": "## What the scan is telling us\n\nThe headline finding (`crime_00002`) is a near-duplicate block: the three sanitisation functions all have the same body, just renamed locals.\n\n| File | Function | Local name |\n|---|---|---|\n| `src/sanitize-a.ts:10-36` | `sanitizeUserInput(raw)` | `working` |\n| `src/sanitize-b.ts:9-35` | `sanitizeText(input)` | `cleaned` |\n| `src/sanitize-c.ts:9-35` | `cleanMessage(value)` | `normalised` |\n\nI diffed the bodies and they're behaviourally identical: null/undefined → `\"\"`, trim, strip control chars, collapse whitespace, truncate at 1000, reject leading `<`/`>`, reject `\\x` escapes, reject when `[!?]{3,}` matches >5 times, lowercase when >90 % uppercase and >30 chars long. No divergence to preserve.\n\n## Refactor\n\n**Files that would change**\n- **New** `src/sanitize.ts` — single source of truth.\n- **Delete** `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts` (or shrink to thin re-exports during a deprecation window).\n- **Touch** every call site of `sanitizeUserInput` / `sanitizeText` / `cleanMessage` to import `sanitize` instead.\n- Out of scope here but worth queuing as follow-ups from the other findings:\n  - `src/telemetry-a.ts` + `src/telemetry-b.ts` (`crime_00001`, exact dup of `recordSanitiseEvent`) → collapse into `src/telemetry.ts`, inject a clock to clear `crime_00004`/`crime_00005`.\n  - The `role === \"admin\"` checks scattered across `src/policy.ts` + the sanitize files (`crime_00003`) → one `isAdmin(role)` helper.\n\n**Public API of the consolidated function**\n\n```ts\n// src/sanitize.ts\nexport function sanitize(value: unknown): string;\n```\n\nThat's the whole surface. Rationale:\n\n- All three callers accept `string`-ish input and the body already does `String(value).trim()` after a null/undefined guard, so `unknown` is honest and removes the three slightly-different parameter names.\n- Returns `string` — empty string is the existing \"rejected\" signal; preserving it avoids a behaviour change and keeps call sites untouched beyond the rename.\n- **No options bag.** The three copies agree on every threshold (1000 chars, `>5` punctuation runs, `0.9` upper-ratio, `30`-char floor); inventing `SanitizeOptions` for hypothetical callers would be premature abstraction. If a second policy ever appears, add a second named function (`sanitizeStrict`, etc.) — don't parameterise speculatively.\n- Keep the thresholds as named `const`s at the top of the module (`MAX_LENGTH = 1000`, `MAX_PUNCTUATION_RUNS = 5`, `UPPER_RATIO_THRESHOLD = 0.9`, `UPPER_RATIO_MIN_LENGTH = 30`) so the policy is greppable without re-introducing config plumbing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

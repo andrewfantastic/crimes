@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:56:09.533Z",
+  "run_id": "291a651b-3491-4b03-95b8-abfc835b4159",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3902-e710-7741-baa8-09bb59ac369e\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Most likely cause: `direct_date` in `src/billing.ts`, especially inside the large `generateInvoice` function.\\n\\nThe scan shows 7 wall-clock reads in billing code: `5× Date.now()` and `2× new Date()` on lines `57, 63, 92, 198, 238, 250, 273`. For a date-boundary failure, that is the strongest signal: invoice generation is observing real time at multiple points, so a test that starts before midnight/month-end/year-end can finish after the boundary and compute inconsistent billing periods, due dates, proration, or timestamps.\\n\\nThe `large_function` finding makes this worse: `generateInvoice` is 204 lines, so date logic is probably mixed with plan rules, discounts, tax, invoice assembly, and side effects. That increases the chance that different parts of the same invoice use different “now” values.\\n\\nProposed fix: capture or inject a single clock value and use it consistently.\\n\\n```ts\\ntype Clock = {\\n  now(): Date;\\n};\\n\\nconst systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n\\nexport function generateInvoice(input: GenerateInvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // use `now` everywhere instead of Date.now() / new Date()\\n}\\n```\\n\\nThen tests can pin the boundary case:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-01T00:00:00.000Z\\\"),\\n};\\n\\nconst invoice = generateInvoice(input, fixedClock);\\n```\\n\\nIf the public API should not change, use an options object instead:\\n\\n```ts\\ngenerateInvoice(input, { now: new Date(\\\"2026-01-01T00:00:00.000Z\\\") });\\n```\\n\\nThe key fix is not just replacing `Date.now()` with `new Date()` once. It is making invoice generation use one deterministic timestamp for the whole operation, ideally injected by the caller/test.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":438,\"reasoning_output_tokens\":25}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

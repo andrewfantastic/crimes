@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:00:39.010Z",
+  "run_id": "fd18d76a-f926-4d21-95cf-0cf999549b50",
+  "response": "## Findings for `src/billing.ts`\n\n**No findings.** `crimes context` reports `risk.level: \"none\"` with 0 high / 0 medium / 0 low findings, and the `findings` array is empty.\n\n**Likely tests path:** `src/billing.test.ts`\n\n**Why this module is low risk to edit:**\n\n- **No detector hits.** None of the structural, duplication, dependency, testability, or churn detectors flagged anything in this file — it stays under the size/nesting/param thresholds and has no obvious smells.\n- **No agent_guidance entries.** `crimes` had nothing to warn an agent about — no misleading names, no hidden side effects, no multi-source-of-truth concerns.\n- **A sibling test file exists.** `src/billing.test.ts` is the conventional Vitest co-located test path, so edits can be verified locally without hunting for indirect coverage.\n- **No neighbourhood entanglement.** `related_files_reason` confirms there are no IA-related files, shared domain tokens, domain-prefix siblings, or same-directory neighbours — changes here are unlikely to ripple into other modules.\n\nNet: clean, small, typed, tested in isolation. Safe to edit with a targeted change + a run of its sibling test.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

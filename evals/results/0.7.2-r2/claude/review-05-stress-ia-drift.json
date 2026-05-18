@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:59:02.215Z",
+  "run_id": "9949c6fa-b791-4465-b62a-70d85ac3beea",
+  "response": "## IA drift review\n\n**Headline finding:** the alias drift (`crime_00001`) is the real story. The three orphans aren't independent — two of them (`/organisation`, `/workspace`) are the *same* routes named in the alias group. Only `/teams` survives in nav, which strongly suggests \"team\" is the de facto canonical term and `organisation`/`workspace` are stale or speculative variants of the same tenant concept.\n\n**Per-finding recommendation:**\n\n| ID | Charge | Verdict | Why |\n|---|---|---|---|\n| `crime_00001` | Concept Alias Drift (medium) | **Blocking-quality** | This is exactly the agent-risk pattern the PRD calls out — three vocabularies for one concept means an agent extending \"workspace\" will silently duplicate logic that already lives under \"team\". `agent_risk 0.6` + the fact that the drift spans nav + routes (the IA surface itself) makes it worth resolving before more code lands on top. |\n| `crime_00003` (`/organisation`) | Orphaned Destination (low) | **Resolved by fixing #1** | Symptom of the alias drift, not a separate issue. Either retire it or fold it into `/teams`. |\n| `crime_00004` (`/workspace`) | Orphaned Destination (low) | **Resolved by fixing #1** | Same — symptom. |\n| `crime_00002` (`/billing-plans`) | Orphaned Destination (low) | **Follow-up** | Genuinely independent. No alias group, just an unlinked route. Likely in-flight or stale; a quick \"link from settings nav, or delete\" ticket. |\n\n**Concrete next step:** pick the canonical term (evidence points to `team`), update `docs/routes.md` to declare it, delete or redirect `organisation.ts` and `workspace.ts`, and re-run scan — the three IA findings should collapse to zero, leaving only the `/billing-plans` follow-up.\n\nNet: one blocking issue (medium, alias drift) with two free symptom-fixes, plus one low-severity follow-up that's unrelated.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

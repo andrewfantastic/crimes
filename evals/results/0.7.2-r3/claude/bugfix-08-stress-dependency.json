@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:00:02.505Z",
+  "run_id": "f8222e3c-2ddd-4849-a2f8-7d17ac55b8f3",
+  "response": "## Which import to break\n\n**Break `src/domain/billing.ts` → `src/presentation/invoice-view.ts`.**\n\n## Why\n\nThe scan shows a 3-file cycle and a separate layer violation, but they're the same defect viewed two ways:\n\n- `crime_00002` calls out exactly this edge: domain importing presentation, against the `domain cannotImport presentation` rule.\n- That same edge is one of the three legs of the cycle in `crime_00001`.\n\nSo one cut closes both findings. The other two legs of the ring (application → domain, presentation → application/domain) point in directions a layered architecture expects; removing either of those would fix the cycle but leave the inverted dependency in place, which would likely re-grow into another cycle the next time someone follows the existing pattern.\n\n## How to break it\n\nPick whichever fits what `billing.ts` is actually reaching for:\n\n1. **If it needs a type only** — change the import in `billing.ts` to `import type { … } from '../presentation/invoice-view'`. Type-only imports don't create a runtime edge, so the cycle disappears at zero behavioral cost. Cheapest fix.\n2. **If it needs a value (function/class/constant)** — that value is misplaced. Extract the shared piece (likely an invoice-shaped type or formatter contract) into a neutral module under `src/domain/` (or a new `src/shared/`) that both `domain` and `presentation` import from. Presentation keeps depending on domain; domain stops depending on presentation.\n3. **Invert with an interface** — define the collaboration as an interface in `domain`, have `presentation` implement it, and have `application` wire the concrete implementation in. Heavier, but right if the domain genuinely needs to call into a rendering concern.\n\nOption 1 is the right first try; fall back to 2 if the import resolves to a runtime value.\n\n## What not to do\n\nDon't break the `application → domain` edge — that's the correct direction. Don't relax the layer rule in `crimes.config.json` to silence `crime_00002`; the rule is catching real damage here. The deep-import finding (`crime_00003`) is unrelated to the cycle and can be addressed separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:59:51.503Z",
+  "run_id": "c8f1825a-1d69-4149-8a6a-9fd3a4c0ac1f",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3906-586f-7150-97d4-f1c48491f442\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"The most likely cause is `crime_00004`: `src/billing.ts` reads wall-clock time directly with `Date.now()` and `new Date()` across billing logic, including several calls inside or near `generateInvoice`.\\n\\nFor a date-boundary failure, that is the strongest signal because the function can observe different times during one invoice generation. If a test runs around midnight, month end, trial expiry, renewal cutoff, or timezone conversion boundary, two separate `Date.now()` / `new Date()` calls may land on opposite sides of the boundary. That makes the invoice depend on when the test happened to execute, not only on its inputs.\\n\\nThe high-risk `generateInvoice` finding makes this worse: the date logic is buried inside a 204-line function, so renewal, proration, due date, discounts, and invoice timestamps may be coupled without being obvious.\\n\\nProposed fix:\\n\\n```ts\\ntype Clock = {\\n  now(): Date;\\n};\\n\\nconst systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n\\nexport function generateInvoice(input: InvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // Use `now` everywhere in this invoice calculation.\\n  // Do not call Date.now() or new Date() again inside the function.\\n}\\n```\\n\\nThen update the failing billing tests to pass a fixed clock:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-31T23:59:59.000Z\\\"),\\n};\\n\\nconst invoice = generateInvoice(input, fixedClock);\\n```\\n\\nThe key is to capture one deterministic `now` at the boundary of the operation and thread it through the billing calculations. Avoid scattered `Date.now()` calls, especially if the code compares billing periods, expiry dates, invoice dates, or due dates.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":17792,\"output_tokens\":393,\"reasoning_output_tokens\":20}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

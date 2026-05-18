@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:00:56.963Z",
+  "run_id": "8810868e-d77d-4823-b113-a86295722c81",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3907-1c77-7050-8fd5-6cb43bd2906f\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll verify the branch-level verdict locally, then fold it into the triage order from the supplied scan JSON.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes verdict --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes verdict --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"verdict\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"base\\\": \\\"origin/main\\\",\\n  \\\"head\\\": \\\"HEAD\\\",\\n  \\\"verdict\\\": \\\"unchanged\\\",\\n  \\\"summary\\\": {\\n    \\\"new\\\": 0,\\n    \\\"fixed\\\": 0,\\n    \\\"unchanged\\\": 22,\\n    \\\"new_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"fixed_by_severity\\\": {\\n      \\\"high\\\": 0,\\n      \\\"medium\\\": 0,\\n      \\\"low\\\": 0\\n    },\\n    \\\"new_weighted\\\": 0,\\n    \\\"fixed_weighted\\\": 0\\n  },\\n  \\\"reasons\\\": [\\n    \\\"no new findings and no fixed findings\\\"\\n  ],\\n  \\\"recommended_actions\\\": [\\n    \\\"no maintainability change vs. base — verdict is advisory only.\\\"\\n  ],\\n  \\\"new_findings\\\": [],\\n  \\\"fixed_findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`crimes verdict --format json` reports `verdict: \\\"unchanged\\\"` against `origin/main`: 0 new, 0 fixed, all 22 unchanged. So this is backlog triage, not a branch blocker. Fix the high-risk billing cluster first, then the agent-context gaps.\\n\\n**Structural**\\n\\n1. `crime_00001` | `large_function` | `src/billing.ts:50` | **fix now**  \\n   Refactor `generateInvoice` first. It is the only high finding and likely amplifies several nearby findings.\\n\\n2. `crime_00004` | `direct_date` | `src/billing.ts:57` | **fix now**  \\n   Do this while touching billing: inject a clock or `now()` dependency so invoice behavior is testable.\\n\\n3. `crime_00008` | `name_behavior_mismatch` | `src/billing.ts:40` | **fix now**  \\n   Rename or split `calculateRefundPreview`; misleading side effects are a real agent-edit hazard.\\n\\n4. `crime_00011` | `logic_in_comments` | `src/billing.ts:39` | **fix now**  \\n   Encode the refund authorization rule in code/tests before refactoring around it.\\n\\n5. `crime_00010` | `large_file` | `src/billing.ts:1` | **defer**  \\n   Treat as a follow-on from fixing `generateInvoice`; avoid splitting the file just to satisfy the threshold.\\n\\n6. `crime_00005` | `direct_date` | `src/date.ts:4` | **defer**  \\n   Same pattern as billing, but less central than the high-risk invoice path.\\n\\n7. `crime_00006` | `weak_test_signal` | `src/billing.test.ts:4` | **fix now**  \\n   Add real assertions before or during the billing refactor so tests can catch regressions.\\n\\n**IA**\\n\\n8. `crime_00002` | `missing_agent_context` | `src/api/plan.ts` | **fix now**  \\n   Add `AGENTS.md` or equivalent repo instructions. Low effort, high leverage for future agent work.\\n\\n9. `crime_00009` | `concept_alias_drift` | `docs/billing.md` | **defer**  \\n   Pick/document canonical tenant terminology, but do it after the billing behavior is stabilized.\\n\\n**Duplication**\\n\\n10. `crime_00007` | `magic_domain_literal_scatter` | `src/api/plan.ts:2` | **defer**  \\n   Centralize `\\\"enterprise\\\"` once billing/refund semantics are clearer. Don’t blindly extract a constant before deciding whether it represents one policy concept.\\n\\n**Frontend**\\n\\nNo frontend finding lands in the top 10. The nav/route issues just below the cutoff should be handled together later: `crime_00012` duplicated nav source and `crime_00014` route metadata drift.\\n\\n**Git-History**\\n\\nNo git-history-driven action. All findings have `churn: 0`, and the verdict says the branch is unchanged versus `origin/main`.\\n\\nRecommended immediate batch: `crime_00001`, `crime_00004`, `crime_00008`, `crime_00011`, `crime_00006`, and `crime_00002`. Ignore none of the top 10 as false positives from the supplied evidence; the only “don’t act directly” item is `crime_00010`, because the large-file symptom should be resolved through the focused billing refactor.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":49742,\"cached_input_tokens\":36608,\"output_tokens\":1129,\"reasoning_output_tokens\":299}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

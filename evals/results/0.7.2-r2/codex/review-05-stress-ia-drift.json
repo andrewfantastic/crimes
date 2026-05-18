@@ -1,0 +1,56 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T02:58:51.533Z",
+  "run_id": "28e7625c-c7ef-4360-9c62-cd23ba612601",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3905-5b52-7752-a445-f22165825a02\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- Medium: `src/nav.ts` has tenant vocabulary drift across `src/routes/` and nav. The scan found `organisation`, `team`, and `workspace` all used as aliases for the same tenant concept across `src/nav.ts`, `src/routes/organisation.ts`, `src/routes/teams.ts`, and `src/routes/workspace.ts`.  \\n  Recommendation: blocking-quality issue if this branch is meant to stabilize IA or add tenant/account navigation. It creates a real risk that future agents or contributors extend the wrong concept. Pick the canonical term and document intentional aliases in `docs/routes.md`.\\n\\n- Low: `src/routes/billing-plans.ts` defines `/billing-plans`, but the route is not reachable from nav, docs links, or imports.  \\n  Recommendation: follow-up unless billing is part of the current user journey. Link it from `src/nav.ts` / `docs/routes.md` if it is intended to ship; otherwise retire it.\\n\\n- Low: `src/routes/organisation.ts` defines `/organisation`, but the route is not reachable from nav, docs links, or imports.  \\n  Recommendation: likely tied to the alias drift above. Treat as blocking only if `organisation` is supposed to be the canonical tenant destination. Otherwise follow-up cleanup after the canonical IA decision.\\n\\n- Low: `src/routes/workspace.ts` defines `/workspace`, but the route is not reachable from nav, docs links, or imports.  \\n  Recommendation: same as `/organisation`: not independently blocking, but should be resolved as part of the tenant terminology cleanup.\\n\\n**Verdict**\\n\\nOne blocking-quality issue: the tenant concept alias drift. The orphaned destinations are follow-ups unless they represent routes that must be reachable in the current release path. The clean fix is to decide the canonical tenant term, align `src/nav.ts`, route filenames/paths, and `docs/routes.md`, then either link or remove the stray destinations.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19607,\"cached_input_tokens\":12160,\"output_tokens\":435,\"reasoning_output_tokens\":40}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:00:59.768Z",
+  "run_id": "fdeec617-2642-4d32-bf1f-941a370509ce",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3907-48be-7622-bc67-c5a6370ba9d7\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Duplication findings from `crimes scan --format json`:\\n\\n- `crime_00001`: exact duplicate `recordSanitiseEvent` in `src/telemetry-a.ts` and `src/telemetry-b.ts`\\n- `crime_00002`: near-duplicate sanitise helpers across:\\n  - `src/sanitize-a.ts` `sanitizeUserInput`\\n  - `src/sanitize-b.ts` `sanitizeText`\\n  - `src/sanitize-c.ts` `cleanMessage`\\n- `crime_00003`: duplicated `\\\"admin\\\"` role checks across `src/policy.ts` plus the three sanitize files\\n\\n**Two-Step Refactor Plan**\\n\\n1. **Centralize role policy first**\\n\\n   Add one exported policy helper in `src/policy.ts`, for example:\\n\\n   ```ts\\n   export function isAdmin(role: string): boolean {\\n     return role === \\\"admin\\\";\\n   }\\n   ```\\n\\n   Then replace the three sanitize-file checks with `isAdmin(role)`. Keep existing exported policy functions intact if callers depend on them, but make them delegate to `isAdmin` internally.\\n\\n   This removes the rule drift risk before touching sanitization behavior.\\n\\n2. **Extract one shared sanitise implementation**\\n\\n   Add a shared helper module, for example `src/sanitize.ts` or `src/sanitize-core.ts`, that contains the common implementation used by all three public wrappers.\\n\\n   Preserve current public function names to avoid changing callers:\\n\\n   ```ts\\n   // sanitize-a.ts\\n   export function sanitizeUserInput(input: string, role: string) {\\n     return sanitizeInput(input, { isPrivileged: isAdmin(role) });\\n   }\\n\\n   // sanitize-b.ts\\n   export function sanitizeText(input: string, role: string) {\\n     return sanitizeInput(input, { isPrivileged: isAdmin(role) });\\n   }\\n\\n   // sanitize-c.ts\\n   export function cleanMessage(input: string, role: string) {\\n     return sanitizeInput(input, { isPrivileged: isAdmin(role) });\\n   }\\n   ```\\n\\n   The shared helper should own the duplicated trimming, escaping, truncation, empty-input handling, and admin/privileged bypass behavior. The wrappers become compatibility shims only.\\n\\n**Verification**\\n\\nAfter the change, run:\\n\\n```bash\\npnpm test\\ncrimes scan --format json\\n```\\n\\nExpected result: `crime_00002` and `crime_00003` disappear. `crime_00001`, `crime_00004`, and `crime_00005` may remain unless telemetry is included in a later pass.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19931,\"cached_input_tokens\":12160,\"output_tokens\":640,\"reasoning_output_tokens\":115}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
