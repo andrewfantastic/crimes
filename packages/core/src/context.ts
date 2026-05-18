@@ -30,8 +30,8 @@ import {
   buildDetectorRegistry,
   builtInDetectors,
   filterDetectors,
-  resolveAliasGroups,
-} from "./scan.js";
+} from "./detector-registry.js";
+import { resolveAliasGroups } from "./scan.js";
 import type {
   ApplySuppressionsOptions,
   SuppressionEntry,

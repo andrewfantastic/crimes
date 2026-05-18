@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.7.0)
+## Commands (latest published v0.8.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -333,12 +333,66 @@ which gating command is used.
 Release notes:
 https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
+## 0.8.0 — extended lens (current release)
+
+Thirteen new detectors plus one config feature. Each emits the
+existing `Finding` shape — no schema bump.
+
+- `detectors.options.<id>` — per-detector exemption values
+  (allowlists, threshold tuning). Sits between `detectors.disable`
+  (kills the detector everywhere) and `crimes ignore` (suppresses
+  one specific finding). Each detector registers its own zod schema;
+  typos surface at config-load time.
+
+Date / time family (5 detectors):
+- `timezone_unsafe_parse` — `new Date("…")` with no `Z` / `±HH:MM` offset.
+- `mixed_utc_local_methods` — UTC + local Date methods on the same receiver.
+- `locale_drift` — `.toLocaleDateString()` / etc. with no locale arg.
+- `dst_naive_arithmetic` — `+ 86400000` and folded `24 * 60 * 60 * 1000`.
+- `date_string_concat` — `"…" + d.dateMethod()` hand-rolled date strings.
+
+Naming-tier family (2 detectors):
+- `boolean_naming_drift` — booleans without `is`/`has`/`should`/`can`/…
+  prefix (built-in React-state allowlist; user extension via
+  `detectors.options.boolean_naming_drift.allowedNames`).
+- `singular_plural_type_mismatch` — `users: User`, `invoice: Invoice[]`
+  shape disagreement between name and type annotation.
+
+Hot-path / portability family (3 detectors):
+- `sync_io_in_hotpath` — `readFileSync` / `execSync` / etc. inside
+  route handlers, page exports, React components, or domain
+  functions (test / CLI registrar ancestors suppress).
+- `hardcoded_local_path` — `/Users/<name>/…`, `/home/<name>/…`,
+  Windows `C:\Users\<name>\…` baked into non-test source.
+- `hardcoded_localhost` — `localhost:NNNN`, `127.0.0.1:NNNN`,
+  `0.0.0.0:NNNN`, `[::1]:NNNN` outside config-style basenames.
+
+Asset family (3 detectors) — first non-source detectors:
+- `oversized_raster` — file size against `thresholds.assetWeight.{low,medium,high}Kb`
+  (defaults 200 / 500 / 1000 KB).
+- `raster_should_be_vector` — PNG / JPEG / GIF whose width AND height
+  both fit ≤ 64 px (configurable `iconSizeMax`).
+- `svg_with_embedded_raster` — SVGs containing `<image href="data:image/*;base64,…">`.
+
+Asset detectors run a separate second-pass walk over
+`**/*.{png,jpg,jpeg,gif,webp,avif,svg}`. Configured via
+`assets.include` / `assets.exclude`.
+
+Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md
+
 ## Not shipped yet — do not invoke or document as available
 
 - `crimes ask` / LLM-assisted features — v1+.
 - Homebrew tap + standalone binaries — deferred.
 - Suppression expiry / owner (`expires_at`, `owner`) — designed but deferred.
-- Structured Claude + Codex evidence-capture hook — v0.7.0.
+- `date_equality_misuse` — deferred to 0.9.0 with type-info work.
+- `exported_stop_word_name` — researched and dropped (exports-only
+  prototype found zero hits across 500+ files).
+- `dead_export` agent-risk variant (edit-distance match against
+  live exports) — deferred to 0.9.0; needs eval-run evidence first.
+- WebP / AVIF coverage on `raster_should_be_vector` — v1 supports
+  PNG / JPEG / GIF only (the in-tree header parser).
 
 ## Resources
 

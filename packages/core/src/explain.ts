@@ -1,13 +1,15 @@
 import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
+import {
+  builtInDetectors,
+  filterDetectors,
+} from "./detector-registry.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import {
   applySuppressionsToScan,
-  builtInDetectors,
-  filterDetectors,
   scan,
 } from "./scan.js";
 import { loadSuppressionsForRoot } from "./suppressions.js";

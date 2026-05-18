@@ -1,0 +1,239 @@
+import type { CrimesConfig, DetectorRegistry } from "./config.js";
+import type { AssetDetector, Detector } from "./detector.js";
+import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
+import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
+import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
+import { circularDependencyDetector } from "./detectors/circular-dependency.js";
+import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
+import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
+import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
+import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
+import { dateStringConcatDetector } from "./detectors/date-string-concat.js";
+import { deepImportDetector } from "./detectors/deep-import.js";
+import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
+import { directDateDetector } from "./detectors/direct-date.js";
+import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
+import { dstNaiveArithmeticDetector } from "./detectors/dst-naive-arithmetic.js";
+import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
+import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
+import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
+import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
+import { hardcodedLocalPathDetector } from "./detectors/hardcoded-local-path.js";
+import { hardcodedLocalhostDetector } from "./detectors/hardcoded-localhost.js";
+import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
+import { largeFileDetector } from "./detectors/large-file.js";
+import { largeFunctionDetector } from "./detectors/large-function.js";
+import { layerViolationDetector } from "./detectors/layer-violation.js";
+import { localeDriftDetector } from "./detectors/locale-drift.js";
+import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
+import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
+import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+import { mixedUtcLocalMethodsDetector } from "./detectors/mixed-utc-local-methods.js";
+import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
+import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
+import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
+import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
+import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
+import { oversizedRasterDetector } from "./detectors/oversized-raster.js";
+import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
+import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
+import { rasterShouldBeVectorDetector } from "./detectors/raster-should-be-vector.js";
+import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
+import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
+import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
+import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
+import { svgWithEmbeddedRasterDetector } from "./detectors/svg-with-embedded-raster.js";
+import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
+import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
+import { todoDensityDetector } from "./detectors/todo-density.js";
+import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
+
+/**
+ * Built-in source-detector slate, in priority order. Order matters for
+ * the default `crimes scan` output (which sorts by severity then
+ * detector position) — keep structural / file-local detectors first
+ * since they make up the bulk of findings on most repos and don't
+ * depend on cross-file analysis.
+ */
+export const builtInDetectors: Detector[] = [
+  // Structural / file-local detectors (run first; they make up the bulk of
+  // findings on most repos and don't depend on cross-file analysis).
+  largeFileDetector,
+  largeFunctionDetector,
+  todoDensityDetector,
+  directDateDetector,
+  timezoneUnsafeParseDetector,
+  mixedUtcLocalMethodsDetector,
+  localeDriftDetector,
+  dstNaiveArithmeticDetector,
+  dateStringConcatDetector,
+  // Naming-tier (0.8.0): consume typedDeclarations from the parser.
+  booleanNamingDriftDetector,
+  singularPluralTypeMismatchDetector,
+  // Hot-path & portability (0.8.0): sync I/O inside hot-path shapes,
+  // developer-specific local paths, and dev-server URL literals.
+  syncIoInHotpathDetector,
+  hardcodedLocalPathDetector,
+  hardcodedLocalhostDetector,
+  // Petty crimes (small local patterns that increase agent confusion).
+  commentedOutCodeDetector,
+  logicInCommentsDetector,
+  nameBehaviorMismatchDetector,
+  magicDomainLiteralScatterDetector,
+  weakTestSignalDetector,
+  optionBagJunkDrawerDetector,
+  returnShapeRouletteDetector,
+  negativeFlagMazeDetector,
+  // Information-architecture detectors (cross-file; require ctx.ia).
+  missingAgentContextDetector,
+  routeMetadataDriftDetector,
+  duplicatedNavigationSourceDetector,
+  conceptAliasDriftDetector,
+  docsCodeDriftDetector,
+  orphanedDestinationDetector,
+  parallelDestinationDetector,
+  permissionIaDriftDetector,
+  actionLabelDriftDetector,
+  copyIaDriftDetector,
+  commandDriftDocsCodeDriftDetector,
+  // Dependency-graph + architecture (require ctx.imports).
+  layerViolationDetector,
+  circularDependencyDetector,
+  deepImportDetector,
+  highFanInFanOutDetector,
+  // Frontend / UI agent-risk (require ctx.parsed.jsxElements).
+  designTokenEscapeDetector,
+  accessibleInteractionRiskDetector,
+  duplicateComponentShapeDetector,
+  responsiveFragilityDetector,
+  // Duplication (require ctx.functionHashIndex / ctx.ia).
+  exactDuplicateBlockDetector,
+  nearDuplicateBlockDetector,
+  duplicatedRoleStatusPlanCheckDetector,
+];
+
+/**
+ * Built-in asset detectors — image-shaped findings that the source
+ * pipeline can't surface because they don't have an AST. Run in a
+ * separate second pass after every source detector emits.
+ */
+export const builtInAssetDetectors: AssetDetector[] = [
+  oversizedRasterDetector,
+  rasterShouldBeVectorDetector,
+  svgWithEmbeddedRasterDetector,
+];
+
+/**
+ * Project a detector list down to the slice the config loader uses for
+ * validating `detectors.options.<id>`. Exported so other scan entry
+ * points (`context`, future commands) can share a single source of
+ * truth without re-importing every detector.
+ *
+ * Asset detectors share the same `detectors.options.<id>` namespace as
+ * source detectors — pass both lists so the loader recognises asset-
+ * detector ids and validates any options blocks against the asset
+ * detector's `optionsSchema`.
+ */
+export function buildDetectorRegistry(
+  detectors: readonly Detector[],
+  assetDetectors: readonly AssetDetector[] = [],
+): DetectorRegistry {
+  return [
+    ...detectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
+    ...assetDetectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
+  ];
+}
+
+/**
+ * Apply `config.detectors.enable` / `config.detectors.disable` to the
+ * built-in detector list. Returns a new array; never mutates the input.
+ *
+ * `enable` is an allowlist (empty / omitted means "all built-ins").
+ * `disable` runs **after** `enable` so a user can shrink the set in two
+ * passes if they want to. An unknown id in either list raises
+ * {@link UnknownDetectorError} — typos should not silently no-op.
+ *
+ * `allKnownIds` (optional) carries the combined source + asset
+ * detector id set so an asset-detector id in `enable`/`disable` is
+ * recognised as known even though it isn't in this `available`
+ * source-detector pool. When omitted, validation falls back to
+ * `available`'s ids only.
+ */
+export function filterDetectors(
+  available: Detector[],
+  config: CrimesConfig,
+  allKnownIds?: Set<string>,
+): Detector[] {
+  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
+  return applyEnableDisable(available, config, knownIds);
+}
+
+/**
+ * Asset-pipeline counterpart of {@link filterDetectors}. Same
+ * `config.detectors.enable` / `config.detectors.disable` lists apply
+ * — asset and source detectors share one id namespace.
+ */
+export function filterAssetDetectors(
+  available: AssetDetector[],
+  config: CrimesConfig,
+  allKnownIds?: Set<string>,
+): AssetDetector[] {
+  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
+  return applyEnableDisable(available, config, knownIds);
+}
+
+/**
+ * Build the union of every known detector id (source + asset) — the
+ * set the enable/disable validator consults so a config that mixes
+ * source and asset ids doesn't get one path's filter throwing
+ * `UnknownDetectorError` against an id the other path knows about.
+ */
+export function collectKnownIds(
+  detectors: readonly Detector[],
+  assetDetectors: readonly AssetDetector[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const d of detectors) ids.add(d.id);
+  for (const d of assetDetectors) ids.add(d.id);
+  return ids;
+}
+
+function applyEnableDisable<T extends { id: string }>(
+  available: T[],
+  config: CrimesConfig,
+  knownIds: Set<string>,
+): T[] {
+  const enable = config.detectors?.enable ?? [];
+  const disable = config.detectors?.disable ?? [];
+
+  for (const id of enable) {
+    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+  }
+  for (const id of disable) {
+    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
+  }
+
+  let pool = available;
+  if (enable.length > 0) {
+    const enableSet = new Set(enable);
+    pool = pool.filter((d) => enableSet.has(d.id));
+  }
+  if (disable.length > 0) {
+    const disableSet = new Set(disable);
+    pool = pool.filter((d) => !disableSet.has(d.id));
+  }
+  return pool;
+}
+
+export class UnknownDetectorError extends Error {
+  id: string;
+  constructor(id: string) {
+    super(
+      `unknown detector id "${id}" in crimes.config.json. ` +
+        `Check the spelling against the built-in detector list in ` +
+        `docs/finding-types/.`,
+    );
+    this.name = "UnknownDetectorError";
+    this.id = id;
+  }
+}

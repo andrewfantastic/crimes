@@ -272,16 +272,18 @@ export type {
   HotspotsReport,
 } from "./hotspots.js";
 export {
-  applyScanFailOn,
-  applySuppressionsToScan,
   buildDetectorRegistry,
   builtInAssetDetectors,
   builtInDetectors,
   filterAssetDetectors,
   filterDetectors,
+  UnknownDetectorError,
+} from "./detector-registry.js";
+export {
+  applyScanFailOn,
+  applySuppressionsToScan,
   resolveAliasGroups,
   scan,
-  UnknownDetectorError,
 } from "./scan.js";
 export type { ScanOptions } from "./scan.js";
 export {

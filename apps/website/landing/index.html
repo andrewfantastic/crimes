@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.7.5",
+            "softwareVersion": "0.8.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.7.5 · eval-harness graduation + detector trim · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.8.0 · extended lens: date, naming, hot-path, asset crimes · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1088,11 +1088,44 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               ><code>docs/releases/v0.7.5.md</code></a
             >.
           </li>
+          <li class="done">
+            <strong>v0.8.0 — extended lens: date, naming, hot-path,
+            asset crimes.</strong> One config feature plus thirteen
+            new detectors across four families that mainstream linters
+            don't catch. Date / time (<code>timezone_unsafe_parse</code>,
+            <code>mixed_utc_local_methods</code>, <code>locale_drift</code>,
+            <code>dst_naive_arithmetic</code>, <code>date_string_concat</code>);
+            naming-tier (<code>boolean_naming_drift</code>,
+            <code>singular_plural_type_mismatch</code>); hot-path /
+            portability (<code>sync_io_in_hotpath</code>,
+            <code>hardcoded_local_path</code>,
+            <code>hardcoded_localhost</code>); asset (<code>oversized_raster</code>,
+            <code>raster_should_be_vector</code>,
+            <code>svg_with_embedded_raster</code> — the first non-source
+            detectors, running a second-pass walk over
+            <code>**/*.{png,jpg,jpeg,gif,webp,avif,svg}</code>). New
+            <code>detectors.options.&lt;id&gt;</code> config sits
+            between <code>detectors.disable</code> and <code>crimes
+            ignore</code> for per-detector exemption values. Detector
+            count: 34 → 47. Eight new eval scenarios bring per-agent
+            coverage to 38; eval baseline at 0.7.15 published with the
+            release. Schema unchanged (<code>schema_version: "0.1.0"</code>).
+            Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md"
+              ><code>docs/releases/v0.8.0.md</code></a
+            >.
+          </li>
           <li>
-            <strong>Later.</strong> Detector tuning driven by 0.7.5
-            eval baseline + calibration data (<code>0.8.0</code>),
-            Homebrew tap, standalone macOS / Linux / Windows binaries,
-            and optional LLM-assisted summaries.
+            <strong>Later.</strong> Type-info v2 for the naming-tier
+            detectors (graduates aliased / generic annotations from
+            silent skip to flagged); WebP / AVIF coverage for
+            <code>raster_should_be_vector</code>; revisit of the
+            deferred 0.8.0 candidates (<code>date_equality_misuse</code>,
+            <code>exported_stop_word_name</code>, <code>dead_export</code>
+            agent-risk variant). Homebrew tap, standalone macOS /
+            Linux / Windows binaries, and optional LLM-assisted
+            summaries.
           </li>
         </ul>
         <p>

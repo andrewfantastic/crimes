@@ -13,9 +13,9 @@ import {
   builtInAssetDetectors,
   builtInDetectors,
   filterAssetDetectors,
-  scan,
   UnknownDetectorError,
-} from "./scan.js";
+} from "./detector-registry.js";
+import { scan } from "./scan.js";
 
 async function makeRepo(
   files: Record<string, string | Buffer>,

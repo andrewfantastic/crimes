@@ -2,11 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status: pre-implementation
+## Status
 
-The repo currently contains only `PRD.md` and `LICENSE`. No code, no `package.json`, no tooling. Any "what command runs the tests" question has no answer yet — there are no tests, no build, no lint config. Bootstrap work (Milestone 0 in `PRD.md` §22) is the next step.
+Shipped on npm as `crimes` through 0.8.0. Latest published version
+lives in `packages/cli/package.json`. The crimes.sh website auto-deploys
+from `main` via Vercel. See `docs/roadmap.md` for the per-milestone
+status mirror, and `docs/releases/` for in-repo draft release notes.
 
-`PRD.md` is the authoritative spec. When something here conflicts with `PRD.md`, the PRD wins — update this file rather than diverging.
+Workspace layout, test runners, and the per-release procedure are
+canonical in `docs/releasing.md`. `pnpm ci` runs build + typecheck + test
+across every workspace package; `pnpm --filter crimes smoke` packs the
+tarball and exercises every CLI command from a clean install.
+
+`PRD.md` is the authoritative product spec. When something here
+conflicts with `PRD.md`, the PRD wins — update this file rather than
+diverging.
 
 ## What this product is (and isn't)
 
@@ -114,6 +124,11 @@ rationale in [`evals/README.md` § Versioning policy](evals/README.md).
 When a delta is a measurement correction rather than a quality
 improvement (or vice versa), say so in the commit message.
 
-## Open questions (from PRD §26)
+## Open questions (resolved as of 0.8.0)
 
-These are unresolved and worth flagging before making decisions that depend on them: npm name availability, GitHub org name, MIT vs Apache-2.0 (currently MIT in `LICENSE`), Astro vs Next.js for the site, whether to include Python in v0, whether `crimes ask` ships in v0 as heuristic search. Don't guess — ask.
+PRD §26's open questions have mostly settled into shipped reality:
+npm name `crimes` is taken (the published package), the GitHub org
+is `andrewfantastic`, the license stays MIT, the site is Astro +
+Starlight under `apps/website/`. Python in v0 is still deferred per
+PRD §26. `crimes ask` is still deferred to v1+ — explicitly out of
+scope through the 0.8.0 milestone.

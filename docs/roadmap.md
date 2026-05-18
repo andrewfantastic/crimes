@@ -4,11 +4,12 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.7.5` (npm) ✅ shipped —
-  _eval-harness graduation and detector trim_.
+- **Last published version:** `crimes@0.8.0` (npm) ✅ shipped —
+  _extended lens: date, naming, hot-path, and asset crimes_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.7.5.md`](./docs/releases/v0.7.5.md).
-- **Previously shipped milestones:** `crimes@0.7.0` — _calibration and
+  notes: [`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
+- **Previously shipped milestones:** `crimes@0.7.5` — _eval-harness
+  graduation and detector trim_ — `crimes@0.7.0` — _calibration and
   the evidence loop_ — `crimes@0.6.0` — _detector and scoring
   completion_ — `crimes@0.5.0` — _suppressions, config, and
   explainability_ — `crimes@0.4.0` — _agent context quality and
@@ -572,6 +573,159 @@ optional and additive:
 
 ---
 
+## ✅ Shipped in `crimes@0.8.0`
+
+> **Theme: extended lens — four families of "common-sense" crimes
+> linters don't catch.** One config feature plus thirteen detectors
+> spanning date / time, naming-tier, hot-path / portability, and
+> asset crimes. Detector count rises from 34 → 47. Schema unchanged.
+>
+> Release notes: [`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
+
+### Per-detector exemption config
+
+- **`detectors.options.<id>`** — per-detector exemption values, sitting
+  between `detectors.disable` (kills the detector everywhere) and
+  `crimes ignore` (suppresses one specific finding). Each detector
+  registers its own zod schema; typos surface at config-load time,
+  not scan time. Consumed by every 0.8.0 detector with built-in
+  exemption surface (allowlists, threshold tuning).
+
+### Date / time family (5 detectors)
+
+- **`timezone_unsafe_parse`** — flags `new Date("…")` whose string
+  literal has no `Z` or `±HH:MM` offset. The runtime applies its
+  own timezone, which is rarely the one the literal author had in
+  mind. Severity medium-high, confidence 0.90.
+- **`mixed_utc_local_methods`** — flags Date instances whose
+  `get*UTC*` and `get*` methods are read on the same receiver in
+  the same file. Silent bug class: tests pass in UTC, production
+  drifts by the host's offset. Severity high.
+- **`locale_drift`** — flags `.toLocaleDateString()` / `.toLocaleString()`
+  / `.toLocaleTimeString()` invoked without a locale argument. Output
+  depends on the host's default locale; user-facing renderers need
+  an explicit pick.
+- **`dst_naive_arithmetic`** — flags `+ 86400000` / `+ 604800000`
+  and folded equivalents (`24 * 60 * 60 * 1000`). Day-level
+  millisecond arithmetic silently misfires on DST transitions.
+- **`date_string_concat`** — flags `"…" + d.getUTCMonth()` and the
+  reverse — hand-rolled date string assembly. Smell rather than
+  guaranteed bug, but a tell that the project should reach for
+  `Intl.DateTimeFormat` or `toISOString()`.
+
+### Naming-tier family (2 detectors)
+
+- **`boolean_naming_drift`** — flags boolean-typed declarations
+  whose name lacks the `is`/`has`/`should`/`can` prefix
+  convention. Ships with a built-in React-state allowlist
+  (`loading`, `ready`, `active`, `disabled`, …) plus user
+  extensions via `detectors.options.boolean_naming_drift.allowedNames`.
+- **`singular_plural_type_mismatch`** — flags declarations where
+  the name's plural shape disagrees with the type's array shape
+  (`users: User`, `invoice: Invoice[]`). v1 fires on bare
+  identifier / simple-array annotations only — aliased and generic
+  types deferred to 0.9.0 type-info work. Hand-rolled
+  pluraliser plus uncountable-noun allowlist.
+
+### Hot-path / portability family (3 detectors)
+
+- **`sync_io_in_hotpath`** — `readFileSync` / `writeFileSync` /
+  `execSync` etc. inside route handlers, page exports, React
+  components, or domain functions. Consumes a new
+  `syncIoCalls` parser surface that captures the chain of
+  enclosing function-like ancestors; test-callback and
+  CLI-registrar ancestors anywhere in the chain suppress the
+  finding.
+- **`hardcoded_local_path`** — `/Users/<name>/…`, `/home/<name>/…`,
+  Windows `C:\Users\<name>\…` baked into source. Skips test /
+  scripts / examples / fixtures dirs. Per-project allowlists.
+- **`hardcoded_localhost`** — `localhost:NNNN`, `127.0.0.1:NNNN`,
+  `0.0.0.0:NNNN`, `[::1]:NNNN` outside config-style basenames
+  (`.env*`, `*.config.*`, `docker-compose*`, `Dockerfile*`,
+  README, CHANGELOG) and outside `scripts/` / `examples/` / `docs/`
+  / `fixtures/` / `test/` / `tests/`. Per-project allowlists.
+
+### Asset family (3 detectors) — first non-source pass
+
+- **Second-pass asset pipeline.** Source detectors stay on the
+  parsed-AST contract; asset detectors run a separate walk over
+  `**/*.{png,jpg,jpeg,gif,webp,avif,svg}`. New
+  `AssetDetectorContext` carries `{ file, absolutePath, extension,
+  byteSize, read(), config }`; the `read()` is lazy and per-file
+  cached. The two pools share one `detectors.options.<id>`
+  namespace and one `detectors.enable` / `disable` list.
+- **`oversized_raster`** — file size against
+  `thresholds.assetWeight.{low,medium,high}Kb` (defaults 200 / 500
+  / 1000 KB, mirroring Core Web Vitals guidance). Pure-stat
+  detector: flagging a 5 MB hero is one syscall.
+- **`raster_should_be_vector`** — PNG / JPEG / GIF whose width
+  AND height both fit ≤ 64 px. Header-only dimension parse via a
+  ~80-line in-tree reader (no `image-size` dependency added; WebP
+  / AVIF skipped in v1).
+- **`svg_with_embedded_raster`** — SVG containing
+  `<image href="data:image/*;base64,…">`. Severity medium for one
+  embed, high for two-plus.
+
+### Eval harness expansion
+
+- **Eight new scenarios** across all five scenario kinds — one per
+  detector family lands as a `bugfix` / `plan` / `review` /
+  `context` / `refactor` exemplar:
+  - `refactor-01-plural-mismatch`,
+    `context-01-boolean-naming` (naming-tier)
+  - `bugfix-01-sync-io-hotpath`,
+    `plan-01-hardcoded-local-path`,
+    `review-01-hardcoded-localhost` (hot-path / portability)
+  - `context-01-raster-icon`,
+    `refactor-01-svg-embedded-raster`,
+    `review-01-oversized-raster` (assets)
+- Total scenarios per agent: **30 → 38**. `verify-scenarios`
+  green on all 38.
+- **Scorer extended** for the asset pass: `DETECTOR_IDS` now
+  unions `builtInDetectors` and `builtInAssetDetectors`, and the
+  file-path regex covers asset extensions (`png` / `jpg` / `jpeg`
+  / `gif` / `webp` / `avif` / `svg`). Two real measurement bugs
+  surfaced during the consolidated re-run; the 0.7.15 baseline is
+  the corrected reference.
+- **Eval baseline at 0.7.15:** claude 85% structural pass rate
+  (essentially flat vs 0.7.8's 84%); codex 74% (down 4pp,
+  reflecting the harder new scenarios — codex is genuinely weaker
+  on the new bugfix / review scenarios). Captured at
+  [`evals/results/0.7.15/`](./evals/results/0.7.15/).
+
+### Parser surfaces added
+
+Additive `ParsedFile` fields — no schema bump, no existing
+detector touched:
+
+- **`dateMethodCalls`** (phase 2a) — every `Date.prototype` method
+  call with receiver / family (UTC vs local) / line / arg count.
+- **`dateArithmetic`** (phase 2a) — every `+` / `-` whose numeric
+  operand matches a day / week / month / year millisecond
+  constant, including folded `24 * 60 * 60 * 1000`.
+- **`dateStringConcats`** (phase 2a) — `"…" + d.dateMethod()` and
+  the reverse.
+- **`typedDeclarations`** (phase 3a) — every named declaration
+  (const / let / var / param / property) with optional type
+  annotation text and `InitializerKind`.
+- **`syncIoCalls`** (phase 4a) — every node:fs `*Sync` call site
+  with the full chain of enclosing function-like ancestors
+  (innermost first), letting detectors apply their own shape
+  policy without re-walking the AST.
+
+### Crimes-on-crimes self-scan
+
+Self-scan stays clean: zero medium-or-higher findings from any
+0.8.0 detector. 18 low-severity `sync_io_in_hotpath` findings
+on internal CLI machinery (config loaders, git helpers, scan
+orchestration) are intentional surface — visible under `--all`,
+hidden from default output. Asset detectors fire zero findings
+once `**/fixtures/**` is in the default asset exclude.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
+
+---
+
 ## ✅ Shipped in `crimes@0.7.5`
 
 > **Theme: eval-harness graduation and detector trim.** Five
@@ -746,33 +900,6 @@ repo's `docs/` tree at build time.
   `HotspotsReport.history_limited` from 0.4.0.
 - **No `schema_version` bump.** `crimes@0.5.0` consumers continue to
   read every report without modification.
-
-The wedge stays the same: deterministic, local, JSON-first, no LLM.
-
-## 🎯 Then — `crimes@0.7.0` (sketched)
-
-**Theme: structured testing and evidence hook into the user's
-workflow.** Once the detector slate is complete in 0.6.0, 0.7.0
-runs structured Claude + Codex testing against the full surface and
-wires ongoing feedback into the user's workflow as the evidence
-channel for 0.8.0+ tuning.
-
-Specifically:
-
-- A repeatable testing protocol that runs `crimes` against a set
-  of representative real-world repos using Claude Code and Codex CLI
-  on a set of representative tasks.
-- An evidence-capture format that records false positives, missed
-  detections, ergonomic gaps, and severity miscalibrations.
-- A workflow hook so ongoing use of `crimes` on the user's own
-  projects produces a trickle of evidence that informs subsequent
-  releases (rather than periodic large testing pushes).
-- Detector tuning based on the captured evidence — severity curves,
-  confidence scores, threshold adjustments, and shape-aware
-  exemptions (e.g., a `cli_command_registrar` shape for
-  `large_function`).
-
-Plan to be drafted after `0.6.0` ships.
 
 The wedge stays the same: deterministic, local, JSON-first, no LLM.
 

@@ -69,18 +69,57 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.7.5`
+## Status — `crimes@0.8.0`
 
-`crimes@0.7.5` is the latest published version on npm — _eval-harness
-graduation and detector trim_. Five accumulated calibration patches
-(0.7.1 → 0.7.5) roll up into this release. The agentic eval harness
-that 0.7.0 shipped graduates from first cut to production-grade
-tooling, scenario coverage of the detector catalogue rises from 12 / 35
-to 33 / 34, and one 0.6.0 detector retires because its trigger turned
-out to be a poor proxy on real-world repos. Release notes:
-[`docs/releases/v0.7.5.md`](./docs/releases/v0.7.5.md).
+`crimes@0.8.0` is the latest published version on npm — _extended lens:
+date, naming, hot-path, and asset crimes_. One config feature plus
+**thirteen new detectors** across four families that mainstream
+linters don't catch. Detector count: **34 → 47**. Five accumulated
+patch bumps (0.7.6 → 0.7.15) roll up into this release. Release notes:
+[`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
 
-New in `0.7.5`:
+New in `0.8.0`:
+
+- **Per-detector exemption config.** `detectors.options.<id>` sits
+  between `detectors.disable` (kills the detector everywhere) and
+  `crimes ignore` (suppresses one specific finding) — name values
+  that are fine for a detector across the whole codebase without
+  disabling the rest of its surface. Each detector registers its own
+  zod schema; typos surface at config-load time. See
+  [`docs/configuration.md`](./docs/configuration.md).
+- **Date / time family (5 detectors).** `timezone_unsafe_parse` flags
+  `new Date("…")` literals with no zone marker; `mixed_utc_local_methods`
+  catches `getUTCHours()` + `getMonth()` on the same receiver; the
+  rest cover host-locale drift, DST-naive day math, and hand-rolled
+  date string assembly. See [`docs/finding-types/structural.md`](./docs/finding-types/structural.md).
+- **Naming-tier family (2 detectors).** `boolean_naming_drift` flags
+  unprefixed booleans (with a built-in React-state allowlist);
+  `singular_plural_type_mismatch` catches `users: User` and
+  `invoice: Invoice[]` shapes where the name and type disagree.
+- **Hot-path / portability family (3 detectors).** `sync_io_in_hotpath`
+  flags `readFileSync` / `execSync` etc. inside route handlers, page
+  exports, React components, or domain code; `hardcoded_local_path`
+  flags `/Users/<name>/…` / `/home/<name>/…` / Windows
+  `C:\Users\<name>\…`; `hardcoded_localhost` flags `localhost:NNNN`
+  and IPv4/IPv6 loopback URLs in non-test, non-config source.
+- **Asset family (3 detectors) — first non-source pass.** A new
+  second-pass pipeline walks `**/*.{png,jpg,jpeg,gif,webp,avif,svg}`
+  alongside the existing source detectors. `oversized_raster`
+  thresholds at Core Web Vitals breakpoints (200 / 500 / 1000 KB by
+  default); `raster_should_be_vector` flags ≤ 64 × 64 PNG / JPEG / GIF
+  icons that should be SVGs; `svg_with_embedded_raster` flags SVGs
+  containing `<image href="data:image/*;base64,…">`. See
+  [`docs/finding-types/assets.md`](./docs/finding-types/assets.md).
+- **Eight new eval scenarios** — one per new detector that warrants
+  its own scenario, spread across all five kinds. Total per agent:
+  30 → 38. Baseline at 0.7.15: claude 85% structural pass rate
+  (essentially flat vs 0.7.8); codex 74% (codex weaker on the new
+  bugfix / review scenarios — signal, not regression).
+- Schema: `schema_version` stays at `"0.1.0"`. Existing scan JSON
+  files load unchanged.
+
+Earlier `0.7.5` work (_eval-harness graduation and detector trim_)
+remains shipped:
 
 - **Eval harness, production-grade.** Hardened scorer (matches by
   charge + finding id, not just slug), parallelised runs, variance
@@ -88,26 +127,9 @@ New in `0.7.5`:
   coverage verifier wired into CI so measurement bugs can't
   masquerade as agent misses, opt-in judge-model pass, per-scenario-
   kind baselines. See [`evals/README.md`](./evals/README.md).
-- **33 / 34 detector coverage in scenarios.** 13 new scenarios across
-  all five scenario kinds plus a fixture extension that fires five
-  previously-silent IA detectors. The 0.7.5 eval baseline becomes the
-  reference point for 0.8.0 detector tuning.
 - **`visual_regression_review_hint` removed.** Its trigger — file
   churn ≥ 0.7 on a UI `.tsx` file with weak test proximity — was a
-  poor proxy for "needs visual review." A file under active
-  development trips it as cleanly as one regressing. Detector count
-  goes from 35 → 34.
-- **Detector calibration fixes.** `large_function` priority window,
-  registrar regex tightening, version-agnostic feedback hint copy,
-  and an import-resolver fix for NodeNext `.js`→`.ts` specifiers that
-  was silently understating cross-file signal.
-- **Crimes-on-crimes: zero remaining structural highs.** Two large
-  files (`feedback.ts`, `context.ts`) split into per-responsibility
-  modules; two helper refactors (`classifyShape`, `analyseRoute`)
-  removed the last `large_function` highs. Scan JSON byte-identical
-  to pre-split.
-- Schema: `schema_version` stays at `"0.1.0"`. Existing scan JSON
-  files load unchanged.
+  poor proxy for "needs visual review."
 
 Earlier `0.7.0` work (_calibration and the evidence loop_) remains
 shipped:

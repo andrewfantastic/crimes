@@ -11,8 +11,9 @@ import {
   loadConfigDetailed,
   resolveSuppressionsPath,
 } from "./config.js";
+import { UnknownDetectorError } from "./detector-registry.js";
 import { policyFor } from "./detectors/large-function.js";
-import { scan, UnknownDetectorError } from "./scan.js";
+import { scan } from "./scan.js";
 
 async function makeTempDir(): Promise<string> {
   return await mkdtemp(join(tmpdir(), "crimes-config-test-"));

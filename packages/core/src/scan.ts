@@ -1,58 +1,20 @@
-import { readFile, realpath, stat } from "node:fs/promises";
-import { basename, extname, relative, resolve, sep } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { FailOn } from "./baseline.js";
 import { severityAtLeast } from "./baseline.js";
-import type { CrimesConfig, DetectorRegistry } from "./config.js";
+import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import type { AssetDetector, AssetDetectorContext, Detector } from "./detector.js";
-import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
-import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
-import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
-import { circularDependencyDetector } from "./detectors/circular-dependency.js";
-import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
-import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
-import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
-import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
-import { dateStringConcatDetector } from "./detectors/date-string-concat.js";
-import { deepImportDetector } from "./detectors/deep-import.js";
-import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
-import { directDateDetector } from "./detectors/direct-date.js";
-import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
-import { dstNaiveArithmeticDetector } from "./detectors/dst-naive-arithmetic.js";
-import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
-import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
-import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
-import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
-import { hardcodedLocalPathDetector } from "./detectors/hardcoded-local-path.js";
-import { hardcodedLocalhostDetector } from "./detectors/hardcoded-localhost.js";
-import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
-import { largeFileDetector } from "./detectors/large-file.js";
-import { largeFunctionDetector } from "./detectors/large-function.js";
-import { layerViolationDetector } from "./detectors/layer-violation.js";
-import { localeDriftDetector } from "./detectors/locale-drift.js";
-import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
-import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
-import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
-import { mixedUtcLocalMethodsDetector } from "./detectors/mixed-utc-local-methods.js";
-import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
-import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
-import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
-import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
-import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
-import { oversizedRasterDetector } from "./detectors/oversized-raster.js";
-import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
-import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
-import { rasterShouldBeVectorDetector } from "./detectors/raster-should-be-vector.js";
-import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
-import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
-import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
-import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
-import { svgWithEmbeddedRasterDetector } from "./detectors/svg-with-embedded-raster.js";
-import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
-import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
-import { todoDensityDetector } from "./detectors/todo-density.js";
-import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
+import type { AssetDetector, Detector } from "./detector.js";
+import {
+  builtInAssetDetectors,
+  builtInDetectors,
+  buildDetectorRegistry,
+  collectKnownIds,
+  filterAssetDetectors,
+  filterDetectors,
+} from "./detector-registry.js";
+import { runAssetDetectorsForRoot } from "./scan-assets.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { getChangedFiles } from "./git/changed-files.js";
@@ -77,95 +39,6 @@ import type {
   SuppressionEntry,
 } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
-
-export const builtInDetectors: Detector[] = [
-  // Structural / file-local detectors (run first; they make up the bulk of
-  // findings on most repos and don't depend on cross-file analysis).
-  largeFileDetector,
-  largeFunctionDetector,
-  todoDensityDetector,
-  directDateDetector,
-  timezoneUnsafeParseDetector,
-  mixedUtcLocalMethodsDetector,
-  localeDriftDetector,
-  dstNaiveArithmeticDetector,
-  dateStringConcatDetector,
-  // Naming-tier (0.8.0): consume typedDeclarations from the parser.
-  booleanNamingDriftDetector,
-  singularPluralTypeMismatchDetector,
-  // Hot-path & portability (0.8.0): sync I/O inside hot-path shapes,
-  // developer-specific local paths, and dev-server URL literals.
-  syncIoInHotpathDetector,
-  hardcodedLocalPathDetector,
-  hardcodedLocalhostDetector,
-  // Petty crimes (small local patterns that increase agent confusion).
-  commentedOutCodeDetector,
-  logicInCommentsDetector,
-  nameBehaviorMismatchDetector,
-  magicDomainLiteralScatterDetector,
-  weakTestSignalDetector,
-  optionBagJunkDrawerDetector,
-  returnShapeRouletteDetector,
-  negativeFlagMazeDetector,
-  // Information-architecture detectors (cross-file; require ctx.ia).
-  missingAgentContextDetector,
-  routeMetadataDriftDetector,
-  duplicatedNavigationSourceDetector,
-  conceptAliasDriftDetector,
-  docsCodeDriftDetector,
-  orphanedDestinationDetector,
-  parallelDestinationDetector,
-  permissionIaDriftDetector,
-  actionLabelDriftDetector,
-  copyIaDriftDetector,
-  commandDriftDocsCodeDriftDetector,
-  // Dependency-graph + architecture (require ctx.imports).
-  layerViolationDetector,
-  circularDependencyDetector,
-  deepImportDetector,
-  highFanInFanOutDetector,
-  // Frontend / UI agent-risk (require ctx.parsed.jsxElements).
-  designTokenEscapeDetector,
-  accessibleInteractionRiskDetector,
-  duplicateComponentShapeDetector,
-  responsiveFragilityDetector,
-  // Duplication (require ctx.functionHashIndex / ctx.ia).
-  exactDuplicateBlockDetector,
-  nearDuplicateBlockDetector,
-  duplicatedRoleStatusPlanCheckDetector,
-];
-
-/**
- * Built-in asset detectors — image-shaped findings that the source
- * pipeline can't surface because they don't have an AST. Run in a
- * separate second pass after every source detector emits.
- */
-export const builtInAssetDetectors: AssetDetector[] = [
-  oversizedRasterDetector,
-  rasterShouldBeVectorDetector,
-  svgWithEmbeddedRasterDetector,
-];
-
-/**
- * Project a detector list down to the slice the config loader uses for
- * validating `detectors.options.<id>`. Exported so other scan entry
- * points (`context`, future commands) can share a single source of
- * truth without re-importing every detector.
- *
- * Asset detectors share the same `detectors.options.<id>` namespace as
- * source detectors — pass both lists so the loader recognises asset-
- * detector ids and validates any options blocks against the asset
- * detector's `optionsSchema`.
- */
-export function buildDetectorRegistry(
-  detectors: readonly Detector[],
-  assetDetectors: readonly AssetDetector[] = [],
-): DetectorRegistry {
-  return [
-    ...detectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
-    ...assetDetectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
-  ];
-}
 
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
@@ -355,99 +228,6 @@ async function runDetectorsForFile(args: {
 }
 
 /**
- * Run every asset detector against every discovered asset file. Each
- * file is `stat`-ed once for byte size; the file bytes themselves are
- * loaded lazily and cached per-file so a detector that only needs
- * size never opens the file, and two detectors that both need bytes
- * read the file once between them.
- *
- * `--changed` is intentionally not honoured for the asset pass in
- * v1 — asset detection is per-file cheap and doesn't rely on the
- * cross-file scoring context, so a full asset walk on every PR is
- * acceptable. If asset scan time becomes a bottleneck we can plumb
- * through `restrictToChanged` later.
- */
-async function runAssetDetectorsForRoot(args: {
-  root: string;
-  config: CrimesConfig;
-  detectors: AssetDetector[];
-}): Promise<Finding[]> {
-  if (args.detectors.length === 0) return [];
-  const includes = args.config.assets?.include;
-  const excludes = args.config.assets?.exclude;
-  // No `assets.include` means the user explicitly cleared the
-  // discovery pattern — treat that as "skip the asset pass entirely".
-  if (!includes || includes.length === 0) return [];
-
-  const assetFiles = await discoverFiles({
-    root: args.root,
-    include: includes,
-    exclude: excludes ?? [],
-  });
-  if (assetFiles.length === 0) return [];
-
-  // Group detectors by extension so each file walks only the detectors
-  // that apply. A 5,000-image repo with 2 PNG detectors should not run
-  // the SVG detector 5,000 times.
-  const byExtension = new Map<string, AssetDetector[]>();
-  for (const detector of args.detectors) {
-    for (const ext of detector.extensions) {
-      const key = ext.toLowerCase();
-      const list = byExtension.get(key) ?? [];
-      list.push(detector);
-      byExtension.set(key, list);
-    }
-  }
-
-  const findings: Finding[] = [];
-  for (const absolutePath of assetFiles) {
-    const extension = extname(absolutePath).toLowerCase();
-    const applicable = byExtension.get(extension);
-    if (!applicable || applicable.length === 0) continue;
-    const file = toRepoPath(relative(args.root, absolutePath));
-
-    let byteSize: number;
-    try {
-      const stats = await stat(absolutePath);
-      byteSize = stats.size;
-    } catch {
-      // Unreadable files (permissions, vanished mid-scan) get skipped
-      // silently — the asset pass should never crash a scan.
-      continue;
-    }
-
-    let cachedBuffer: Buffer | undefined;
-    const read = async (): Promise<Buffer> => {
-      if (cachedBuffer === undefined) {
-        cachedBuffer = await readFile(absolutePath);
-      }
-      return cachedBuffer;
-    };
-
-    const ctx: AssetDetectorContext = {
-      file,
-      absolutePath,
-      extension,
-      byteSize,
-      read,
-      config: args.config,
-    };
-
-    for (const detector of applicable) {
-      try {
-        findings.push(...(await detector.run(ctx)));
-      } catch {
-        // Per-detector failure on one file should not abort the scan.
-        // Skip and continue — same posture as the IA / scoring
-        // builders' `safely*` wrappers.
-        continue;
-      }
-    }
-  }
-  return findings;
-}
-
-/**
  * Filter a {@link ScanReport} through the suppressions list. Returns a
  * new report with `findings` partitioned, `summary` recomputed, and an
  * optional `suppressed_count` set when ≥1 entry matched. Pure — does not
@@ -581,94 +361,6 @@ export function resolveAliasGroups(
   const overrides = config.ia?.aliasGroups ?? [];
   if (overrides.length === 0) return DEFAULT_ALIAS_GROUPS;
   return [...DEFAULT_ALIAS_GROUPS, ...overrides];
-}
-
-/**
- * Apply `config.detectors.enable` / `config.detectors.disable` to the
- * built-in detector list. Returns a new array; never mutates the input.
- *
- * `enable` is an allowlist (empty / omitted means "all built-ins").
- * `disable` runs **after** `enable` so a user can shrink the set in two
- * passes if they want to. An unknown id in either list raises
- * {@link UnknownDetectorError} — typos should not silently no-op.
- *
- * `allKnownIds` (optional) carries the combined source + asset
- * detector id set so an asset-detector id in `enable`/`disable` is
- * recognised as known even though it isn't in this `available`
- * source-detector pool. When omitted, validation falls back to
- * `available`'s ids only.
- */
-export function filterDetectors(
-  available: Detector[],
-  config: CrimesConfig,
-  allKnownIds?: Set<string>,
-): Detector[] {
-  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
-  return applyEnableDisable(available, config, knownIds);
-}
-
-/**
- * Asset-pipeline counterpart of {@link filterDetectors}. Same
- * `config.detectors.enable` / `config.detectors.disable` lists apply
- * — asset and source detectors share one id namespace.
- */
-export function filterAssetDetectors(
-  available: AssetDetector[],
-  config: CrimesConfig,
-  allKnownIds?: Set<string>,
-): AssetDetector[] {
-  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
-  return applyEnableDisable(available, config, knownIds);
-}
-
-function applyEnableDisable<T extends { id: string }>(
-  available: T[],
-  config: CrimesConfig,
-  knownIds: Set<string>,
-): T[] {
-  const enable = config.detectors?.enable ?? [];
-  const disable = config.detectors?.disable ?? [];
-
-  for (const id of enable) {
-    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
-  }
-  for (const id of disable) {
-    if (!knownIds.has(id)) throw new UnknownDetectorError(id);
-  }
-
-  let pool = available;
-  if (enable.length > 0) {
-    const enableSet = new Set(enable);
-    pool = pool.filter((d) => enableSet.has(d.id));
-  }
-  if (disable.length > 0) {
-    const disableSet = new Set(disable);
-    pool = pool.filter((d) => !disableSet.has(d.id));
-  }
-  return pool;
-}
-
-function collectKnownIds(
-  detectors: readonly Detector[],
-  assetDetectors: readonly AssetDetector[],
-): Set<string> {
-  const ids = new Set<string>();
-  for (const d of detectors) ids.add(d.id);
-  for (const d of assetDetectors) ids.add(d.id);
-  return ids;
-}
-
-export class UnknownDetectorError extends Error {
-  id: string;
-  constructor(id: string) {
-    super(
-      `unknown detector id "${id}" in crimes.config.json. ` +
-        `Check the spelling against the built-in detector list in ` +
-        `docs/finding-types/.`,
-    );
-    this.name = "UnknownDetectorError";
-    this.id = id;
-  }
 }
 
 interface RestrictToChangedResult {

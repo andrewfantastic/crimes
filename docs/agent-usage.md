@@ -718,6 +718,12 @@ rely on them in agent instructions yet:
 | `large_function` `cli_command_registrar` shape | ✅ shipped (`0.6.0`) |
 | `crimes hotspots <subdir>` enclosing-repo lookup | ✅ shipped (`0.6.0`) |
 | `detectors.disable` stderr breadcrumb | ✅ shipped (`0.6.0`) |
+| `detectors.options.<id>` per-detector exemption config | ✅ shipped (`0.8.0`) |
+| Date / time detectors (`timezone_unsafe_parse`, `mixed_utc_local_methods`, `locale_drift`, `dst_naive_arithmetic`, `date_string_concat`) | ✅ shipped (`0.8.0`) |
+| Naming-tier detectors (`boolean_naming_drift`, `singular_plural_type_mismatch`) | ✅ shipped (`0.8.0`) |
+| Hot-path / portability detectors (`sync_io_in_hotpath`, `hardcoded_local_path`, `hardcoded_localhost`) | ✅ shipped (`0.8.0`) |
+| Asset detectors (`oversized_raster`, `raster_should_be_vector`, `svg_with_embedded_raster`) — second-pass walk over `**/*.{png,jpg,jpeg,gif,webp,avif,svg}` | ✅ shipped (`0.8.0`) |
+| `thresholds.assetWeight.{lowKb,mediumKb,highKb}` + `assets.include/exclude` config | ✅ shipped (`0.8.0`) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
 The pre/post-edit workflow works as plain `crimes scan <path> --format
