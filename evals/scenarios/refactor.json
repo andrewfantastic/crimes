@@ -43,5 +43,35 @@
       "Did the agent suggest tailwind classes (or other design-token references) instead of hex literals?",
       "Did the agent propose role + tabIndex (or convert the div to a real button) for the click handler?"
     ]
+  },
+  {
+    "id": "refactor-01-petty",
+    "fixture": "01",
+    "kind": "refactor",
+    "prompt": "src/petty.ts is small but every function has a different agent-risk pattern. Use `crimes context src/petty.ts --format json` to identify the three petty crimes (option-bag, return-shape, negative-flag). Propose a refactor for each, tying the change to the finding type and explaining what an agent extending these functions could get wrong today.",
+    "expected_artifacts": {
+      "referenced_findings": ["option_bag_junk_drawer", "return_shape_roulette", "negative_flag_maze"],
+      "referenced_files": ["src/petty.ts"],
+      "expected_priority": "return_shape_roulette"
+    },
+    "judge_questions": [
+      "Did the agent propose an explicit return type for resolvePaymentResult instead of leaving the disjoint shape inferred?",
+      "Did the agent rewrite canRunBilling to use positive booleans (e.g. `canBill && canRetry`) rather than the double-negative form?"
+    ]
+  },
+  {
+    "id": "refactor-04-monorepo",
+    "fixture": "04",
+    "kind": "refactor",
+    "prompt": "src/index.ts, src/rollup.ts, and src/esbuild/svelte.ts have a cluster of petty agent-risk findings (misleading function names, junk-drawer options, multiple return shapes). Use `crimes scan --format json` to enumerate them and propose a refactor plan that tightens the types and clarifies the names. Group your proposals by finding type and explain what an agent extending these modules could get wrong today.",
+    "expected_artifacts": {
+      "referenced_findings": ["name_behavior_mismatch", "option_bag_junk_drawer", "return_shape_roulette"],
+      "referenced_files": ["src/index.ts", "src/rollup.ts", "src/esbuild/svelte.ts"],
+      "expected_priority": "name_behavior_mismatch"
+    },
+    "judge_questions": [
+      "Did the agent propose renaming the `build`/`buildAll`/`getRollupConfig`/`buildStart` functions so the name signals the side effects, rather than just adding comments?",
+      "Did the agent recommend typed return contracts for sveltePlugin / postcssPlugin instead of leaving the disjoint shapes inferred?"
+    ]
   }
 ]

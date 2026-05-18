@@ -28,5 +28,19 @@
       "Did the agent correctly identify the cycle (domain → presentation → application → domain)?",
       "Did the agent's fix preserve the dependency direction (lower-layer should not depend on higher)?"
     ]
+  },
+  {
+    "id": "bugfix-04-weak-tests",
+    "fixture": "04",
+    "kind": "bugfix",
+    "prompt": "A user is reporting that an esbuild plugin regression slipped through CI even though the relevant test still passes. Use `crimes scan test --format json` to find tests that may not actually be asserting anything, then explain which test you'd strengthen first and what specific assertion you'd add. Don't paraphrase the finding evidence — quote it.",
+    "expected_artifacts": {
+      "referenced_findings": ["weak_test_signal"],
+      "expected_priority": "weak_test_signal"
+    },
+    "judge_questions": [
+      "Did the agent pick a specific test from the weak_test_signal findings and propose the exact assertion the test is missing?",
+      "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?"
+    ]
   }
 ]

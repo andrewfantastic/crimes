@@ -26,5 +26,33 @@
       "Did the agent recognise that the same entities are referred to inconsistently across files?",
       "Did the agent suggest a single normalised vocabulary rather than per-file patches?"
     ]
+  },
+  {
+    "id": "review-02-react-dashboard",
+    "fixture": "02",
+    "kind": "review",
+    "prompt": "Imagine a PR landed this dashboard codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the petty / single-file findings (dead code, magic literals, repeated role checks) and categorise each as: block merge / warn / ignore. Justify each category with the finding's severity + scores.agent_risk and group your output by detector type.",
+    "expected_artifacts": {
+      "referenced_findings": ["commented_out_code", "magic_domain_literal_scatter", "duplicated_role_status_plan_check"],
+      "expected_priority": "duplicated_role_status_plan_check"
+    },
+    "judge_questions": [
+      "Did the agent treat duplicated_role_status_plan_check as the highest-leverage finding (it raises agent_risk because two sources of truth for the same predicate)?",
+      "Did the agent recommend deleting commented_out_code rather than 'reviewing later'?"
+    ]
+  },
+  {
+    "id": "review-03-node-cli-tool",
+    "fixture": "03",
+    "kind": "review",
+    "prompt": "Imagine a PR added this Commander.js codebase on top of an empty baseline. Use `crimes scan --format json` to enumerate the agent-risk findings — dead code, prose-rules-in-comments, magic literals, tests with weak assertions, large files. For each, decide block merge / warn / ignore, and justify with severity + scores.agent_risk.",
+    "expected_artifacts": {
+      "referenced_findings": ["commented_out_code", "logic_in_comments", "weak_test_signal", "magic_domain_literal_scatter"],
+      "expected_priority": "logic_in_comments"
+    },
+    "judge_questions": [
+      "Did the agent flag logic_in_comments as something to convert into code or types, rather than just deleting the comment?",
+      "Did the agent recognise that weak_test_signal in the Commander test suite is a coverage problem, not a style nit?"
+    ]
   }
 ]
