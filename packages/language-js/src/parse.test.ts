@@ -283,6 +283,29 @@ export function registerScanCommand(program: unknown): void {
     expect(fn!.shape).not.toBe("cli_command_registrar");
   });
 
+  it("classifies a `register*Subcommand(parent)` wrapper as cli_command_registrar", () => {
+    // CLIs that compose `feedback list` / `feedback export` style command
+    // trees register each sub-tree via a `register*Subcommand(parent)`
+    // wrapper, not `register*Command`. Same Commander DSL inside; relax
+    // the name pattern so these don't trip large_function.
+    const src = `
+import type { Command } from "commander";
+export function registerFeedbackListSubcommand(parent: Command): void {
+  parent
+    .command("list")
+    .description("List feedback entries.")
+    .option("--format <format>", "output format", "human")
+    .action(() => { return; });
+}
+`;
+    const result = parse(src);
+    const fn = result.functions.find(
+      (f) => f.name === "registerFeedbackListSubcommand",
+    );
+    expect(fn).toBeDefined();
+    expect(fn!.shape).toBe("cli_command_registrar");
+  });
+
   it("does not classify .action callbacks outside a .command chain", () => {
     // A standalone `something.action(...)` call that isn't preceded by
     // `.command(...)` is not a Commander DSL — it could be Redux, Zustand,

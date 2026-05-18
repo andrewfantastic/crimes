@@ -68,8 +68,8 @@ export function emitDetectorsDisabledBreadcrumb(
 /**
  * One-line stderr breadcrumb fired by every scan-like command when one or
  * more feedback-sourced suppressions resurfaced (their pinned minor is
- * older than the current crimes minor). The 0.7.0 calibration loop relies
- * on the user noticing and running `crimes feedback recheck`.
+ * older than the current crimes minor). The calibration loop relies on
+ * the user noticing and running `crimes feedback recheck`.
  *
  *   crimes: 5 feedback-sourced suppressions resurface because they were pinned to 0.6.
  *           Run `crimes feedback recheck` to review.

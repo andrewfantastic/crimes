@@ -14,7 +14,7 @@ export function registerFeedbackCommand(program: Command): void {
   const feedback = program
     .command("feedback")
     .description(
-      "Capture per-finding verdicts (tp/fp/known) to feed the 0.7.0 calibration loop. " +
+      "Capture per-finding verdicts (tp/fp/known) to feed the calibration loop. " +
         "Writes .crimes/feedback.jsonl and, on `fp`, an auto-suppression that " +
         "resurfaces for re-confirmation on the next minor crimes bump.",
     )

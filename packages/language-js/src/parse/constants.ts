@@ -92,9 +92,12 @@ export const PAGES_ROUTER_API_RE =
   /(?:^|[\\/])(?:src[\\/])?pages[\\/]api[\\/].*\.(?:ts|tsx|js|jsx|mjs|cjs)$/i;
 
 /**
- * Matches the `registerXCommand` naming convention used by Commander
- * builder DSL wrappers (e.g. `registerScanCommand`,
- * `registerIgnoreCommand`). Conservative: requires the literal
- * `register` prefix, a PascalCase tail, and a `Command` suffix.
+ * Matches the `registerXCommand` / `registerXSubcommand` naming
+ * convention used by Commander builder DSL wrappers (e.g.
+ * `registerScanCommand`, `registerFeedbackListSubcommand`). Conservative:
+ * requires the literal `register` prefix, a PascalCase tail, and either
+ * `Command` or `Subcommand` as the suffix. `Subcommand` covers
+ * composed CLIs that register sub-trees on a parent command.
  */
-export const COMMANDER_REGISTRAR_NAME_RE = /^register[A-Z][A-Za-z0-9]*Command$/;
+export const COMMANDER_REGISTRAR_NAME_RE =
+  /^register[A-Z][A-Za-z0-9]*(?:Command|Subcommand)$/;

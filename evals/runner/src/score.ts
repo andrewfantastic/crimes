@@ -157,16 +157,24 @@ function extractFilePaths(response: string): Set<string> {
 }
 
 /**
- * Parse the first 200 characters of `response` and return the FIRST
+ * Parse the leading section of `response` and return the FIRST
  * detector id that appears (in source order), considering slug, charge
  * name, and `crime_NNNN` id references when a {@link ScanContext} is
  * supplied. Used by the `expected_priority` check.
+ *
+ * The window is the first 1000 characters — long enough to cover an
+ * intro paragraph, a section heading, and the first row of a triage
+ * table for typical Claude / Codex responses. The previous 200-char
+ * window missed agents that led with framing prose ("Triage plan —
+ * top 10 findings") before reaching the priority row.
  */
+const LEADING_WINDOW = 1000;
+
 function extractLeadingDetectorId(
   response: string,
   scanContext: ScanContext | undefined,
 ): string | null {
-  const head = response.slice(0, 200);
+  const head = response.slice(0, LEADING_WINDOW);
   const candidates: Array<{ id: string; token: string }> = [];
   for (const id of DETECTOR_IDS) candidates.push({ id, token: id });
   if (scanContext) {
