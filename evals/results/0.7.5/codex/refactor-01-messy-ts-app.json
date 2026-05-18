@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:21:04.092Z",
+  "run_id": "9d3697df-c176-4ab1-804d-ab4afba68e5a",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f5-5f37-7811-a9cb-8400abf5770b\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the focused context command against the fixture file so the recommendation is grounded in the file-level surface, then I’ll rank the refactor moves by risk reduction.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"file\\\": \\\"src/billing.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"high\\\",\\n    \\\"high\\\": 1,\\n    \\\"medium\\\": 4,\\n    \\\"low\\\": 1,\\n    \\\"total\\\": 6\\n  },\\n  \\\"agent_guidance\\\": [\\n    \\\"Prefer extracting pure helpers before adding more branches.\\\",\\n    \\\"Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.\\\",\\n    \\\"Avoid adding more direct clock access; inject time where possible.\\\",\\n    \\\"Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.\\\",\\n    \\\"Read the whole file before editing — propose splits in their own change.\\\",\\n    \\\"Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.\\\",\\n    \\\"Review TODOs before relying on comments as current intent.\\\"\\n  ],\\n  \\\"related_files\\\": [\\n    {\\n      \\\"file\\\": \\\"src/routes/settings/billing.tsx\\\",\\n      \\\"reason\\\": \\\"shares domain token \\\\\\\"billing\\\\\\\"; matches domain \\\\\\\"billing\\\\\\\"\\\",\\n      \\\"score\\\": 0.4\\n    },\\n    {\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/todo.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    }\\n  ],\\n  \\\"likely_tests\\\": [\\n    \\\"src/billing.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"crime_00001\\\",\\n      \\\"type\\\": \\\"large_function\\\",\\n      \\\"charge\\\": \\\"God Function\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"confidence\\\": 0.95,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"symbol\\\": \\\"generateInvoice\\\",\\n      \\\"lines\\\": [\\n        50,\\n        253\\n      ],\\n      \\\"summary\\\": \\\"generateInvoice is 204 lines long (domain function threshold 60). Bodies this size usually mix unrelated responsibilities, and an agent editing one section often misses interactions in another.\\\",\\n      \\\"evidence\\\": [\\n        \\\"lines 50–253 (204 lines)\\\",\\n        \\\"3.4× the domain function threshold (60 lines)\\\",\\n        \\\"function declaration\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.9,\\n        \\\"confidence\\\": 0.95,\\n        \\\"agent_risk\\\": 0.66,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"extract_function\\\",\\n          \\\"description\\\": \\\"Extract cohesive sections into named helpers so each responsibility can be read, tested, and edited in isolation.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00003\\\",\\n      \\\"type\\\": \\\"direct_date\\\",\\n      \\\"charge\\\": \\\"Temporal Recklessness\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"confidence\\\": 0.9,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"lines\\\": [\\n        57,\\n        273\\n      ],\\n      \\\"summary\\\": \\\"7 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.\\\",\\n      \\\"evidence\\\": [\\n        \\\"5× Date.now(), 2× new Date()\\\",\\n        \\\"lines: 57, 63, 92, 198, 238, 250, 273\\\",\\n        \\\"each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.6,\\n        \\\"confidence\\\": 0.9,\\n        \\\"agent_risk\\\": 0.56,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"inject_clock\\\",\\n          \\\"description\\\": \\\"Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00004\\\",\\n      \\\"type\\\": \\\"name_behavior_mismatch\\\",\\n      \\\"charge\\\": \\\"False Identity\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"confidence\\\": 0.8,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"symbol\\\": \\\"calculateRefundPreview\\\",\\n      \\\"lines\\\": [\\n        40,\\n        44\\n      ],\\n      \\\"summary\\\": \\\"calculateRefundPreview has a safe-sounding name but appears to perform side effects. Misleading names make edits riskier because callers may treat the function as pure.\\\",\\n      \\\"evidence\\\": [\\n        \\\"name prefix suggests a pure transformation\\\",\\n        \\\"side-effect-like calls: saveRefundAudit, sendRefundEmail\\\",\\n        \\\"3 side-effect signals in the function body\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.55,\\n        \\\"confidence\\\": 0.8,\\n        \\\"agent_risk\\\": 0.54,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"rename_or_extract_side_effect\\\",\\n          \\\"description\\\": \\\"Rename the function to disclose the side effect, or extract the pure calculation/read from the mutation.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00005\\\",\\n      \\\"type\\\": \\\"large_file\\\",\\n      \\\"charge\\\": \\\"God File\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"confidence\\\": 0.71,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"lines\\\": [\\n        1,\\n        310\\n      ],\\n      \\\"summary\\\": \\\"File is 310 lines (threshold 300). Modules this large hide local coupling: small edits can collide with code an agent never loaded into context.\\\",\\n      \\\"evidence\\\": [\\n        \\\"310 non-empty lines\\\",\\n        \\\"1.0× the configured 300-line threshold\\\",\\n        \\\"5 top-level functions declared in this file\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.6,\\n        \\\"confidence\\\": 0.71,\\n        \\\"agent_risk\\\": 0.53,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"split_file\\\",\\n          \\\"description\\\": \\\"Split along clear responsibility boundaries. Smaller modules give humans and agents a smaller surface to reason about per edit.\\\",\\n          \\\"risk\\\": \\\"medium\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00006\\\",\\n      \\\"type\\\": \\\"logic_in_comments\\\",\\n      \\\"charge\\\": \\\"Logic in the Alibi\\\",\\n      \\\"severity\\\": \\\"medium\\\",\\n      \\\"confidence\\\": 0.71,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"lines\\\": [\\n        39,\\n        39\\n      ],\\n      \\\"summary\\\": \\\"Comment appears to carry a rule that nearby code does not obviously encode. Hidden prose rules are easy for agents and new maintainers to miss.\\\",\\n      \\\"evidence\\\": [\\n        \\\"comment says: \\\\\\\"Only owners can refund enterprise plans unless billing support approves.\\\\\\\"\\\",\\n        \\\"rule terms: only, unless\\\",\\n        \\\"domain terms not found nearby: owner, plan, billing\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.5,\\n        \\\"confidence\\\": 0.71,\\n        \\\"agent_risk\\\": 0.53,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"encode_comment_rule\\\",\\n          \\\"description\\\": \\\"Move the rule into a named guard, type, config value, or test; keep comments for rationale.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00007\\\",\\n      \\\"type\\\": \\\"todo_density\\\",\\n      \\\"charge\\\": \\\"Unfinished Business\\\",\\n      \\\"severity\\\": \\\"low\\\",\\n      \\\"confidence\\\": 0.7,\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"lines\\\": [\\n        183,\\n        308\\n      ],\\n      \\\"summary\\\": \\\"4 TODO/FIXME markers (12.9 per 1k LOC). Each marker is intended behaviour the author flagged as not-final — too many in one file makes it hard for an agent to tell which logic is load-bearing.\\\",\\n      \\\"evidence\\\": [\\n        \\\"1× FIXME, 1× HACK, 1× XXX, 1× TODO\\\",\\n        \\\"12.9 markers per 1k LOC (threshold 10)\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.2,\\n        \\\"confidence\\\": 0.7,\\n        \\\"agent_risk\\\": 0.43,\\n        \\\"churn\\\": 0.2,\\n        \\\"test_gap\\\": 0.5,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"triage_todos\\\",\\n          \\\"description\\\": \\\"Convert each marker into a tracked issue or remove it. Lingering TODOs mislead humans and agents about which behaviour is intentional.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    }\\n  ],\\n  \\\"suppressed_count\\\": 1\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"I ran `crimes context src/billing.ts --format json`. Top 3 changes I’d make:\\n\\n1. **Extract `generateInvoice` into focused helpers**\\n   Finding: `crime_00001`, `large_function`, high severity.\\n   `generateInvoice` is 204 lines, 3.4x the domain-function threshold. This is the biggest risk reducer because it likely mixes pricing, discounts, dates, invoice shaping, side effects, and edge cases in one edit surface. I’d first extract pure sections into named helpers, then add focused tests around the invoice behaviours before changing logic.\\n\\n2. **Inject time instead of calling `Date.now()` / `new Date()` directly**\\n   Finding: `crime_00003`, `direct_date`, medium severity.\\n   `src/billing.ts` has 7 direct clock reads on lines `57, 63, 92, 198, 238, 250, 273`. That makes invoice behaviour hard to test deterministically and risky to refactor because time-dependent branches can shift between runs. I’d pass a `now`/`clock` dependency into invoice/refund paths and use one captured timestamp per operation.\\n\\n3. **Separate refund preview calculation from refund side effects**\\n   Findings: `crime_00004`, `name_behavior_mismatch`, and related `crime_00006`, `logic_in_comments`.\\n   `calculateRefundPreview` sounds pure but calls side-effect-like functions including `saveRefundAudit` and `sendRefundEmail`. That is dangerous because callers or agents may cache, reorder, or duplicate it as if it were just a calculation. I’d split it into a pure preview helper plus an explicitly named side-effecting workflow, and encode the comment rule “Only owners can refund enterprise plans unless billing support approves” as a guard/test instead of leaving it as prose.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":51540,\"cached_input_tokens\":36608,\"output_tokens\":555,\"reasoning_output_tokens\":65}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

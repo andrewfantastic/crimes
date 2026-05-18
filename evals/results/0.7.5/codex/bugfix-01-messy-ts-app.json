@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:18:29.056Z",
+  "run_id": "2fa4ad28-7ca3-4c0c-91b0-bd857a140604",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f3-16f3-7dd3-a392-072408a15c31\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Most likely cause: `direct_date` in [src/billing.ts](src/billing.ts), especially inside the large `generateInvoice` function.\\n\\nThe scan shows 7 direct wall-clock reads:\\n\\n```text\\n5x Date.now(), 2x new Date()\\nlines: 57, 63, 92, 198, 238, 250, 273\\n```\\n\\nFor a date-boundary billing failure, that is the strongest signal. If invoice period, due date, proration, grace-period, or renewal logic calls `Date.now()` / `new Date()` internally, tests can pass or fail depending on when they run: midnight, month end, DST shifts, timezone offsets, or year boundaries.\\n\\nThe high-risk `large_function` finding makes this worse because `generateInvoice` is 204 lines long, so date reads may be spread across unrelated billing responsibilities. One branch might calculate the billing period from one clock read while another branch calculates due dates from a later clock read.\\n\\nProposed fix:\\n\\n```ts\\ntype Clock = {\\n  now(): Date;\\n};\\n\\nconst systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n\\nexport function generateInvoice(input: GenerateInvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // Use `now` everywhere in this invoice generation path.\\n}\\n```\\n\\nThen update tests to pass a fixed instant:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-01T00:00:00.000Z\\\"),\\n};\\n\\nconst invoice = generateInvoice(input, fixedClock);\\n```\\n\\nKey rule: capture `now` once at the boundary of invoice generation and thread that value through all date calculations. Avoid repeated `Date.now()` / `new Date()` calls inside domain logic. That makes the edge case reproducible and removes wall-time flakiness from billing tests.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":417,\"reasoning_output_tokens\":28}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -3,8 +3,7 @@
 Frontend findings consume the **JSX inspection layer** that `crimes`
 builds during parse. They flag UI-specific risks: hand-rolled values
 that escape the design system, interactive elements without a label,
-near-duplicate components that should share a primitive, and review
-hints for changes that will look subtly different in the browser.
+and near-duplicate components that should share a primitive.
 
 For the wire format, see [`docs/json-schema.md`](../json-schema.md).
 For the agent workflow that consumes findings, see
@@ -19,10 +18,14 @@ For the agent workflow that consumes findings, see
 | `duplicate_component_shape`     | Duplicate Component Shape    | low-medium     | 0.75-0.85  |
 | `responsive_fragility`          | Responsive Fragility         | low            | 0.65-0.75  |
 | `copy_ia_drift`                 | Copy / IA Drift (frontend)   | low-medium     | 0.70-0.80  |
-| `visual_regression_review_hint` | Visual Regression Review Hint | low           | 0.65       |
 
-All six emit the standard `Finding` shape. The detectors run only on
+All five emit the standard `Finding` shape. The detectors run only on
 files that the parser identifies as JSX-bearing.
+
+`visual_regression_review_hint` shipped in 0.6.0 and was removed in
+0.7.5 — its trigger ("file changed many times recently") was a poor
+proxy for "needs visual review": active development often means rapid
+iteration, not regression risk.
 
 ---
 
@@ -161,31 +164,3 @@ If both labels are legitimate (e.g. the nav label is short, the page
 title is long), keep them deliberately and update the
 `crimes.config.json` `ia.aliasGroups` entry so they no longer drift-
 flag against each other.
-
----
-
-## Visual Regression Review Hint (`visual_regression_review_hint`)
-
-**What it detects.** Changed lines (in `crimes diff` or `--changed`
-context) that touch JSX in ways the heuristics suspect will alter
-the rendered output without obvious test coverage — typically style
-edits or layout-tree restructuring.
-
-**Example evidence.**
-
-```text
-changed lines: 14, 28-32, 47
-edits include layout-affecting changes:
-  flex-direction, grid-template, padding utilities
-no visual regression test file detected for src/ui/PricingPage.tsx
-```
-
-**Why it matters.** Visual regressions are the silent failure mode
-of agent-generated UI edits — a token-passing change that looks
-green in unit tests but ships a broken page. The hint isn't a hard
-"this is broken"; it's a flag for the reviewer that *manual visual
-review or a snapshot test is worth doing here*.
-
-**Suggested fix.** Skim the rendered page or add a snapshot /
-visual-regression test before merging. The finding has no
-remediation by itself — it's signal for the review queue.

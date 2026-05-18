@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:18:43.121Z",
+  "run_id": "dffe658b-ccee-4f82-b213-c52b22c9b884",
+  "response": "# Most likely cause: `crime_00004` — Temporal Recklessness in `src/billing.ts`\n\nDate-boundary flakiness almost always traces back to domain code reading the wall clock at runtime, and the scan points straight at it: **7 direct `Date.now()` / `new Date()` calls** in `src/billing.ts` at lines 57, 63, 92, 198, 238, 250, 273 — all inside the `generateInvoice` God Function (lines 50–253, `crime_00001`).\n\nThat's the exact signature of a date-boundary bug:\n\n- Tests pass during the day, fail near midnight / month-end / year-end / DST shifts.\n- Each `Date.now()` and `new Date()` call observes a *different* instant — if the function spans a boundary mid-execution (e.g. line 57 reads \"today\" and line 250 reads \"tomorrow\"), invoice math goes off by a day.\n- The weak test signal at `crime_00006` (`\"renders the enterprise plan\"` has 0 assertions) means a whole code path is uncovered, so the bug is only caught when an asserting test happens to straddle the boundary.\n\nSupporting evidence that points the same direction, not away:\n- `crime_00005` shows `src/date.ts` has its own 5 raw clock reads — so there's probably *already* a date module that should be the single source of \"now\", but `billing.ts` is bypassing it.\n- `crime_00010` (God File) and `crime_00001` (God Function) explain why nobody caught it: 204 lines of mixed responsibility, and an agent editing the discount section won't load the proration section into context.\n\n# Proposed fix\n\n**1. Inject a clock — don't read wall time in domain code.**\n\n```ts\n// src/date.ts (or a new src/clock.ts)\nexport type Clock = { now: () => Date };\nexport const systemClock: Clock = { now: () => new Date() };\n```\n\n**2. Thread it through `generateInvoice`** (and anything it calls). Take a single `now: Date` *once* at the top of the function and use it everywhere — this also fixes the mid-function boundary-crossing bug, even if a test forgets to inject:\n\n```ts\nexport function generateInvoice(input: InvoiceInput, clock: Clock = systemClock) {\n  const now = clock.now();          // pin the instant once\n  // ...replace all 7 Date.now()/new Date() sites with `now` or derivations of it\n}\n```\n\n**3. Add the failing-boundary test** with a pinned clock — UTC midnight, last day of month, DST forward, leap day:\n\n```ts\nconst fixedClock: Clock = { now: () => new Date('2026-02-28T23:59:59.999Z') };\nexpect(generateInvoice(input, fixedClock).billingPeriod).toBe('2026-02');\n```\n\n**4. While you're there, fix `crime_00006`** — the assertion-free `\"renders the enterprise plan\"` test. That's the test that *should* have been catching this and isn't.\n\n# What to defer\n\nSplitting the God Function (`crime_00001`), splitting the God File (`crime_00010`), and centralising `\"enterprise\"` (`crime_00007`) are all worth doing — but not in the same change as the bugfix. Land the clock injection + boundary test first so the regression is locked down, then refactor on green.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

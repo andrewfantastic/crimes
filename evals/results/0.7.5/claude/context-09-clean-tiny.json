@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:19:06.029Z",
+  "run_id": "b9a30687-3d42-416d-b387-71e3b9d5e5bb",
+  "response": "## Context for `src/add.ts`\n\n**Risk level: none** — zero findings.\n\n- **Findings on this file:** 0 (high/medium/low all 0)\n- **Agent guidance:** none — no detector flagged anything to warn about\n- **Related files:** none — no IA links, no shared domain tokens, no same-directory siblings\n- **Likely tests:** `src/add.test.ts`\n\n**Verdict: safe to extend.** The file is clean, isolated, and has an adjacent test file. No churn hotspots, no duplication, no layer violations, no testability concerns flagged. Edit freely; just keep `src/add.test.ts` in sync.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

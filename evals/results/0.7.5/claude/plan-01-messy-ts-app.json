@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:20:20.201Z",
+  "run_id": "297c610c-691c-4a5f-a8d8-246978587ed1",
+  "response": "# Triage plan — top 10 findings (ordered by agent_risk)\n\nNote: `crimes verdict --format json` output wasn't included, so this ranks by `agent_risk` (per the PRD's \"aggregate risk, not severity alone\" rule). The top 10 cleanly map to four of the five categories — no top-10 finding has churn > 0, so the **git-history** bucket is empty here.\n\n## Structural\n\n| # | Finding | agent_risk | Response | Why |\n|---|---|---|---|---|\n| 1 | `crime_00001` God Function `generateInvoice` (`src/billing.ts:50-253`) | 0.63 | **Fix now** | High sev + 0.95 conf. Unblocks safe edits to billing; extracting helpers also makes #9 trivial. |\n| 3 | `crime_00005` Temporal Recklessness (`src/date.ts:4-22`) | 0.61 | **Fix now** | Small module, 5 call sites — cheapest place to introduce a `now()` abstraction that #9 can reuse. |\n| 9 | `crime_00004` Temporal Recklessness (`src/billing.ts`, 7 sites) | 0.53 | **Defer** | Land with #1 — clock injection naturally falls out of the `generateInvoice` extraction. |\n| 10 | `crime_00008` False Identity `calculateRefundPreview` | 0.52 | **Fix now** | Rename-or-split is a minutes-long change with outsized clarity payoff; pair with #11 (logic-in-comments on same function). |\n\n## IA (information architecture)\n\n| # | Finding | agent_risk | Response | Why |\n|---|---|---|---|---|\n| 2 | `crime_00002` Missing Agent Context | 0.61 | **Fix now** | Cheapest high-leverage fix in the report. An AGENTS.md/CLAUDE.md compounds across every future agent edit. |\n| 4 | `crime_00007` String Sprinkles `\"enterprise\"` (4 files) | 0.60 | **Fix now** | Centralise before a 5th copy lands; touches files in #5 and #6 so do it before they shift. |\n| 5 | `crime_00009` Concept Alias Drift (tenant/account/org/team/workspace) | 0.58 | **Defer** | Real cost is a naming decision, not a refactor. Park until product picks the canonical term; don't let an agent guess. |\n\n## Frontend\n\n| # | Finding | agent_risk | Response | Why |\n|---|---|---|---|---|\n| 6 | `crime_00012` Duplicated Navigation Source (`/settings/billing`) | 0.57 | **Fix now** | Bundle with #8 — same destination, same PR, single nav-canonicalisation. |\n| 8 | `crime_00014` Route Metadata Drift (`/settings/billing`) | 0.56 | **Fix now** | Same destination as #6; aligning route/title/nav labels is one diff, not two. |\n\n## Duplication\n\nThe duplication category in the top 10 is covered by the IA findings above — `String Sprinkles` (#4) and `Duplicated Navigation Source` (#6) are the duplication signals; the dedicated `duplicate_block` / `near_duplicate_function` detectors didn't fire on this fixture.\n\n## (Slot 7) — judgement call\n\n| # | Finding | agent_risk | Response | Why |\n|---|---|---|---|---|\n| 7 | `crime_00013` Unfinished Business (`src/todo.ts`, 424/1k LOC) | 0.57 | **Ignore** | The file is named `todo.ts` and exists to demo this detector — treat as fixture, suppress in `.crimes/ignore`. If this were prod code: **fix now**. |\n\n---\n\n## Recommended PR sequencing\n\n1. **PR A — agent context** (#2): drop in `AGENTS.md`. Minutes.\n2. **PR B — billing cleanup** (#1 + #4 + #8 + #10 + #11): split `generateInvoice`, inject clock, rename `calculateRefundPreview`, encode the comment rule. One coherent refactor of `src/billing.ts`.\n3. **PR C — clock module** (#3): land `src/date.ts` clock abstraction first if PR B will consume it; otherwise fold in.\n4. **PR D — enterprise constant** (#4 / `crime_00007`): one-line constant, four import sites.\n5. **PR E — billing route alignment** (#6 + #8): collapse nav sources, align route metadata for `/settings/billing`.\n6. **Backlog**: #5 (alias drift — needs product call), `crime_00010` God File (resolves naturally after PR B), orphaned routes (`crime_00021-23` — need product call: in-flight or dead?).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

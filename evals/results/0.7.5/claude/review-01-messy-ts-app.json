@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:24:51.879Z",
+  "run_id": "b91790f3-8241-41d0-a00a-83420a963b30",
+  "response": "I'll categorize each finding using a simple rubric, then explain each call.\n\n**Rubric**\n\n- **Block** — severity `high`, OR a medium where the code actively misleads a caller/agent into doing the wrong thing (the agent-risk wedge). 1 finding here.\n- **Warn** — real debt worth raising in review, but landable with a follow-up. Most mediums + the orphans land here.\n- **Ignore** — low-severity local annoyances in low-blast-radius files. Note in review, don't gate on them.\n\n---\n\n**Block merge (3)**\n\n| ID | Charge | Why |\n|---|---|---|\n| `crime_00001` | God Function (`generateInvoice`, 204 lines) | severity=`high` (0.9), agent_risk 0.63. Only `high` in the report. 3.4× the domain threshold — guaranteed to hide cross-section interactions from anyone editing one part. |\n| `crime_00008` | False Identity (`calculateRefundPreview` calls `sendRefundEmail`, `saveRefundAudit`) | severity=med (0.55), agent_risk 0.52, confidence 0.8. \"Preview\" implies pure — this one emails the customer. A maintainer or agent calling it speculatively will trigger real side effects. That's exactly the agent-risk pattern the tool exists to catch. |\n| `crime_00011` | Logic in the Alibi (\"Only owners can refund enterprise plans unless billing support approves\") | severity=med (0.5), agent_risk 0.5. Refund-permission rule lives only in a comment, in the same file as the suspicious `calculateRefundPreview`. Pairs with `crime_00008` — together they're a refund-flow correctness hazard, not just style. |\n\n---\n\n**Warn (11)**\n\n| ID | Charge | Severity / agent_risk | Why warn (not block) |\n|---|---|---|---|\n| `crime_00002` | Missing Agent Context | med / 0.61 | Real, but a repo-level setup gap, not introduced by any single hunk. Open a follow-up to add `AGENTS.md`/`CLAUDE.md`. |\n| `crime_00004` | Temporal Recklessness (`billing.ts`, 7 calls) | med / 0.53 | Determinism debt in domain code — bad, but localised. Inject clock in a follow-up. |\n| `crime_00005` | Temporal Recklessness (`date.ts`, 5 calls) | med / 0.61 | Same shape as above; lower blast since it's a util. Warn together with 00004. |\n| `crime_00006` | Test That Proves Nothing (zero asserts) | med / 0.46 | Borderline-block — a test that runs setup with no expects gives false coverage signal. Landing with a fix-or-delete follow-up is acceptable since it's one test. |\n| `crime_00007` | String Sprinkles (\"enterprise\" × 4 files) | med / 0.60 | Policy-shaped literal spreading. Centralise before the next copy lands. |\n| `crime_00009` | Concept Alias Drift (tenant / account / team / workspace) | med / 0.58 | Same concept under 4 names across routes + docs. Pick canonical term; warn now, don't gate. |\n| `crime_00010` | God File (`billing.ts`, 310 lines) | med / 0.50 | Right at the 300 threshold — same file as 00001, so addressing the God Function should pull this back under. Warn. |\n| `crime_00012` | Duplicated Navigation Source (`/settings/billing` → \"Plans\" vs \"Billing\") | med / 0.57 | Two nav sources, two labels. Pick one of truth. |\n| `crime_00013` | Unfinished Business (`todo.ts`, 424/1k LOC) | med / 0.57 | 14 markers in 32 lines is absurd density — likely a scratch file. Confirm intent; if real, triage. |\n| `crime_00014` | Route Metadata Drift (`/settings/billing`: file=billing, component=PricingPage, title=Plans, `<title>`=Subscription) | med / 0.56 | Same destination as 00012. Align label, then 00012 falls out. |\n| `crime_00021/22/23` | Orphaned Destinations (`/account/subscription`, `/team`, `/workspace/members`) | low / 0.46 each | 3 routes unreachable from nav, docs, or imports. Bumped from ignore → warn because all three share alias-drift names (00009): they read like parallel half-built journeys. Resolve as a set: link or retire. |\n\n---\n\n**Ignore (7)**\n\n| ID | Charge | Severity / agent_risk | Why ignore |\n|---|---|---|---|\n| `crime_00015` | Docs-Code Drift (`docs/teams.md` → `./setup.md`) | low / 0.51 | Single broken doc link. Fix opportunistically. |\n| `crime_00016` | Test That Proves Nothing (weak matcher × 1) | low / 0.34 | One weak matcher. Note in review; not gating. |\n| `crime_00017` | Option Bag Junk Drawer (`describeCheckout`) | low / 0.48 | Local to `src/petty.ts`. Real but minor. |\n| `crime_00018` | Return Shape Roulette (`resolvePaymentResult`) | low / 0.48 | Same file as 00017; small blast radius. |\n| `crime_00019` | Negative Flag Maze (`!disableBilling && !skipRetry`) | low / 0.47 | Same file again. Rename when next touched. |\n| `crime_00020` | Unfinished Business (`billing.ts`, 4 markers, 12.9/1k LOC) | low / 0.40 | Just over threshold, in a file already flagged by 00001/00010 — gets cleaned up as a side effect of splitting. |\n\n---\n\n**Summary**: 3 block (1 high severity, 2 mediums whose `agent_risk` reflects active mis-direction in the refund flow), 11 warn (most of the structural/IA debt, including all 3 orphan routes treated as a set), 7 ignore (the `petty.ts` cluster + 1-of-thing findings). Agent-risk is doing the work above and beyond severity on `crime_00008`, `crime_00011`, and the orphan group — that's why those don't sort by severity alone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

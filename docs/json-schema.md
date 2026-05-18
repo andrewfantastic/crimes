@@ -321,7 +321,6 @@ should treat unknown values defensively. The currently shipped values are:
 | `duplicate_component_shape`     | `Duplicate Component Shape`  | yes         | Two or more components share an identical JSX shape (AST-hash equivalent)                        |
 | `responsive_fragility`          | `Responsive Fragility`       | no          | A component mixes many breakpoint-specific utilities or hard-pixel widths                        |
 | `copy_ia_drift`                 | `Copy / IA Drift (frontend)` | no          | A nav label and a breadcrumb / page-title disagree on the canonical name for the same destination |
-| `visual_regression_review_hint` | `Visual Regression Review Hint` | no       | A changed line touches JSX in a way the heuristics suspect will alter the rendered output         |
 | `exact_duplicate_block`         | `Exact Duplicate Block`      | yes         | Two or more function bodies / statement blocks share an identical AST hash                       |
 | `near_duplicate_block`          | `Near-Duplicate Block`       | yes         | Two function bodies share a high-similarity AST-hash bag with a small delta                      |
 | `duplicated_role_status_plan_check` | `Duplicated Policy Logic` | no         | The same domain concept (role, status, plan tier) is checked in multiple files with different shapes |

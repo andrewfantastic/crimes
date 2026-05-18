@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:21:07.835Z",
+  "run_id": "21a2224d-55d8-44eb-9f95-67450833ae9b",
+  "response": "Top 3 changes for `src/billing.ts`, ranked by what most reduces agent risk per unit of effort:\n\n**1. Break up `generateInvoice` (crime_00001, severity 0.9 / agent_risk 0.63)**\n204 lines (50–253), 3.4× the 60-line threshold — the only `high` in the report and the single biggest reason an agent will confidently edit one section while breaking another. Extract cohesive sections (line items, tax/discount math, totals, persistence/notification) into named helpers. This change also retires crime_00010 (file is 310 lines, just over the 300 threshold) since splitting `generateInvoice` will naturally pull half the file into smaller modules.\n\n**2. Inject a clock; stop reading wall time inside the function (crime_00004, agent_risk 0.53)**\n7 direct `Date.now()` / `new Date()` calls scattered across `generateInvoice` (lines 57, 63, 92, 198, 238, 250, 273). Combined with crime_00006 (the \"renders the enterprise plan\" test has zero asserts) and crime_00016 (weak matchers in \"creates an invoice\"), nothing currently pins invoice-issued-at or due-date behaviour. Take a `now: () => Date` (or `Clock`) parameter, default it at the CLI boundary, and the function becomes testable without monkey-patching globals — which then lets fix #1's extracted helpers be unit-tested cheaply.\n\n**3. Fix the `calculateRefundPreview` lie and encode the owner-refund rule (crime_00008 + crime_00011, lines 39–44)**\nThese are one cluster, not two. `calculateRefundPreview` (line 40) sounds pure but calls `saveRefundAudit` and `sendRefundEmail` — an agent will treat it as safe to call from anywhere. The comment immediately above (\"Only owners can refund enterprise plans unless billing support approves\") encodes an authorization rule that doesn't appear to be enforced in nearby code. Split the function into a pure `calculateRefundPreview` (returns the numbers) and an explicit `processRefund` (does the audit + email + auth check), and turn the comment into a named guard like `assertCanRefund({ actor, plan })`. This converts two hidden contracts — \"this name lies\" and \"this rule lives only in prose\" — into things the type system and tests can defend.\n\nCommon thread: each fix shrinks the implicit context an agent has to hold in its head to edit `billing.ts` safely. #1 shrinks the surface, #2 removes a hidden input (wall time), #3 makes two hidden contracts explicit.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

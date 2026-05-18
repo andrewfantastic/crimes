@@ -1,0 +1,101 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:26:15.339Z",
+  "run_id": "46c1dc02-3205-47e1-9376-e545605adc5f",
+  "response": "## IA finding triage\n\n**crime_00014 — `route_metadata_drift` on `/settings/billing` → `warn`**\n\nSix competing identifiers for one destination (file: `billing`, component: `PricingPage`, metadata.title: `Plans`, `<title>`: `Subscription`, nav labels: `Plans` and `Billing`). Nothing breaks at runtime, so it shouldn't block a merge — but this is the canonical \"agent renames one and misses the others\" case, and users will also see the inconsistency in the UI. Confidence is only 0.65, which is the right level for a human eyeball rather than a gate. This finding is the umbrella — fixing it collapses crime_00012 as a byproduct.\n\n**crime_00012 — `duplicated_navigation_source` on `/settings/billing` → `warn`**\n\nSame destination labelled `Plans` in `src/nav/registry.ts` and `Billing` in `src/nav/sidebar.ts`. Higher confidence (0.70) than 00014 because it's a direct cross-file diff, not an inference. Same disposition though — warn, don't block. Recommend resolving it as part of the 00014 cleanup (pick a canonical label, point one nav source at the other or delete the duplicate), not as a separate fix.\n\n**crime_00015 — `docs_code_drift` in `docs/teams.md` → `warn` (lean toward fix-in-this-PR)**\n\n`docs/teams.md:5 → ./setup.md` resolves to a missing file. Severity is `low` and it's documentation, so it doesn't block. But confidence is 0.90 (broken links are cheap to verify) and the fix is one-line — either restore `setup.md` or update the link. Worth nudging the author to handle it now rather than letting it sit; otherwise downgrade to `ignore` only if the doc is mid-rewrite.\n\n### One-line summary\nNone of the three rise to **block merge**. All three are **warn** — and crimes 00014 and 00012 are the same underlying problem (`/settings/billing` has no canonical name), so triage them together. While you're in there, crime_00021 (`/account/subscription` orphaned) is in the same neighbourhood — the IA cluster is bigger than the three you flagged.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

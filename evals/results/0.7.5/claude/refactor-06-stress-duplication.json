@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:21:27.284Z",
+  "run_id": "5e70f850-5416-40d6-ab37-ea2f90173541",
+  "response": "## Duplication confirmed\n\n`crimes scan` flags one near-duplicate cluster (`crime_00002`) covering three files with the same body and renamed identifiers only:\n\n- `src/sanitize-a.ts:10-36` — `sanitizeUserInput(raw)`\n- `src/sanitize-b.ts:9-35` — `sanitizeText(input)`\n- `src/sanitize-c.ts:9-35` — `cleanMessage(value)`\n\nI read all three: the bodies are byte-for-byte identical modulo the variable name (`working` / `cleaned` / `normalised`) and the parameter name. Same trim, same `[ -]` strip, same `\\s+` collapse, same 1000-char cap, same `<`/`>` reject, same `\\\\x` reject, same `[!?]{3,}` punctuation count, same upper-case ratio downcase. No semantic divergence to preserve.\n\nThe `assertAdmin{A,B,C}` guards at the top of each file are **not** identical — they're the duplicated-role-check finding (`crime_00003`), and they actually diverge:\n\n- A: `role === \"admin\"`\n- B: `role === \"admin\" || role === \"owner\"`\n- C: `role !== \"admin\"` (negated)\n\nThose need a separate conversation — collapsing them blindly would change behaviour. Leaving them out of this refactor.\n\n## Proposed consolidation\n\n**New module:** `src/sanitize.ts` (single source of truth).\n\n**Public API:**\n\n```ts\nexport function sanitize(value: unknown): string;\n```\n\nRationale:\n\n- One name. The three existing names (`sanitizeUserInput` / `sanitizeText` / `cleanMessage`) are just synonyms — pick the shortest accurate one.\n- `unknown` parameter type covers all three callers without breaking them: each currently accepts `string` but immediately guards `null`/`undefined` and coerces with `String(value)`. `unknown` makes that explicit at the boundary and lets callers stop pre-checking.\n- Pure, synchronous, no clock or env reads — keep it that way so it stays trivially testable.\n- Magic numbers (`1000` length cap, `5` punctuation threshold, `0.9` upper-case ratio, `30` minimum length for downcase) stay inlined. They're not parameters today; promoting them to options would be scope creep. If a caller ever needs different limits, add an optional `options` arg then.\n\n## Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **New.** Holds the single `sanitize` implementation. |\n| `src/sanitize-a.ts` | Delete `sanitizeUserInput`. Keep `assertAdminA` (separate concern). If `sanitizeUserInput` has external callers, re-export: `export { sanitize as sanitizeUserInput } from \"./sanitize\"` — or, preferably, update call sites and delete. |\n| `src/sanitize-b.ts` | Same treatment: delete `sanitizeText`, keep `assertAdminB`. |\n| `src/sanitize-c.ts` | Same treatment: delete `cleanMessage`, keep `assertAdminC`. |\n| Call sites | Anywhere that imports `sanitizeUserInput` / `sanitizeText` / `cleanMessage` switches to `import { sanitize } from \"./sanitize\"`. (Grep before deleting to confirm the blast radius.) |\n\nIf the three `assertAdmin*` guards turn out to be unintentional drift rather than three real policies, fold them into a single `isAdmin(role)` in a follow-up — but verify the semantics with whoever owns each call site first; `crime_00003` flagged this exact risk.\n\nOut of scope here: the `Date.now()` calls in `telemetry-a.ts` / `telemetry-b.ts` (`crime_00004`/`00005`) and the duplicated `recordSanitiseEvent` (`crime_00001`). Those are a separate refactor with their own API question (inject a clock).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

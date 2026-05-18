@@ -1,0 +1,71 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:24:37.146Z",
+  "run_id": "39986920-0490-4967-a3ea-6036bd619ca4",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f8-a1ed-74e2-8cc8-cb666b4d594e\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n1. **Medium: `/admin` permission policy is inconsistent across nav, route guard, and docs**  \\n   `crime_00003` is the only clearly blocking-quality IA issue. `src/nav.ts` marks `/admin` as `role=admin`, while `src/routes/admin.ts` references `admin`, `manager`, and `owner`, and `docs/routes.md` also participates in the mismatch. This is access-policy drift, not just naming drift. I would treat it as blocking until the canonical permission model for `/admin` is made explicit and aligned across all three surfaces.\\n\\n2. **Medium: tenant vocabulary is split across `organisation`, `team`, and `workspace`**  \\n   `crime_00002` affects `src/nav.ts`, `src/routes/organisation.ts`, `src/routes/teams.ts`, and `src/routes/workspace.ts`. This is real IA drift, but I would classify it as a follow-up unless the current change is adding or changing tenant/team/workspace navigation. It needs a canonical term or documented distinction.\\n\\n3. **Medium: parallel billing destinations look overlapping**  \\n   `crime_00004` flags `/admin/billing-plans` and `/billing-plans` with shared `billing` / `plan` intent and no linking between them. This is likely follow-up quality unless this review is for billing/admin IA changes. The fix is to either make one canonical, redirect/link between them, or document the split.\\n\\n4. **Low: docs contain a stale `/admin` local link**  \\n   `crime_00005` says `docs/routes.md:14 -> /admin` points at something not found on disk. This is a follow-up by itself, but it compounds the `/admin` permission drift above. I would fix it with the blocking `/admin` cleanup.\\n\\n5. **Low: route docs reference missing CLI commands**  \\n   `crime_00006` flags `iaq teams`, `iaq workspace`, and `iaq refresh` while the bin advertises only `get` and `list`. This is docs-code drift, not route IA risk directly. Follow-up.\\n\\n6. **Low: orphaned route destinations**  \\n   `crime_00007` through `crime_00010` flag `/admin/billing-plans`, `/billing-plans`, `/organisation`, and `/workspace` as unreachable from nav, docs, or imports. These are follow-ups unless one of those routes is part of the current feature. They should be linked, documented as intentional, or retired.\\n\\n**Recommendation**\\n\\nBlock on `crime_00003` because permission drift can create incorrect access behavior and misleading docs. Treat `crime_00002`, `crime_00004`, and the orphaned/stale-doc findings as follow-ups, preferably grouped into one IA cleanup: choose canonical tenant terminology, decide the billing route hierarchy, then update `src/nav.ts`, `src/routes/*`, and `docs/routes.md` together.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":22083,\"cached_input_tokens\":12160,\"output_tokens\":665,\"reasoning_output_tokens\":58}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

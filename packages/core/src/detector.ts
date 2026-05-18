@@ -90,7 +90,7 @@ export interface DetectorContext {
    * 0.6.0 formula. Detectors do not need to read it themselves —
    * finalisation happens after `run()` returns — but it is exposed
    * here for advanced detectors that want to gate behaviour on the
-   * scoring signal (e.g. `visual_regression_review_hint`).
+   * scoring signal.
    */
   scoring?: ScoringContext;
 }

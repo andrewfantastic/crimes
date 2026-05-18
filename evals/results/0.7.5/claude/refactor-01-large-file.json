@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-01-large-file",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:24:51.510Z",
+  "run_id": "aa3ca5e9-09a9-494c-9ebb-0cb5fc3715a2",
+  "response": "## Plan: split `src/billing.ts` along its 5 top-level responsibilities\n\n**What the `large_file` finding actually says** (crime_00010 / crime_00005 in context): 310 lines, 1.0× the 300 threshold, **5 top-level functions**. The threshold breach is marginal — but the same scan also reports `generateInvoice` is 204 lines (66% of the file), 7 `Date` reads scattered 57→273, two duplicated business rules (tax + loyalty/age), and a prose-only refund authorization rule at line 39. The split should carve the file along the responsibility seams the evidence already names, not just shave lines.\n\n### Target layout\n\n```\nsrc/billing/\n  types.ts        # User, InvoiceLine, Invoice (lines 4–31)\n  tax.ts          # tax() (257–268)   ← duplicated rule (line 145 block)\n  upgrade.ts      # recommendUpgrade() (272–305)  ← owns the line-273 Date\n  refunds.ts     # calculateRefundPreview() (40–44) + line-39 rule\n  invoices.ts    # generateInvoice() + listRecentInvoices() (50–253, 307–310)\n  index.ts        # re-exports, so the public surface stays `billing`\n```\n\n### Order (each step lowers risk for the next)\n\n1. **`types.ts`** — pure type move. No behaviour, no callers affected. Required first because every other file imports `User` / `Invoice` / `InvoiceLine`.\n2. **`tax.ts`** — 12-line standalone function. After extracting, the duplicated inline block inside `generateInvoice` (lines 145–157, called out by the `// duplicated business rule — also lives in tax()` comment at line 145) becomes a one-line `tax(user.country, afterDiscount)` call. Closes a known duplication that the file evidence flags by name.\n3. **`upgrade.ts`** — `recommendUpgrade` is the only function outside `generateInvoice` that reads the wall clock (line 273, one of the 7 Date sites). Isolating it makes it the obvious first target for the `inject_clock` action on crime_00004 without dragging `generateInvoice` into the same change.\n4. **`refunds.ts`** — `calculateRefundPreview` (5 lines) + the line-39 comment (\"Only owners can refund enterprise plans unless billing support approves\"). The split is the natural moment to act on crime_00008 (False Identity: saveRefundAudit/sendRefundEmail) and crime_00011 (encode the comment as a real guard). Don't bundle those edits into this PR — extract first, refactor in a follow-up.\n5. **`invoices.ts`** — `generateInvoice` (the remaining ~204 lines) plus the 4-line `listRecentInvoices`. After steps 2–4 land, this file is ~210 lines and below threshold. The internal decomposition of `generateInvoice` is the separate concern owned by crime_00001 — explicitly out of scope for the file-level split.\n6. **`index.ts`** — `export * from \"./types\"; export * from \"./invoices\"; ...` so existing import sites don't churn.\n\n### Callers to update\n\nI grepped for `from \".*billing\"` and for each exported symbol across `examples/messy-ts-app`:\n\n- **No external import sites exist in this fixture.** `src/billing.test.ts` defines local stubs (`renderEnterprisePlan`, `createInvoice`) and does not import from `src/billing.ts`.\n- That means the actual update list is: nothing in this repo. If `billing.ts` were imported from elsewhere, the `index.ts` re-export keeps `import { generateInvoice } from \"./billing\"` valid; callers using a deep path would need `./billing/invoices` instead, but none exist here.\n\n### What this does **not** fix (and shouldn't, in one PR)\n\n- crime_00001 `generateInvoice` God Function (inner extraction) — separate change.\n- crime_00004 `direct_date` ×7 — clock injection comes after the split, per file.\n- crime_00007 `\"enterprise\"` literal scatter — touches 3 other files; out of scope.\n- crime_00008, crime_00011 — flagged above as natural follow-ups in `refunds.ts`.\n\nThe split is justified by `5 top-level functions` with clearly different responsibilities and **two duplicated rules** (tax, loyalty-age math) the scan already names — not by the 310 > 300 line count alone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      }
+    ]
+  }
+}

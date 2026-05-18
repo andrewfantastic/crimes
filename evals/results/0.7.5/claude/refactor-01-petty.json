@@ -1,0 +1,89 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:22:07.090Z",
+  "run_id": "02102d82-2c1b-4ff1-b75b-0c9b299e7ef3",
+  "response": "## Three petty crimes in `src/petty.ts`\n\n### 1. `describeCheckout` — Option Bag Junk Drawer (crime_00017, lines 10-19)\n\n**What an agent gets wrong today:** `CheckoutOptions` lumps six unrelated dimensions — billing (`plan`, `currency`), routing (`region`), auth (`role`), runtime state (`status`, `retry`) — into one bag. An agent told to \"add a `couponCode` field\" has no signal that coupons belong with billing rather than next to `role`. A caller passing `{ retry: true }` while omitting `status` gets no compile-time warning that the omission matters here.\n\n**Refactor:** name the shape this function actually consumes. Either tight inline destructure or a purpose-named type:\n\n```ts\ntype CheckoutDescriptor = {\n  plan: string;\n  role: string;\n  region: string;\n  currency: string;\n  status: string;\n  retry: boolean;\n};\n\nexport function describeCheckout(d: CheckoutDescriptor): string {\n  return [d.plan, d.role, d.region, d.currency, d.status, String(d.retry)].join(\":\");\n}\n```\n\nThe win is the rename: `CheckoutDescriptor` says \"this is the data needed to build a checkout description string,\" not \"a generic envelope of checkout-adjacent properties.\" Future fields land in the type whose name actually fits.\n\n### 2. `resolvePaymentResult` — Return Shape Roulette (crime_00018, lines 21-32)\n\n**What an agent gets wrong today:** three branches return three different shapes (`{ ok, code, message }`, `{ url, permanent }`, `{ ok, value, cached }`) with **0% key overlap** between the error and redirect branches, and no declared return type. A caller writing `result.ok` after a redirect gets `undefined` — silently falsy. An agent extending this with a fourth branch will pick whichever shape they happen to read first, drifting further.\n\n**Refactor:** make the variants explicit with a discriminated union:\n\n```ts\ntype PaymentResult =\n  | { kind: \"error\"; code?: string; message?: string }\n  | { kind: \"redirect\"; url?: string; permanent: boolean }\n  | { kind: \"success\"; value?: string; cached: boolean };\n\nexport function resolvePaymentResult(input: {\n  error?: boolean; redirect?: boolean;\n  code?: string; message?: string; url?: string; value?: string;\n}): PaymentResult {\n  if (input.error)    return { kind: \"error\",    code: input.code, message: input.message };\n  if (input.redirect) return { kind: \"redirect\", url: input.url, permanent: false };\n  return { kind: \"success\", value: input.value, cached: false };\n}\n```\n\n`kind` forces callers to discriminate. The compiler now refuses `result.url` on an error result, and a future fifth branch must declare its own `kind`.\n\n### 3. `canRunBilling` — Negative Flag Maze (crime_00019, line 35)\n\n**What an agent gets wrong today:** `!disableBilling && !skipRetry` is a double negative. Asked to \"also block when the tenant is in `readonly` mode,\" an agent is likely to bolt on `&& !readonly` and quietly invert the intent of a future caller that genuinely wants readonly billing. The parameter names already encode the wrong polarity — every reader has to mentally flip them.\n\n**Refactor:** flip to positive flags at the boundary, name the predicate:\n\n```ts\nexport function canRunBilling(\n  flags: { billingEnabled: boolean; retriesEnabled: boolean }\n): boolean {\n  return flags.billingEnabled && flags.retriesEnabled;\n}\n```\n\nIf callers genuinely own `disableBilling`/`skipRetry` and you can't rename them, at minimum extract the predicate:\n\n```ts\nexport function canRunBilling(disableBilling: boolean, skipRetry: boolean): boolean {\n  const billingEnabled = !disableBilling;\n  const retriesEnabled = !skipRetry;\n  return billingEnabled && retriesEnabled;\n}\n```\n\nThe named locals turn \"is this true when both are false?\" into \"is this true when both are enabled?\" — which is the question a fourth condition should be added to.\n\n---\n\n**Common thread:** all three findings are about *implicit contracts*. The fix in each case is to name the thing — the input shape, the output variant, the boolean polarity — so the next edit has a place to land instead of a guess to make.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

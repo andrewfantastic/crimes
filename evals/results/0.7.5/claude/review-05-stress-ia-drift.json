@@ -1,0 +1,71 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:24:50.661Z",
+  "run_id": "6b6ac841-2e80-4556-8066-211ecdffb151",
+  "response": "## Drift findings, grouped by what they tell you\n\n**The IA spine has three real problems (medium severity, all linked):**\n\n| # | Finding | What it means |\n|---|---------|---------------|\n| crime_00003 | **Permission IA Drift on `/admin`** | nav says `role=admin`, route guard checks `admin`/`manager`/`owner`, docs reference yet another shape. A permission boundary with three sources of truth. |\n| crime_00002 | **Concept Alias Drift (tenant)** | `organisation`, `team`, `workspace` all coexist across `src/nav.ts` + 3 route files. Same concept, three vocabularies. |\n| crime_00004 | **Parallel Destination** | `/admin/billing-plans` and `/billing-plans` serve the same intent with no link between them — and both are orphaned (crime_00007, crime_00008). |\n\n**Doc/code drift on the same surface (low, but cheap):**\n- crime_00005 — `docs/routes.md:14` links to a missing `/admin` target.\n- crime_00006 — `docs/routes.md` documents `iaq teams|workspace|refresh`; the bin only ships `get`, `list`.\n\n**Orphans (low):** crime_00007–00010. `/admin/billing-plans`, `/billing-plans`, `/organisation`, `/workspace` are unreachable from nav, docs, or imports. The `organisation`/`workspace` orphans are the same files as the alias drift — fixing the canonical-term decision will likely resolve them.\n\n**Copy polish (low):** crime_00011 and crime_00012 are the same `archive/delete/remove` signal reported twice under two charge types (`action_label_drift` + `copy_ia_drift`). Worth noting as a detector quirk, not two issues.\n\n**Out of scope for IA review:** crime_00001 (missing agent context) is real but orthogonal.\n\n## Recommendation\n\n**Blocking quality — fix before merge:**\n1. **crime_00003** (permission drift on `/admin`). Pick one role token and align nav + route guard + docs. Permission boundaries with three sources of truth are exactly the shape that lets an agent confidently \"fix\" one and silently leave a hole.\n2. **crime_00002** (tenant alias drift). The same concept is the spine of the routing surface (`src/nav.ts` references all three variants). Decide on the canonical term and rename — or document the split if `organisation` vs `team` vs `workspace` are genuinely distinct.\n3. **crime_00004** (parallel `/billing-plans`). Decide which is canonical; redirect or document.\n\n**Follow-ups (file as issues, don't block):**\n- crime_00005 + crime_00006 — small doc fixes, but bundle them with whatever you do for #1 since they touch the same `docs/routes.md`.\n- crime_00007–00010 — most resolve as a side-effect of #2 and #3; whatever remains, link or retire.\n- crime_00011/00012 — copy guide decision; also flag the duplicate-charge behavior to whoever owns the detectors.\n\nThe signal-to-noise here is high: 4 medium findings concentrated on the IA spine (admin perms, tenant naming, billing-plans split), and the 8 lows mostly fall out of fixing those three.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

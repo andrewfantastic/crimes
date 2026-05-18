@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:24:16.021Z",
+  "run_id": "1a0abcbc-6d21-417f-9aaf-28a615e81dbe",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f8-2113-7d71-872f-04dee32d383d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n**Block Merge**\\n\\n- `crime_00001` `src/billing.ts` `generateInvoice`: high severity, `agent_risk: 0.63`. This is the only high finding and it affects a 204-line domain function, so I would block until the invoice flow is split or covered enough to make future edits safe.\\n\\n**Warn**\\n\\n- `crime_00002` `src/api/plan.ts`: medium severity, `agent_risk: 0.61`. Missing agent context is a real repo-maintenance risk, especially for a CLI/app repo with declared commands.\\n- `crime_00004` `src/billing.ts`: medium severity, `agent_risk: 0.53`. Direct wall-clock reads in billing logic make tests and future edits unreliable.\\n- `crime_00005` `src/date.ts`: medium severity, `agent_risk: 0.61`. Same temporal coupling, with a higher risk score because the file appears unprotected by tests.\\n- `crime_00006` `src/billing.test.ts`: medium severity, `agent_risk: 0.46`. A test with no assertions is misleading, but not independently merge-blocking.\\n- `crime_00007` `src/api/plan.ts`: medium severity, `agent_risk: 0.60`. Scattered `\\\"enterprise\\\"` policy across app areas should be centralized before more plan logic lands.\\n- `crime_00008` `src/billing.ts` `calculateRefundPreview`: medium severity, `agent_risk: 0.52`. A preview function sending audit/email side effects is risky API naming.\\n- `crime_00009` `docs/billing.md`: medium severity, `agent_risk: 0.58`. Tenant/account/team/workspace alias drift can cause duplicated product logic.\\n- `crime_00010` `src/billing.ts`: medium severity, `agent_risk: 0.50`. The file is just over threshold, but combined with the god function it is worth calling out.\\n- `crime_00011` `src/billing.ts`: medium severity, `agent_risk: 0.50`. A refund permission rule living only in a comment should become code or a test.\\n- `crime_00012` `src/nav/registry.ts`: medium severity, `agent_risk: 0.57`. Conflicting nav labels for the same destination create stale UI metadata risk.\\n- `crime_00013` `src/todo.ts`: medium severity, `agent_risk: 0.57`. TODO density is extreme enough to warn, even if it may be intentional fixture mess.\\n- `crime_00014` `src/routes/settings/billing.tsx`: medium severity, `agent_risk: 0.56`. Route/page/nav naming drift should be aligned before merge.\\n\\n**Ignore**\\n\\n- `crime_00015` `docs/teams.md`: low severity, `agent_risk: 0.51`. Broken doc link is worth fixing, but I would not hold this PR on it.\\n- `crime_00016` `src/billing.test.ts`: low severity, `agent_risk: 0.34`. Weak assertion is low-risk compared with the no-assert test already warned above.\\n- `crime_00017` `src/petty.ts` `describeCheckout`: low severity, `agent_risk: 0.48`. The options bag is messy but localized.\\n- `crime_00018` `src/petty.ts` `resolvePaymentResult`: low severity, `agent_risk: 0.48`. Explicit return types would help, but this is not a merge concern.\\n- `crime_00019` `src/petty.ts`: low severity, `agent_risk: 0.47`. Double-negative flags are maintainability debt, not a blocker.\\n- `crime_00020` `src/billing.ts`: low severity, `agent_risk: 0.40`. Billing TODOs are already covered by higher-priority billing findings.\\n- `crime_00021` `src/routes/account/subscription.tsx`: low severity, `agent_risk: 0.46`. Orphaned route may be intentional in a new app; verify later.\\n- `crime_00022` `src/routes/team/index.tsx`: low severity, `agent_risk: 0.46`. Same orphaned-route concern, low merge impact.\\n- `crime_00023` `src/routes/workspace/members.tsx`: low severity, `agent_risk: 0.46`. Same orphaned-route concern, low merge impact.\\n\\nSummary: I would block on `crime_00001` only. The medium findings are credible warnings, especially the missing agent context, date coupling, scattered plan literal, and route/nav drift. The low findings are backlog cleanup unless they overlap with code being actively changed.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":12160,\"output_tokens\":1076,\"reasoning_output_tokens\":62}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

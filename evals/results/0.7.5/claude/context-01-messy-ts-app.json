@@ -1,0 +1,71 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:19:08.369Z",
+  "run_id": "bc8a5a57-c97c-4404-ab88-2e08ac3b982a",
+  "response": "## What `src/billing.ts` does\n\nIt's the billing domain module. Two functions are named in findings:\n- `generateInvoice` (lines 50–253) — a 204-line invoice generator that reads the wall clock heavily (`Date.now()`/`new Date()` at lines 57, 63, 92, 198, 238, 250, 273).\n- `calculateRefundPreview` (lines 40–44) — name implies a pure calculation but it calls `saveRefundAudit` and `sendRefundEmail`, so it actually performs side effects.\n\nThe file also encodes (or rather, *doesn't* encode) a permission rule via comment on line 39: *\"Only owners can refund enterprise plans unless billing support approves\"* — the domain terms `owner`, `plan`, `billing` aren't visible nearby in code, so the rule is prose-only. It special-cases the `\"enterprise\"` plan as a bare string literal (line 7). 5 top-level functions, 310 lines total.\n\n## Files I'd also want to read before editing\n\n| File | Why |\n|---|---|\n| `src/billing.test.ts` | Two weak tests cover this module — `\"renders the enterprise plan\"` (lines 4–6, zero asserts) and `\"creates an invoice\"` (lines 8–10, weak matchers). I can't trust either to catch regressions. |\n| `src/date.ts` | Likely the intended clock/date helper (also flagged for direct `Date` use). If I'm adding logic, this is where a `now()` abstraction would land. |\n| `src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts` | All four files (incl. billing.ts) hardcode `\"enterprise\"`. Changing plan logic here likely needs coordinated edits there. |\n| `docs/billing.md` | Concept-alias drift: docs mix `tenant`/`account`/`organisation`/`team`/`workspace`. Worth checking which term the billing code is supposed to align with. |\n\n## Risks the scan flagged for `src/billing.ts`\n\n| Severity | Charge | Note |\n|---|---|---|\n| **high** | God Function (`generateInvoice`, 204 lines, 3.4× threshold) | Sections likely mix responsibilities; localized edits can miss cross-section effects. |\n| medium | Temporal Recklessness (7 direct `Date` calls) | Non-deterministic; tests can't pin time without monkey-patching. |\n| medium | String Sprinkles (`\"enterprise\"` in 4 files) | Plan-tier policy duplicated. |\n| medium | False Identity (`calculateRefundPreview` does side effects) | Callers may treat as pure. |\n| medium | God File (310 lines, just over threshold) | Hidden local coupling. |\n| medium | Logic in the Alibi (line 39 comment-rule) | Refund authorization rule lives in prose, not code. |\n| low | Unfinished Business (4 TODO/FIXME/HACK/XXX between lines 183–308) | Unclear which behaviour is load-bearing. |\n\nRepo-wide context worth knowing before editing: **no `AGENTS.md`/`CLAUDE.md`/skills file** (Missing Agent Context, medium), so any conventions I follow have to be inferred from the code itself.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -713,7 +713,7 @@ rely on them in agent instructions yet:
 | Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` | ✅ shipped (`0.6.0`) |
 | Dependency-graph detectors (`layer_violation`, `circular_dependency`, `deep_import`, `high_fan_in_fan_out`) | ✅ shipped (`0.6.0`) |
 | IA completion (`orphaned_destination`, `parallel_destination`, `permission_ia_drift`, `action_label_drift`, `command_drift_docs_code_drift`) | ✅ shipped (`0.6.0`) |
-| Frontend agent-risk (`design_token_escape`, `accessible_interaction_risk`, `duplicate_component_shape`, `responsive_fragility`, `copy_ia_drift`, `visual_regression_review_hint`) | ✅ shipped (`0.6.0`) |
+| Frontend agent-risk (`design_token_escape`, `accessible_interaction_risk`, `duplicate_component_shape`, `responsive_fragility`, `copy_ia_drift`) | ✅ shipped (`0.6.0`) |
 | Duplication (`exact_duplicate_block`, `near_duplicate_block`, `duplicated_role_status_plan_check`) | ✅ shipped (`0.6.0`) |
 | `large_function` `cli_command_registrar` shape | ✅ shipped (`0.6.0`) |
 | `crimes hotspots <subdir>` enclosing-repo lookup | ✅ shipped (`0.6.0`) |

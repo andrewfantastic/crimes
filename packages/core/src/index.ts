@@ -119,7 +119,6 @@ export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
-export { visualRegressionReviewHintDetector } from "./detectors/visual-regression-review-hint.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 export {
   applyDiffFailOn,

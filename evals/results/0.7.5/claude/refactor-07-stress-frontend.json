@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:21:58.827Z",
+  "run_id": "6cc902f8-f588-45ab-b3c0-e3ac35172b21",
+  "response": "The fixture is a single file with no design system around it, so the refactor has to both fix `Card.tsx` *and* introduce the minimum scaffolding it leans on (a `tokens` module). Here's the proposal.\n\n## Refactor plan\n\n**1. Extract design tokens** → fixes `design_token_escape` (crime_00002)\n\nCreate `src/tokens.ts` so the literal colors/radii live in one place and agents extending the file can't silently copy a hex forward:\n\n```ts\n// src/tokens.ts\nexport const color = {\n  surface: \"var(--color-surface)\",         // was #ff00aa  (clearly a placeholder)\n  textPrimary: \"var(--color-text-primary)\",// was #0a0a0a\n  textSecondary: \"var(--color-text-2)\",    // was #333333\n  textMuted: \"var(--color-text-muted)\",    // was #666666\n  border: \"var(--color-border)\",           // was #cccccc\n  focusRing: \"var(--color-focus-ring)\",    // was #1a73e8\n  shadow: \"var(--color-shadow)\",           // was rgb(0,0,0)\n} as const;\n\nexport const space = { md: \"var(--space-md)\" } as const;      // was 24px\nexport const radius = { md: \"var(--radius-md)\" } as const;\nexport const shadow = { sm: \"var(--shadow-sm)\" } as const;    // replaces hand-rolled \"0 2px 4px\"\n```\n\nThe 9 raw values flagged in evidence (`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, `#333333`, `#666666`, plus the `boxShadow` literal) all collapse into token references. The CSS-var indirection means the next agent edits a token, not a component.\n\n**2. Use a real button + ARIA fallback** → fixes `accessible_interaction_risk` (crime_00001)\n\nThe outer `<div onClick>` is the interactive element. Two routes; pick (a):\n\n- **(a) Preferred:** make the wrapper a `<button type=\"button\">`. That gets keyboard focus, Enter/Space activation, and screen-reader semantics for free. Reset the user-agent button styles (`appearance: none`, `text-align: inherit`, transparent background) since the visual is card-shaped, not button-shaped.\n- **(b) If the card must remain a `<div>`** (e.g. it contains other interactive children, which would be invalid nested inside a button): keep the `<div>` but add `role=\"button\"`, `tabIndex={0}`, `aria-label=\"Open card\"` (or similar), and an `onKeyDown` handler that triggers on `Enter`/`Space`.\n\nThe current Card has no nested interactives, so (a) is the right call.\n\n**3. Fluid sizing + breakpoint** → fixes `responsive_fragility` (crime_00003)\n\nThe three offenders flagged were `width: 800px`, `width: 720px`, `fontSize: 18px`, with no `@media` in the file.\n\n- Outer card: `width: 100%; max-width: 50rem` (≈ the old 800px ceiling) instead of a hard `width: 800`. `height: 600` becomes `min-height` or is dropped — card height should flow from content.\n- Inner content column: drop `width: 720`. Use a CSS grid (`grid-template-columns: minmax(0, 1fr) 15rem`) so the sidebar gets a fixed-ish track and the body fills the rest, with a `@media (max-width: 40rem)` rule collapsing it to a single column.\n- Typography: `fontSize: clamp(1rem, 0.9rem + 0.3vw, 1.125rem)` instead of a raw `18px`. `14px` sidebar text becomes `0.875rem`.\n\nThis is easier with a CSS module than inline `style={}` (you can't write `@media` inline), so move the styles out:\n\n## Refactored `Card.tsx`\n\n```tsx\nimport { color, space, radius, shadow } from \"./tokens\";\nimport styles from \"./Card.module.css\";\n\nexport function Card({\n  children,\n  onActivate,\n  label = \"Open card\",\n}: {\n  children: React.ReactNode;\n  onActivate?: () => void;\n  label?: string;\n}) {\n  return (\n    <button\n      type=\"button\"\n      className={styles.card}\n      onClick={onActivate}\n      aria-label={label}\n    >\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </button>\n  );\n}\n```\n\n```css\n/* src/Card.module.css */\n.card {\n  all: unset;                /* drop UA button chrome — accessibility (1) */\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 15rem;\n  gap: var(--space-md);\n  width: 100%;               /* responsive (3) */\n  max-width: 50rem;\n  padding: var(--space-md);\n  background: var(--color-surface);     /* tokens (2) */\n  color: var(--color-text-primary);\n  border: 1px solid var(--color-border);\n  border-radius: var(--radius-md);\n  box-shadow: var(--shadow-sm);\n  cursor: pointer;\n}\n.card:focus-visible { outline: 2px solid var(--color-focus-ring); }\n\n.body { font-size: clamp(1rem, 0.9rem + 0.3vw, 1.125rem); }   /* responsive (3) */\n.sidebar { font-size: 0.875rem; color: var(--color-text-muted); }\n\n@media (max-width: 40rem) {                                   /* responsive (3) */\n  .card { grid-template-columns: 1fr; }\n  .sidebar { font-size: 0.8125rem; }\n}\n```\n\n## Mapping back to the findings\n\n| Finding | Change |\n|---|---|\n| `design_token_escape` (crime_00002) | 9 inline hex/rgb/shadow literals → `tokens.ts` + CSS variables; `boxShadow` and `outlineColor` become `var(--shadow-sm)` / `var(--color-focus-ring)`. |\n| `accessible_interaction_risk` (crime_00001) | `<div onClick>` → `<button type=\"button\">` with `aria-label`; native keyboard focus + Enter/Space activation; `:focus-visible` ring for visible focus. |\n| `responsive_fragility` (crime_00003) | `width: 800` → `width: 100%; max-width: 50rem`; inner fixed `width: 720` removed in favor of a CSS grid; `fontSize: 18` → `clamp(...)`; mobile `@media` collapses the two-column grid. |\n\n## Notes / things to watch\n\n- If consumers rely on the old onClick-on-div pattern, `onActivate` needs to be wired at call sites — that's a small breaking change worth flagging in the PR.\n- `all: unset` on the button drops *all* UA styling. Test focus, hover, disabled, and HCM (Windows High Contrast) before merging — that's the usual regret with this pattern.\n- If the card ever needs to contain a nested interactive (a link, another button), switch to fallback (b) — nesting interactives inside a `<button>` is invalid HTML.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "design_token_escape",
+        "passed": false
+      }
+    ]
+  }
+}

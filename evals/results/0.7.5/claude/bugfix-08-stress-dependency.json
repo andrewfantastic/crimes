@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:18:35.363Z",
+  "run_id": "5e57cc05-60e1-4acc-9c0c-926a0156fa19",
+  "response": "**Break the edge `src/domain/billing.ts → src/presentation/invoice-view.ts`.**\n\nWhy this edge specifically:\n\n1. **It's the only edge in the cycle that's also a layer violation** (`crime_00002`). The configured rule says `domain cannotImport presentation`. Domain is supposed to be the most stable layer — nothing inside it should know that a UI exists. Removing this import fixes both findings in one move.\n\n2. **Direction of dependency is wrong by clean-architecture conventions.** Presentation depends on domain, application orchestrates both. A domain module reaching back into the view inverts that and is almost always the symptom rather than the root: domain probably needs a type, a formatter, or a status shape that *currently lives* in the view but conceptually belongs to domain.\n\n3. **The other two edges are defensible.** `application → domain` and `presentation → application` (or `presentation → domain`) both flow in the legal direction; cutting either would just move the problem.\n\n**How to break it (lowest-risk first):**\n\n- If `billing.ts` only needs a *type* from `invoice-view.ts` → change it to `import type { ... }`. Type-only imports are erased at compile time and don't contribute a runtime edge, which is exactly what the suggested action in `crime_00001` calls out.\n- If it needs a *value* (function, constant, class) → extract that value into a new domain-owned module (e.g. `src/domain/invoice.ts` with the shared shape/helper) and have both `billing.ts` and `invoice-view.ts` import from it. This is the \"third module both ends can import from\" remedy.\n- Do **not** \"fix\" this by relaxing the layer rule in `crimes.config.json` — the rule is doing its job; the import is the bug.\n\n**What I'd leave alone:** `crime_00003` (deep import into `some-pkg/dist/internal/...`) is unrelated to the cycle and lower priority — address it after the cycle is gone so the runtime error and the package-internals risk don't get conflated in one PR.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

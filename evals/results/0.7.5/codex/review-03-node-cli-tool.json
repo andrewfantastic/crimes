@@ -1,0 +1,118 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:25:26.470Z",
+  "run_id": "902b96c8-38d1-4123-8f93-821da0aa6fdf",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f9-31be-7791-9fa2-79e8a862d756\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n| Decision | Findings | Severity / agent_risk | Justification |\\n|---|---:|---|---|\\n| **Block merge** | `crime_00001` `lib/command.js` large file | high / `0.70` | 2,179-line command core with 150 top-level functions is the main behavioral surface. On an empty-baseline PR, this is too much coupled logic to merge without decomposition or a clear ownership map. |\\n| **Block merge** | `crime_00002` `typings/index.d.ts` large file | high / `0.70` | 891-line public type surface with 121 top-level declarations. Type API drift will be hard for agents to edit safely. |\\n| **Block merge** | `crime_00003` `_executeSubCommand` | high / `0.69` | 120-line core command-execution method. This is high-risk orchestration logic and should be split or heavily tested before merge. |\\n| **Warn** | `crime_00020`, `00039`, `00040` core large functions | medium / `0.61`, `0.60`, `0.59` | `parseOptions`, `_parseCommand`, and `addOption` are important but below the high-risk cutoff. Worth filing follow-up refactors, especially around parsing behavior. |\\n| **Warn** | `crime_00041`, `00042`, `00043` large files | medium / `0.59`, `0.59`, `0.57` | `typings/index.test-d.ts`, `lib/help.js`, and `lib/option.js` exceed the file threshold. Not immediate blockers, but they raise future edit risk. |\\n| **Warn** | `crime_00005`-`00008` production duplicate blocks | medium / `0.62` each | Repeated `argument`/`option` behavior is real maintenance risk. One bug fix could easily land in only one copy. |\\n| **Ignore** | `crime_00004` example duplicate `myParseInt` | medium / `0.62` | Same helper copied between examples. Acceptable in examples unless examples are treated as tested product surface. |\\n| **Ignore** | `crime_00009`-`00019` test duplicate blocks | medium / `0.47` each | Test helper duplication is noisy but not merge-blocking. Consolidate only if it improves test readability. |\\n| **Warn** | `crime_00021`-`00028` no-assert exit override tests | medium / `0.46` each | These test names claim thrown errors but contain zero assertions. That can give false confidence around CLI exit behavior. Add observable assertions. |\\n| **Warn** | `crime_00029`-`00036` no-assert TS import tests | medium / `0.46` each | If these are compile-smoke tests, they may be intentional, but the intent should be encoded clearly or asserted where possible. |\\n| **Ignore** | `crime_00037` large test callback | medium / `0.45` | Large test body only. Refactor opportunistically, not a merge blocker. |\\n| **Warn** | `crime_00038` magic literal `PORT` | medium / `0.60` | Repeated domain literal across examples and typings can become duplicated policy. Warn, but not enough alone to block. |\\n| **Warn** | `crime_00044`, `00045` broken docs links | low / `0.51` each | Low severity, but broken docs links are cheap to fix and can mislead agents/users. Should be corrected before or soon after merge. |\\n| **Ignore** | `crime_00046` commented-out code in test | low / `0.36` | Dead comment in a test helper area. Clean up when nearby, but not review-blocking. |\\n| **Ignore** | `crime_00047`-`00050` large test suites | low / `0.35`, `0.35`, `0.34`, `0.34` | Test organization smell only. Does not materially change product behavior risk. |\\n| **Ignore** | `crime_00051`-`00059` weak assertions | low / `0.34` each | Weak assertions in tests are worth improving, but low severity and localized. Track as test-quality debt. |\\n| **Ignore** | `crime_00060` prose rule in comment | low / `0.31` | The comment may carry stale intent, but confidence and risk are low. Not a merge blocker. |\\n\\n**Merge Call**\\n\\nI would **block the PR** on the three high findings: `lib/command.js`, `typings/index.d.ts`, and `_executeSubCommand`. The rest are warnings or cleanup debt.\\n\\nMinimum path to unblock: split or document boundaries for `lib/command.js`, extract `_executeSubCommand` responsibilities, and either split the type declarations or add a deliberate rationale plus focused type tests. Then address the no-assert tests as a follow-up before relying on this suite for agent-assisted changes.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":35603,\"cached_input_tokens\":17792,\"output_tokens\":1159,\"reasoning_output_tokens\":84}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "exact_duplicate_block",
+      "crime_00008": "exact_duplicate_block",
+      "crime_00009": "exact_duplicate_block",
+      "crime_00010": "exact_duplicate_block",
+      "crime_00011": "exact_duplicate_block",
+      "crime_00012": "exact_duplicate_block",
+      "crime_00013": "exact_duplicate_block",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "exact_duplicate_block",
+      "crime_00018": "exact_duplicate_block",
+      "crime_00019": "exact_duplicate_block",
+      "crime_00020": "large_function",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "large_function",
+      "crime_00038": "magic_domain_literal_scatter",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "large_file",
+      "crime_00042": "large_file",
+      "crime_00043": "large_file",
+      "crime_00044": "docs_code_drift",
+      "crime_00045": "docs_code_drift",
+      "crime_00046": "commented_out_code",
+      "crime_00047": "large_function",
+      "crime_00048": "large_function",
+      "crime_00049": "large_function",
+      "crime_00050": "large_function",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "weak_test_signal",
+      "crime_00053": "weak_test_signal",
+      "crime_00054": "weak_test_signal",
+      "crime_00055": "weak_test_signal",
+      "crime_00056": "weak_test_signal",
+      "crime_00057": "weak_test_signal",
+      "crime_00058": "weak_test_signal",
+      "crime_00059": "weak_test_signal",
+      "crime_00060": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Docs-Code Drift": "docs_code_drift",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -616,10 +616,11 @@ optional and additive:
 - **IA completion** (5): `orphaned_destination`,
   `parallel_destination`, `permission_ia_drift`,
   `action_label_drift`, `command_drift_docs_code_drift`.
-- **Frontend / UI agent-risk** (6): `design_token_escape`,
+- **Frontend / UI agent-risk** (5): `design_token_escape`,
   `accessible_interaction_risk`, `duplicate_component_shape`,
-  `responsive_fragility`, `copy_ia_drift`,
-  `visual_regression_review_hint`.
+  `responsive_fragility`, `copy_ia_drift`. (Originally shipped six —
+  `visual_regression_review_hint` removed in 0.7.5; its churn-based
+  trigger was a poor proxy for "needs visual review".)
 - **Duplication** (3): `exact_duplicate_block`,
   `near_duplicate_block`, `duplicated_role_status_plan_check`.
 
@@ -750,11 +751,6 @@ Storybook, Chromatic, ESLint, or design-token linters.
   concept, duplicated empty-state copy, hard-coded plan / role / status text,
   or UI copy that appears to encode business rules. Agent value: surfaces
   ambiguous sources of truth before another label or rule is duplicated.
-- **Visual Regression Review Hint:** not a screenshot engine, but a detector
-  that says "this changed UI file deserves visual review" when churn,
-  responsive complexity, lack of stories/tests, and component centrality line
-  up. Agent value: recommends Playwright / Storybook / screenshot checks at
-  the right time.
 
 Initial frontend detector priority, if this track is promoted:
 

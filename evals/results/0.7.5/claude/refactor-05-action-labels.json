@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:22:56.844Z",
+  "run_id": "ebb0c5f5-244a-4eb5-aed2-38ad340f11d8",
+  "response": "## Confirming the drift\n\nThe scan output shows crime_00011 (`action_label_drift`) and crime_00012 (`copy_ia_drift`) firing on the same \"delete\" group with identical evidence:\n\n- `archive` — `SeatList.tsx`, `TeamList.tsx`\n- `delete` — `TeamList.tsx`, `UserList.tsx`\n- `remove` — `SeatList.tsx`, `UserList.tsx`\n\nEach component uses **two of the three** verbs, so no single file is the right canonical reference — every file is part of the problem.\n\n## Proposed canonical label set\n\nThree verbs, three distinct semantics — the fix isn't \"pick one verb\" but \"give each verb a job\":\n\n| Verb | Use when | Reversible? |\n|---|---|---|\n| **Delete** | Permanently destroys the entity and its data | No |\n| **Remove** | Detaches the entity from a parent collection (the entity itself may still exist elsewhere) | Yes (re-add) |\n| **Archive** | Soft-deletes — entity hidden but recoverable, audit trail preserved | Yes (unarchive) |\n\nMapped onto the three components:\n\n- `SeatList.tsx` → **Remove** (a seat is a slot on a subscription; you don't destroy data, you free a license)\n- `UserList.tsx` → **Delete** (the destructive case — wipe the user record)\n- `TeamList.tsx` → **Archive** (teams carry historical state worth preserving)\n\n## Which to refactor first\n\n**`UserList.tsx`.** Reasons:\n1. It's the only component where \"Delete\" is the *correct* canonical verb under the proposal — fixing it locks down the most-loaded word and stops the other two from drifting back.\n2. It currently uses both `delete` and `remove`, which is the most user-dangerous ambiguity (\"Remove\" sounds reversible; \"Delete\" doesn't).\n3. Once `UserList` is unambiguously \"Delete,\" `SeatList` and `TeamList` can stop borrowing from that semantic space.\n\nOrder: `UserList` (lock Delete) → `SeatList` (lock Remove) → `TeamList` (lock Archive). Then add a one-line copy guide so an agent extending a fourth list component has a discoverable rule.\n\n## How the two detectors differ on this fixture\n\nThey share the same `analyse()` core (`packages/core/src/detectors/action-label-drift.ts:64`). The only behavioural difference is one flag:\n\n- **`action_label_drift`** runs across the whole IA index — JSX labels *plus* nav entries, button attributes, and other string-valued props the index already touches.\n- **`copy_ia_drift`** passes `restrictToJsxLabel: true` (walk.ts plumbs this through), so it only sees label signals whose `kind` starts with `jsx_` — visible UI copy only, no nav/attribute fallback.\n\nOn this fixture all three verbs live inside JSX text in the List components, so the JSX-restricted view and the broader view produce identical hits, identical anchors, identical scores. The redundancy isn't a bug in the run — it's the predictable case where a frontend-only signal happens to cover everything the broader detector would catch. If `nav.ts` or a route guard string had used one of these verbs, `action_label_drift` would have picked it up and `copy_ia_drift` would have stayed silent.\n\nPractically: tie the **fix** to `action_label_drift` (broader scope, same canonical guidance) and treat `copy_ia_drift` as the confirming UI-only witness. Both findings point at the same `pick_canonical_label` action.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

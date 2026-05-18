@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.5",
+  "timestamp": "2026-05-18T07:20:00.448Z",
+  "run_id": "ada55ac7-64ce-4272-8f61-68a7a97ea7f6",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e39f4-51c2-7b20-a8ea-8a0e56d11d9b\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I only have the `crimes scan --format json` payload here, not the `crimes verdict --format json` payload. Based on the scan, triage should focus on the one high finding first, then medium findings with high agent risk and low-cost fixes.\\n\\n**Recommended Triage**\\n\\n| Order | Category | Finding | File | Response | Why |\\n|---:|---|---|---|---|---|\\n| 1 | structural | `crime_00001` `large_function` | `src/billing.ts` | fix now | Only high severity item. `generateInvoice` is 204 lines and overlaps with several other billing findings. |\\n| 2 | IA | `crime_00002` `missing_agent_context` | repo-level | fix now | Cheap, high leverage. Add `AGENTS.md` or equivalent so future edits have repo commands and rules. |\\n| 3 | structural | `crime_00005` `direct_date` | `src/date.ts` | fix now | High agent risk, no test coverage signal. A centralized date module is the right place to introduce an injectable clock. |\\n| 4 | structural | `crime_00004` `direct_date` | `src/billing.ts` | fix now | Same problem inside billing domain code; should probably follow the clock abstraction from `src/date.ts`. |\\n| 5 | structural | `crime_00008` `name_behavior_mismatch` | `src/billing.ts` | fix now | `calculateRefundPreview` appears to send email/write audit. Rename or split before agents treat it as pure. |\\n| 6 | structural | `crime_00011` `logic_in_comments` | `src/billing.ts` | fix now | The refund authorization rule should become code or a test, especially because it sits near the misleading refund function. |\\n| 7 | structural | `crime_00006` `weak_test_signal` | `src/billing.test.ts` | fix now | A test with no assertions gives false confidence. Add observable assertions while touching billing. |\\n| 8 | duplication | `crime_00007` `magic_domain_literal_scatter` | `src/api/plan.ts` | defer | Worth centralizing `\\\"enterprise\\\"`, but do it after billing behavior is clarified to avoid creating the wrong abstraction. |\\n| 9 | IA | `crime_00009` `concept_alias_drift` | `docs/billing.md` | defer | Pick/document canonical tenant terminology, but this is broader product language cleanup. |\\n| 10 | structural | `crime_00010` `large_file` | `src/billing.ts` | defer | The large-file finding will likely improve naturally after extracting `generateInvoice`; avoid a separate split-only refactor first. |\\n\\n**Category Summary**\\n\\n- **Structural:** fix now for `large_function`, direct date usage, misleading refund behavior, comment-only rule, and weak billing test. Defer `large_file` until the billing extraction is done.\\n- **IA:** fix repo-level agent context now; defer concept vocabulary cleanup.\\n- **Duplication:** defer `\\\"enterprise\\\"` literal centralization until the billing model is clearer.\\n- **Frontend:** no top-10 frontend findings.\\n- **Git-history:** no top-10 git-history findings; all shown churn scores are `0`.\\n\\nNo top-10 item looks like an `ignore`. The closest is `large_file`, but it should be treated as a dependent follow-up rather than ignored.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24648,\"cached_input_tokens\":12160,\"output_tokens\":902,\"reasoning_output_tokens\":183}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}
