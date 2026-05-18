@@ -281,7 +281,7 @@ Shipped in `crimes@0.2.0`:
   [`docs/json-schema.md`](./docs/json-schema.md).
 
 Deferred from `0.2.0` and still deferred after `0.3.0` (see
-[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for the full list):
+[`docs/roadmap.md`](./docs/roadmap.md) for the full list):
 
 - **`crimes diff --fail-on new-high`** — _shipped in `0.5.0`_.
 - **`crimes ignore <id>`** + per-finding `.crimes/suppressions.json` — _shipped in `0.5.0`_.
@@ -409,7 +409,7 @@ Shipped in `crimes@0.4.0`:
 All additions are **additive and backwards-compatible** — no
 `schema_version` bump, no required field changes, no CLI behaviour
 regressions. The planning document
-([`AGENT_CONTEXT_QUALITY_PLAN.md`](./AGENT_CONTEXT_QUALITY_PLAN.md))
+([`.planning/archive/0.4.0-agent-context-quality.md`](./.planning/archive/0.4.0-agent-context-quality.md))
 covers the scope, risks, and rationale in full.
 
 Deferred from `0.4.0` (tracked for later versions — **do not document
@@ -877,7 +877,7 @@ Exit codes:
 Full schema: [`docs/json-schema.md`](./docs/json-schema.md#verdictreport-output-of-crimes-verdict).
 
 More commands land in later milestones — see [`PRD.md` §22](./PRD.md) and
-[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
+[`docs/roadmap.md`](./docs/roadmap.md).
 
 ---
 
@@ -1013,7 +1013,7 @@ crimes/
 ├── docs/                     # agent-usage, json-schema, skills, releasing
 ├── AGENTS.md                 # repo-level instructions for coding agents
 ├── PRD.md                    # product requirements document
-├── ROADMAP_STATUS.md         # what currently ships vs what is planned
+├── docs/roadmap.md           # what currently ships vs what is planned
 ├── README.md
 ├── CONTRIBUTING.md
 ├── LICENSE                   # MIT
@@ -1078,7 +1078,7 @@ Full recipe and one-time setup steps: [`docs/releasing.md`](./docs/releasing.md)
 - **M5 — Public launch** — npm ✅, [crimes.sh](https://crimes.sh) ✅ (`0.1.0`); full docs site planned
 - **M6 — Homebrew / standalone binaries** — deferred
 
-Full detail: [`PRD.md`](./PRD.md). Live status: [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md).
+Full detail: [`PRD.md`](./PRD.md). Live status: [`docs/roadmap.md`](./docs/roadmap.md).
 
 ---
 

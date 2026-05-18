@@ -8,7 +8,6 @@ import { defineConfig } from "astro/config";
 //   /             → static landing page (unchanged)
 //   /docs/        → Starlight docs root
 //   /docs/...     → docs pages migrated from `<repo>/docs/**/*.md`
-// See `DETECTOR_SCORING_COMPLETION_PLAN.md` §11.
 export default defineConfig({
   site: "https://crimes.sh",
   base: "/docs",

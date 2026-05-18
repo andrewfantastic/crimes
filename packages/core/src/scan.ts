@@ -356,7 +356,7 @@ async function safelyBuildIaIndex(args: {
  * shares an `id` with a default group is appended verbatim (the
  * concept_alias_drift detector dedupes hits per group, so duplicates are
  * harmless). A future `ia.aliasGroupsReplace: true` opt-in could swap
- * "additive" for "replace" — see SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md §3.B.
+ * "additive" for "replace".
  */
 export function resolveAliasGroups(
   config: CrimesConfig,

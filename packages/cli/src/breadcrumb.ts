@@ -1,11 +1,9 @@
 import type { CrimesConfig, SuppressionEntry } from "@crimes/core";
 import { findFuturePinnedSuppressions } from "@crimes/core";
 
-/**
- * Number of disabled detectors at or above which the breadcrumb fires.
- * Per `DETECTOR_SCORING_COMPLETION_PLAN.md` §12: "Suppressed when
- * `detectors.disable.length < 3`."
- */
+// Below this count, disabling a handful of detectors is treated as
+// ordinary tuning and stays silent. Three or more reads as a deliberate
+// project posture worth surfacing.
 const DISABLED_DETECTORS_THRESHOLD = 3;
 
 export interface BreadcrumbOptions {

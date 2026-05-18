@@ -5,7 +5,6 @@
 //
 // The landing page is kept verbatim — Astro doesn't render it — so the
 // `crimes.sh/` surface is unaffected by the `0.6.0` docs site rollout.
-// See `DETECTOR_SCORING_COMPLETION_PLAN.md` §11.
 import { spawn } from "node:child_process";
 import { cp, mkdir, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";

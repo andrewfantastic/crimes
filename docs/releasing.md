@@ -72,7 +72,7 @@ Edit
 
 ### 2. Update changelogs and docs
 
-- Update [`ROADMAP_STATUS.md`](../ROADMAP_STATUS.md) if the milestone
+- Update [`docs/roadmap.md`](./roadmap.md) if the milestone
   status has changed.
 - If you keep release notes in-repo, add them now. (Currently they live
   on the GitHub Release page itself — `CHANGELOG.md` is not maintained
@@ -109,7 +109,7 @@ You should see `package.json`, `dist/index.js`, `README.md`, and
 ### 4. Commit and push
 
 ```bash
-git add packages/cli/package.json ROADMAP_STATUS.md   # etc.
+git add packages/cli/package.json docs/roadmap.md   # etc.
 git commit -m "Prep crimes@X.Y.Z"
 git push
 ```

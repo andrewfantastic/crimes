@@ -26,7 +26,7 @@ duplicate location in `evidence`.
 > duplication detectors here apply to **function bodies** and
 > **policy expressions**, not navigation arrays or IA aliases —
 > different sources of duplication, different detectors. See
-> `DETECTOR_SCORING_COMPLETION_PLAN.md` §10.1.
+> `.planning/archive/0.6.0-detector-scoring-completion.md` §10.1.
 
 ---
 

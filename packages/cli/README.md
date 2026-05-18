@@ -164,7 +164,7 @@ override:
 - [README](https://github.com/andrewfantastic/crimes/blob/main/README.md) — full tour
 - [Agent guide](https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md) — pre/post-edit workflow
 - [JSON schema](https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md) — wire format
-- [Roadmap](https://github.com/andrewfantastic/crimes/blob/main/ROADMAP_STATUS.md) — what's next
+- [Roadmap](https://github.com/andrewfantastic/crimes/blob/main/docs/roadmap.md) — what's next
 
 ---
 

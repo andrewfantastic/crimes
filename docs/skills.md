@@ -101,7 +101,7 @@ A copy-paste **GitHub Actions workflow** already ships at
 Two non-negotiable rules:
 
 1. **Never document a command that does not exist yet.** Cross-check
-   against [`ROADMAP_STATUS.md`](../ROADMAP_STATUS.md) and the actual
+   against [`docs/roadmap.md`](./roadmap.md) and the actual
    commands registered in [`packages/cli/src/index.ts`](../packages/cli/src/index.ts).
 2. **The JSON in examples must match the current schema.** If you change
    `schema_version`, update every example in these docs in the same

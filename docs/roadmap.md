@@ -175,7 +175,7 @@ tracked for later versions. Don't document them as shipped.
 
 **Theme: information architecture crimes.**
 
-> **Implementation plan: [`IA_CRIMES_PLAN.md`](./IA_CRIMES_PLAN.md).**
+> **Implementation plan: [`.planning/archive/0.3.0-ia-crimes.md`](../.planning/archive/0.3.0-ia-crimes.md).**
 > Detector taxonomy, scope recommendation, IA-index architecture,
 > extraction strategy, fixture plan, sequencing, and success criteria
 > for `0.3.0` live there. This section is the status mirror.
@@ -275,7 +275,7 @@ self-audit may include 1–2 IA findings inherited from the fixture
   fixture-induced ones.
 
 The "low-noise on the crimes repo itself" success criterion in
-[`IA_CRIMES_PLAN.md`](./IA_CRIMES_PLAN.md) §13 is evaluated against
+[`.planning/archive/0.3.0-ia-crimes.md`](../.planning/archive/0.3.0-ia-crimes.md) §13 is evaluated against
 the first-party tree, not the whole repo.
 
 ### Deferred from `0.3.0`
@@ -320,7 +320,7 @@ Supporting work also deferred (tracked for `0.3.x` / `0.4.0+`):
 **Theme: agent context quality and signal-to-noise.**
 
 > **Implementation plan:
-> [`AGENT_CONTEXT_QUALITY_PLAN.md`](./AGENT_CONTEXT_QUALITY_PLAN.md).**
+> [`.planning/archive/0.4.0-agent-context-quality.md`](../.planning/archive/0.4.0-agent-context-quality.md).**
 > Scope, root-detection fix, neighbourhood discovery, shape-aware
 > `large_function`, schema additions, and prompt sequence for `0.4.0`
 > live there. This section is the status mirror.
@@ -430,7 +430,7 @@ Tracked for `0.5.0` or later. **Do not** document them as shipped.
 >
 > Release notes: [`docs/releases/v0.5.0.md`](./docs/releases/v0.5.0.md).
 > Implementation plan:
-> [`SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md`](./SUPPRESSIONS_CONFIG_EXPLAIN_PLAN.md).
+> [`.planning/archive/0.5.0-suppressions-config-explain.md`](../.planning/archive/0.5.0-suppressions-config-explain.md).
 
 ### Config + bootstrap
 
@@ -516,7 +516,7 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
 >
 > Release notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
 > Implementation plan:
-> [`CALIBRATION_EVIDENCE_LOOP_PLAN.md`](./CALIBRATION_EVIDENCE_LOOP_PLAN.md).
+> [`.planning/archive/0.7.0-calibration-evidence-loop.md`](../.planning/archive/0.7.0-calibration-evidence-loop.md).
 
 ### Track A — the dogfood feedback loop
 
@@ -660,7 +660,7 @@ Schema unchanged. `schema_version` stays at `"0.1.0"`.
 >
 > Release notes: [`docs/releases/v0.6.0.md`](./docs/releases/v0.6.0.md).
 > Implementation plan:
-> [`DETECTOR_SCORING_COMPLETION_PLAN.md`](./DETECTOR_SCORING_COMPLETION_PLAN.md).
+> [`.planning/archive/0.6.0-detector-scoring-completion.md`](../.planning/archive/0.6.0-detector-scoring-completion.md).
 
 ### Per-finding scores (M2 completion)
 
@@ -799,7 +799,7 @@ The wedge stays the same: deterministic, local, JSON-first, no LLM.
   thing is called, where it belongs, and which implementation owns it?
 - **Petty crimes follow-ups:** repeated domain literals, weak tests, option
   bag junk drawers, return-shape roulette, and negative flag mazes. See
-  [`PETTY_CRIMES_PLAN.md`](./PETTY_CRIMES_PLAN.md). This track must stay
+  [`.planning/archive/0.3.0-petty-crimes.md`](../.planning/archive/0.3.0-petty-crimes.md). This track must stay
   out of style-lint territory: no tabs-vs-spaces, import-order, or generic
   formatting rules.
 - **`crimes ask "..."`** — heuristic / LLM-assisted question answering (v1+).

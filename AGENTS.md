@@ -8,7 +8,7 @@ agent-facing summary.
 > Project: `crimes` — a CLI that scans a repo for **change risk** and
 > **agent risk**, not style or security. JSON output is the product contract.
 > See [`PRD.md`](./PRD.md) for the spec, [`README.md`](./README.md) for the
-> user-facing tour, and [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for what
+> user-facing tour, and [`docs/roadmap.md`](./docs/roadmap.md) for what
 > currently works.
 
 ---
@@ -144,7 +144,7 @@ Full docs site at [`crimes.sh/docs/`](https://crimes.sh/docs/).
 **Not yet implemented** — do not invoke or reference these in generated docs:
 `crimes ask`. See [`docs/agent-usage.md`](./docs/agent-usage.md) for the
 full shipped/deferred matrix and
-[`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) for milestone status.
+[`docs/roadmap.md`](./docs/roadmap.md) for milestone status.
 
 ## Project architecture
 
@@ -280,5 +280,5 @@ These are non-negotiable inside this repo:
   the GitHub Actions recipe.
 - [`docs/skills.md`](./docs/skills.md) — what's bundled for Claude Code and
   Codex.
-- [`ROADMAP_STATUS.md`](./ROADMAP_STATUS.md) — what currently ships vs what
+- [`docs/roadmap.md`](./docs/roadmap.md) — what currently ships vs what
   is planned.
