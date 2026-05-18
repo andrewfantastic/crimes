@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:27:26.688Z",
+  "run_id": "9b23eb31-5b94-453f-85d0-753cf7f1cdab",
+  "response": "# Review verdict\n\n22 findings, 0 high, 13 medium, 9 low. No single finding is catastrophic on its own, but several cluster around the billing domain — that's where the blockers are.\n\n## Block merge (3)\n\nThese are agent-foot-guns in money-handling code. Fix before merge.\n\n| id | charge | file | sev / ar | why |\n|---|---|---|---|---|\n| crime_00008 | False Identity | `src/billing.ts:40` `calculateRefundPreview` | 0.55 / 0.52 | Name promises a pure preview; body calls `saveRefundAudit` and `sendRefundEmail`. A reviewer or agent will trust the name and call this in a dry-run code path — refunds and emails go out. Rename or extract the side-effects. |\n| crime_00011 | Logic in the Alibi | `src/billing.ts:39` | 0.50 / 0.50 | Refund policy (\"Only owners can refund enterprise plans unless billing support approves\") lives in a comment near `calculateRefundPreview`. The domain terms it names aren't in nearby code, so the rule is unenforced prose. Encode it as a guard. |\n| crime_00004 | Temporal Recklessness | `src/billing.ts` (7 call sites, 57–273) | 0.60 / 0.53 | Seven raw `Date.now()`/`new Date()` calls across a billing module. Wall-clock reads in invoice/refund math make tests unreliable and let TZ/DST bugs through. Inject a clock. The same problem in `src/date.ts` (crime_00005, 5 sites) is below — block billing, warn the helper. |\n\n## Warn (11)\n\nReal signal, but not gate-blocking. Bundle into a follow-up.\n\n| id | charge | file | sev / ar | why |\n|---|---|---|---|---|\n| crime_00005 | Temporal Recklessness | `src/date.ts` | 0.60 / 0.61 | Same root cause as crime_00004 but in a helper. Fix together. |\n| crime_00006 | Test That Proves Nothing | `src/billing.test.ts:4-6` \"renders the enterprise plan\" | 0.45 / 0.46 | Zero asserts. Pairs badly with the billing blockers — false confidence on the very file under review. |\n| crime_00012 | Duplicated Navigation Source | `src/nav/registry.ts` + `sidebar.ts` | 0.60 / 0.57 | `/settings/billing` labelled \"Plans\" vs \"Billing\". User-visible inconsistency, but cosmetic enough to fix next. |\n| crime_00014 | Route Metadata Drift | `src/routes/settings/billing.tsx` | 0.60 / 0.56 | Same destination labelled 4 ways (path, component `PricingPage`, title `Plans`, `<title>Subscription</title>`, nav labels). Resolve alongside crime_00012. |\n| crime_00010 | God File | `src/billing.ts` 310 lines | 0.60 / 0.50 | 1.0× threshold — only just over. Split when the blockers above force you back in. |\n| crime_00007 | String Sprinkles | `\"enterprise\"` × 4 files | 0.50 / 0.60 | Plan literal is duplicated policy waiting to drift. Centralise before adding a fifth copy. |\n| crime_00009 | Concept Alias Drift | tenant / account / organisation / team / workspace | 0.55 / 0.58 | Five names for the same thing across routes + docs. Pick canonical vocabulary before the next route lands. |\n| crime_00013 | Unfinished Business | `src/todo.ts` 14 markers | 0.40 / 0.57 | Whole file is half-built. Either land it or delete it. |\n| crime_00003 | Commented-Out Corpse | `src/billing.ts:33-37` | 0.45 / 0.53 | Stale `legacyRefund` snippet in billing — delete or annotate. Trivial. |\n| crime_00002 | Missing Agent Context | repo root | 0.60 / 0.61 | No `AGENTS.md`/`CLAUDE.md`/skills, undeclared `bin: messy`. Repo-wide concern, not PR-shaped — call out as a parallel task rather than holding the PR. |\n| crime_00020 | Unfinished Business | `src/billing.ts` 4 markers | 0.20 / 0.40 | Borderline — listing here because the file is already in scope for the blockers. |\n\n## Ignore (8)\n\nLow severity + low/medium agent_risk in non-load-bearing surfaces. Note, don't block.\n\n| id | charge | file | sev / ar | why |\n|---|---|---|---|---|\n| crime_00015 | Docs-Code Drift | `docs/teams.md` → `./setup.md` | 0.35 / 0.51 | Doc-only broken link. |\n| crime_00016 | Test That Proves Nothing | `src/billing.test.ts:8-10` \"creates an invoice\" | 0.25 / 0.34 | Weak matcher only — fold into the test-quality follow-up implied by crime_00006. |\n| crime_00017 | Option Bag Junk Drawer | `describeCheckout` | 0.30 / 0.48 | Local clarity issue, `petty.ts` is aptly named. |\n| crime_00018 | Return Shape Roulette | `resolvePaymentResult` | 0.30 / 0.48 | Same. |\n| crime_00019 | Negative Flag Maze | `src/petty.ts:35` | 0.25 / 0.47 | Two-flag double-negative, mechanically simple. |\n| crime_00021 | Orphaned Destination | `/account/subscription` | 0.40 / 0.46 | Likely in-flight; pairs with the tenant alias drift (crime_00009) — wait until vocabulary is decided. |\n| crime_00022 | Orphaned Destination | `/team` | 0.40 / 0.46 | Same. |\n| crime_00023 | Orphaned Destination | `/workspace/members` | 0.40 / 0.46 | Same. |\n\n## Threading the findings together\n\nThe three blockers, the two billing-test warnings, and the God File all sit in `src/billing.ts`. They are one cluster, not six unrelated issues — a single follow-up that injects a clock, encodes the owner/refund rule, renames `calculateRefundPreview`, and splits the file would clear most of the medium-severity surface in billing at once.\n\nThe nav/route/alias warnings (crime_00007/00009/00012/00014 + the three orphans) are the other cluster — same destination labelled inconsistently while three sibling routes float unlinked. Resolve the canonical vocabulary first, then the orphans either get linked or deleted.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "commented_out_code",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Commented-Out Corpse": "commented_out_code",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

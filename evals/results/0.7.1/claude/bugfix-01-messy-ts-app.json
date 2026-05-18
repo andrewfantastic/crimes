@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:24:32.004Z",
+  "run_id": "9c496c12-dd72-4f12-954f-462a22a3210b",
+  "response": "## Most likely cause\n\n`crime_00004` — **Temporal Recklessness** in `src/billing.ts`. Seven direct reads of `Date.now()` / `new Date()` at lines 57, 63, 92, 198, 238, 250, 273. The billing logic observes wall-clock time at call sites, so any test exercising billing behaviour silently depends on **when** it runs. Date-boundary flakiness (month/UTC-day rollovers, DST shifts, prorated periods straddling midnight) is the textbook symptom of this pattern: the test passes locally at 14:00 but fails in CI at 23:59:50 when the clock ticks past a boundary mid-test.\n\nSupporting signals from the same scan that make this the prime suspect:\n- `crime_00005` — same pattern in `src/date.ts` (the helper module those call sites presumably lean on), so the leakage is systemic.\n- `crime_00006` / `crime_00016` — the billing tests are weak (one with zero asserts, one with only weak matchers), so the suite isn't pinning behaviour tightly enough to *diagnose* the flake either.\n- `crime_00010` — `billing.ts` is a 310-line God File, so the seven clock reads are scattered across responsibilities that likely don't share a single time source.\n\n## Proposed fix\n\n1. **Inject a clock.** Introduce a `Clock` interface (or a `now: () => Date` function parameter) and thread it through `billing.ts`. Default to a real-clock implementation in production wiring; pass a fixed/fake clock from tests.\n   ```ts\n   export interface Clock { now(): Date }\n   export const systemClock: Clock = { now: () => new Date() }\n   ```\n   Replace each of the seven call sites with `clock.now()`. Do the same in `src/date.ts` so the helper isn't a back-door clock read.\n\n2. **Pin the failing test to a boundary.** Before refactoring, reproduce the flake by running the billing test with the clock set to, e.g., `2026-01-31T23:59:59.500Z` and again at `2026-02-01T00:00:00.500Z`. Whichever assertion diverges between those two runs is the actual bug — likely a period/proration calculation that uses \"now\" twice and crosses a day boundary between the two reads.\n\n3. **Assert the boundary explicitly.** Add a regression test that fixes the clock at the exact rollover moment and asserts the expected invoice/period shape. This turns a flaky test into a deterministic one and protects against the next agent reintroducing a direct `Date.now()` call.\n\nLower-priority but worth bundling: delete the commented-out `legacyRefund` block (`crime_00003`, lines 33–37) and the zero-assert test (`crime_00006`) while you're in the file — both will mislead the next agent debugging this area.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "commented_out_code",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Commented-Out Corpse": "commented_out_code",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

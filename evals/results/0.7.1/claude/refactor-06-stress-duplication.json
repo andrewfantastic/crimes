@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:23.641Z",
+  "run_id": "6f7a5180-a1eb-4d2e-a16f-70d5221c1cff",
+  "response": "## Confirmation of duplication\n\nThe scan reports one `near_duplicate_block` finding (`crime_00001`, confidence 0.85) covering three functions with identical bodies and an identical AST hash (`289f7da71f3a…`):\n\n- `src/sanitize-a.ts:2-28` — `sanitizeUserInput(raw: string)`\n- `src/sanitize-b.ts:2-28` — `sanitizeText(input: string)`\n- `src/sanitize-c.ts:2-28` — `cleanMessage(value: string)`\n\nOnly the parameter name and the local working variable differ (`raw/working`, `input/cleaned`, `value/normalised`). All three apply the same 9-step pipeline: null-coerce → trim → strip control chars → collapse whitespace → cap at 1000 chars → reject HTML-tag prefix → reject `\\x` escapes → reject `!?` floods → downcase shouty text.\n\n## Proposed refactor\n\nExtract one canonical implementation into a new module and have each existing file re-export it under its old name so callers don't break.\n\n**New file**\n\n- `src/sanitize.ts` — owns the single implementation.\n\n**Changed files**\n\n- `src/sanitize-a.ts` — body deleted, becomes a thin re-export aliasing `sanitize` → `sanitizeUserInput`.\n- `src/sanitize-b.ts` — same, aliasing to `sanitizeText`.\n- `src/sanitize-c.ts` — same, aliasing to `cleanMessage`.\n\nOnce callers are migrated to the new module, the three shim files can be deleted in a follow-up commit. Keeping them as one-line re-exports in the refactor commit keeps the change a pure deduplication with zero behaviour shift.\n\n## Public API of the consolidated helper\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeOptions {\n  /** Hard cap on output length. Default: 1000. */\n  maxLength?: number;\n  /** Reject input whose run of `!` / `?` ≥3 occurs more than N times. Default: 5. */\n  maxPunctuationRuns?: number;\n  /** Downcase when uppercase ratio exceeds this and length > 30. Default: 0.9. */\n  shoutyUpperRatio?: number;\n}\n\n/**\n * Normalise free-text user input. Returns \"\" for rejected or empty input.\n * Pure function — no I/O, no globals.\n */\nexport function sanitize(input: unknown, options?: SanitizeOptions): string;\n```\n\nDesign notes:\n\n- `input: unknown` mirrors the existing `String(raw)` coercion and tolerates the `null`/`undefined` cases the originals already handle.\n- The three magic numbers (`1000`, `5`, `0.9`) become named options with the current values as defaults, so callers get identical behaviour without passing anything.\n- Rejection still collapses to `\"\"` — keeps the contract from changing. If a future caller needs to distinguish \"rejected\" from \"empty\", that's a separate change (e.g. a `sanitizeStrict` returning `string | null`), not part of this refactor.\n- Pure and dependency-free, so it stays trivially testable — a good place to add the unit tests the originals lack (the finding's `test_gap: 1.0` flagged that gap).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

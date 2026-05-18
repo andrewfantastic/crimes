@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:24:44.760Z",
+  "run_id": "a4d63ebf-918f-4cea-b77c-26019188b4e7",
+  "response": "`crimes context src/add.ts --format json` returned a clean report:\n\n- **Total findings: 0** (0 high, 0 medium, 0 low)\n- No structural, dependency, duplication, testability, or history-based risks flagged for `src/add.ts` or the surrounding repo.\n\n**Verdict: safe to extend.** There are no charges against this file — no god functions, no churn hotspots, no layer violations, no agent-risk signals. Proceed with the edit; just keep the file small and pure so it stays clean on the next scan.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

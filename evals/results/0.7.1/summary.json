@@ -1,0 +1,36 @@
+{
+  "crimes_version": "0.7.1",
+  "total_scenarios": 24,
+  "per_agent": {
+    "claude": {
+      "structural_pass_rate": 0.54,
+      "scenarios_run": 12
+    },
+    "codex": {
+      "structural_pass_rate": 0.61,
+      "scenarios_run": 12
+    }
+  },
+  "per_scenario_kind": {
+    "bugfix": {
+      "claude": 0.38,
+      "codex": 0.63
+    },
+    "context": {
+      "claude": 0.83,
+      "codex": 0.83
+    },
+    "plan": {
+      "claude": 0.43,
+      "codex": 0.57
+    },
+    "refactor": {
+      "claude": 0.67,
+      "codex": 0.67
+    },
+    "review": {
+      "claude": 0.4,
+      "codex": 0.4
+    }
+  }
+}

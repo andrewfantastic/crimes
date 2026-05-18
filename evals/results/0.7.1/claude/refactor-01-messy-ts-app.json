@@ -1,0 +1,83 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:18.276Z",
+  "run_id": "5f92e223-8e6b-4d98-931f-cbbdbd48f18e",
+  "response": "# Top 3 changes to `src/billing.ts`\n\n## 1. Fix `calculateRefundPreview` — name lies about behavior\n**Finding:** `crime_00008` (False Identity, lines 40–44, agent_risk 0.52)\n\nThe name reads as a pure calculation, but the body calls `saveRefundAudit` and `sendRefundEmail`. Any caller — human or agent — that treats this as safe to invoke speculatively will trigger real-world side effects. Highest-value fix because the misleading name is *actively* dangerous, not just messy.\n\n- Split into `calculateRefundPreview` (pure) + `recordAndNotifyRefund` (side effects), or\n- Rename to `previewAndAuditRefund` so the audit/email work is disclosed in the signature.\n\n## 2. Move the refund authorization rule out of comments\n**Findings:** `crime_00011` (Logic in the Alibi, line 39) + `crime_00003` (Commented-Out Corpse, lines 33–37)\n\nThe comment at line 39 carries a load-bearing policy (\"Only owners can refund enterprise plans unless billing support approves\") that the scanner couldn't see encoded in nearby code — meaning it likely *isn't* enforced, or is enforced somewhere non-obvious. Adjacent to it is a block of disabled code (`const legacyRefund = await loadRefund(user.id);`) that invites an agent to \"restore\" stale behavior.\n\n- Encode the rule as a named guard, e.g. `assertCanRefund(user, plan)`, and put a test on it.\n- Delete the commented-out legacy refund block outright; if there's a reason to remember it, replace it with one line of rationale.\n\nThese two are tightly co-located (lines 33–44) and clean up the whole refund entry surface together.\n\n## 3. Inject a clock to kill Temporal Recklessness\n**Finding:** `crime_00004` (Temporal Recklessness, 7 calls on lines 57, 63, 92, 198, 238, 250, 273, agent_risk 0.53)\n\nSeven direct reads of wall time spread across the file mean nothing in `billing.ts` can be pinned in a test without monkey-patching `Date`. Given the file already has a `Test That Proves Nothing` (`crime_00006`) and a weak `creates an invoice` test (`crime_00016`), the test debt isn't going to shrink until time is injectable.\n\n- Add a `Clock` interface (`now(): number`) and default it to `() => Date.now()` at the module edge.\n- Replace each call site; the tests for the refund authorization rule from #2 become trivial once `now()` is mockable.\n\n---\n\n**Why these three, in this order:** #1 stops the file from quietly causing side effects under a safe-sounding name. #2 turns a prose rule into enforceable code right where the riskiest function lives. #3 unlocks the testing that lets you verify #1 and #2 didn't regress anything. The God File (`crime_00010`) and TODO density (`crime_00020`) findings will largely dissolve once the refund flow is extracted.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "commented_out_code",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Commented-Out Corpse": "commented_out_code",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "name_behavior_mismatch",
+        "passed": false
+      }
+    ]
+  }
+}

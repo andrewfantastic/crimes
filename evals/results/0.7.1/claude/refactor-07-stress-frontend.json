@@ -1,0 +1,52 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:33.534Z",
+  "run_id": "7220b462-3d35-4c3d-bea0-02e96ce5c663",
+  "response": "The scan only emitted the accessibility finding here, but `Card.tsx` exhibits all three frontend agent-risks named in the prompt. The file is:\n\n```tsx\n<div\n  style={{ width: 800, background: \"#ff00aa\", color: \"#0a0a0a\" }}\n  onClick={() => console.log(\"clicked\")}\n>\n  {children}\n</div>\n```\n\n## Proposed refactor\n\n```tsx\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n  label: string;\n};\n\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    <button\n      type=\"button\"\n      onClick={onActivate}\n      aria-label={label}\n      className=\"w-full max-w-3xl bg-accent text-foreground\"\n    >\n      {children}\n    </button>\n  );\n}\n```\n\n## Each change → finding it kills\n\n1. **`background: \"#ff00aa\"`, `color: \"#0a0a0a\"` → `bg-accent text-foreground` (Tailwind tokens)**\n   Ties to **`design_token_escape`**. Inline hex literals bypass the design system, so a theme change (dark mode, brand reskin, accessibility palette swap) silently misses this component — that's the exact \"multiple sources of truth\" agent-risk the detector flags. Routing through token classes restores one source of truth.\n\n2. **`<div onClick>` → `<button type=\"button\" onClick aria-label>`**\n   Ties to **`accessible_interaction_risk`** (the finding actually in the scan). The native button gives you keyboard focus, Enter/Space activation, the implicit `role=\"button\"`, and a screen-reader-visible name — all four requirements in the detector's `suggested_actions.switch_to_button_or_add_aria`. `type=\"button\"` is also needed so the element doesn't accidentally submit a parent form.\n\n3. **`width: 800` → `w-full max-w-3xl`**\n   Ties to **`responsive_fragility`**. A fixed 800px width breaks below ~820px viewports and inside narrower flex/grid parents — an agent dropping this card into a sidebar or mobile layout has no signal that it will overflow. `w-full max-w-3xl` keeps the visual cap (≈768px) while letting the container collapse responsively.\n\n## Things I deliberately did *not* do\n\n- I didn't keep `console.log(\"clicked\")`. The handler should be passed in (`onActivate`) so the component is testable and side-effect-free — that's the same `direct side effects in domain code` axis as the testability detectors, just upstream.\n- I didn't add `role=\"button\"` + `tabIndex={0}` to the `<div>`. The detector lists that as an acceptable rescue, but it's strictly worse than a real `<button>`: you'd still need to wire Enter/Space handlers manually, and you'd be re-implementing what the platform gives you for free. Use the rescue only when the element genuinely can't be a button (e.g., it wraps an `<a>`).",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

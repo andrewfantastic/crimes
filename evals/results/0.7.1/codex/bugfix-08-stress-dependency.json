@@ -1,0 +1,48 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:24:32.087Z",
+  "run_id": "b670d15b-5c43-4279-8d56-3e7d63285dd2",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e37d3-2308-7922-b56e-9f71dc62fb79\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll verify the fixture directly rather than inferring from the empty JSON. Since the scan output has no findings, the useful next step is to inspect the dependency graph around that fixture and see whether the detector missed a real runtime cycle.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node packages/cli/dist/index.js scan /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'pwd && rg --files /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'pwd && rg --files /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency'\",\"aggregated_output\":\"/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/presentation/invoice-view.ts\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/domain/billing.ts\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/infrastructure/db.ts\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/application/billing-flow.ts\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/package.json\\n/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/crimes.config.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node packages/cli/dist/index.js scan /Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"scan\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"08-stress-dependency\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency\\\"\\n  },\\n  \\\"summary\\\": {\\n    \\\"total\\\": 0,\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0\\n  },\\n  \\\"findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The scan is still running from the repo build output path. I’ve confirmed the fixture has four TypeScript source files, so I’m reading their imports now to identify the cycle manually if the scanner still reports nothing.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/domain/billing.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/application/billing-flow.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/infrastructure/db.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/presentation/invoice-view.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/domain/billing.ts\\\"\",\"aggregated_output\":\"// Layer violation: domain code imports from presentation.\\nimport { renderInvoice } from \\\"../presentation/invoice-view.js\\\";\\n\\nexport function chargeCustomer(amount: number): string {\\n  return renderInvoice(amount);\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/presentation/invoice-view.ts\\\"\",\"aggregated_output\":\"// Circular dependency: presentation imports application which imports domain\\n// which imports presentation (via chargeCustomer).\\nimport { runBillingFlow } from \\\"../application/billing-flow.js\\\";\\n\\nexport function renderInvoice(amount: number): string {\\n  runBillingFlow();\\n  return `Invoice: ${amount}`;\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/application/billing-flow.ts\\\"\",\"aggregated_output\":\"import { chargeCustomer } from \\\"../domain/billing.js\\\";\\n// Deep import — should flag deep_import detector.\\nimport { internalHelper } from \\\"../../node_modules/some-pkg/dist/internal/private/helper.js\\\";\\n\\nexport function runBillingFlow(): void {\\n  chargeCustomer(100);\\n  internalHelper();\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' src/infrastructure/db.ts\\\"\",\"aggregated_output\":\"// Plain leaf — fine.\\nexport function query(_sql: string): unknown[] {\\n  return [];\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"The source shows a concrete cycle: presentation calls application, application calls domain, and domain calls presentation. I’m waiting for the scanner result as a sanity check, but the runtime recursion risk is already clear from the imports and function calls.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_9\",\"type\":\"agent_message\",\"text\":\"`crimes scan --format json` reports no findings, so it did not detect the suspected cycle.\\n\\nManual import graph shows the cycle:\\n\\n`presentation/invoice-view.ts` -> `application/billing-flow.ts` -> `domain/billing.ts` -> `presentation/invoice-view.ts`\\n\\nThe import to break is:\\n\\n[billing.ts](/Users/andrew/dev/crimes/evals/fixtures/08-stress-dependency/src/domain/billing.ts:2)\\n\\n```ts\\nimport { renderInvoice } from \\\"../presentation/invoice-view.js\\\";\\n```\\n\\nBreak that one because `domain` should not depend on `presentation`. The domain layer should return billing data or a plain result, and `presentation/invoice-view.ts` should render it. Keeping the dependency direction as `presentation -> application -> domain` removes the cycle and preserves the intended layering.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":76792,\"cached_input_tokens\":62464,\"output_tokens\":898,\"reasoning_output_tokens\":100}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:01.706Z",
+  "run_id": "a4069a67-1f70-4e3a-a4fa-5971075886bb",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e37d4-c257-7af1-8311-da3794516fec\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Confirmed: `crimes scan --format json` reports one medium `near_duplicate_block` finding across:\\n\\n- `src/sanitize-a.ts:2-28` exported as `sanitizeUserInput`\\n- `src/sanitize-b.ts:2-28` exported as `sanitizeText`\\n- `src/sanitize-c.ts:2-28` exported as `cleanMessage`\\n\\nRefactor proposal: extract the shared implementation into one helper module, then keep the existing three exported names as thin wrappers if they are already part of the fixture’s public surface.\\n\\nFiles that would change:\\n\\n- `src/sanitize.ts` or `src/sanitization.ts`: new shared implementation\\n- `src/sanitize-a.ts`: delegate `sanitizeUserInput` to shared helper\\n- `src/sanitize-b.ts`: delegate `sanitizeText` to shared helper\\n- `src/sanitize-c.ts`: delegate `cleanMessage` to shared helper\\n- Any tests/imports that directly assert implementation details, if present\\n\\nPublic API for the consolidated function should be small and explicit:\\n\\n```ts\\nexport interface SanitizeOptions {\\n  trim?: boolean;\\n  collapseWhitespace?: boolean;\\n  stripControlCharacters?: boolean;\\n}\\n\\nexport function sanitizeText(input: string, options?: SanitizeOptions): string;\\n```\\n\\nI would make `sanitizeText` the canonical shared name because it is domain-neutral. The existing names can remain as compatibility aliases:\\n\\n```ts\\nexport const sanitizeUserInput = sanitizeText;\\nexport const cleanMessage = sanitizeText;\\n```\\n\\nThat keeps current callers working while making future sanitisation changes land in one place.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18748,\"cached_input_tokens\":12160,\"output_tokens\":358,\"reasoning_output_tokens\":34}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

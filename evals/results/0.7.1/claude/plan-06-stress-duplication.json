@@ -1,0 +1,40 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:25:50.432Z",
+  "run_id": "1d4c946d-c877-4329-9aed-736322686435",
+  "response": "## Refactor plan — `06-stress-duplication`\n\nThe scan surfaced one `near_duplicate_block` finding (`crime_00001`) covering the three sanitise helpers (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) — identical bodies, hash `289f7da7…`, all at lines 2–28 of `src/sanitize-{a,b,c}.ts`. The three role checks aren't in the JSON above (the scan didn't promote them to a finding here), so step 2 below is structurally analogous but should be confirmed against the file contents before landing.\n\nOrdering rationale: sanitise first because the bodies are byte-identical (zero semantic-divergence risk), and it's pure string transformation. Role checks second because duplicate auth helpers often drift subtly across copies, so the diff review burden is higher.\n\n---\n\n### Step 1 — Consolidate the three sanitise helpers\n\n**Goal:** one canonical function, three import-site updates, zero behavior change.\n\n1. Create `src/sanitize.ts` with the single exported function:\n   ```ts\n   export function sanitize(input: string): string { /* body from sanitize-a.ts:2-28 */ }\n   ```\n   Use `sanitize-a.ts`'s body as the source of truth (the evidence confirms all three are identical, so any of them works — pick `a` for stable provenance).\n2. In each consumer, replace the local definition with `import { sanitize } from './sanitize'` and rename call sites (`sanitizeUserInput(x)` / `sanitizeText(x)` / `cleanMessage(x)` → `sanitize(x)`).\n3. Delete `src/sanitize-{a,b,c}.ts` once nothing imports them. Run the test suite (or a grep for the old names) to confirm no stragglers.\n\n**Verification:** `crimes scan --format json` should drop the `near_duplicate_block` finding to zero occurrences. The pre-refactor sanitised outputs should be byte-identical to post-refactor for any input — a quick property test (`fc.string()` → equal output across old + new) is cheap insurance.\n\n**Risk:** low. Pure function, no I/O, no shared state.\n\n---\n\n### Step 2 — Consolidate the three role checks\n\n**Goal:** single source of truth for role authorisation, eliminating the \"fix in every copy\" failure mode that motivates the agent_risk score on this kind of duplication.\n\n1. Open each role-check site and diff the bodies. **If they differ** (even by one role string or one short-circuit), stop and surface the divergence — that's a latent bug, not a refactor target, and consolidating without understanding which variant is correct would paper over it.\n2. Assuming bodies match (or after picking the canonical variant), create `src/auth/has-role.ts`:\n   ```ts\n   export function hasRole(user: User, role: Role): boolean { /* canonical body */ }\n   ```\n3. Replace each call site with `hasRole(user, role)` and delete the per-file copies.\n4. Re-run `crimes scan` — the expected outcome is no new `near_duplicate_block` for the role checks, and ideally a small drop in aggregate risk (the duplication contributed to `agent_risk: 0.61`).\n\n**Verification:** unit test `hasRole` with the role matrix that any one of the original copies covered (whichever has the most thorough tests becomes the contract). Smoke-test any endpoint or guard that previously called the duplicates.\n\n**Risk:** medium — auth logic. The diff review in step (1) is the load-bearing safety step; don't skip it.\n\n---\n\n**Why this is two steps, not one PR:** they're independent (no shared imports), have different risk profiles, and bisecting a regression is much easier with one concern per commit. Land step 1, confirm the finding clears, then start step 2.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "near_duplicate_block"
+    },
+    "detector_id_by_charge": {
+      "Near-Duplicate Block": "near_duplicate_block"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:43.668Z",
+  "run_id": "695cefda-3535-4d26-babb-b471f033aba5",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e37d5-6a02-7af2-9833-7d3fc74756d3\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- Low: `src/routes/billing-plans.ts` defines `/billing-plans`, but the scan shows no references from `src/nav.ts`, no internal docs link in `docs/routes.md`, and no in-repo import target. This is IA drift: the destination exists, but users and agents have no discoverable path to it. I would treat this as a follow-up unless the billing plans page is meant to be part of a currently shipped journey.\\n\\n- Low: `src/routes/workspace.ts` defines `/workspace` with the same drift pattern: no nav entry, no docs route link, and no import path. Also follow-up quality by default, unless `/workspace` is expected to be a primary app destination.\\n\\n**Recommendation**\\n\\nThese are not blocking-quality issues on the evidence shown. Both findings are `severity: \\\"low\\\"` with moderate confidence, and the suggested action is low-risk: either link the route from the intended IA surface or retire the route if it is stale.\\n\\nI would block only if the product contract for this fixture says every route under `src/routes/` must be represented in both `src/nav.ts` and `docs/routes.md`, or if either path is part of a release-critical flow. Otherwise, track both as IA cleanup follow-ups: decide whether `/billing-plans` and `/workspace` are intentional hidden routes, then either document/link them or delete them.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19000,\"cached_input_tokens\":12160,\"output_tokens\":314,\"reasoning_output_tokens\":26}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "orphaned_destination",
+      "crime_00002": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

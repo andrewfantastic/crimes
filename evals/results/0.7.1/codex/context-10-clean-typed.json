@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:24:57.407Z",
+  "run_id": "9498add3-2d31-4649-b8bb-1fbb5882b308",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e37d3-c358-7892-b4f7-ac30d9e362ed\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested `crimes context` against the fixture and read the JSON fields directly so the answer reflects the tool output, not just the scan summary.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"10-clean-typed\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/10-clean-typed\\\"\\n  },\\n  \\\"file\\\": \\\"src/billing.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/billing.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`crimes context src/billing.ts --format json` confirms there are no findings.\\n\\n- Risk level: `none`\\n- Findings: `0`\\n- Likely test path: `src/billing.test.ts`\\n\\nThis module is low risk to edit because the context output has no high, medium, or low findings, no agent guidance warnings, and no related files flagged as coupled editing targets. The tool also found a clear colocated test file, so changes can be verified directly against `src/billing.test.ts`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":37182,\"cached_input_tokens\":36096,\"output_tokens\":214,\"reasoning_output_tokens\":0}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:24:52.676Z",
+  "run_id": "e2d4fcd6-c049-4352-a152-ca0628ea4d13",
+  "response": "## What `src/billing.ts` does\n\nA 310-line billing module with 5 top-level functions covering at least:\n- **Refund handling** — `calculateRefundPreview` (lines 40–44) is named like a pure preview but actually calls `saveRefundAudit` and `sendRefundEmail`.\n- **Invoice creation** — paired test \"creates an invoice\" lives in `src/billing.test.ts`.\n- **Plan logic** — references the `\"enterprise\"` plan literal.\n- A nearby comment (line 39) carries a load-bearing rule: *\"Only owners can refund enterprise plans unless billing support approves.\"* It's unclear whether code below actually enforces this.\n\n## Related files to read before editing\n\n| File | Why |\n|---|---|\n| `src/billing.test.ts` | Existing coverage is thin — one test has zero assertions (lines 4–6), another uses only a weak matcher. Don't trust a green run here. |\n| `src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts` | Share the scattered `\"enterprise\"` string literal — likely duplicated plan policy. |\n| `src/date.ts` | Independent Date.now/new Date usage; if it's meant to be the clock seam, billing.ts is bypassing it. |\n| `src/routes/settings/billing.tsx`, `src/nav/registry.ts`, `src/nav/sidebar.ts` | Route + nav for `/settings/billing` are inconsistently labelled (\"Plans\" vs \"Billing\" vs \"Subscription\") — any user-visible billing change must align all of them. |\n| `docs/billing.md` | Concept alias drift across `tenant/account/organisation/team/workspace` — confirm canonical term before naming new things. |\n\n## Risks flagged on `src/billing.ts`\n\n| ID | Charge | Where | Why it matters here |\n|---|---|---|---|\n| crime_00010 | **God File** (medium) | whole file, 310 LOC | At threshold; local edits can collide with code outside an agent's loaded context. |\n| crime_00008 | **False Identity** (medium) | `calculateRefundPreview` L40–44 | Pure-sounding name, but it audits + emails. Easy to call from the wrong place. |\n| crime_00011 | **Logic in the Alibi** (medium) | L39 | Refund authorisation rule lives in a comment, with no obvious nearby enforcement. |\n| crime_00004 | **Temporal Recklessness** (medium) | L57, 63, 92, 198, 238, 250, 273 | 7 raw clock reads — tests can't pin time without monkey-patching. |\n| crime_00003 | **Commented-Out Corpse** (medium) | L33–37 | Disabled `legacyRefund` snippet; risk of accidental revival. |\n| crime_00007 | **String Sprinkles** (medium) | `\"enterprise\"` literal | Plan name duplicated across 4 areas — refund/auth logic likely diverges. |\n| crime_00020 | **Unfinished Business** (low) | L183–308 | 4 TODO/FIXME/HACK/XXX markers — hard to tell which paths are load-bearing. |\n\n**Editing posture:** before touching refund or invoice logic, read `billing.test.ts` to see what's actually asserted, grep the four `\"enterprise\"` sites to confirm policy duplication, and decide whether the L39 comment rule needs to be promoted to a real guard *in this change* rather than left for later.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "commented_out_code",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Commented-Out Corpse": "commented_out_code",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

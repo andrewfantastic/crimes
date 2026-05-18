@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:26:48.057Z",
+  "run_id": "1e18cf7f-1f83-41c7-a2cb-b3c37afb1bc1",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e37d5-43b5-7333-b70c-5b44052b924d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Block Merge**\\n\\nNone. There are no `high` severity findings, and no finding has `scores.agent_risk` high enough to justify blocking by itself. Highest agent risk is `0.61`.\\n\\n**Warn**\\n\\n- `crime_00002` `missing_agent_context` in `src/api/plan.ts`: `medium`, agent risk `0.61`. Warn because a CLI repo without agent-readable instructions is a real maintenance risk, especially with declared bins.\\n- `crime_00005` `direct_date` in `src/date.ts`: `medium`, agent risk `0.61`. Warn because un-injected wall-clock access plus full test gap makes date behavior hard to verify.\\n- `crime_00007` `magic_domain_literal_scatter` in `src/api/plan.ts`: `medium`, agent risk `0.60`. Warn because `\\\"enterprise\\\"` is duplicated across production areas and likely represents shared policy.\\n- `crime_00009` `concept_alias_drift` in `docs/billing.md`: `medium`, agent risk `0.58`. Warn because tenant/account/team/workspace vocabulary drift can cause duplicated or inconsistent product logic.\\n- `crime_00012` `duplicated_navigation_source` in `src/nav/registry.ts`: `medium`, agent risk `0.57`. Warn because two labels for `/settings/billing` indicate user-facing metadata drift.\\n- `crime_00013` `todo_density` in `src/todo.ts`: `medium`, agent risk `0.57`. Warn because the TODO density is extreme and makes intent unclear.\\n- `crime_00014` `route_metadata_drift` in `src/routes/settings/billing.tsx`: `medium`, agent risk `0.56`. Warn because route, title, component, and nav labels disagree.\\n- `crime_00003` `commented_out_code` in `src/billing.ts`: `medium`, agent risk `0.53`. Warn because disabled refund code can be copied or revived incorrectly.\\n- `crime_00004` `direct_date` in `src/billing.ts`: `medium`, agent risk `0.53`. Warn because billing logic with wall-clock reads is hard to test deterministically.\\n- `crime_00008` `name_behavior_mismatch` in `src/billing.ts`: `medium`, agent risk `0.52`. Warn because `calculateRefundPreview` appears to send email/save audit state.\\n- `crime_00010` `large_file` in `src/billing.ts`: `medium`, agent risk `0.50`. Warn because billing is just over the large-file threshold and already has other nearby risks.\\n- `crime_00011` `logic_in_comments` in `src/billing.ts`: `medium`, agent risk `0.50`. Warn because an authorization rule appears to live only in prose.\\n- `crime_00015` `docs_code_drift` in `docs/teams.md`: `low`, agent risk `0.51`. Warn despite low severity because the agent risk is comparable to several medium findings and stale docs can mislead future edits.\\n\\n**Ignore**\\n\\n- `crime_00006` `weak_test_signal` in `src/billing.test.ts`: `medium`, agent risk `0.46`. Ignore for merge gating because the agent risk is below `0.50`, though it should be cleaned up with test work.\\n- `crime_00016` `weak_test_signal` in `src/billing.test.ts`: `low`, agent risk `0.34`. Ignore; low severity and low risk.\\n- `crime_00017` `option_bag_junk_drawer` in `src/petty.ts`: `low`, agent risk `0.48`. Ignore; worth improving during nearby edits, not a PR blocker.\\n- `crime_00018` `return_shape_roulette` in `src/petty.ts`: `low`, agent risk `0.48`. Ignore; low severity and localized.\\n- `crime_00019` `negative_flag_maze` in `src/petty.ts`: `low`, agent risk `0.47`. Ignore; readability risk only.\\n- `crime_00020` `todo_density` in `src/billing.ts`: `low`, agent risk `0.40`. Ignore; lower density than the `src/todo.ts` issue.\\n- `crime_00021` `orphaned_destination` in `src/routes/account/subscription.tsx`: `low`, agent risk `0.46`. Ignore; may be intentional in-flight route.\\n- `crime_00022` `orphaned_destination` in `src/routes/team/index.tsx`: `low`, agent risk `0.46`. Ignore; same rationale.\\n- `crime_00023` `orphaned_destination` in `src/routes/workspace/members.tsx`: `low`, agent risk `0.46`. Ignore; same rationale.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":1050,\"reasoning_output_tokens\":36}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00002": "missing_agent_context",
+      "crime_00003": "commented_out_code",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Commented-Out Corpse": "commented_out_code",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

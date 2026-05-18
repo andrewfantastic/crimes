@@ -1,0 +1,59 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.1",
+  "timestamp": "2026-05-17T21:27:16.194Z",
+  "run_id": "034b1b8c-2842-47ec-84e9-285aa2a9d004",
+  "response": "## IA drift findings\n\nThe scan surfaces exactly two drift signals, both of the same shape:\n\n| ID | Route | File | Severity | Confidence | agent_risk |\n|---|---|---|---|---|---|\n| `crime_00001` | `/billing-plans` | `src/routes/billing-plans.ts` | low | 0.65 | 0.47 |\n| `crime_00002` | `/workspace` | `src/routes/workspace.ts` | low | 0.65 | 0.47 |\n\nBoth are `orphaned_destination`: the route file exists, but `src/nav.ts` doesn't surface it, `docs/routes.md` doesn't link it, and nothing in the repo imports it. That's the classic IA-drift triangle — the destination outlived (or hasn't yet caught up with) its journey.\n\n## Blocking vs follow-up\n\n**Follow-up, not blocking.** Reasoning:\n\n- **Severity is low and blast_radius is 0.** Nothing depends on these routes, so leaving them in place can't break anything downstream — that's the whole point of the finding. The risk is *informational drift*, not runtime breakage.\n- **Confidence is 0.65, not 0.9+.** Crimes is hedging because orphan detection is structural — it can't see dynamic routing tables, deep-linked emails, marketing links, or feature-flagged nav entries. Treating a 0.65-confidence orphan as a blocker invites false-positive rejection of legitimate WIP pages.\n- **`test_gap: 1` is a red flag, but it's the *consequence* of the orphan, not a separate issue.** Fixing the orphan (link or retire) makes the test gap moot.\n\n## Recommended disposition\n\nOpen a single follow-up ticket — \"Resolve IA drift on `/billing-plans` and `/workspace`\" — and ask the route owners two questions before touching anything:\n\n1. **Is this in-flight?** If yes → add to `src/nav.ts` and `docs/routes.md`, write a smoke test, close the finding.\n2. **Is this stale?** If yes → delete the route file and any orphaned handlers/tests, note in the changelog if the URL was ever public.\n\nIf neither owner can be found within a sprint, default to **retire** — an unreachable route with no owner is a maintenance liability and an agent-confusion vector (an LLM reading the repo will happily route users to `/workspace` without knowing it's dead).\n\n## What would change the call to blocking\n\n- Confidence rising past ~0.85 (e.g., crimes also confirms no sitemap / no external link), or\n- Either route appearing in `git log` as recently-changed alongside billing or auth code (suggests it's load-bearing but the nav update was forgotten), or\n- A `agent_risk` bump from a related finding (e.g., a duplicated `/billing` vs `/billing-plans` charge would imply user-visible ambiguity, not just drift).\n\nNone of those are present here, so: ship the PR, file the follow-up.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "orphaned_destination",
+      "crime_00002": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}
