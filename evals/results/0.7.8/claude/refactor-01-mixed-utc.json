@@ -1,0 +1,87 @@
+{
+  "scenario": "refactor-01-mixed-utc",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:52.310Z",
+  "run_id": "8aed760e-f258-4b08-8699-21242f65ccb1",
+  "response": "**Receiver to fix:** `d` in `src/date.ts`.\n\n**Evidence from crime_00003 (\"Half-UTC, Half-Local\"):**\n- `d.getUTCFullYear()` at L9 — UTC family\n- `d.getMonth()` at L41 — local family\n- Same receiver `d`, two families, silent divergence by the host's UTC offset.\n\n**Pick a single family: UTC.** Crimes' own guidance (\"usually UTC for storage and local only at the display boundary\") matches the rest of this file's shape — L41 is the same neighborhood as the `date_string_concat` finding (`\"…\" + .getUTCFullYear()` @L41), so the surrounding code is already reaching for UTC. Flipping the one local reader is a smaller, safer change than flipping the UTC reader.\n\n**Refactor:**\n1. In the function spanning L9–L41, replace `d.getMonth()` at L41 with `d.getUTCMonth()`.\n2. Audit any other reads on `d` in the same scope (`getDate`, `getHours`, `getDay`, `getFullYear`, etc.) and convert each to its `getUTC*` counterpart. Don't leave any local reads on `d`.\n3. Remember `getUTCMonth()` is still 0-indexed — preserve any `+ 1` adjustments the original code had.\n4. Leave the formatting/display boundary (e.g. the `toLocaleDateString()` on L46, the orthogonal locale-drift finding) as a separate fix — converting `d` to UTC doesn't change that the display side needs its own treatment.\n\n**Why not the other direction (unify on local):** the receiver is being used in string concatenation that already includes `getUTCFullYear()`, and other findings (`timezone_unsafe_parse` at L29/33, `dst_naive_arithmetic` at L52) suggest this file is meant to be the storage/transport layer for dates. Storage layers should be UTC; pulling the lone local read up to UTC keeps that contract intact.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": "mixed_utc_local_methods",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "scenario": "bugfix-01-timezone-parse",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:25:36.395Z",
+  "run_id": "687ce3b5-cf09-4979-96a4-9169e097d5f5",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b0c-55b9-74a2-b03b-2403481b4e89\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"The parse-time timezone bug is `crime_00007`, `timezone_unsafe_parse`, in `src/date.ts`.\\n\\nThe literal responsible for the promo opening a day early is:\\n\\n```ts\\n\\\"2026-12-20\\\"\\n```\\n\\nA date-only string is parsed as a calendar date at UTC midnight by JS, so in European/local-time comparisons it can land on the previous local day depending on how the rest of the code compares dates.\\n\\nSmallest change, without renaming the function: make the intended timezone explicit so production parses it the same way CI does. If CI’s UTC behaviour is the contract, change:\\n\\n```ts\\nnew Date(\\\"2026-12-20\\\")\\n```\\n\\nto:\\n\\n```ts\\nnew Date(\\\"2026-12-20T00:00:00Z\\\")\\n```\\n\\nThat pins the promo start to midnight UTC instead of letting host timezone/date parsing semantics leak into the business rule.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":26089,\"cached_input_tokens\":12160,\"output_tokens\":218,\"reasoning_output_tokens\":30}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "timezone_unsafe_parse",
+        "observed": "timezone_unsafe_parse",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "timezone_unsafe_parse",
+        "observed": "timezone_unsafe_parse",
+        "passed": true
+      }
+    ]
+  }
+}

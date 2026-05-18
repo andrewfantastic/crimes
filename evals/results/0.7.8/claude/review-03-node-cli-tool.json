@@ -1,0 +1,105 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:34:19.581Z",
+  "run_id": "d9c3e80c-9a24-4a7f-866c-1f59c7d3b87e",
+  "response": "# Review: PR adds Commander.js codebase\n\n47 findings, but most cluster into 8 real categories. Verdicts below grouped by category, since the per-finding repetition (8 ts-imports tests, 8 exitOverride tests, 7 copySettings tests) collapses to a few decisions.\n\n## BLOCK\n\n**God File — `lib/command.js`** (crime_00001, sev=high, agent_risk=0.70)\n2179 lines, 150 top-level functions, 7.3× threshold, and it hosts three of the top god-function findings (`_executeSubCommand`, `parseOptions`, `_parseCommand`). This is the agent-risk core of the PR: any future edit lands in a file no agent will fully load, with high collision probability against unrelated logic in the same module. The combination of `large_file` + multiple `large_function` findings on the same file compounds — that's the case where blast radius isn't captured in the per-finding score but matters in aggregate.\n\n**God Function — `_executeSubCommand`** (crime_00003, sev=high, agent_risk=0.69)\n120 lines, 2× domain threshold, class method (shared invariants with siblings). Subcommand execution is exactly the kind of code where one mishandled branch ships a privilege/spawn bug. Block until extracted.\n\n## WARN (not blocking, must land follow-up)\n\n**God Functions in `lib/command.js`** — `parseOptions` (0.61), `_parseCommand` (0.60), `addOption` (0.59).\nReal signal, all class methods on the same God File. Warn rather than block individually because the structural fix is the same as crime_00001's: split `command.js`. Track them as the follow-up's acceptance criteria.\n\n**Other God Files in `lib/`** — `help.js` (461 lines, 0.59), `option.js` (326 lines, 0.57).\nBoth real, both lower confidence (0.78, 0.71). Warn; address in same refactor wave as `command.js`.\n\n**Exact duplicate — `choices()` in `lib/argument.js` ↔ `lib/option.js`** (crime_00005, crime_00006, agent_risk=0.62)\nTwo findings on the same body pair (the hashes differ because one is the wrapping method, one is the inner block). Real duplication of validation policy across two production files — agent fixing one copy will miss the other. Warn, extract to shared helper.\n\n**Weak tests in `tests/command.exitOverride.test.js`** (crime_00008–00015, 8 findings, agent_risk=0.46)\nWorth inspecting before deciding — Commander tests commonly use `expect(() => …).toThrow()` or try/catch patterns the detector may not credit. *If* the assertions are genuinely missing, these are higher-severity than scored because the file's purpose is exception behavior. Warn pending manual check; do not auto-dismiss.\n\n## IGNORE (false positives / context-appropriate)\n\n**Weak tests in `tests/ts-imports.test.ts`** (crime_00016–00023, 8 findings, agent_risk=0.46)\nEach \"test\" is 2–3 lines and just imports a symbol. These are **TypeScript type-existence tests** — the compiler is the assertion. No runtime `expect` needed. Pure false positive; the detector should learn this pattern but the PR shouldn't be held for it.\n\n**Magic literal \"PORT\"** (crime_00025, agent_risk=0.60)\nAppears in 4 `examples/*.js` files plus `typings/index.test-d.ts`. Examples are self-contained demos of a CLI library — \"PORT\" is a sample env var, not duplicated policy. The literal in `index.test-d.ts` is type-test fixture data. The detector picked up a real pattern but in the wrong context. Ignore here; consider config excluding `examples/` from this detector.\n\n**Duplicate `myParseInt` across two examples** (crime_00004, agent_risk=0.62)\nSame as above — examples are intentionally standalone. Extracting a shared helper would break the \"copy-paste this single file to learn\" contract. Ignore.\n\n**God File — `typings/index.d.ts`** (crime_00002, sev=high, agent_risk=0.70)\n891 lines, but it's an ambient `.d.ts` declaration file. Splitting type defs has real ergonomic costs for consumers (single-file imports, declaration merging). Lower the priority — this is a structural fact of TS type packages, not a refactor target. Same for `typings/index.test-d.ts` (480 lines).\n\n**`describe()` callbacks 200–349 lines** (crime_00034–00037, agent_risk=0.34–0.35)\nTest suites grouping related cases. Splitting is fine but not load-bearing for agent risk. Ignore at the PR gate.\n\n**Anonymous 125-line test fn** (crime_00024, agent_risk=0.45)\nSame category — test setup, not production code. Ignore.\n\n**Docs-code drift in Chinese READMEs** (crime_00031–00032, agent_risk=0.51)\nReal broken links, but only in localized docs. Worth a follow-up issue, not a PR blocker. Ignore here.\n\n**Commented-out code & logic-in-comments in tests** (crime_00033, crime_00047, agent_risk=0.36 / 0.31)\nBoth in test files, both genuinely low signal. Note about SIGUSR1 in `executableSubcommand.signals.test.js` is actually rationale (links to a Node docs URL) — that's the kind of \"rationale comment\" we *want* to keep. Ignore.\n\n**Weak matchers in `copySettings.test.js` / `variadic.test.js`** (crime_00038–00046, agent_risk=0.34)\n\"2 weak assertion matchers\" is the detector flagging `toBe(true)` / `toBe(false)` style. For boolean copy-settings tests, that's the right assertion — checking that a flag copied across. False positive cluster. Ignore.\n\n---\n\n## Summary\n\n| Verdict | Count | Trigger |\n|---|---|---|\n| BLOCK | 2 findings | `lib/command.js` god file + `_executeSubCommand` god function |\n| WARN | ~7 findings | Other god functions/files in `lib/`, real `choices()` duplication, `exitOverride.test.js` (pending check) |\n| IGNORE | ~38 findings | Type-existence tests, examples, `.d.ts` files, test setup, localized docs |\n\nThe two BLOCK items both index on `lib/command.js`. A single follow-up — split that file — resolves both blockers and ~half the WARN list. That's the conversation to have with the PR author; everything else is post-merge cleanup.\n\nThe signal-to-noise here is roughly 9 real findings out of 47, dominated by examples/ duplicates and type-only tests inflating the count. Worth a config note (`detectors.exclude: [\"examples/**\", \"**/*.test-d.ts\"]`) before next scan so the next PR's report leads with the real issues.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "large_function",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "weak_test_signal",
+      "crime_00010": "weak_test_signal",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "weak_test_signal",
+      "crime_00013": "weak_test_signal",
+      "crime_00014": "weak_test_signal",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "large_function",
+      "crime_00025": "magic_domain_literal_scatter",
+      "crime_00026": "large_function",
+      "crime_00027": "large_function",
+      "crime_00028": "large_file",
+      "crime_00029": "large_file",
+      "crime_00030": "large_file",
+      "crime_00031": "docs_code_drift",
+      "crime_00032": "docs_code_drift",
+      "crime_00033": "commented_out_code",
+      "crime_00034": "large_function",
+      "crime_00035": "large_function",
+      "crime_00036": "large_function",
+      "crime_00037": "large_function",
+      "crime_00038": "weak_test_signal",
+      "crime_00039": "weak_test_signal",
+      "crime_00040": "weak_test_signal",
+      "crime_00041": "weak_test_signal",
+      "crime_00042": "weak_test_signal",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Docs-Code Drift": "docs_code_drift",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:19.155Z",
+  "run_id": "3519dee5-e7f8-4a29-9441-3c5f65b3a6e8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b0e-bca1-7543-accc-a6746a2aab28\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Duplication findings from `crimes scan --format json`:\\n\\n- `crime_00001` `exact_duplicate_block`: `recordSanitiseEvent` duplicated in `src/telemetry-a.ts` and `src/telemetry-b.ts`.\\n- `crime_00002` `near_duplicate_block`: sanitise helpers duplicated across `src/sanitize-a.ts`, `src/sanitize-b.ts`, and `src/sanitize-c.ts`.\\n- `crime_00003` `duplicated_role_status_plan_check`: repeated `\\\"admin\\\"` role checks in `src/policy.ts` plus the three sanitize files.\\n\\n**Two-Step Refactor Plan**\\n\\n1. **Consolidate policy first**\\n   - Add one canonical role predicate in `src/policy.ts`, for example `isAdmin(role: string): boolean`.\\n   - Replace all direct `role === \\\"admin\\\"` checks in:\\n     - `src/policy.ts`\\n     - `src/sanitize-a.ts`\\n     - `src/sanitize-b.ts`\\n     - `src/sanitize-c.ts`\\n   - Keep any existing exported policy functions, but have them delegate to the shared predicate.\\n   - Add focused tests around admin/non-admin behaviour before changing sanitise logic, so policy drift is pinned down independently.\\n\\n2. **Extract the shared sanitise implementation**\\n   - Create one shared sanitise helper, likely `src/sanitize.ts` or `src/sanitize-core.ts`.\\n   - Move the common body from:\\n     - `sanitizeUserInput`\\n     - `sanitizeText`\\n     - `cleanMessage`\\n   - Preserve the current public function names as thin wrappers if callers already depend on them.\\n   - Have the shared implementation call the centralized role predicate from step 1 instead of doing inline role checks.\\n   - Add or update tests to prove all three exported wrappers still return the same outputs as before for admin, non-admin, empty, and unsafe input cases.\\n\\nI would leave `crime_00001` telemetry duplication and the two `direct_date` findings for a separate follow-up unless this change set is meant to cover all duplication. The requested coherent change is the sanitise/policy cluster; mixing telemetry clock injection into it would broaden the behaviour surface unnecessarily.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19937,\"cached_input_tokens\":12160,\"output_tokens\":480,\"reasoning_output_tokens\":30}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "exact_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

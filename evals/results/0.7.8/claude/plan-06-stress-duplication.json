@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:19.237Z",
+  "run_id": "04455755-5bac-4f48-89a8-4ad96a8b3fb1",
+  "response": "# Refactor plan — consolidate sanitise helpers + admin role checks\n\nTwo ordered steps. Step 1 lands the policy function first because the sanitise helpers each contain an admin check — doing policy first means step 2 collapses three already-aligned bodies instead of three drifting ones.\n\n## Step 1 — Extract `isAdmin` policy function\n\n**Goal:** every `role === \"admin\"` comparison goes through one function (crime_00003).\n\n**Scope (6+ call sites across 4 files):**\n- `src/policy.ts:1, 3, 8, 13`\n- `src/sanitize-a.ts:7`\n- `src/sanitize-b.ts` and `src/sanitize-c.ts` (the \"+2 more\")\n\n**Changes:**\n1. Create `src/policy/is-admin.ts` exporting `export const isAdmin = (role: string): boolean => role === \"admin\"`.\n2. Replace every `role === \"admin\"` with `isAdmin(role)`. Import from the new module in `policy.ts`, `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts`.\n3. Inspect `policy.ts` for the \"2 distinct expression shapes\" the scan flagged — if one variant is e.g. `roles.includes(\"admin\")` or `user.role === \"admin\"`, normalise it (`isAdmin(user.role)`) so the rule stops drifting silently.\n\n**Verification:** `crimes scan --format json` reports zero `duplicated_role_status_plan_check` findings. Existing tests pass.\n\n**Risk:** low. Pure mechanical substitution, no behaviour change unless the two expression shapes diverged — in which case the diff makes that divergence explicit (the point of the refactor).\n\n## Step 2 — Consolidate sanitise helpers into one module\n\n**Goal:** collapse `sanitizeUserInput` / `sanitizeText` / `cleanMessage` into one canonical helper (crime_00002).\n\n**Scope:** `src/sanitize-a.ts:10-36`, `src/sanitize-b.ts:9-35`, `src/sanitize-c.ts:9-35`. After step 1 the three bodies should differ only in the small ways the scan flagged as \"near-duplicate\" (not exact).\n\n**Changes:**\n1. Diff the three bodies (`diff src/sanitize-a.ts src/sanitize-b.ts`, etc.) and decide for each divergence whether it's a real semantic difference or accidental drift. Likely candidates: regex tweaks, length caps, whether HTML is stripped.\n2. Create `src/sanitize/sanitize-input.ts` exporting one canonical `sanitizeInput(text: string, opts?: SanitizeOptions): string`. Lift any genuine semantic variants behind `opts` flags; drop accidental drift.\n3. Re-export under the three legacy names from the original files (`export { sanitizeInput as sanitizeUserInput } from \"./sanitize/sanitize-input\"`) so external callers don't break in this step. Mark the re-exports with a single-line comment pointing to follow-up removal.\n4. Bonus (cheap, in same change set): step 1's `isAdmin` is now imported by the canonical sanitiser only, not three copies.\n\n**Verification:** `crimes scan --format json` reports zero `near_duplicate_block` findings for the sanitise functions. The two `exact_duplicate_block` telemetry hits (crime_00001) remain — those are out of scope per the prompt, but the same pattern applies if you want a follow-up.\n\n**Risk:** medium. The \"near-duplicate\" classification means the three bodies aren't identical; the per-divergence decision in (1) is where real bugs can hide. Run any existing sanitise tests against all three legacy names before deleting them in a later pass.\n\n---\n\n**Out of scope for this plan (flagged by scan, not requested):** `recordSanitiseEvent` duplication (crime_00001) and the two `Date.now()` call sites in `telemetry-a.ts`/`telemetry-b.ts` (crime_00004/5). Both are good follow-ups — extract `recordSanitiseEvent` into a shared telemetry module and pass an injected clock — but neither is needed to land the two-step change set above.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      }
+    ]
+  }
+}

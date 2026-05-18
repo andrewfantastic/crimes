@@ -1,0 +1,87 @@
+{
+  "scenario": "plan-01-date-string-concat",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:27:40.890Z",
+  "run_id": "ae6b33d7-dc20-4e17-bf71-203cc5ee7524",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b0d-d73c-7193-ba33-05a99f18f95d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll use the supplied `crimes scan --format json` output as the finding source, then inspect the flagged file so the replacement is tied to the actual code shape rather than just the detector summary.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,80p' /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts\\\"\",\"aggregated_output\":\"// Intentionally bad temporal handling.\\n\\nexport function isExpired(timestampMs: number): boolean {\\n  return Date.now() > timestampMs;\\n}\\n\\nexport function todayKey(): string {\\n  const d = new Date();\\n  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;\\n}\\n\\nexport function nowIso(): string {\\n  return new Date().toISOString();\\n}\\n\\nexport function isWeekend(): boolean {\\n  const day = new Date().getDay();\\n  return day === 0 || day === 6;\\n}\\n\\nexport function ageMs(createdAt: number): number {\\n  return Date.now() - createdAt;\\n}\\n\\n// Intentionally bad: parses a date-only string (UTC midnight) plus a\\n// datetime without a zone (local time). Both interpretations surprise\\n// the reader and depend on the runtime's timezone.\\nexport function christmasMorning(): Date {\\n  return new Date(\\\"2026-12-25T07:00:00\\\");\\n}\\n\\nexport function startOfPromoWindow(): Date {\\n  return new Date(\\\"2026-12-20\\\");\\n}\\n\\n// Intentionally bad: mixes UTC reads with local reads on the same `d`,\\n// and builds the label with string concatenation that drops the\\n// zero-padding and zero-index correction (months are 0-indexed).\\nexport function dateLabel(): string {\\n  const d = new Date();\\n  return d.getUTCFullYear() + \\\"-\\\" + d.getMonth() + \\\"-\\\" + d.getDate();\\n}\\n\\n// Intentionally bad: host-locale-dependent rendering.\\nexport function prettyDueDate(due: Date): string {\\n  return due.toLocaleDateString();\\n}\\n\\n// Intentionally bad: \\\"+ 1 day\\\" using a raw ms constant. Wrong on DST\\n// transitions.\\nexport function tomorrowMs(nowMs: number): number {\\n  return nowMs + 86400000;\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"getUTCFullYear|getMonth|toLocaleDateString|Date\\\" /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'rg -n \\\"getUTCFullYear|getMonth|toLocaleDateString|Date\\\" /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts'\",\"aggregated_output\":\"4:  return Date.now() > timestampMs;\\n8:  const d = new Date();\\n9:  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;\\n13:  return new Date().toISOString();\\n17:  const day = new Date().getDay();\\n22:  return Date.now() - createdAt;\\n28:export function christmasMorning(): Date {\\n29:  return new Date(\\\"2026-12-25T07:00:00\\\");\\n32:export function startOfPromoWindow(): Date {\\n33:  return new Date(\\\"2026-12-20\\\");\\n40:  const d = new Date();\\n41:  return d.getUTCFullYear() + \\\"-\\\" + d.getMonth() + \\\"-\\\" + d.getDate();\\n45:export function prettyDueDate(due: Date): string {\\n46:  return due.toLocaleDateString();\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"**Migration Plan**\\n\\n`crimes scan --format json` reports one `date_string_concat` finding.\\n\\n**`src/date.ts`**\\n\\nFinding `crime_00019` evidence:\\n\\n- ``\\\"`\\\\\\\"…\\\\\\\" + .getUTCFullYear()` @L41\\\"``\\n- `\\\"lines: 41\\\"`\\n- `\\\"use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation\\\"`\\n\\nCurrent code:\\n\\n```ts\\nexport function dateLabel(): string {\\n  const d = new Date();\\n  return d.getUTCFullYear() + \\\"-\\\" + d.getMonth() + \\\"-\\\" + d.getDate();\\n}\\n```\\n\\nRecommended replacement: use `Intl.DateTimeFormat`, because the function name `dateLabel` implies user-facing display rather than a machine key, persisted value, or identifier.\\n\\n```ts\\nconst dateLabelFormatter = new Intl.DateTimeFormat(\\\"en-US\\\", {\\n  year: \\\"numeric\\\",\\n  month: \\\"2-digit\\\",\\n  day: \\\"2-digit\\\",\\n  timeZone: \\\"UTC\\\",\\n});\\n\\nexport function dateLabel(): string {\\n  return dateLabelFormatter.format(new Date());\\n}\\n```\\n\\nWhy `Intl.DateTimeFormat`: this is display text, so locale-aware formatting is the right abstraction. The explicit locale prevents host-locale drift, and `timeZone: \\\"UTC\\\"` avoids reintroducing the mixed UTC/local behavior already flagged nearby.\\n\\nUse `toISOString()` instead only if callers treat this value as a stable machine-readable date key. In that case, the replacement should be:\\n\\n```ts\\nexport function dateLabel(): string {\\n  return new Date().toISOString().slice(0, 10);\\n}\\n```\\n\\nThat yields a stable UTC `YYYY-MM-DD` date string for persistence, IDs, filenames, cache keys, or comparisons.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":52114,\"cached_input_tokens\":28928,\"output_tokens\":1170,\"reasoning_output_tokens\":579}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "date_string_concat",
+        "observed": "date_string_concat",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "date_string_concat",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

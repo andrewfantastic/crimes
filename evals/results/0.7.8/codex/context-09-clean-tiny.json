@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:26:52.602Z",
+  "run_id": "e1f22872-16ed-4968-850a-489298b2bc34",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b0d-6793-7f40-9812-0be051d7d0da\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested `crimes context` against `src/add.ts` from the runner workspace and compare it to the provided clean scan context.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"crimes: file not found: src/add.ts\\n\",\"exit_code\":2,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`src/add.ts` is not under the runner directory, so I’m locating the fixture path shown in the scan output and running the same context command there.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd && rg --files | rg '(\\\"'^|/)src/add'\\\"\\\\\\\\.ts\\\"'$|09-clean-tiny'\\\"'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd && rg --files | rg '(\\\"'^|/)src/add'\\\"\\\\\\\\.ts\\\"'$|09-clean-tiny'\\\"'\\\"\",\"aggregated_output\":\"/Users/andrew/dev/crimes/evals/runner\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -d /Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny && crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -d /Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny && crimes context src/add.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"09-clean-tiny\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny\\\"\\n  },\\n  \\\"file\\\": \\\"src/add.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/add.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"agent_message\",\"text\":\"`crimes context src/add.ts --format json` found no risk in the fixture:\\n\\n- Risk level: `none`\\n- Findings: `0`\\n- Agent guidance: none\\n- Related files: none\\n- Likely test: `src/add.test.ts`\\n\\nThe broader scan you provided is also clean with `total: 0`, so `src/add.ts` is safe to extend. I’d still update or add coverage in `src/add.test.ts` for whatever behavior changes.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":56115,\"cached_input_tokens\":48768,\"output_tokens\":439,\"reasoning_output_tokens\":43}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

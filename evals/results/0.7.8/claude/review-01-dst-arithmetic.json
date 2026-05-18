@@ -1,0 +1,87 @@
+{
+  "scenario": "review-01-dst-arithmetic",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:32:16.677Z",
+  "run_id": "92cb60b4-07e3-4904-a2cc-f67865532bd8",
+  "response": "**Verdict: Request changes** (not a hard block — finding is `severity: medium`, `confidence: 0.8` — but `tomorrowMs` is one line of new code that has a known silent-failure mode, and `crime_00011` flags it for a reason).\n\n**Finding cited (crime_00011, `dst_naive_arithmetic`, \"DST-Naive Day Math\"):**\n\n> \"1 day-level millisecond constant in arithmetic. A day isn't 86,400,000 ms on DST-transition days; manual ms math drifts silently.\"\n\nEvidence verbatim:\n- `\"+ 86400000 (day) @L52\"`\n- `\"lines: 52\"`\n- `\"use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math\"`\n\nSuggested action (`use_calendar_aware_lib`, risk low):\n> \"Replace ms-arithmetic with a timezone-aware addDays/subtract operation that knows about DST and leap years.\"\n\nThe fix is cheap (swap `+ 86_400_000` for `addDays(d, 1)` from Luxon / Temporal / date-fns-tz), the bug is silent, and `src/date.ts` already has three other temporal findings stacked on it (`crime_00002`, `crime_00003`, `crime_00007`) — landing more naive ms-arithmetic into that file makes the existing problem worse.\n\n**The two days per year where `tomorrowMs` returns the wrong moment** are the DST transition days in whatever zone the runtime is set to:\n\n1. **Spring-forward day** — local day is only **23 hours**, so adding 86,400,000 ms lands you **one hour past** \"the same wall-clock time tomorrow.\"\n2. **Fall-back day** — local day is **25 hours**, so adding 86,400,000 ms lands you **one hour short** of \"the same wall-clock time tomorrow.\"\n\nIn the US/Canada those are the 2nd Sunday of March and the 1st Sunday of November; in the EU/UK they're the last Sunday of March and the last Sunday of October. (Zones without DST — UTC, most of Asia, Arizona — are unaffected, which is part of why the bug is so easy to miss in CI run on a UTC build agent.)",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "dst_naive_arithmetic",
+        "observed": "dst_naive_arithmetic",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "dst_naive_arithmetic",
+        "observed": "dst_naive_arithmetic",
+        "passed": true
+      }
+    ]
+  }
+}

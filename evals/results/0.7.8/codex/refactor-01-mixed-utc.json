@@ -1,0 +1,87 @@
+{
+  "scenario": "refactor-01-mixed-utc",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:59.702Z",
+  "run_id": "81f6b2da-354b-4342-8763-694682ed867b",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b0f-0a5a-70e2-886f-bcfbe2fa10b7\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested `crimes context` against the fixture file first, then inspect `src/date.ts` around the reported receiver so the proposed refactor is grounded in the actual function.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"nl -ba /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts | sed -n '1,90p'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"nl -ba /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts | sed -n '1,90p'\\\"\",\"aggregated_output\":\"     1\\t// Intentionally bad temporal handling.\\n     2\\t\\n     3\\texport function isExpired(timestampMs: number): boolean {\\n     4\\t  return Date.now() > timestampMs;\\n     5\\t}\\n     6\\t\\n     7\\texport function todayKey(): string {\\n     8\\t  const d = new Date();\\n     9\\t  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;\\n    10\\t}\\n    11\\t\\n    12\\texport function nowIso(): string {\\n    13\\t  return new Date().toISOString();\\n    14\\t}\\n    15\\t\\n    16\\texport function isWeekend(): boolean {\\n    17\\t  const day = new Date().getDay();\\n    18\\t  return day === 0 || day === 6;\\n    19\\t}\\n    20\\t\\n    21\\texport function ageMs(createdAt: number): number {\\n    22\\t  return Date.now() - createdAt;\\n    23\\t}\\n    24\\t\\n    25\\t// Intentionally bad: parses a date-only string (UTC midnight) plus a\\n    26\\t// datetime without a zone (local time). Both interpretations surprise\\n    27\\t// the reader and depend on the runtime's timezone.\\n    28\\texport function christmasMorning(): Date {\\n    29\\t  return new Date(\\\"2026-12-25T07:00:00\\\");\\n    30\\t}\\n    31\\t\\n    32\\texport function startOfPromoWindow(): Date {\\n    33\\t  return new Date(\\\"2026-12-20\\\");\\n    34\\t}\\n    35\\t\\n    36\\t// Intentionally bad: mixes UTC reads with local reads on the same `d`,\\n    37\\t// and builds the label with string concatenation that drops the\\n    38\\t// zero-padding and zero-index correction (months are 0-indexed).\\n    39\\texport function dateLabel(): string {\\n    40\\t  const d = new Date();\\n    41\\t  return d.getUTCFullYear() + \\\"-\\\" + d.getMonth() + \\\"-\\\" + d.getDate();\\n    42\\t}\\n    43\\t\\n    44\\t// Intentionally bad: host-locale-dependent rendering.\\n    45\\texport function prettyDueDate(due: Date): string {\\n    46\\t  return due.toLocaleDateString();\\n    47\\t}\\n    48\\t\\n    49\\t// Intentionally bad: \\\"+ 1 day\\\" using a raw ms constant. Wrong on DST\\n    50\\t// transitions.\\n    51\\texport function tomorrowMs(nowMs: number): number {\\n    52\\t  return nowMs + 86400000;\\n    53\\t}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node packages/cli/dist/index.js context /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node packages/cli/dist/index.js context /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts --format json'\",\"aggregated_output\":\"node:internal/modules/cjs/loader:1404\\n  throw err;\\n  ^\\n\\nError: Cannot find module '/Users/andrew/dev/crimes/evals/runner/packages/cli/dist/index.js'\\n    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\\n    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\\n    at Function._load (node:internal/modules/cjs/loader:1211:37)\\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\\n    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)\\n    at node:internal/main/run_main_module:36:49 {\\n  code: 'MODULE_NOT_FOUND',\\n  requireStack: []\\n}\\n\\nNode.js v22.17.1\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"The local built CLI path described in the repo instructions is not present under this runner directory, so I’m checking the available package layout and will use the installed `crimes` binary if it’s on PATH. The file itself confirms the mixed receiver is in `dateLabel()`.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd; rg --files -g 'package.json' -g 'index.js' -g 'src/date.ts' | sed -n '1,80p'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"pwd; rg --files -g 'package.json' -g 'index.js' -g 'src/date.ts' | sed -n '1,80p'\\\"\",\"aggregated_output\":\"/Users/andrew/dev/crimes/evals/runner\\npackage.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'command -v crimes; crimes --version'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'command -v crimes; crimes --version'\",\"aggregated_output\":\"0.7.5\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"agent_message\",\"text\":\"`crimes` is available globally as version `0.7.5`; I’m using that against the fixture now so the context output matches the requested command shape.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context /Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/date.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"file\\\": \\\"src/date.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"high\\\",\\n    \\\"high\\\": 1,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 1\\n  },\\n  \\\"agent_guidance\\\": [\\n    \\\"Avoid adding more direct clock access; inject time where possible.\\\"\\n  ],\\n  \\\"related_files\\\": [\\n    {\\n      \\\"file\\\": \\\"src/billing.test.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/todo.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    }\\n  ],\\n  \\\"likely_tests\\\": [],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"crime_00001\\\",\\n      \\\"type\\\": \\\"direct_date\\\",\\n      \\\"charge\\\": \\\"Temporal Recklessness\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"confidence\\\": 0.9,\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"lines\\\": [\\n        4,\\n        40\\n      ],\\n      \\\"summary\\\": \\\"8 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.\\\",\\n      \\\"evidence\\\": [\\n        \\\"2× Date.now(), 6× new Date()\\\",\\n        \\\"lines: 4, 8, 13, 17, 22, 29, 33, 40\\\",\\n        \\\"each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.8,\\n        \\\"confidence\\\": 0.9,\\n        \\\"agent_risk\\\": 0.71,\\n        \\\"churn\\\": 0.15,\\n        \\\"test_gap\\\": 1,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"inject_clock\\\",\\n          \\\"description\\\": \\\"Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    }\\n  ],\\n  \\\"likely_tests_reason\\\": \\\"no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_8\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/date.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/date.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"file\\\": \\\"src/date.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"high\\\",\\n    \\\"high\\\": 1,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 1\\n  },\\n  \\\"agent_guidance\\\": [\\n    \\\"Avoid adding more direct clock access; inject time where possible.\\\"\\n  ],\\n  \\\"related_files\\\": [\\n    {\\n      \\\"file\\\": \\\"src/billing.test.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/todo.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    }\\n  ],\\n  \\\"likely_tests\\\": [],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"crime_00001\\\",\\n      \\\"type\\\": \\\"direct_date\\\",\\n      \\\"charge\\\": \\\"Temporal Recklessness\\\",\\n      \\\"severity\\\": \\\"high\\\",\\n      \\\"confidence\\\": 0.9,\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"lines\\\": [\\n        4,\\n        40\\n      ],\\n      \\\"summary\\\": \\\"8 direct uses of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.\\\",\\n      \\\"evidence\\\": [\\n        \\\"2× Date.now(), 6× new Date()\\\",\\n        \\\"lines: 4, 8, 13, 17, 22, 29, 33, 40\\\",\\n        \\\"each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.8,\\n        \\\"confidence\\\": 0.9,\\n        \\\"agent_risk\\\": 0.71,\\n        \\\"churn\\\": 0.15,\\n        \\\"test_gap\\\": 1,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"inject_clock\\\",\\n          \\\"description\\\": \\\"Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    }\\n  ],\\n  \\\"likely_tests_reason\\\": \\\"no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_9\",\"type\":\"agent_message\",\"text\":\"I ran `crimes context src/date.ts --format json`. The installed `crimes` 0.7.5 context output only surfaced `direct_date`, but the provided scan identifies the mixed UTC/local finding clearly.\\n\\nFix first: `dateLabel()`.\\n\\nReceiver identifier: `d`.\\n\\nDisagreeing methods: `d.getUTCFullYear()` is UTC, while `d.getMonth()` and `d.getDate()` are local-time reads.\\n\\nRefactor proposal: make `dateLabel()` consistently UTC, since this looks like a stable date key/label rather than a user-locale display boundary.\\n\\n```ts\\nexport function dateLabel(): string {\\n  const d = new Date();\\n  const year = d.getUTCFullYear();\\n  const month = String(d.getUTCMonth() + 1).padStart(2, \\\"0\\\");\\n  const day = String(d.getUTCDate()).padStart(2, \\\"0\\\");\\n\\n  return `${year}-${month}-${day}`;\\n}\\n```\\n\\nThat keeps one Date-method family on `d`, fixes the zero-indexed month bug, and makes the output independent of the host machine’s local timezone.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":138753,\"cached_input_tokens\":112512,\"output_tokens\":1333,\"reasoning_output_tokens\":486}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "mixed_utc_local_methods",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

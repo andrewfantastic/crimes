@@ -1,0 +1,99 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:30:19.564Z",
+  "run_id": "3d565dee-9220-46c9-b2aa-f702d6cfb211",
+  "response": "## Three petty crimes in `src/petty.ts`\n\n### 1. `describeCheckout` — Option Bag Junk Drawer (crime_00022, L10–19)\n\n**Finding type:** `option_bag_junk_drawer`. The function takes a single `options` object and reaches into 6 unrelated fields (`plan`, `role`, `region`, `currency`, `status`, `retry`). The named `CheckoutOptions` interface is technically there, but the function still treats the bag as a junk drawer — every field is required, every field is read once, and the bag isn't shaped around what the function *does* (build a colon-joined fingerprint).\n\n**Agent risk today:** an agent extending this — say, adding `tier` to the fingerprint — will add an optional `tier?: string` to `CheckoutOptions` because that's the path of least resistance, and silently broaden the contract for every other caller that constructs a `CheckoutOptions`. There's no signal that this function owns only the fingerprint, not the canonical checkout shape.\n\n**Refactor:** destructure the fields the function owns, and name the result.\n\n```ts\nexport function describeCheckout({\n  plan, role, region, currency, status, retry,\n}: CheckoutOptions): string {\n  return [plan, role, region, currency, status, String(retry)].join(\":\");\n}\n```\n\nIf `CheckoutOptions` is shared, give the function its own narrower input type (`CheckoutFingerprintInput`) so adding fields to the global checkout shape doesn't silently change the fingerprint.\n\n---\n\n### 2. `resolvePaymentResult` — Return Shape Roulette (crime_00023, L21–32)\n\n**Finding type:** `return_shape_roulette`. Three branches, three disjoint return shapes, **0% key overlap** between `{ ok, code, message }`, `{ url, permanent }`, and `{ ok, value, cached }`. No declared return type, so callers (and TypeScript inference) see a wide union with every field optional.\n\n**Agent risk today:** an agent writing `if (result.ok) … else useUrl(result.url)` will get green types and a runtime `undefined` — the `ok: false` branch carries `code/message`, not `url`. The `redirect` branch doesn't even set `ok`, so `if (!result.ok)` matches both the error case *and* the redirect case. An agent extending this with a fourth branch has no template to follow.\n\n**Refactor:** make the shape a discriminated union and declare it.\n\n```ts\ntype PaymentResult =\n  | { kind: \"error\"; code?: string; message?: string }\n  | { kind: \"redirect\"; url?: string; permanent: boolean }\n  | { kind: \"ok\"; value?: string; cached: boolean };\n\nexport function resolvePaymentResult(input: {…}): PaymentResult {\n  if (input.error)    return { kind: \"error\",    code: input.code, message: input.message };\n  if (input.redirect) return { kind: \"redirect\", url: input.url, permanent: false };\n  return                       { kind: \"ok\",     value: input.value, cached: false };\n}\n```\n\nNow callers switch on `result.kind` and the compiler narrows fields correctly.\n\n---\n\n### 3. `canRunBilling` — Negative Flag Maze (crime_00024, L34–37)\n\n**Finding type:** `negative_flag_maze`. Two negative flags (`disableBilling`, `skipRetry`) combined with `!`. The body reduces to \"return whether both negatives are false,\" which is `!a && !b` — readable today, a coin flip after one edit.\n\n**Agent risk today:** the moment a third condition arrives, an agent has to mentally invert each flag *and* preserve the conjunction. A common slip is \"if billing is enabled OR retry is allowed\" → `!disableBilling || !skipRetry`, which is the wrong predicate. Negative flag names also invite double-negative call sites (`canRunBilling(!enableBilling, !retryAllowed)`).\n\n**Refactor:** flip the flag polarity at the API boundary and name the predicate.\n\n```ts\nexport function canRunBilling({\n  billingEnabled,\n  retryAllowed,\n}: { billingEnabled: boolean; retryAllowed: boolean }): boolean {\n  return billingEnabled && retryAllowed;\n}\n```\n\nCallers that still hold the negative flags pass `billingEnabled: !disableBilling, retryAllowed: !skipRetry` at the call site — one inversion, in one place, instead of every reader doing it in their head.\n\n---\n\n**Common thread:** all three are low-severity, high-agent-risk patterns — they don't bite humans because we read the whole tiny file in one go, but they bite agents because each function's contract is implicit. Naming the shape (input bag, return union, flag polarity) is the cheapest possible fix and turns each function into something the next agent can extend without re-reading the caller list.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

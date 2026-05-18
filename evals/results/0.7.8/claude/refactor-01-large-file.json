@@ -1,0 +1,87 @@
+{
+  "scenario": "refactor-01-large-file",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:32:54.465Z",
+  "run_id": "84904324-527d-4c6b-bf48-010a21330a09",
+  "response": "## Split plan for `src/billing.ts`, grounded in the large_file evidence\n\n### What the `large_file` finding actually says\n- `crime_00013` evidence: **310 non-empty lines**, **1.0× the 300-line threshold**, **5 top-level exports**. We're sitting right on the threshold, so the bar isn't \"shrink dramatically\" — it's \"give each responsibility a home so the next edit doesn't push it over.\"\n- The neighbouring findings on the same file tell us *where* the responsibility boundaries already are:\n  - `large_function generateInvoice` (`crime_00001`, lines 50–253) — **204 of the 310 lines, ~66% of the file** — is the dominant blob. Splitting this alone moves the file well under threshold.\n  - `name_behavior_mismatch calculateRefundPreview` (`crime_00010`, lines 40–44) belongs to a refund flow, not invoice generation.\n  - `logic_in_comments` (`crime_00014`, line 39): \"Only owners can refund enterprise plans unless billing support approves\" sits orphaned above the refund function — a homeless rule.\n  - `direct_date` cluster (`crime_00006`, lines 57, 63, 92, 198, 238, 250, 273) is entirely inside `generateInvoice`. Splitting surfaces natural clock-injection seams per helper.\n  - `todo_density` (`crime_00025`, lines 183–308) concentrates in the audit/email/retry tail of `generateInvoice` plus the stub `listRecentInvoices`.\n\n### Caller blast radius\nGreped the whole fixture for imports of `./billing` and for the five export names. **Zero external callers** — even `src/billing.test.ts` doesn't reference the exports by name (which is the `crime_00008` / `crime_00021` weak-test problem). So this is an internal-only move; we can keep `src/billing.ts` as a thin barrel re-export and not touch any consumer.\n\n### Proposed file layout (`src/billing/` directory)\n\n| New file | What moves in | Why this boundary |\n|---|---|---|\n| `src/billing/types.ts` | `User`, `InvoiceLine`, `Invoice` interfaces (lines 4–31) | Pure types — the only thing every other split needs. Zero behaviour. |\n| `src/billing/pricing.ts` | Pure helpers extracted from `generateInvoice`: `applyPlanDiscount` (66–89), `loyaltyDiscount` (91–103), `resolvePromo` (105–126), `scoreFraudRisk` (128–143), `currencyFor` (159–165), **and the existing `tax()` function (255–268)** | The \"compute\" side. Lets us **delete the duplicate tax block inside `generateInvoice` (145–156)** — the very duplication the comment at line 145 admits to. |\n| `src/billing/refund.ts` | `calculateRefundPreview` (40–44), renamed `processRefundPreview` per the `False Identity` finding, plus a new `assertCanRefund(user, invoice)` guard that encodes the line-39 prose rule | Pulls refund out of the invoice file *and* resolves `crime_00010` + `crime_00014` in the same move. |\n| `src/billing/invoice.ts` | `generateInvoice` orchestrator (~40 lines after extraction) plus the I/O helpers: `logInvoiceAudit` (182–199), `emitInvoiceMetrics` (201–211), `renderInvoiceEmail` (213–233), `sendInvoiceEmailWithRetry` (235–250) | What remains of `generateInvoice` after the pure helpers leave is orchestration + side effects. Co-located so the clock and retry loop have one obvious place to evolve. |\n| `src/billing/recommendations.ts` | `recommendUpgrade` (272–305) | Has nothing to do with invoicing — it's a marketing/upsell helper that happens to share `User`. The deeply-nested branches need their own home before they grow. |\n| `src/billing/queries.ts` | `listRecentInvoices` stub (307–310) | Will become a DB query (per the TODO). Splitting now means the DB dependency doesn't drag invoice-generation tests into a slow lane later. |\n| `src/billing.ts` (kept) | `export * from \"./billing/types\"; export * from \"./billing/pricing\"; ...` | Barrel re-export. Zero caller churn — and we already verified there are no external imports today. |\n\n### Execution order (safest → riskiest)\n\n1. **Extract `types.ts`.** No behaviour change. Type-check should be green after the imports update inside `billing.ts`.\n2. **Extract `pricing.ts` and collapse the duplicate tax table.** This kills the `// Duplicated tax logic` comment on line 255 and the inline copy on lines 145–156 in the same move. Re-run `crimes scan` — `large_function` line range should shrink, `direct_date` count in this file should drop (the `Date.now()` at line 92 leaves with `loyaltyDiscount`).\n3. **Extract `refund.ts` and encode the comment rule.** Rename `calculateRefundPreview` → `processRefundPreview` and add the `assertCanRefund` guard. Clears `crime_00010` and `crime_00014`.\n4. **Extract `recommendations.ts` and `queries.ts`.** Single-function moves, trivially mechanical.\n5. **What's left in `invoice.ts`** is the orchestrator + four side-effect helpers (`logInvoiceAudit`, `emitInvoiceMetrics`, `renderInvoiceEmail`, `sendInvoiceEmailWithRetry`). Extract those inside the same file as a single follow-up commit — that's where the remaining clock seams live and where the `console.log` PII (FIXME at line 183) gets addressed properly.\n6. **Convert `src/billing.ts` to a barrel** so no caller — current or future — breaks.\n\n### Caller updates\n\n- **External consumers: none.** Confirmed by grep — no `from \"./billing\"` anywhere, no usages of the five export names outside the file itself.\n- **`src/billing.test.ts`** doesn't reference the exports either today (which is the separate weak-test finding). If/when we strengthen those tests, they'd import from `src/billing` (the barrel) or directly from the split files — both options work.\n- **`src/routes/settings/billing.tsx`** is flagged by `context` as related but only by domain token; it doesn't import this file.\n\n### Post-edit gate\n\nAfter step 2, re-run `crimes scan src/billing.ts --format json` and check:\n- `large_file` (`crime_00013`) gone — file should be ~50 lines as a barrel.\n- `large_function generateInvoice` line range shrinks dramatically.\n- `direct_date` count in `billing.ts` drops to whatever stays in the orchestrator.\n- A new `large_file` should **not** appear on any of the new split files (each is well under threshold by design — pricing.ts will be the largest at ~80 lines including the consolidated tax).\n\nThe split is justified by the evidence, not by feel: 66% of the file is one function, that function's own sections map to the helpers we're extracting, and an orphaned authorization rule + a name/behaviour mismatch tell us where the second module boundary belongs.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      }
+    ]
+  }
+}

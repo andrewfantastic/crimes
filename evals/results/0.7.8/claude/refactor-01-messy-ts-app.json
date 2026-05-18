@@ -1,0 +1,93 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:29:25.030Z",
+  "run_id": "cbf72b1e-e196-415d-a7eb-60a71b74ee92",
+  "response": "# Top 3 changes to `src/billing.ts`\n\n## 1. Split `generateInvoice` and encode the prose rule on `calculateRefundPreview`\n\n**Findings:** `crime_00001` (God Function, severity 0.9, agent_risk 0.63), plus the connected `crime_00013` (God File, 310 lines — `generateInvoice` is 204 of them) and `crime_00014` (Logic in the Alibi @ L39).\n\n`generateInvoice` is 3.4× the 60-line domain threshold (lines 50–253). An agent editing one section will routinely miss interactions in another — that's exactly what the agent_risk score is flagging. Extracting cohesive helpers (line-item assembly, tax/discount, persistence, side-effects) also shrinks the file below the 300-line God File threshold for free, so two findings collapse with one refactor.\n\nWhile you're in there: the `// Only owners can refund enterprise plans unless billing support approves.` comment at L39 is a prose rule with no enforcement nearby. Encode it as a typed guard (`assertCanRefund(actor, plan)`) so the rule travels with the code, not the comment.\n\n## 2. Rename or split `calculateRefundPreview`\n\n**Finding:** `crime_00010` (False Identity, agent_risk 0.52, lines 40–44).\n\nThe `calculate…Preview` prefix promises a pure read, but the body calls `saveRefundAudit` and `sendRefundEmail`. That's the worst kind of misleading surface for agents — they will call it speculatively to \"see what would happen\" and ship audit rows + customer emails as a side effect. Either:\n\n- Rename to `processRefund` / `issueRefundAndNotify` so the side effects are disclosed, **or**\n- Extract a pure `computeRefundAmount(...)` (the actual preview) and leave the side-effecting wrapper named honestly.\n\nThis is a small edit with outsized risk reduction because the misleading name is the load-bearing failure mode.\n\n## 3. Inject a clock to eliminate direct `Date` use\n\n**Findings:** `crime_00006` (Temporal Recklessness in billing.ts, 7 direct calls across lines 57, 63, 92, 198, 238, 250, 273), interacting with `crime_00008` (the existing `billing.test.ts` has zero asserts).\n\nFive `Date.now()` and two `new Date()` calls inside invoice generation mean every test has to monkey-patch wall time or accept flakiness. The empty test at `billing.test.ts:4-6` (\"renders the enterprise plan\", 0 expects) is almost certainly empty *because* you can't pin a moment to assert against. Inject a `Clock` (or a `now: () => Date` parameter) at the `generateInvoice` boundary, thread it through, and you unlock both deterministic tests and meaningful assertions — fixing the testability finding as a downstream effect.\n\n---\n\n**Why these three, in this order:** I ranked by `agent_risk` × interaction with other findings, not raw severity. The God Function fix dissolves the God File finding; the rename fix is the cheapest agent-risk reduction in the report; the clock fix is the prerequisite for any of the new tests you'd want to add after the split. The \"enterprise\" string sprinkle (`crime_00009`) and TODO density (`crime_00025`) are real but downstream — worth doing once the structural mess is gone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

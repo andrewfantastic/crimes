@@ -1,0 +1,87 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:25:31.537Z",
+  "run_id": "e2cb284f-bd0b-4540-a7ff-fb8a4070fc79",
+  "response": "## Most likely cause: `src/date.ts` mixes UTC and local Date methods on the same receiver\n\nThe smoking gun is **crime_00003** (`Half-UTC, Half-Local`, severity high, confidence 0.85):\n\n> Receiver `d` in `src/date.ts` reads `getUTCFullYear()` at L9 **and** `getMonth()` at L41 — UTC year, local month.\n\nThat single mismatch is the textbook date-boundary flake. Around month/year rollover, the UTC year and the local month disagree by the host's UTC offset. Run the suite in UTC and it passes; run it at 17:00 PST on Dec 31 and the \"year\" comes from one frame, the \"month\" from another → invoice period straddles boundaries it shouldn't.\n\nTwo findings amplify it and explain why it shows up specifically on date boundaries:\n\n- **crime_00007** (`Timezone Roulette`, L29/L33): `new Date(\"2026-12-25T07:00:00\")` and `new Date(\"2026-12-20\")` parse with no zone marker. ISO date-only strings are parsed as **UTC**; date-time strings without `Z` are parsed as **local**. So those two literals already live in different frames before anything reads them.\n- **crime_00011** (`DST-Naive`, L52): `+ 86400000` for day arithmetic. On DST transition days a \"day\" isn't 86,400,000 ms — silent ±1h drift that compounds with the UTC/local mix.\n\n`generateInvoice` (crime_00001/_00006) is downstream of these — it's where the symptoms surface, but it isn't the root cause. The 7 `Date.now()`/`new Date()` calls inside it make the tests *non-deterministic*, not *boundary-flaky*.\n\n## Proposed fix (in order)\n\n1. **`src/date.ts` L9 + L41** — pick one family for `d` and stick to it. For billing math, use UTC throughout: `d.getUTCMonth()` at L41 (and audit the rest of the receiver's reads). This is the actual bug.\n2. **L29, L33** — append `Z` to the literals (`\"2026-12-25T07:00:00Z\"`, `\"2026-12-20T00:00:00Z\"`) so parsing is unambiguous, or parse through a TZ-aware helper.\n3. **L52** — replace `+ 86400000` with a calendar-aware `addDays` (Luxon/Temporal/date-fns-tz). Eliminates the DST edge case.\n4. **Then** the temporal-recklessness findings (crime_00002, _00006): inject a clock into `generateInvoice` so the tests can pin a fixed instant and the boundary cases become reproducible rather than time-of-day-dependent.\n\nStep 1 alone will most likely turn the test green; steps 2–4 keep it from coming back the next time the calendar lands wrong.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "mixed_utc_local_methods",
+        "passed": false
+      }
+    ]
+  }
+}

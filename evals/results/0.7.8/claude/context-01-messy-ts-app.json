@@ -1,0 +1,81 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:26:34.541Z",
+  "run_id": "e06437a7-9315-4ebb-9fa9-e5ef03d40d7e",
+  "response": "## What `src/billing.ts` does\n\nIt's a 310-line domain module centred on **`generateInvoice`** (204 lines, lines 50–253) plus a misleadingly-named **`calculateRefundPreview`** (lines 40–44) that actually performs side effects (`saveRefundAudit`, `sendRefundEmail`). The file declares 5 top-level functions and works heavily with the `\"enterprise\"` plan concept and wall-clock time (7 direct `Date.now()`/`new Date()` calls).\n\n## Files I'd also need to read\n\n- **`src/date.ts`** — billing's date helpers live here, and the scan flags it as the epicentre of temporal bugs (UTC/local mixing, unsafe `new Date(\"…\")` parses, DST-naive `+86400000` math, host-locale drift). Anything `generateInvoice` does with dates is probably routed through this file.\n- **`src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`** — all three repeat the `\"enterprise\"` literal (crime_00009). Plan policy is duplicated across them; editing billing without checking these risks divergent policy.\n- **`src/billing.test.ts`** — exists but the suite is hollow: one test has zero assertions (crime_00008), another only uses weak matchers (crime_00021). Don't trust green tests here.\n- **Whatever defines `saveRefundAudit` / `sendRefundEmail` and the owner/billing-support permission check** — the comment at line 39 encodes a rule (\"Only owners can refund enterprise plans unless billing support approves\") that the surrounding code doesn't obviously implement (crime_00014).\n\n## Risks flagged for `src/billing.ts`\n\n| Severity | Charge | Where | Why it matters for an editor |\n|---|---|---|---|\n| **high** | God Function | `generateInvoice` L50–253 (204 lines, 3.4× threshold) | Mixed responsibilities — an edit in one section likely interacts with code you didn't load. |\n| medium | Temporal Recklessness | 7× `Date.now()`/`new Date()` at L57, 63, 92, 198, 238, 250, 273 | Non-deterministic; tests can't pin a fixed moment. |\n| medium | False Identity | `calculateRefundPreview` L40–44 | \"Preview\" name but performs audit + email side effects — callers may assume purity. |\n| medium | God File | whole file, 310 LOC | At threshold; hidden local coupling. |\n| medium | Logic in the Alibi | comment at L39 | Refund authorisation rule lives only in prose. |\n| low | Unfinished Business | 4 markers L183–308 (FIXME/HACK/XXX/TODO) | Hard to tell which logic is load-bearing. |\n\nPlus the cross-cutting hits that touch billing: the scattered `\"enterprise\"` literal (crime_00009) and the absence of any `AGENTS.md` / `CLAUDE.md` (crime_00004) — meaning conventions aren't discoverable before editing.\n\n**Before editing**: read `src/date.ts` and the three `\"enterprise\"`-referencing files alongside `billing.ts`, treat the existing tests as non-protective, and clarify the owner/billing-support refund rule from L39 before touching `calculateRefundPreview` or any refund path inside `generateInvoice`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  }
+}

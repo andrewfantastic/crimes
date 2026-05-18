@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:29:46.802Z",
+  "run_id": "04c25120-24f6-48e5-9a7e-8236fb33606e",
+  "response": "## Confirmation of duplication\n\n`crime_00002` (near-duplicate block, confidence 0.85) flags the three sanitisers as structurally identical — same control flow, same regex literals, same magic numbers (1000-char cap, `!?{3,}`, 0.9 upper-ratio, 30-char minimum). Only the local identifier names differ (`working` / `cleaned` / `normalised`) and the exported names (`sanitizeUserInput` / `sanitizeText` / `cleanMessage`). The bodies are byte-equivalent once renamed.\n\nThe admin guards next to them (`assertAdminA/B/C`) are *not* the same — A is `=== \"admin\"`, B adds `|| \"owner\"`, C is `!== \"admin\"`. Those are real semantic divergence and should be left alone (or addressed separately under `crime_00003`). Don't consolidate them with the sanitiser.\n\n## Proposed refactor\n\nCreate one shared module and delete the duplicated bodies. Keep the three original exports as thin re-exports so callers don't break in one change.\n\n**Files that would change:**\n\n- `src/sanitize.ts` (**new**) — the consolidated implementation.\n- `src/sanitize-a.ts` — drop `sanitizeUserInput` body, re-export from `./sanitize`. Leave `assertAdminA` as-is.\n- `src/sanitize-b.ts` — drop `sanitizeText` body, re-export from `./sanitize`. Leave `assertAdminB`.\n- `src/sanitize-c.ts` — drop `cleanMessage` body, re-export from `./sanitize`. Leave `assertAdminC`.\n\nNo other files in the fixture import these, so the blast radius is the three files plus the new module.\n\n## Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeOptions {\n  /** Max length before truncation. Default: 1000. */\n  maxLength?: number;\n  /** Max consecutive `!`/`?` runs (length ≥ 3) tolerated. Default: 5. */\n  maxPunctuationRuns?: number;\n  /** Upper-case ratio above which long strings are lower-cased. Default: 0.9. */\n  upperCaseRatioThreshold?: number;\n  /** Minimum length before the upper-case rule applies. Default: 30. */\n  upperCaseMinLength?: number;\n}\n\nexport function sanitize(value: unknown, options?: SanitizeOptions): string;\n```\n\nBehavioural contract (matches all three current implementations):\n\n1. `null` / `undefined` → `\"\"`.\n2. `String(value).trim()`, strip control chars (`/[\\x00-\\x1f]/g`), collapse whitespace.\n3. Truncate to `maxLength`.\n4. If empty, or starts with `<` / `>`, or contains `\\x` → `\"\"`.\n5. If more than `maxPunctuationRuns` runs of `!?{3,}` → `\"\"`.\n6. If upper-case ratio > `upperCaseRatioThreshold` and length > `upperCaseMinLength` → lower-case.\n7. Return the sanitised string.\n\nThe three existing names become one-liners:\n\n```ts\n// src/sanitize-a.ts\nexport { sanitize as sanitizeUserInput } from \"./sanitize\";\nexport function assertAdminA(role: string): boolean { return role === \"admin\"; }\n```\n\n…and similarly for `sanitize-b.ts` / `sanitize-c.ts`. Once consumers migrate to the direct `sanitize` import, the alias re-exports can be deleted.\n\n## Notes / out of scope\n\n- **`crime_00001`** (`recordSanitiseEvent` duplicated in `telemetry-a.ts` / `telemetry-b.ts`) is a separate exact-duplicate — same playbook, different module. Worth doing in the same PR but not part of *this* consolidation.\n- **`crime_00003`** (the `\"admin\"` literal scattered across files) is the right fix for the admin guards, not folding them into `sanitize`. A `isAdmin(role)` policy function would replace `assertAdminA/B/C` and the inline checks — but note B and C aren't equivalent to A, so a naïve merge would change behaviour. Flag before doing it.\n- **`crime_00004`/`00005`** (Date.now in telemetry) is unrelated; inject a clock when touching those files.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

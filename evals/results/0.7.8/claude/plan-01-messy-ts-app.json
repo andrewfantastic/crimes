@@ -1,0 +1,93 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:21.441Z",
+  "run_id": "919ed008-e835-40c1-af9a-856faf9e8f36",
+  "response": "# Triage plan — top 10 findings, `01-messy-ts-app`\n\nOrdered by `agent_risk` (the differentiator per the PRD), then grouped by detector category. Adding **testability/temporal** as a sixth bucket — five of the top ten are date-handling findings clustered in `src/date.ts` and `src/billing.ts`, and folding them into \"structural\" would hide that signal. No git-history findings (all `churn: 0`).\n\n## Testability / temporal — **fix now, one PR**\nAll four live in `src/date.ts` and share root causes (no injected clock, no enforced timezone discipline). Doing them piecemeal will re-touch the same 50 lines four times.\n\n| # | Charge | id | Why this PR |\n|---|---|---|---|\n| 1 | Temporal Recklessness (`date.ts`, 8×) | `crime_00002` | Inject a `now()` clock; tests stop depending on wall time. |\n| 2 | Half-UTC, Half-Local (`d` mixes UTC/local) | `crime_00003` | Pick UTC for the receiver; one-line fix once clock is in. |\n| 5 | Timezone Roulette (unsafe `new Date(\"…\")`) | `crime_00007` | Append `Z` to the two literals (L29, L33). |\n| 7 | DST-Naive Day Math (`+ 86400000`) | `crime_00011` | Swap for Luxon/Temporal `addDays`. |\n\nPlus the related billing.ts copy (`crime_00006`, just outside top 10) folds into the same clock-injection commit.\n\n## Structural — **fix now, separate PR**\n| # | Charge | id | Note |\n|---|---|---|---|\n| 3 | God Function `generateInvoice` (204 LOC) | `crime_00001` | Extract by responsibility. Unblocks `crime_00013` (large_file) and most of `crime_00025` (todo density in same file) for free. |\n\n## IA / agent-context — **fix now, cheapest win**\n| # | Charge | id | Note |\n|---|---|---|---|\n| 4 | Missing Agent Context (no `AGENTS.md`/`CLAUDE.md`) | `crime_00004` | Highest ROI of the lot — a 30-minute `AGENTS.md` flips agent_risk on every future scan. Do this first. |\n\n## IA / frontend (route + nav drift) — **fix now, bundle together**\nBoth point at the same destination `/settings/billing` with three competing names (\"Plans\" / \"Billing\" / \"Subscription\"). One canonical-name decision fixes both.\n\n| # | Charge | id | Note |\n|---|---|---|---|\n| 9 | Duplicated Navigation Source | `crime_00015` | Same root cause as #10 — fix together. |\n| 10 | Route Metadata Drift | `crime_00017` | Pick one label; align route file, `metadata.title`, `<title>`, both nav files. |\n\n## Duplication — **fix now**\n| # | Charge | id | Note |\n|---|---|---|---|\n| 6 | String Sprinkles — `\"enterprise\"` in 4 files | `crime_00009` | Centralize as a `Plan` enum or constants module. Pair with `crime_00010` (False Identity — `calculateRefundPreview` does side effects) since both live in `billing.ts` and the comment-rule (`crime_00014`) about \"only owners can refund enterprise plans\" should land as a typed guard at the same time. |\n\n## IA / concept drift — **defer**\n| # | Charge | id | Why defer |\n|---|---|---|---|\n| 8 | Concept Alias Drift — `tenant`/`account`/`organisation`/`team`/`workspace` | `crime_00012` | Don't refactor this mechanically. Needs product/design to pick the canonical noun; doing it from the code alone risks shipping the *wrong* canonical term and rewriting twice. Park until naming is decided. |\n\n## Recommended PR order\n1. **PR-1**: Add `AGENTS.md` (`crime_00004`) — minutes, biggest agent-risk drop, makes every later agent edit safer.\n2. **PR-2**: `date.ts` clock + UTC + parse + DST cleanup (`crime_00002`, `_00003`, `_00006`, `_00007`, `_00011`).\n3. **PR-3**: Extract `generateInvoice` (`crime_00001`) — also lets you centralize `\"enterprise\"` (`crime_00009`) and encode the comment rule (`crime_00014`) in the same touch.\n4. **PR-4**: `/settings/billing` naming reconciliation (`crime_00015` + `crime_00017`).\n5. **Backlog**: `crime_00012` (alias drift) — needs naming decision.\n\n## Note on `crimes verdict`\nThe scenario referenced `crimes verdict --format json` but only `scan` output was provided. `verdict` would normally give the aggregate risk roll-up I'd use to confirm this ordering at the repo level; the per-finding `agent_risk` here is a reasonable proxy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

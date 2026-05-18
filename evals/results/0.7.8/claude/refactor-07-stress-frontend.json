@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:29:53.263Z",
+  "run_id": "afeb072f-bd70-4717-a94a-ad89ab8907d3",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThree findings, three coordinated changes. Each addresses one finding type — keep them as separate commits so the eval/baseline diff stays legible.\n\n### 1. `accessible_interaction_risk` (crime_00001) — line 10 `<div onClick>`\n\nSwap the clickable `<div>` for a real `<button>`. That's the cheapest fix and it inherits keyboard focus, Space/Enter activation, and the correct implicit ARIA role for free.\n\n```tsx\n// before\n<div onClick={onSelect} style={{ ... }}>...</div>\n\n// after\n<button type=\"button\" onClick={onSelect} className=\"card\">\n  ...\n</button>\n```\n\nUse `type=\"button\"` to keep it from submitting forms. Reset the user-agent button styling in CSS (`appearance: none; background: none; border: 0; text-align: inherit; font: inherit;`) so the visual doesn't change. If the card must remain a `<div>` for layout reasons (e.g. nested interactive children), the fallback is `role=\"button\"` + `tabIndex={0}` + an `onKeyDown` that handles Enter/Space — but prefer the real `<button>`.\n\n### 2. `design_token_escape` (crime_00002) — 9 hard-coded values across color/px/rgb/shadow\n\nMove every raw literal to the design system. The fix is a one-to-one substitution; what matters is that the *kind* of token is correct:\n\n| Raw value         | Token kind                                     |\n|-------------------|------------------------------------------------|\n| `#ff00aa`, `#1a73e8` | semantic color (`brand.accent`, `link.primary`) |\n| `#0a0a0a`, `#cccccc` | neutral scale (`text.primary`, `text.muted`)    |\n| `rgb(0, 0, 0)`    | neutral scale or shadow alpha (`shadow.color`)  |\n| shadow literal    | elevation token (`shadow.sm` / `shadow.md`)     |\n| px values that aren't widths (padding, radius) | spacing/radius scale          |\n\nAfter the swap there should be **zero** hex/rgb/`px` literals in the JSX. If a value genuinely has no token, add it to the theme rather than special-casing it inline — that's the whole point of catching the escape now, before agents copy the literals into sibling components.\n\n### 3. `responsive_fragility` (crime_00003) — fixed `800px` / `720px` widths, `18px` font, no `@media`\n\nReplace fixed dimensions with fluid constraints; let the container shrink instead of overflowing on mobile.\n\n```tsx\n// before\n<div style={{ width: 800 }}>\n  <h2 style={{ width: 720, fontSize: 18 }}>...</h2>\n\n// after — move styling to CSS / className\n.card        { width: 100%; max-width: 50rem; }   // ~800px, but shrinks\n.card-title  { width: 100%; font-size: clamp(1rem, 1rem + 0.25vw, 1.125rem); }\n\n@media (max-width: 40rem) {\n  .card { padding: var(--space-3); }\n}\n```\n\nThree moves, each tied to a piece of evidence: `width: 100% + max-width` for the `800px` / `720px` literals, `clamp()`/`rem` for the `18px` font (no media query needed for fluid type), and a single `@media` rule so the file is no longer a 0-media outlier.\n\n---\n\n### Suggested commit order\n\n1. **Tokens first** — purely cosmetic, no behavior change. Easiest to review.\n2. **Responsive** — still no behavior change, but now the element reflows correctly before we change its semantics.\n3. **Semantics last** — `<div>` → `<button>` is the only change with focus/keyboard implications; landing it on top of stable styling makes the diff easy to verify.\n\nAfter the refactor, re-running `crimes scan src/Card.tsx` should drop all three findings to zero. If the design-token finding persists, the tokens still resolve to raw values somewhere in the file (e.g. an inline `style={{ color: tokens.brand.accent }}` where `tokens.brand.accent` is itself `'#ff00aa'`) — fix at the token source, not the call site.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}

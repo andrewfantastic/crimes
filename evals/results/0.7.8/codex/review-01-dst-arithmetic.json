@@ -1,0 +1,87 @@
+{
+  "scenario": "review-01-dst-arithmetic",
+  "agent": "codex",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:31:58.275Z",
+  "run_id": "ea6d5be2-5a85-4e57-8531-ac9739e55c2d",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3b12-16d8-7931-b3cb-1153fc84cbbd\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’d **request changes and block this PR from merging as-is**. The helper encodes a real correctness bug for calendar-day semantics: adding a fixed millisecond day does not always land on the same local clock time tomorrow.\\n\\nFinding `crime_00011`, `dst_naive_arithmetic`, evidence:\\n\\n> \\\"+ 86400000 (day) @L52\\\"  \\n> \\\"lines: 52\\\"  \\n> \\\"use a calendar-aware library (Luxon, Temporal, date-fns-tz) for day math\\\"\\n\\nThe bad dates are the two local DST transition dates each year:\\n\\n1. The **spring-forward** date, when the local day is 23 hours.\\n2. The **fall-back** date, when the local day is 25 hours.\\n\\nFor U.S. zones that observe DST, that is generally the **second Sunday in March** and the **first Sunday in November**. The fix should use calendar-aware day addition in the intended timezone, not `timestamp + 86_400_000`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":26096,\"cached_input_tokens\":12160,\"output_tokens\":514,\"reasoning_output_tokens\":305}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "dst_naive_arithmetic",
+        "observed": "dst_naive_arithmetic",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "dst_naive_arithmetic",
+        "observed": "dst_naive_arithmetic",
+        "passed": true
+      }
+    ]
+  }
+}

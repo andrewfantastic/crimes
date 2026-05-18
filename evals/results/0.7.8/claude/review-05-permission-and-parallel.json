@@ -1,0 +1,89 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:34:09.778Z",
+  "run_id": "66fe46b6-c00a-417c-b187-f8fc7d7c84c6",
+  "response": "## Three IA drifts\n\n**1. crime_00003 — Permission IA Drift on `/admin`** → **block merge**\nThree tokens (`admin`, `manager`, `owner`) describe access to the same destination across nav (`src/nav.ts:6`), the route guard (`src/routes/admin.ts:2,4,9`), and the docs. This is access control divergence — the only one of the three that can silently broaden or narrow who gets in. Block until nav, guard, and docs agree on a single canonical role.\n\n**2. crime_00004 — Parallel Destination `/admin/billing-plans` vs `/billing-plans`** → **warn**\nBoth routes exist, share `billing`+`plan` tokens, and have no nav/doc/import link between them (both also flag as orphaned — crime_00007 and crime_00008 — which reinforces it). Needs a deliberate decision: pick a canonical path and redirect the other, or document the intentional split. Not a merge-blocker on its own, but the next agent editing billing will only touch one.\n\n**3. crime_00006 — Docs reference missing `iaq` subcommands** → **warn** (lean toward block if these docs are user-facing)\n`docs/routes.md` references `iaq teams`, `iaq workspace`, `iaq refresh`; the bin advertises only `get` and `list`. Fix the docs or restore the commands. Failure mode is loud (`command not found`), so an agent or user gets immediate feedback rather than silent wrongness.\n\n## Highest agent-risk: the permission drift (#1)\n\nNumerically it's the highest of the three (0.59 vs 0.56 vs 0.51), but the qualitative reason matters more: it's the only one with a **silent** failure mode. If an agent reads the nav and \"tightens\" `/admin` to `role=admin` only, the guard still accepts `manager` and `owner` — the agent walks away believing access is locked down. The parallel destination produces duplicate-edit drift you can see in a diff; the missing-command docs produce a `command not found` error a human will notice. Permission drift produces neither — the system keeps running, just with the wrong access policy, and the three sources of truth keep contradicting each other every time someone reads one and edits it confidently.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

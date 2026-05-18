@@ -1,0 +1,87 @@
+{
+  "scenario": "plan-01-date-string-concat",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:28:06.514Z",
+  "run_id": "d158f25f-189c-46e3-ad75-54bcebac60c8",
+  "response": "# Migration plan — `date_string_concat`\n\n## Scope from the scan\n\nThe scan reports exactly **one** `date_string_concat` finding: `crime_00019` in `src/date.ts`. Quoting its evidence verbatim:\n\n> - `` `\"…\" + .getUTCFullYear()` @L41 ``\n> - `lines: 41`\n> - `` use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation ``\n\nThat is the entire migration surface for this detector. (Other date-related findings — `direct_date` crime_00002, `mixed_utc_local_methods` crime_00003, `timezone_unsafe_parse` crime_00007, `dst_naive_arithmetic` crime_00011, `locale_drift` crime_00020 — are different charges and out of scope here, but several touch the same file, see \"Related\" below.)\n\n## The line in question\n\n`src/date.ts:39–42` — the function whose body L41 lives in:\n\n```ts\nexport function dateLabel(): string {\n  const d = new Date();\n  return d.getUTCFullYear() + \"-\" + d.getMonth() + \"-\" + d.getDate();\n}\n```\n\nThree bugs on one line: `+`-concatenation (the flagged crime), `getMonth()` is 0-indexed and unpadded, mixed UTC reads with local reads (crime_00003 covers the UTC/local mix on the same receiver).\n\n## Proposed replacement\n\nThe choice between `toISOString()` and `Intl.DateTimeFormat` is **driven by what callers do with `dateLabel()`'s return value**:\n\n| Caller use | Choice | Replacement |\n|---|---|---|\n| Persistence / cache keys / log lines / filenames / IDs | `toISOString()` | `` return new Date().toISOString().slice(0, 10); // \"YYYY-MM-DD\" `` |\n| Rendered to a human in the UI | `Intl.DateTimeFormat` | `` return new Intl.DateTimeFormat(\"en-CA\", { timeZone: \"UTC\", year: \"numeric\", month: \"2-digit\", day: \"2-digit\" }).format(new Date()); `` |\n\n**Recommended default for this symbol: `toISOString().slice(0, 10)`.** Two reasons:\n1. The function name is `dateLabel` but the existing output shape (`YYYY-M-D`, ASCII-only, no localisation) reads as a machine key, not a rendered label. The crime_00020 `toLocaleDateString()` at L46 (`prettyDueDate`) is the file's actual user-facing renderer.\n2. The existing reads were already in the UTC family (`getUTCFullYear()`), so an ISO UTC date string is the smallest-semantic-delta fix.\n\nBefore committing, **grep call sites of `dateLabel`** and confirm — if any call site puts the return value into a `<span>` / toast / email body, switch that call site to `Intl.DateTimeFormat` instead.\n\n## Patch (minimal)\n\n```ts\nexport function dateLabel(): string {\n  return new Date().toISOString().slice(0, 10);\n}\n```\n\nThis single edit clears `crime_00019` and also resolves `crime_00003` (\"Half-UTC, Half-Local\") on the same receiver, because the new body no longer reads the `d` Date at all — the UTC/local mix vanishes with the concatenation.\n\n## Related crimes worth bundling\n\nWhile editing `src/date.ts`, the following are cheap to fix in the same commit and share the \"standardise temporal output\" theme (but are **not** `date_string_concat` findings — listing for awareness only):\n\n- `crime_00003` *Half-UTC, Half-Local* @L9, L41 — auto-resolved by the patch above.\n- `crime_00020` *Host-Locale Drift* @L46 — `due.toLocaleDateString()` needs an explicit BCP-47 locale or a move to `Intl.DateTimeFormat`. This is the canonical user-facing case in the file.\n- `todayKey()` @L9 uses `` `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}` `` — the detector didn't flag it (template literal, not `+`-concat), but it is the same anti-pattern. If you want a clean sweep, replace with `new Date().toISOString().slice(0, 10)` — `todayKey` is clearly a machine key.\n\n## Rollout\n\n1. Grep `dateLabel(` call sites; confirm none render to a human. If any do, switch that site to `Intl.DateTimeFormat`.\n2. Apply the one-line patch above.\n3. Re-run `crimes scan --format json` and confirm `crime_00019` is gone and `summary.total` drops accordingly. (Expect `crime_00003` to also disappear; `crime_00020` and the L9 template-literal will remain unless bundled.)\n4. Add a test pinning `Date` to a known instant and asserting the `YYYY-MM-DD` shape, so any future regression to manual concatenation is caught.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "date_string_concat",
+        "observed": "date_string_concat",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "date_string_concat",
+        "observed": "date_string_concat",
+        "passed": true
+      }
+    ]
+  }
+}

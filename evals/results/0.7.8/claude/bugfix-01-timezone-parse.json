@@ -1,0 +1,87 @@
+{
+  "scenario": "bugfix-01-timezone-parse",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:26:11.455Z",
+  "run_id": "43eca12b-e643-41a0-b4b8-f58f9483d6dd",
+  "response": "# Diagnosis\n\nThe culprit is the literal **`\"2026-12-25T07:00:00\"`** at `src/date.ts:29`, flagged by `crime_00007` (Timezone Roulette).\n\nPer the ECMAScript spec, a datetime-string with no offset is parsed in the runtime's **local** zone, while a date-only string like `\"2026-12-20\"` (line 33) is parsed as UTC. That's the asymmetry that lets CI and prod disagree:\n\n- **CI (UTC server):** `new Date(\"2026-12-25T07:00:00\")` → `2026-12-25T07:00:00Z`\n- **Prod (Europe, UTC+1):** same call → `2026-12-25T06:00:00Z`\n\nThe promo boundary is up to an hour earlier in UTC terms on the European host, which is enough to cross a day boundary in any downstream comparison that uses local-day getters — and `crime_00003` (\"Half-UTC, Half-Local\") confirms that mixing is already happening on this receiver (`getUTCFullYear()` at L9 vs `getMonth()` at L41). The companion date-only literal at L33 is *not* responsible; date-only is spec-defined as UTC and behaves identically on both hosts.\n\n# Smallest fix\n\nAppend `Z` to the offending literal so both environments parse it as UTC:\n\n```diff\n- new Date(\"2026-12-25T07:00:00\")\n+ new Date(\"2026-12-25T07:00:00Z\")\n```\n\nThat's a one-character change at `src/date.ts:29`, no function rename, and it makes prod match CI's behaviour. The L33 literal, the mixed UTC/local getters (`crime_00003`), and the DST-naive `+ 86400000` math (`crime_00011`) are real problems too, but they're separate fixes — not what's producing the \"day early in Europe\" symptom.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "timezone_unsafe_parse",
+        "observed": "timezone_unsafe_parse",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/date.ts",
+        "observed": "src/date.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "timezone_unsafe_parse",
+        "observed": "timezone_unsafe_parse",
+        "passed": true
+      }
+    ]
+  }
+}

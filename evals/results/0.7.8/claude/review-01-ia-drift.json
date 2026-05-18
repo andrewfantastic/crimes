@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:34:50.088Z",
+  "run_id": "58d5a2d1-f3b0-4671-bab8-93f2a23d101e",
+  "response": "## Verdicts\n\n| # | Finding | Verdict | Why |\n|---|---|---|---|\n| 1 | `route_metadata_drift` — `/settings/billing` (crime_00017) | **warn** (block if the PR touches any of these files) | Four competing names for one destination: path `billing`, component `PricingPage`, metadata.title `Plans`, `<title>` `Subscription`, nav labels `Plans` vs `Billing`. Real user-facing confusion (user clicks \"Billing\" in sidebar, lands on a tab titled \"Subscription\") plus agent confusion. Medium severity / 0.65 confidence is right — the drift exists, but the *canonical* name is a judgement call, so don't auto-block on main; do block any PR that edits one label without aligning the others. |\n| 2 | `duplicated_navigation_source` — `/settings/billing` in `registry.ts` (\"Plans\") and `sidebar.ts` (\"Billing\") (crime_00015) | **warn** — fix in the same PR as #1 | Sub-symptom of #1 rather than an independent crime. Whoever picks the canonical name in #1 also collapses or documents one of these as the source of truth. Don't fix separately; it'll just re-drift. |\n| 3 | `docs_code_drift` — `docs/teams.md:5 → ./setup.md` (crime_00018) | **warn** (low priority) | Single broken relative link, no runtime impact, severity `low`/confidence `0.9`. Easy fix, but blocking merges over one dead doc link is noise. Keep it visible so the next docs-touching PR sweeps it up, or it accumulates with the orphaned `/team` and `/workspace/members` routes the same scan flagged.|\n\n## What I'd actually do\n\nTreat #1 + #2 as **one fix**: pick the canonical destination name (the path is `/settings/billing`, so \"Billing\" reads honestly), then update `metadata.title`, the `<title>`, the component name, and collapse the two nav sources. That's a 15-minute edit and it removes both findings.\n\n#3 stands alone but is cheap — fold it into the next docs PR rather than gating merges.\n\nOne thing to flag from the wider scan: the **`concept_alias_drift` finding (crime_00012)** sits adjacent to these IA findings and is the deeper cause — `docs/teams.md` calls the same concept \"team\" / \"organisation\" / \"workspace\" / \"account\" and there are orphaned routes for three of those names (crimes 26–28). If you fix the route/nav drift without picking a canonical tenant term, the drift will come back under different labels.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

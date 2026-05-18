@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:25:33.556Z",
+  "run_id": "bf40a37e-8d48-4e65-930d-b9883d8f5f33",
+  "response": "## Break the `domain → presentation` edge\n\n`src/domain/billing.ts` → `src/presentation/invoice-view.ts` is the import to remove.\n\n**Why this edge (not the other two):**\n\n1. **It's the only edge that's wrong on its own merits.** The scan flags it independently as a Layer Violation (`crime_00002`): `domain cannotImport presentation`. The other two edges in the cycle (presentation → application, application → domain) are *with* the conventional layering direction — presentation depends on application logic, application depends on domain. Breaking either of those would just relocate the architectural smell.\n2. **Two crimes collapse into one fix.** Cutting this edge resolves both the `circular_dependency` (high) and the `layer_violation` (medium) — the cycle exists *because* of the inversion. No other single edit does that.\n3. **Domain should be a sink, not a source.** Whatever symbol `billing.ts` is reaching into `invoice-view.ts` for is almost certainly a type, label, or formatting concern that belongs *in* the domain (or in a shared module), not in the view.\n\n**How to break it (in order of preference):**\n\n1. If it's only a type import → change to `import type { … }` so it contributes no runtime edge. Cheapest, zero behavior change.\n2. If it's a shared shape/constant → extract into a neutral module (e.g. `src/domain/invoice-types.ts`) that both `domain/billing.ts` and `presentation/invoice-view.ts` import from. Domain owns the contract; presentation conforms.\n3. If `domain/billing.ts` is actually calling presentation behavior → invert via an interface owned by domain (e.g. `InvoiceRenderer`), and have the presentation layer implement it. Application wires the implementation in.\n\nOption 1 is worth checking first — `import type` cycles are common and the fix is one keyword.\n\nSide note: `crime_00003` (deep import into `some-pkg/dist/internal/...`) is unrelated to the cycle and can be addressed separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:33:18.376Z",
+  "run_id": "fba3001e-6e5c-406b-af78-0588cd4d0022",
+  "response": "# PR Review: 27 findings, 3 categories\n\nThreshold I'm using:\n- **Block** — severity high, or a latent correctness bug (timezone/temporal) the diff introduces\n- **Warn** — medium severity / `agent_risk ≥ 0.50` that signals real risk but is fixable in follow-up\n- **Ignore** — low severity, low `agent_risk`, stylistic noise, or speculative orphans\n\n## Block merge (4)\n\n| ID | Charge | sev / agent_risk | Why block |\n|---|---|---|---|\n| `crime_00001` | God Function `generateInvoice` (204 lines) | 0.90 / 0.63 | 3.4× the domain threshold, mixes responsibilities. Any future edit lands blind to neighbouring logic — exactly the agent-edit hazard the scoring model is built around. |\n| `crime_00002` | Temporal Recklessness in `src/date.ts` (8 wall-clock reads) | 0.80 / 0.69 | High severity + `test_gap 1.0`. Domain code reading wall time with zero injectable clock is non-deterministic by construction. |\n| `crime_00003` | Half-UTC, Half-Local on the same receiver | 0.80 / 0.68 | This is the classic silent-by-host-offset bug — fails at midnight UTC on some hosts and not others, with no test catching it. Should not ship. |\n| `crime_00007` | Timezone Roulette — `new Date(\"2026-12-25T07:00:00\")` etc. | 0.60 / 0.61 | Medium by score but I'm bumping to Block: the literals look authoritative, runtime applies host TZ silently. That's a latent bug being introduced in the diff, not just a code-health smell. |\n\n## Warn (13)\n\n| ID | Charge | sev / agent_risk | Why warn (not block) |\n|---|---|---|---|\n| `crime_00004` | Missing Agent Context (no AGENTS.md/CLAUDE.md) | 0.60 / 0.61 | Real agent-risk uplift, but doesn't break the build or change behaviour. Track as a follow-up. |\n| `crime_00006` | Temporal Recklessness in `billing.ts` (7 calls) | 0.60 / 0.53 | Same family as `crime_00002` but billing has *some* test signal (test_gap 0.5). Fix alongside the clock-injection work. |\n| `crime_00008` | Test That Proves Nothing — 0 asserts | 0.45 / 0.46 | False-confidence test in billing. Should be assert-or-delete before next billing edit. |\n| `crime_00009` | String Sprinkles — \"enterprise\" across 4 areas | 0.50 / 0.60 | Not a bug yet. Becomes one the next time a plan-tier rule diverges. |\n| `crime_00010` | False Identity — `calculateRefundPreview` writes audits + emails | 0.55 / 0.52 | I considered blocking. Reason I didn't: charge is name/shape, not a current incorrect call. But it's high-risk for the next caller. |\n| `crime_00011` | DST-Naive Day Math (`+ 86400000`) | 0.60 / 0.59 | Latent date bug; will quietly slip on DST days. Flag, fix soon. |\n| `crime_00012` | Concept Alias Drift — tenant/account/team/workspace/org | 0.55 / 0.58 | Vocabulary, not behaviour. But it leads to duplicated logic if left. |\n| `crime_00013` | God File `billing.ts` (310 lines) | 0.60 / 0.50 | Just over threshold (1.0×). Don't block on a marginal hit, but the file is already the centre of multiple other findings — split is overdue. |\n| `crime_00014` | Logic in Comments (refund rule in a comment, not code) | 0.50 / 0.50 | Hidden rule. Encode it or delete the comment. |\n| `crime_00015` | Duplicated Navigation Source (`/settings/billing`) | 0.60 / 0.57 | Two labels for one destination. Will rot fast. |\n| `crime_00016` | Unfinished Business — `todo.ts` 424 markers/kLOC | 0.40 / 0.57 | High density, but it's literally `todo.ts`. Triage, don't block. |\n| `crime_00017` | Route Metadata Drift — 4 labels for `/settings/billing` | 0.60 / 0.56 | UX paper-cut + agent confusion. Align as part of the nav fix. |\n| `crime_00018` | Docs-Code Drift — `docs/teams.md` → missing `./setup.md` | 0.35 / 0.51 | Low severity, but `agent_risk` is over my warn threshold because docs lie loudly to agents. Two-line fix. |\n\n## Ignore (10)\n\n| ID | Charge | sev / agent_risk | Why ignore |\n|---|---|---|---|\n| `crime_00019` | Date String Sewing — manual concat | 0.30 / 0.50 | Co-located with the timezone fixes; will be rewritten when `crime_00002/00003` are addressed. Don't track separately. |\n| `crime_00020` | Host-Locale Drift — `toLocaleDateString()` no arg | 0.30 / 0.50 | Same — bundle into the date-handling cleanup. |\n| `crime_00021` | Weak test matcher in `creates an invoice` | 0.25 / 0.34 | Style; pick up next time someone touches this test. |\n| `crime_00022` | Option Bag Junk Drawer (`describeCheckout(options)`) | 0.30 / 0.48 | TS-shape smell; ergonomic, not a defect. |\n| `crime_00023` | Return Shape Roulette in `resolvePaymentResult` | 0.30 / 0.48 | Same — add a return type when next edited. |\n| `crime_00024` | Negative Flag Maze — `!disableBilling && !skipRetry` | 0.25 / 0.47 | Readability nit. |\n| `crime_00025` | TODO density in `billing.ts` (12.9/kLOC) | 0.20 / 0.40 | Just over threshold; the high-density one (`crime_00016`) is the real signal. |\n| `crime_00026` | Orphaned `/account/subscription` | 0.40 / 0.46 | Possibly in-flight; needs PR-author intent, not a block. |\n| `crime_00027` | Orphaned `/team` | 0.40 / 0.46 | Same — could be intentional. |\n| `crime_00028` | Orphaned `/workspace/members` | 0.40 / 0.46 | Same. Comment \"intentional or retire?\" rather than block. |\n\n## Summary for the PR author\n\nThree things must change before merge: the 200-line `generateInvoice`, the wall-clock soup in `src/date.ts`, and the mixed-UTC/local methods on the same receiver. The timezone-naive `new Date(\"…\")` literals are the fourth — they're a bug shipped under medium-severity clothing. Everything else is fixable in a follow-up.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "missing_agent_context",
+      "crime_00006": "direct_date",
+      "crime_00007": "timezone_unsafe_parse",
+      "crime_00008": "weak_test_signal",
+      "crime_00009": "magic_domain_literal_scatter",
+      "crime_00010": "name_behavior_mismatch",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "concept_alias_drift",
+      "crime_00013": "large_file",
+      "crime_00014": "logic_in_comments",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00018": "docs_code_drift",
+      "crime_00019": "date_string_concat",
+      "crime_00020": "locale_drift",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "option_bag_junk_drawer",
+      "crime_00023": "return_shape_roulette",
+      "crime_00024": "negative_flag_maze",
+      "crime_00025": "todo_density",
+      "crime_00026": "orphaned_destination",
+      "crime_00027": "orphaned_destination",
+      "crime_00028": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

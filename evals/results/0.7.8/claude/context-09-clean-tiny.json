@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.8",
+  "timestamp": "2026-05-18T12:26:37.179Z",
+  "run_id": "dc924603-ed96-4530-a730-5707bd47f98f",
+  "response": "## crimes context: `src/add.ts`\n\n**Risk level: none** — zero findings (0 high / 0 medium / 0 low).\n\n- **Findings:** none\n- **Agent guidance:** none — *\"no findings on this file and no deterministic related files\"*\n- **Related files:** none — no IA-finding neighbours, no shared domain tokens, no domain-prefix siblings, no same-directory siblings\n- **Likely tests:** `src/add.test.ts`\n\n**Safe to extend.** crimes detected no structural, dependency, duplication, testability, or churn risk on this file, and no neighbourhood entanglement that would broaden the blast radius of an edit. The colocated `src/add.test.ts` is the likely test surface — extend it alongside any change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}
