@@ -140,6 +140,55 @@ at `low` / `medium`.
 `thresholds.largeFile.domain` wins over the legacy
 `thresholds.largeFileLines` when both are set.
 
+### `thresholds.assetWeight`
+
+Severity thresholds for `oversized_raster` (new in 0.8.0). Sizes
+are in KB (1 KB = 1024 bytes); any subset is fine — unset levels
+use the built-in defaults:
+
+| Knob       | Default |
+| ---------- | ------- |
+| `lowKb`    | 200     |
+| `mediumKb` | 500     |
+| `highKb`   | 1000    |
+
+The severity rule: bytes below `lowKb` produce no finding;
+`[lowKb, mediumKb)` is `low`; `[mediumKb, highKb)` is `medium`;
+≥ `highKb` is `high`. Defaults mirror Core Web Vitals "good /
+needs improvement / poor" guidance for content images.
+
+### `assets.include` / `assets.exclude`
+
+Asset-file discovery overrides for the second-pass detectors
+(`oversized_raster`, `raster_should_be_vector`,
+`svg_with_embedded_raster`). Independent of the top-level
+`include` / `exclude` so users can tune asset scope without
+touching source scope. Defaults:
+
+```jsonc
+{
+  "assets": {
+    "include": ["**/*.{png,jpg,jpeg,gif,webp,avif,svg}"],
+    "exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/out/**",
+      "**/coverage/**",
+      "**/.crimes/**",
+      "**/public/vendor/**",
+      "**/__snapshots__/**",
+      "**/fixtures/**",
+      "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}"
+    ]
+  }
+}
+```
+
+Setting `assets.include` to an empty list disables the asset pass
+entirely.
+
 ### `detectors.enable` / `detectors.disable`
 
 - `enable` is an allowlist. Empty or omitted means "run all built-ins".
