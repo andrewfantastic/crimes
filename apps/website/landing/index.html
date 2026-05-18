@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.7.0",
+            "softwareVersion": "0.7.5",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.7.0 · calibration + evidence loop · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.7.5 · eval-harness graduation + detector trim · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1018,8 +1018,7 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <code>accessible_interaction_risk</code>,
             <code>duplicate_component_shape</code>,
             <code>responsive_fragility</code>,
-            <code>copy_ia_drift</code>,
-            <code>visual_regression_review_hint</code>), and
+            <code>copy_ia_drift</code>), and
             duplication (<code>exact_duplicate_block</code>,
             <code>near_duplicate_block</code>,
             <code>duplicated_role_status_plan_check</code>). Adds a
@@ -1058,11 +1057,42 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
               ><code>docs/releases/v0.7.0.md</code></a
             >.
           </li>
+          <li class="done">
+            <strong>v0.7.5 — eval-harness graduation and detector
+            trim.</strong> Five accumulated calibration patches roll
+            up into the release. The eval harness graduates from "first
+            cut" to production-grade: scorer hardened to match by
+            charge + finding id (not just slug), runs parallelised
+            (50-run matrix in ~8 min), variance sampling via
+            <code>evals:variance</code> + <code>--label</code>,
+            scenario↔fixture coverage verifier wired into CI so
+            measurement bugs can't masquerade as agent misses, opt-in
+            judge-model pass, end-to-end timing, per-scenario-kind
+            baselines. Scenario coverage rises from 12 / 35 detectors
+            to 33 / 34 — 13 new scenarios across all five scenario
+            kinds plus a fixture extension that finally fires five
+            previously-silent IA detectors. <code>visual_regression_review_hint</code>
+            removed: its churn-based trigger was a poor proxy for
+            "needs visual review" — active development trips it as
+            cleanly as regression does. Several detector calibration
+            fixes (<code>large_function</code> priority window,
+            registrar regex tightening, version-agnostic feedback
+            hint copy) and an import-resolver fix for NodeNext
+            <code>.js</code>→<code>.ts</code> specifiers that was
+            silently understating cross-file signal. Zero remaining
+            structural highs on crimes-on-crimes after two file
+            splits and two helper refactors. Schema unchanged
+            (<code>schema_version: "0.1.0"</code>). Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.7.5.md"
+              ><code>docs/releases/v0.7.5.md</code></a
+            >.
+          </li>
           <li>
-            <strong>Later.</strong> Detector tuning driven by 0.7.0
-            calibration data (<code>0.8.0</code>), Homebrew tap, standalone
-            macOS / Linux / Windows binaries, and optional LLM-assisted
-            summaries.
+            <strong>Later.</strong> Detector tuning driven by 0.7.5
+            eval baseline + calibration data (<code>0.8.0</code>),
+            Homebrew tap, standalone macOS / Linux / Windows binaries,
+            and optional LLM-assisted summaries.
           </li>
         </ul>
         <p>

@@ -69,17 +69,48 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.7.0`
+## Status — `crimes@0.7.5`
 
-`crimes@0.7.0` is the latest published version on npm — _calibration
-and the evidence loop_. After 0.6.0 added 18 detectors in one batch,
-this release ships **zero new detectors** and one new command
-(`crimes feedback`). The goal is real-world signal — every scan
-becomes a calibration event, and an `evals/` agentic harness lets
-us catch detector-tuning regressions release-over-release. Release
-notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
+`crimes@0.7.5` is the latest published version on npm — _eval-harness
+graduation and detector trim_. Five accumulated calibration patches
+(0.7.1 → 0.7.5) roll up into this release. The agentic eval harness
+that 0.7.0 shipped graduates from first cut to production-grade
+tooling, scenario coverage of the detector catalogue rises from 12 / 35
+to 33 / 34, and one 0.6.0 detector retires because its trigger turned
+out to be a poor proxy on real-world repos. Release notes:
+[`docs/releases/v0.7.5.md`](./docs/releases/v0.7.5.md).
 
-New in `0.7.0`:
+New in `0.7.5`:
+
+- **Eval harness, production-grade.** Hardened scorer (matches by
+  charge + finding id, not just slug), parallelised runs, variance
+  sampling via `evals:variance` + `--label`, scenario↔fixture
+  coverage verifier wired into CI so measurement bugs can't
+  masquerade as agent misses, opt-in judge-model pass, per-scenario-
+  kind baselines. See [`evals/README.md`](./evals/README.md).
+- **33 / 34 detector coverage in scenarios.** 13 new scenarios across
+  all five scenario kinds plus a fixture extension that fires five
+  previously-silent IA detectors. The 0.7.5 eval baseline becomes the
+  reference point for 0.8.0 detector tuning.
+- **`visual_regression_review_hint` removed.** Its trigger — file
+  churn ≥ 0.7 on a UI `.tsx` file with weak test proximity — was a
+  poor proxy for "needs visual review." A file under active
+  development trips it as cleanly as one regressing. Detector count
+  goes from 35 → 34.
+- **Detector calibration fixes.** `large_function` priority window,
+  registrar regex tightening, version-agnostic feedback hint copy,
+  and an import-resolver fix for NodeNext `.js`→`.ts` specifiers that
+  was silently understating cross-file signal.
+- **Crimes-on-crimes: zero remaining structural highs.** Two large
+  files (`feedback.ts`, `context.ts`) split into per-responsibility
+  modules; two helper refactors (`classifyShape`, `analyseRoute`)
+  removed the last `large_function` highs. Scan JSON byte-identical
+  to pre-split.
+- Schema: `schema_version` stays at `"0.1.0"`. Existing scan JSON
+  files load unchanged.
+
+Earlier `0.7.0` work (_calibration and the evidence loop_) remains
+shipped:
 
 - **`crimes feedback <fingerprint> --verdict {tp|fp|known} --note '…'`** —
   capture per-finding verdicts. `fp` writes a feedback-sourced
@@ -91,7 +122,7 @@ New in `0.7.0`:
   read paths plus the per-release review surface.
 - **Cross-project rollup** at `~/.crimes/feedback-rollup.jsonl` via
   `crimes feedback export --append-global`.
-- **`evals/` agentic harness** — 10 fixtures × ~12 scenarios ×
+- **`evals/` agentic harness** — 10 fixtures × 25 scenarios ×
   `claude` + `codex` (subscription-authenticated; no API keys).
   Structural rubric scores agent responses; opt-in `--judge` pass
   adds open-ended judgments. CI replays cached results against PRs
@@ -99,8 +130,6 @@ New in `0.7.0`:
 - **§20 dogfood housekeeping** — `direct_date` skips test files,
   `reporter/src/human.ts` and `language-js/src/parse.ts` split
   into per-responsibility files (byte-identical output).
-- Schema: `schema_version` stays at `"0.1.0"`. Every addition is
-  optional and back-compat.
 
 Earlier `0.6.0` work (_detector + scoring completion_) remains shipped:
 

@@ -4,12 +4,13 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.7.0` (npm) ✅ shipped —
-  _calibration and the evidence loop_.
+- **Last published version:** `crimes@0.7.5` (npm) ✅ shipped —
+  _eval-harness graduation and detector trim_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.7.0.md`](./docs/releases/v0.7.0.md).
-- **Previously shipped milestones:** `crimes@0.6.0` — _detector and
-  scoring completion_ — `crimes@0.5.0` — _suppressions, config, and
+  notes: [`docs/releases/v0.7.5.md`](./docs/releases/v0.7.5.md).
+- **Previously shipped milestones:** `crimes@0.7.0` — _calibration and
+  the evidence loop_ — `crimes@0.6.0` — _detector and scoring
+  completion_ — `crimes@0.5.0` — _suppressions, config, and
   explainability_ — `crimes@0.4.0` — _agent context quality and
   signal-to-noise_ — `crimes@0.3.0` — _information architecture
   crimes_ — and `crimes@0.2.0` — _branch and PR safety for humans and
@@ -568,6 +569,86 @@ optional and additive:
 - `SuppressionEntry.source?: "manual" | "feedback"` +
   `SuppressionEntry.crimes_version_pinned?: string`.
 - New `FeedbackReport` / `FeedbackRecheckReport` types.
+
+---
+
+## ✅ Shipped in `crimes@0.7.5`
+
+> **Theme: eval-harness graduation and detector trim.** Five
+> accumulated calibration patches (0.7.1 → 0.7.5) roll up into a
+> single release. The 0.7.0 first-cut eval harness becomes
+> production-grade tooling, scenario coverage of the detector
+> catalogue rises from 12 / 35 to 33 / 34, and one 0.6.0 detector
+> retires because its trigger turned out to be a poor proxy.
+>
+> Release notes: [`docs/releases/v0.7.5.md`](./docs/releases/v0.7.5.md).
+
+### Eval harness graduation
+
+- **Hardened scorer.** `referenced_findings` now matches by detector
+  type AND finding id AND human charge name, not just slug. Cluster-C
+  reconciliation completed (~74% of "agent failures" at 0.7.0 were
+  rubric vs fixture mismatches, not real misses).
+- **Parallelised runs.** Default concurrency = 4; a 50-run matrix
+  finishes in ~8 minutes on a single laptop.
+- **Scenario↔fixture coverage verifier.** `pnpm --filter evals-runner
+  evals:verify-scenarios` enforces that every `referenced_findings`
+  entry produces an actual finding on the fixture's scan output.
+  Wired into [`.github/workflows/evals-pr.yml`](./.github/workflows/evals-pr.yml).
+- **Variance sampling.** `evals:variance` ranks per-scenario mean ±
+  stddev across repeat samples (`--label r2`, `--label r3`, etc.).
+  Separates agent inconsistency from real detector regressions.
+- **Opt-in judge-model pass.** `pnpm run evals -- --judge` adds
+  qualitative per-question scoring; complements the structural rubric.
+- **End-to-end duration printed on completion.**
+- **`--label` flag.** Repeat-run variance sampling no longer burns
+  a patch version per sample.
+- **Continuous-improvement baseline policy.** Patch bumps for any
+  calibration or product change that moves the baseline, no
+  Changesets / no tags. Accumulated patches roll into the next real
+  release.
+
+### Detector coverage in scenarios (12 / 35 → 33 / 34)
+
+- **13 new scenarios** across all 5 scenario kinds covering 22 of 23
+  previously-uncovered detectors. See
+  [`evals/scenarios/`](./evals/scenarios/).
+- **Fixture 05 extensions** so five previously-silent IA detectors
+  now fire: three drifting JSX components (`UserList.tsx`,
+  `TeamList.tsx`, `SeatList.tsx`) for action_label_drift /
+  copy_ia_drift; admin route + role-mismatched nav + manager-mention
+  docs for permission_ia_drift; parallel `admin/billing-plans.ts` for
+  parallel_destination; Commander bin + unadvertised doc references
+  for command_drift_docs_code_drift.
+
+### Detector trim
+
+- **`visual_regression_review_hint` removed.** Its trigger — file
+  churn ≥ 0.7 on a UI `.tsx` file with weak test proximity — was a
+  poor proxy: active development trips it as cleanly as regression
+  does. Detector count goes from 35 → 34.
+
+### Detector calibration fixes
+
+- **`large_function` priority window** calibrated.
+- **`cli_command_registrar` registrar regex** tightened.
+- **Inline feedback-hint copy** made version-agnostic.
+- **Import resolver** fixed for NodeNext `.js`→`.ts` specifiers —
+  several cross-file detectors were silently undercounting because
+  the graph was missing edges.
+
+### Crimes-on-crimes (zero remaining structural highs)
+
+- **`packages/cli/src/commands/feedback.ts` split** into write + four
+  read subcommands under `feedback/`.
+- **`packages/cli/src/commands/context.ts` split** into 4 modules.
+- **`classifyShape` refactored** into a chain of `try*` helpers.
+- **`analyseRoute` refactored** with extracted source / evidence /
+  related helpers.
+
+Scan JSON output byte-identical to pre-split.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
 
 ---
 
