@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "codex",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:02:42.823Z",
+  "run_id": "6e4fa16b-5fed-4d43-8d2c-df4b5f023e6f",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3d1c-97fb-7951-a25a-b1642ecf0a0e\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested context command against the fixture and pull out the findings, likely tests, and edit notes from the JSON.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node /Users/andrew/dev/crimes/evals/runner/packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'node /Users/andrew/dev/crimes/evals/runner/packages/cli/dist/index.js context src/billing.ts --format json'\",\"aggregated_output\":\"node:internal/modules/cjs/loader:1478\\n  throw err;\\n  ^\\n\\nError: Cannot find module '/Users/andrew/dev/crimes/evals/runner/packages/cli/dist/index.js'\\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1475:15)\\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1048:27)\\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1072:10)\\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1093:12)\\n    at Module._load (node:internal/modules/cjs/loader:1261:25)\\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\\n    at node:internal/main/run_main_module:33:47 {\\n  code: 'MODULE_NOT_FOUND',\\n  requireStack: []\\n}\\n\\nNode.js v25.9.0\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The built CLI path from the repo instructions is not present under the runner checkout, so I’m checking the local layout for the available command entrypoint before rerunning the exact `context` command.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'which crimes'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'which crimes'\",\"aggregated_output\":\"/Users/andrew/.nvm/versions/node/v22.17.1/bin/crimes\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc ls\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc ls\",\"aggregated_output\":\"node_modules\\npackage.json\\nsrc\\ntsconfig.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg --files -g 'index.js' -g 'package.json' -g 'pnpm-workspace.yaml'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg --files -g 'index.js' -g 'package.json' -g 'pnpm-workspace.yaml'\\\"\",\"aggregated_output\":\"package.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"agent_message\",\"text\":\"There is a global `crimes` binary available, so I’m using that from the fixture root to match the requested command semantics.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_7\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/billing.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"10-clean-typed\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/10-clean-typed\\\"\\n  },\\n  \\\"file\\\": \\\"src/billing.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/billing.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"agent_message\",\"text\":\"`crimes context src/billing.ts --format json` confirms there are no findings.\\n\\nLikely test path: `src/billing.test.ts`\\n\\nThis module is low risk to edit because the context report shows `risk.level: \\\"none\\\"` with `0` high, medium, low, and total findings. It also has no agent guidance and no related files, meaning `crimes` found no dependency or neighbourhood signals suggesting broader blast radius.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":76018,\"cached_input_tokens\":67584,\"output_tokens\":545,\"reasoning_output_tokens\":16}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

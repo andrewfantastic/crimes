@@ -1,0 +1,71 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:19:06.003Z",
+  "run_id": "195261dd-6661-4d52-a195-a10c016db76c",
+  "response": "## IA drift review — `05-stress-ia-drift`\n\n### The actual IA drift findings (8 of the 12)\n\nStripping the meta noise (`crime_00001` agent context) and the action-label copy issues (`crime_00011`/`crime_00012`, which are also duplicates of each other — same evidence, two different `type` codes), the IA-specific drift clusters into three stories:\n\n**Cluster A — `/admin` is an access-control fault line** (blocking)\n- `crime_00003` Permission IA Drift: nav declares `role=admin`, but `src/routes/admin.ts` guards with literals `admin`, `manager`, `owner`.\n- `crime_00005` Docs-Code Drift: `docs/routes.md:14` points at `/admin` and lands on a stale target.\n\nThese two reinforce each other. A nav→guard mismatch on `/admin` is the kind of drift that produces either \"nav hides it but the URL still works\" or \"users with `manager` get past nav but bounce at the guard\" — both are real bugs, not cosmetics. **Block on this one.**\n\n**Cluster B — Billing-plans has forked** (blocking)\n- `crime_00004` Parallel Destination: `/admin/billing-plans` ↔ `/billing-plans`, shared tokens, no link between them.\n- `crime_00007` + `crime_00008` Orphaned Destination: both endpoints are unreachable from nav, docs, or imports.\n\nTwo near-identical orphan routes with overlapping intent is the worst flavor of IA drift — whichever one a future agent edits, they won't know the other exists. **Block: pick a canonical one (or document a deliberate split) before more code lands on the wrong fork.**\n\n**Cluster C — Tenant vocabulary is sprawling** (follow-up)\n- `crime_00002` Concept Alias Drift: `organisation` / `team` / `workspace` all coexist across 5 files.\n- `crime_00009` + `crime_00010` Orphaned `/organisation`, `/workspace`: likely the long tail of the same indecision — three routes for one concept, two of them unreachable.\n- `crime_00006` Docs Reference Missing Command: `docs/routes.md` references `iaq teams`/`workspace`/`refresh` against a bin that only ships `get`/`list`. Stale doc, but no runtime hazard.\n\nThis is real drift but it's a naming/consolidation project, not a merge blocker. **Follow-up — open a tracking issue, pick the canonical term, then sweep.**\n\n### Recommendation\n\n| Verdict | Findings |\n|---|---|\n| **Block** | `crime_00003`, `crime_00005`, `crime_00004`, `crime_00007`, `crime_00008` |\n| **Follow-up** | `crime_00002`, `crime_00009`, `crime_00010`, `crime_00006`, `crime_00011`/`crime_00012` |\n| **Out-of-scope for this review** | `crime_00001` (meta — fix in a separate `AGENTS.md` task) |\n\n### Side note on the report itself\n\n`crime_00011` and `crime_00012` are the same finding emitted under two types (`action_label_drift` and `copy_ia_drift`) — same file, same evidence, identical scores. Either the detectors are double-counting or the schema needs a way to express \"this finding has multiple charges.\" Worth filing against `crimes` core, not against this fixture.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  }
+}

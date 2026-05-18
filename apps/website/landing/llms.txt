@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.8.0)
+## Commands (latest published v0.8.1)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -333,7 +333,26 @@ which gating command is used.
 Release notes:
 https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.8.0 — extended lens (current release)
+## 0.8.1 — calibration patch (current release)
+
+Patch on top of 0.8.0. No new detectors, no schema change.
+
+- `boolean_naming_drift` built-in allowlist expanded with eight
+  idiomatic state names (`loaded`, `found`, `settled`, `overflow`,
+  `typeonly`, `interpolated`, `limited`, `existed`). Pure default-
+  tuning; project configs unaffected.
+- `scan-assets.ts` refactored into four named helpers
+  (`discoverAssetFiles`, `groupDetectorsByExtension`,
+  `runDetectorsForAssetFile`, `buildAssetContext`). Behaviour
+  byte-identical.
+- Crimes-monorepo dogfood: `crimes.config.json` excludes
+  `evals/fixtures/**` and `examples/messy-ts-app/**` from the
+  asset pass. No effect on downstream users.
+
+Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.1.md
+
+## 0.8.0 — extended lens
 
 Thirteen new detectors plus one config feature. Each emits the
 existing `Finding` shape — no schema bump.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Shipped on npm as `crimes` through 0.8.0. Latest published version
+Shipped on npm as `crimes` through 0.8.1. Latest published version
 lives in `packages/cli/package.json`. The crimes.sh website auto-deploys
 from `main` via Vercel. See `docs/roadmap.md` for the per-milestone
 status mirror, and `docs/releases/` for in-repo draft release notes.

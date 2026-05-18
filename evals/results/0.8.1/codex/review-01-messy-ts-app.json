@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:08:49.389Z",
+  "run_id": "132e29c6-0cfb-4f13-9aa7-7d1ef32aee8c",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3d21-e934-7ac3-9f7b-2d0bc7c4b87c\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Merge Decision**\\n\\nBlock merge on the 4 high-severity findings. The remaining findings are warnings or cleanup candidates; none of the medium/low findings individually justify blocking this PR.\\n\\n**Block Merge**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `src/assets/partner-logo.svg` | block merge | High severity, `agent_risk: 0.70`. Embedded rasters in SVG are a concrete asset-quality regression. |\\n| `crime_00002` `src/billing.ts` `generateInvoice` | block merge | High severity, `agent_risk: 0.63`. A 204-line billing function is risky enough to require decomposition or strong tests before merge. |\\n| `crime_00003` `src/date.ts` | block merge | High severity, `agent_risk: 0.69`. Multiple direct clock reads make date behavior nondeterministic. |\\n| `crime_00004` `src/date.ts` | block merge | High severity, `agent_risk: 0.68`. Mixed UTC/local date methods can cause timezone-dependent bugs. |\\n\\n**Warn**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00005` missing agent context | warn | Medium severity, `agent_risk: 0.61`. Important for maintainability, but not a runtime blocker. |\\n| `crime_00006` hardcoded localhost | warn | Medium severity, `agent_risk: 0.61`. Environment-specific URL should move to config. |\\n| `crime_00007` hardcoded local path | warn | Medium severity, `agent_risk: 0.61`. Breaks outside one developer machine. |\\n| `crime_00009` direct dates in billing | warn | Medium severity, `agent_risk: 0.53`. Same class as blocker, but lower score and partially covered by tests. |\\n| `crime_00010` timezone-unsafe parse | warn | Medium severity, `agent_risk: 0.61`. Likely real date correctness issue. |\\n| `crime_00011` weak test signal | warn | Medium severity, `agent_risk: 0.46`. Test gives false confidence; should be fixed but not blocking alone. |\\n| `crime_00012` scattered `\\\"enterprise\\\"` literal | warn | Medium severity, `agent_risk: 0.60`. Policy duplication risk across areas. |\\n| `crime_00013` misleading side-effect name | warn | Medium severity, `agent_risk: 0.52`. Risky API semantics. |\\n| `crime_00014` DST-naive day math | warn | Medium severity, `agent_risk: 0.59`. Real correctness risk around calendar math. |\\n| `crime_00015` concept alias drift | warn | Medium severity, `agent_risk: 0.58`. Product vocabulary drift should be cleaned up. |\\n| `crime_00016` large billing file | warn | Medium severity, `agent_risk: 0.50`. Borderline file-size risk. |\\n| `crime_00017` logic in comments | warn | Medium severity, `agent_risk: 0.50`. Hidden authorization/business rule risk. |\\n| `crime_00018` duplicated nav source | warn | Medium severity, `agent_risk: 0.57`. User-facing label drift. |\\n| `crime_00019` TODO density | warn | Medium severity, `agent_risk: 0.57`. Too much unfinished intent in one file. |\\n| `crime_00020` route metadata drift | warn | Medium severity, `agent_risk: 0.56`. User-facing naming inconsistency. |\\n| `crime_00021` oversized raster | warn | Low severity, `agent_risk: 0.52`. Performance concern, not correctness. |\\n| `crime_00022` stale docs link | warn | Low severity, `agent_risk: 0.51`. Agent/documentation risk. |\\n| `crime_00023` sync I/O hot path | warn | Low severity, `agent_risk: 0.51`. Could matter under load. |\\n| `crime_00024` direct date in state | warn | Low severity, `agent_risk: 0.51`. Small deterministic-test risk. |\\n| `crime_00025` icon-sized raster | warn | Low severity, `agent_risk: 0.50`. Asset hygiene issue. |\\n| `crime_00026` date string concat | warn | Low severity, `agent_risk: 0.50`. Formatting correctness risk. |\\n| `crime_00027` implicit locale | warn | Low severity, `agent_risk: 0.50`. Host-dependent output. |\\n\\n**Ignore**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00028` boolean naming drift | ignore | Low severity, `agent_risk: 0.49`. Readability issue below merge-review threshold. |\\n| `crime_00029` boolean naming drift | ignore | Low severity, `agent_risk: 0.49`. Same: useful cleanup, not PR risk. |\\n| `crime_00030` weak assertion | ignore | Low severity, `agent_risk: 0.34`. Weak signal, but very low risk. |\\n| `crime_00031` option bag | ignore | Low severity, `agent_risk: 0.48`. Design smell, not blocking. |\\n| `crime_00032` return shape roulette | ignore | Low severity, `agent_risk: 0.48`. Worth typing later, but not merge-critical. |\\n| `crime_00033` negative flag maze | ignore | Low severity, `agent_risk: 0.47`. Local readability concern. |\\n| `crime_00034` singular/plural mismatch | ignore | Low severity, `agent_risk: 0.47`. Naming/type clarity issue. |\\n| `crime_00035` TODO density in billing | ignore | Low severity, `agent_risk: 0.40`. Cleanup only. |\\n| `crime_00036` orphaned `/account/subscription` route | ignore | Low severity, `agent_risk: 0.46`. Could be intentional/in-flight. |\\n| `crime_00037` orphaned `/team` route | ignore | Low severity, `agent_risk: 0.46`. Same. |\\n| `crime_00038` orphaned `/workspace/members` route | ignore | Low severity, `agent_risk: 0.46`. Same. |\\n\\nSummary: I would block the PR on `crime_00001` through `crime_00004`. Everything else should be tracked as follow-up unless it is already adjacent to the touched code.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":29270,\"cached_input_tokens\":12160,\"output_tokens\":1692,\"reasoning_output_tokens\":253}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

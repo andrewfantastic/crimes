@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:18:25.732Z",
+  "run_id": "24f77304-717d-4e60-8a07-17685778c556",
+  "response": "## Findings to address\n\n| Finding | File | Forbidden edge |\n|---|---|---|\n| crime_00002 (layer_violation, agent_risk 0.63) | `src/domain/billing.ts` | imports `src/presentation/invoice-view.ts` (rule: domain ⊄ presentation) |\n| crime_00003 (deep_import, agent_risk 0.52) | `src/application/billing-flow.ts` | imports `some-pkg/dist/internal/private/helper.js` |\n\n## Proposed changes\n\n**Break — crime_00002, `domain/billing.ts` → `presentation/invoice-view.ts`.** The direction is inverted: domain should be the inner ring and must not name a presentation symbol. The fix is dependency inversion — define the contract the domain actually needs (e.g. an `InvoiceRenderer` interface, or a plain data type that `billing.ts` returns) inside the domain layer, and let `presentation/invoice-view.ts` implement/consume it. The presentation layer then imports *down* into domain, which is allowed. As a side benefit, removing this edge also collapses the 3-file cycle in crime_00001, since the cycle runs application → domain → presentation → application; cutting domain → presentation breaks the ring.\n\n**Redirect — crime_00003, `application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js`.** Replace the deep specifier with the package's documented entry (`some-pkg`, or whatever subpath is in its `exports` map). If the helper isn't part of the public surface, that's an upstream gap — file an issue or wrap the behavior locally rather than burrowing into `dist/internal/private/`. No interface redesign needed; this is a one-line import swap.\n\n## Why their agent risk differs\n\nBoth findings carry the same `test_gap: 1.0` and `blast_radius: 0.06`, so the agent_risk gap (0.63 vs 0.52) comes from severity (0.6 vs 0.35), and severity here is a proxy for *how much an agent reading the file gets misled about the codebase*.\n\n- **`layer_violation` is a structural lie.** The repo's `crimes.config.json` declares a four-layer architecture; an agent that opens `domain/billing.ts` and sees it importing presentation will reasonably infer \"those rules don't actually hold here\" and propagate the pattern into the next file it touches. The violation teaches a wrong rule about the whole project, so its risk compounds with each future edit.\n- **`deep_import` is a local fragility.** The lesson an agent learns is narrow — \"this one third-party package gets reached into past its public API\" — and the harm is mostly *external*: a silent rename in `some-pkg`'s next minor version breaks this file. It doesn't reshape the agent's mental model of the codebase, so the risk stays roughly contained to this one specifier.\n\nIn short: layer_violation corrupts the architecture an agent is supposed to follow; deep_import corrupts the contract with one upstream dependency. Same evidence quality, very different blast radius for *future* edits, which is what `agent_risk` is measuring.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -4,12 +4,14 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.8.0` (npm) ✅ shipped —
-  _extended lens: date, naming, hot-path, and asset crimes_.
+- **Last published version:** `crimes@0.8.1` (npm) ✅ shipped —
+  _calibration patch on 0.8.0_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
-- **Previously shipped milestones:** `crimes@0.7.5` — _eval-harness
-  graduation and detector trim_ — `crimes@0.7.0` — _calibration and
+  notes: [`docs/releases/v0.8.1.md`](./docs/releases/v0.8.1.md).
+- **Previously shipped milestones:** `crimes@0.8.0` — _extended lens:
+  date, naming, hot-path, and asset crimes_ — `crimes@0.7.5` —
+  _eval-harness graduation and detector trim_ — `crimes@0.7.0` —
+  _calibration and
   the evidence loop_ — `crimes@0.6.0` — _detector and scoring
   completion_ — `crimes@0.5.0` — _suppressions, config, and
   explainability_ — `crimes@0.4.0` — _agent context quality and
@@ -32,6 +34,34 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.8.1`
+
+> **Theme: calibration patch on 0.8.0.** Three changes, no new
+> detectors and no schema change.
+>
+> Release notes: [`docs/releases/v0.8.1.md`](./docs/releases/v0.8.1.md).
+
+- **`boolean_naming_drift` allowlist expanded.** Eight idiomatic
+  state names (`loaded`, `found`, `settled`, `overflow`,
+  `typeonly`, `interpolated`, `limited`, `existed`) added to the
+  built-in React-state allowlist. Pure default-tuning; project
+  configs are unaffected (set-membership lookup, duplicates
+  harmless).
+- **Self-scan signal cleanup.** The crimes monorepo's own
+  `crimes.config.json` now excludes `evals/fixtures/**` and
+  `examples/messy-ts-app/**` from the asset pass, so the dogfood
+  scan no longer surfaces the intentional-bad demo assets at the
+  top of the report. Downstream users' configs are unaffected.
+- **`scan-assets.ts` refactored.** The 80-line
+  `runAssetDetectorsForRoot` body split into four named helpers
+  (`discoverAssetFiles`, `groupDetectorsByExtension`,
+  `runDetectorsForAssetFile`, `buildAssetContext`). Same
+  behaviour, individually testable.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
 
 ---
 

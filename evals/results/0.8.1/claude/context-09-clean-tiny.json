@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:16:41.328Z",
+  "run_id": "6334d8cf-a332-48a5-9ce6-aec77fedd523",
+  "response": "`crimes context src/add.ts --format json` returned `summary.total: 0` with an empty `findings[]` — schema_version `0.1.0`, report_type `scan`, repo `09-clean-tiny`. No structural, dependency, duplication, testability, or churn findings on `src/add.ts`.\n\nSafe to extend. No high/medium/low findings, no agent-risk signals, no likely-tests block to honor. Standard care applies (read the file before editing, add tests for new behavior), but crimes has no pre-edit blockers.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

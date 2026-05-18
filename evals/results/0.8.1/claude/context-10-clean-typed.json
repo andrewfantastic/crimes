@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:16:57.977Z",
+  "run_id": "db583d49-4415-40c9-9199-db2f79c1f5b0",
+  "response": "## Findings\n\nConfirmed: zero findings. The scan summary reports `total: 0` across all severities, and `findings` is an empty array.\n\n## `likely_tests` path\n\nThe provided JSON is a `report_type: \"scan\"` payload, not a `context` payload — it does not include a `likely_tests` field. A `crimes context` run on `src/billing.ts` would typically surface that under a `context.likely_tests` (or similar) key; based on the filename, the conventional candidate would be `src/billing.test.ts` or `tests/billing.test.ts`, but I won't claim a specific path without the context-report output that names it.\n\n## Why `src/billing.ts` is low risk to edit\n\nWith nothing in `findings`, none of the detectors fired against this file:\n\n- **Structural** — no large function / large file / deep nesting / too-many-params hits, so the code is small and locally readable.\n- **Dependency** — no circular deps, deep imports, or layer violations; fan-in/fan-out is within thresholds.\n- **Duplication** — no duplicated blocks, near-duplicate functions, or repeated role/status checks tying this file to others.\n- **Testability** — no direct `Date.now()` / `new Date()` / `Math.random()` / `process.env` use in domain code, and no mixed pure+side-effect functions, so behavior is deterministic and easy to test.\n- **Churn / history** — not flagged as a hotspot or as frequently-changed-and-weakly-tested.\n\nNo findings means no evidence of elevated `agent_risk`: no misleading names, no hidden side effects, no multiple sources of truth. An edit here has small blast radius and predictable behavior, which is the definition of low risk in the crimes scoring model.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

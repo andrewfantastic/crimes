@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:01:38.742Z",
+  "run_id": "53d1e175-5a2f-4ab6-9bda-03ee4c6558f9",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3d1b-aea6-7182-a1ba-44afd41b7511\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy:\\n\\n- It is the import that creates both the circular dependency and the explicit layer violation.\\n- `domain` should not depend on `presentation`; presentation can depend on domain, but not the reverse.\\n- Breaking this edge preserves the intended architecture better than removing an application-to-domain or presentation-to-application dependency.\\n- Runtime cycle risk is highest when domain code pulls in UI/view code, because presentation modules often execute rendering/setup code at module load time.\\n\\nThe cycle is:\\n\\n```text\\nsrc/application/billing-flow.ts\\n -> src/domain/billing.ts\\n -> src/presentation/invoice-view.ts\\n -> src/application/billing-flow.ts\\n```\\n\\nRecommended fix: move whatever `billing.ts` needs from `invoice-view.ts` into a neutral/domain-owned module, or invert the dependency with a domain-owned interface/callback. If the dependency is only TypeScript types, change it to `import type` so it does not create a runtime edge.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19279,\"cached_input_tokens\":12160,\"output_tokens\":256,\"reasoning_output_tokens\":43}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

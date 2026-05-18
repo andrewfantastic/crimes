@@ -1,0 +1,113 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:19:51.271Z",
+  "run_id": "20aee741-df5e-4758-8ac8-a43eecfee133",
+  "response": "# PR Review: Verdict by Finding\n\n**Overall:** This PR is unreviewable as a single unit — it lands a 2179-line core module plus an 891-line type declaration in one shot. Block the PR on size alone; the agent-risk findings reinforce that call but don't drive it.\n\n## BLOCK (4 findings — pre-merge fixes required)\n\n| ID | Finding | agent_risk | Why block |\n|---|---|---|---|\n| 00001 | `lib/command.js` 2179 lines, 150 top-level fns | 0.70 | 7.3× threshold. No reviewer (human or agent) can hold this in context. Split into `command-core`, `command-parse`, `command-help`, `command-exec` before merge. |\n| 00002 | `typings/index.d.ts` 891 lines | 0.70 | The type contract for the library — drift here silently rots every consumer. Split mirrors the runtime split. |\n| 00003 | `_executeSubCommand` 120 lines | 0.69 | Hot path for spawning subprocesses, lives in the god file, mixes path resolution + signal handling + spawn + exit. High severity (0.90) + 2.0× threshold = real defect-risk concentration, not just style. |\n| 00007 | Hardcoded `localhost:1234` in `lib/command.js:2152` | 0.61 | A literal URL inside a published library means whichever environment doesn't run that port silently breaks. Even if it's only in a help string or example, it shouldn't live in the core lib. Verify the call site and either parameterize or move to a docs/example file. |\n\n## WARN (real issues — track, don't gate)\n\n**Duplication that's not in examples** (00005, 00006): `choices()` duplicated verbatim between `lib/argument.js` and `lib/option.js`. agent_risk 0.62 — fixes to validation/parsing have to land in two places. Promote to a shared helper before the next feature touches argument validation.\n\n**Other large functions in `lib/command.js`** (00008 `parseOptions` 115L, 00027 `_parseCommand` 80L, 00028 `addOption` 69L): agent_risk 0.59–0.61. Same god-file context as 00001 — break out as part of the file split rather than separately.\n\n**Weak tests in `command.exitOverride.test.js`** (00009–00016, eight tests, agent_risk 0.46 each): every test name promises \"then throw CommanderError\" but zero `expect` calls. These are either passing trivially or relying on an implicit throw-in-arrow pattern that doesn't actually assert. Add explicit `expect(() => …).toThrow(CommanderError)` — currently they prove nothing, and the suite gives false confidence about exit-override behavior, which is one of the riskier code paths.\n\n**Weak assertions in `command.copySettings.test.js`** (00043–00049, seven tests): `toBeTruthy()`-style matchers can't catch most regressions in copied settings. Tighten to value equality.\n\n**Doc drift** (00034, 00036): broken local links in the Chinese README and translated docs (6 links total). Agents and human readers following these get 404s. Fix or remove.\n\n**Magic literal `PORT`** (00026): five files. agent_risk 0.60 but four of the five are `examples/` — those are intentional demos. The one in `typings/index.test-d.ts` is a type-test fixture. Effectively a false positive from cross-area aggregation, but worth a one-line config rule to ignore `examples/` for this detector going forward.\n\n**Boolean naming drift** (00029, 00030, 00041): cosmetic. The `typings/index.d.ts` cluster (19 instances) is the public API surface — renaming is a breaking change, so leave as-is and add to allowlist.\n\n**Commented-out code** (00037): one comment block in a test file. Delete or convert to rationale.\n\n## IGNORE (false positives or acceptable for context)\n\n- **00004 `myParseInt` duplicated across `examples/`**: examples are intentionally standalone — each must work as a copy-paste demo. Duplication is the feature.\n- **00017–00024 `ts-imports.test.ts` \"tests with no assertions\"**: these are type-import smoke tests. The \"assertion\" is that TS compilation succeeds. Adding `expect(Command).toBeDefined()` would be theater. Allowlist this file.\n- **00035 sync I/O in `findFile` / `_executeSubCommand`**: this is a CLI library doing subcommand resolution at startup. Sync `existsSync` / `realpathSync` for path probing is the correct shape here — async would complicate the parse pipeline for zero user benefit. Detector false positive in CLI-startup context.\n- **00025, 00038, 00039, 00040, 00042 large describe/test callbacks**: test organization. Low agent_risk (0.34–0.45), no behavior risk, splitting describe blocks is gardening work.\n- **00031–00033 other large files (`typings/index.test-d.ts` 480L, `lib/help.js` 461L, `lib/option.js` 326L)**: at 1.0–1.6× threshold these are notably smaller than the two blocking god files. Worth splitting eventually but not in this PR.\n- **00052 \"logic in comments\" — SIGUSR1 note**: this is rationale (why a previous test approach was abandoned and a Node.js issue link), not a hidden rule. Exactly the kind of comment we want to keep.\n\n## Summary numbers\n\n- **Block:** 4 findings, all in `lib/command.js` or its type peer. The god-file split is the real ask; everything else here gets fixed almost for free during the split.\n- **Warn:** ~20 findings, dominated by the missing-assertion cluster in `exitOverride` tests (the highest-leverage fix — those tests are guarding the actual riskiest behavior).\n- **Ignore:** ~28 findings, mostly examples-folder noise, type-import smoke tests, and acceptable CLI-startup sync I/O.\n\nThe signal-to-noise here is decent but not great: roughly half the findings are real, and the two highest-impact items (god file split + missing assertions in exit-override tests) account for most of the actual risk.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "large_function",
+      "crime_00009": "weak_test_signal",
+      "crime_00010": "weak_test_signal",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "weak_test_signal",
+      "crime_00013": "weak_test_signal",
+      "crime_00014": "weak_test_signal",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "large_function",
+      "crime_00026": "magic_domain_literal_scatter",
+      "crime_00027": "large_function",
+      "crime_00028": "large_function",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "boolean_naming_drift",
+      "crime_00031": "large_file",
+      "crime_00032": "large_file",
+      "crime_00033": "large_file",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "sync_io_in_hotpath",
+      "crime_00036": "docs_code_drift",
+      "crime_00037": "commented_out_code",
+      "crime_00038": "large_function",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "boolean_naming_drift",
+      "crime_00042": "large_function",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

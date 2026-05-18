@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.8.0",
+            "softwareVersion": "0.8.1",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.8.0 · extended lens: date, naming, hot-path, asset crimes · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.8.1 · calibration patch on 0.8.0 · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1114,6 +1114,30 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md"
               ><code>docs/releases/v0.8.0.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.8.1 — calibration patch on 0.8.0.</strong>
+            Three quietening changes. Built-in
+            <code>boolean_naming_drift</code> allowlist expanded with
+            eight idiomatic state names (<code>loaded</code>,
+            <code>found</code>, <code>settled</code>,
+            <code>overflow</code>, <code>typeonly</code>,
+            <code>interpolated</code>, <code>limited</code>,
+            <code>existed</code>) — pure default-tuning, no breaking
+            change for configured users. The crimes monorepo's own
+            <code>crimes.config.json</code> now excludes
+            <code>evals/fixtures/**</code> and
+            <code>examples/messy-ts-app/**</code> from the asset
+            pass so the dogfood scan no longer reports the
+            intentional-bad demo assets at the top; downstream users'
+            configs unchanged. <code>scan-assets.ts</code> refactored
+            into four named helpers — behaviour byte-identical.
+            Schema unchanged (<code>schema_version: "0.1.0"</code>).
+            Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.1.md"
+              ><code>docs/releases/v0.8.1.md</code></a
             >.
           </li>
           <li>

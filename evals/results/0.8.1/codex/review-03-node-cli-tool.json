@@ -1,0 +1,113 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:09:35.152Z",
+  "run_id": "6969c219-56a5-4272-8f92-e6bb697812f8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3d22-ac3d-75d0-b9c2-e82adf5847c1\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Review Verdict**\\n\\nI would **block merge** on the high-risk production structure issues and the misleading test suite issues. I would **warn** on most medium/low maintainability findings that are real but not release-stopping. I would **ignore** findings that look intentional, idiomatic, example-only, or too weakly supported.\\n\\n**Block Merge**\\n\\n| Finding | Decision | Why |\\n|---|---:|---|\\n| `crime_00001` `lib/command.js` large file | **Block** | High severity, `agent_risk: 0.70`. A 2179-line core command implementation with 150 top-level functions is a real agent-risk hotspot on an empty-baseline PR. |\\n| `crime_00003` `_executeSubCommand` large function | **Block** | High severity, `agent_risk: 0.69`. This is executable subcommand orchestration, 120 lines, and likely mixes path resolution, spawning, errors, and platform behavior. |\\n| `crime_00008` `parseOptions` large function | **Block** | Medium severity, `agent_risk: 0.61`. Core parser behavior is too central to land as a 115-line method without decomposition or very strong tests. |\\n| `crime_00009`-`crime_00016` weak exitOverride tests | **Block** | Medium severity, `agent_risk: 0.46` each. Eight tests claim thrown errors/exit behavior but have zero assertions. That is false confidence around failure paths. |\\n| `crime_00017`-`crime_00024` weak TypeScript import tests | **Block** | Medium severity, `agent_risk: 0.46` each. If these are meant as compile-only type tests, they need an explicit type-test runner/expectation pattern; as regular tests they prove almost nothing. |\\n\\n**Warn**\\n\\n| Finding | Decision | Why |\\n|---|---:|---|\\n| `crime_00002` `typings/index.d.ts` large file | **Warn** | High severity, `agent_risk: 0.70`, but large declaration files are often centralized by design. Still worth splitting if maintainable API surfaces exist. |\\n| `crime_00005`/`crime_00006` duplicate `choices` logic | **Warn** | Medium severity, `agent_risk: 0.62`. Real duplication across `lib/argument.js` and `lib/option.js`; not automatically blocking, but future behavior changes can diverge. |\\n| `crime_00007` hardcoded localhost | **Warn** | Medium severity, `agent_risk: 0.61`. Needs inspection. A localhost literal in production source is suspicious, but may be example/help text rather than runtime config. |\\n| `crime_00027` `_parseCommand` large function | **Warn** | Medium severity, `agent_risk: 0.60`. Central parsing code at 80 lines is risky, though less severe than `parseOptions`. |\\n| `crime_00028` `addOption` large function | **Warn** | Medium severity, `agent_risk: 0.59`. Slightly over threshold, but in core API mutation logic, so it should be watched or refactored opportunistically. |\\n| `crime_00031` `typings/index.test-d.ts` large file | **Warn** | Medium severity, `agent_risk: 0.59`. Type assertion files can grow large, but 480 lines still makes targeted review harder. |\\n| `crime_00032` `lib/help.js` large file | **Warn** | Medium severity, `agent_risk: 0.59`. Help formatting is user-facing and broad; split if future PRs touch it heavily. |\\n| `crime_00033` `lib/option.js` large file | **Warn** | Medium severity, `agent_risk: 0.57`. Only slightly over threshold, but it is production command API surface. |\\n| `crime_00034`/`crime_00036` docs-code drift | **Warn** | Low severity, `agent_risk: 0.51`. Broken local docs links are not merge blockers for CLI behavior, but they do mislead agents and users. |\\n| `crime_00035` sync I/O in subcommand path | **Warn** | Low severity, `agent_risk: 0.51`. Synchronous filesystem checks may be acceptable in a CLI, but this should be a conscious tradeoff. |\\n| `crime_00038`-`crime_00042` large test callbacks | **Warn** | Low severity, `agent_risk: 0.34-0.35`. Not blocking alone, but they make targeted test edits harder. Split when modifying those suites. |\\n| `crime_00043`-`crime_00051` weak assertion matchers | **Warn** | Low severity, `agent_risk: 0.34`. These have some assertions, unlike the zero-assertion tests, so I would not block; improve when touching those tests. |\\n\\n**Ignore**\\n\\n| Finding | Decision | Why |\\n|---|---:|---|\\n| `crime_00004` duplicate `myParseInt` in examples | **Ignore** | Medium severity, `agent_risk: 0.62`, but both occurrences are examples. Duplication may be clearer for standalone docs/examples than extracting a shared helper. |\\n| `crime_00025` large anonymous test wrapper | **Ignore** | Medium severity, `agent_risk: 0.45`. A single 125-line test callback is not ideal, but not enough to block or warn unless the suite is actively flaky or unclear. |\\n| `crime_00026` scattered `\\\"PORT\\\"` literal | **Ignore** | Medium severity, `agent_risk: 0.60`. In CLI examples and typings, `PORT` is likely intentional domain vocabulary, not duplicated policy. |\\n| `crime_00029`/`crime_00030` boolean naming drift | **Ignore** | Medium severity, `agent_risk: 0.59`. Names like `required`, `optional`, `variadic`, `allowUnknown`, and `displayHelp` are established Commander-style API terms; renaming would likely harm compatibility/readability. |\\n| `crime_00037` commented-out code in test comment | **Ignore** | Low severity, `agent_risk: 0.36`. Small historical note in a test; clean it later, but not review-significant. |\\n| `crime_00041` boolean naming drift in `lib/option.js` | **Ignore** | Low severity, `agent_risk: 0.49`. Same API-idiom reasoning as above. |\\n| `crime_00052` logic in comments | **Ignore** | Low severity, `agent_risk: 0.31`, confidence only `0.65`. The comment is a reminder about historical signal behavior, not clearly an unencoded rule. |\\n\\nNet: block until the core command file/function shape is reduced or explicitly justified, and until the zero-assertion tests are converted into real behavior/type assertions. The rest can be tracked as follow-up risk.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":33356,\"cached_input_tokens\":12160,\"output_tokens\":1568,\"reasoning_output_tokens\":58}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "large_function",
+      "crime_00009": "weak_test_signal",
+      "crime_00010": "weak_test_signal",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "weak_test_signal",
+      "crime_00013": "weak_test_signal",
+      "crime_00014": "weak_test_signal",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "large_function",
+      "crime_00026": "magic_domain_literal_scatter",
+      "crime_00027": "large_function",
+      "crime_00028": "large_function",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "boolean_naming_drift",
+      "crime_00031": "large_file",
+      "crime_00032": "large_file",
+      "crime_00033": "large_file",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "sync_io_in_hotpath",
+      "crime_00036": "docs_code_drift",
+      "crime_00037": "commented_out_code",
+      "crime_00038": "large_function",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "boolean_naming_drift",
+      "crime_00042": "large_function",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

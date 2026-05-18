@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:20:27.158Z",
+  "run_id": "711e5789-0ac9-4212-9163-00b76de77478",
+  "response": "# Review of review-01-messy-ts-app\n\nReviewing this as a fresh PR against an empty baseline, using the skill's decision rule (a new `severity: \"high\"` finding is a blocker unless the rationale for leaving it is explicit) and `scores.agent_risk` as the tiebreaker on mediums.\n\n37 findings ÷ 7 block / 22 warn / 8 ignore. PR is not mergeable as-is — the date module and the two \"works-on-my-machine\" literals are the load-bearing problems; the rest is debt to file rather than gate on.\n\n---\n\n## BLOCK MERGE (7)\n\nThese are either `severity: \"high\"` or `severity: \"medium\"` correctness bugs that fail outside the author's laptop. They have to be addressed in this PR or explicitly punted by the author.\n\n| id | charge | sev / ar | why block |\n|---|---|---|---|\n| **crime_00002** | God Function `generateInvoice` | 0.9 / 0.63 | 204 lines (3.4× the 60-line domain threshold) in *billing* code. Per the skill's auto-fix policy this can't be silently split, but landing 204 lines of mixed-responsibility billing logic is the canonical case the policy is trying to prevent — author must split or justify. |\n| **crime_00003** | Temporal Recklessness in `src/date.ts` | 0.8 / 0.69 | 8 direct `Date.now()` / `new Date()` calls (`lines: 4, 8, 13, 17, 22, 29, 33, 40`). This *is* the date module — every consumer is non-deterministic. Highest `agent_risk` in the report. |\n| **crime_00004** | Half-UTC, Half-Local | 0.8 / 0.68 | Same `d` receiver uses `getUTCFullYear()` @L9 and `getMonth()` @L41. Silent host-offset bugs — the kind that ship green and break a day before launch. |\n| **crime_00001** | SVG With Embedded Raster | 0.75 / 0.7 | `partner-logo.svg` carries 2 base64 rasters (`image/jpeg`, `image/png`). High confidence (0.95) and an obvious asset-pipeline fix — re-export from the design tool. Not a code change; should be done before merge rather than waved through. |\n| **crime_00006** | Dev-Server URL | 0.6 / 0.61 | `localhost:3000` hardcoded in `src/api/files.ts:8`. Medium severity in the schema, but it's a pure portability bug — this PR cannot run in CI or staging. |\n| **crime_00007** | Localhost-on-Disk | 0.6 / 0.61 | `/Users/andrew/dev/crimes/schema.json` hardcoded at `src/api/files.ts:9`. Works on exactly one machine. Same reasoning as 00006 — medium severity by the rubric, but a hard blocker by reality. |\n| **crime_00010** | Timezone Roulette | 0.6 / 0.61 | `new Date(\"2026-12-25T07:00:00\")` and `new Date(\"2026-12-20\")` in `src/date.ts:29,33` — naked literals get whatever the host TZ feels like. Pairs with 00003 and 00004; the entire date module needs to land together. |\n\n---\n\n## WARN (22)\n\nReal findings I'd block on a follow-up PR but not on first introduction. Grouping by theme; cite each id.\n\n**Date-module cleanup beyond the highs** — same module, smaller surfaces. Fix once the high-severity rewrite lands.\n- **crime_00009** (Temporal Recklessness, billing.ts, 0.6 / 0.53) — 7 more direct dates outside the date module; should consume whatever clock abstraction the highs introduce.\n- **crime_00014** (DST-Naive Day Math, 0.6 / 0.59) — `+ 86400000` at `src/date.ts:52`. Drifts on DST transitions.\n- **crime_00024** (Temporal Recklessness, state.ts, 0.35 / 0.51) — one stray `Date.now()` at L18.\n- **crime_00026** (Date String Sewing, 0.3 / 0.5) — manual `.getUTCFullYear()` concat at L41.\n- **crime_00027** (Host-Locale Drift, 0.3 / 0.5) — `toLocaleDateString()` with no locale arg @L46.\n\n**Identity / source-of-truth drift** — every one of these is `agent_risk ≥ 0.56` because they mislead readers (human or LLM).\n- **crime_00012** (String Sprinkles, 0.5 / 0.6) — `\"enterprise\"` in 4 production files, no centralised constant.\n- **crime_00013** (False Identity, 0.55 / 0.52) — `calculateRefundPreview` calls `saveRefundAudit` + `sendRefundEmail`. Misleading name in a destructive code path.\n- **crime_00015** (Concept Alias Drift, 0.55 / 0.58) — *tenant / account / organisation / team / workspace* used interchangeably across 5 files.\n- **crime_00017** (Logic in the Alibi, 0.5 / 0.5) — `billing.ts:39` comment \"Only owners can refund enterprise plans unless billing support approves.\" isn't encoded in nearby code. This is the rule for the refund function — surface as a guard.\n- **crime_00018** (Duplicated Navigation Source, 0.6 / 0.57) — `/settings/billing` is \"Plans\" in registry, \"Billing\" in sidebar.\n- **crime_00020** (Route Metadata Drift, 0.6 / 0.56) — same `/settings/billing` is labelled 4 different ways across path/component/title/nav.\n\n**Structural / agent-context** — debt the next agent edit will trip over.\n- **crime_00005** (Missing Agent Context, 0.6 / 0.61) — no AGENTS.md / CLAUDE.md / skill. Block-adjacent in an agent-native repo, but not a correctness gate.\n- **crime_00016** (God File, 0.6 / 0.5) — `billing.ts` 310 lines (just over the 300 threshold). Will resolve when 00002 is split.\n- **crime_00019** (Unfinished Business, 0.4 / 0.57) — 14 TODO/FIXME/HACK/XXX in `todo.ts` (424/kLOC). Author needs to triage what's load-bearing vs vestigial before this lands; flagging rather than blocking because the file may itself be a stub.\n\n**Test signal**\n- **crime_00011** (Test That Proves Nothing, 0.45 / 0.46) — \"renders the enterprise plan\" has 0 expects. Misleading green check.\n- **crime_00030** (Test That Proves Nothing, 0.25 / 0.34) — \"creates an invoice\" only uses weak matchers. Lower agent_risk but same class of problem.\n\n**Performance / hygiene**\n- **crime_00021** (Oversized Raster, 0.4 / 0.52) — 254 KB PNG. Easy follow-up.\n- **crime_00023** (Sync I/O in Hot Path, 0.4 / 0.51) — 3 `*Sync` calls in `loadPlanSchema`. Async variants exist; in an API hot path this matters but isn't a correctness gate.\n\n**Documentation / navigation**\n- **crime_00022** (Docs-Code Drift, 0.35 / 0.51) — `docs/teams.md:5` links to missing `./setup.md`.\n- **crime_00036**, **crime_00037**, **crime_00038** (Orphaned Destination ×3, 0.4 / 0.46) — `/account/subscription`, `/team`, `/workspace/members` unreachable from any nav, doc, or import. Likely the artefact of the alias-drift problem (00015) — could be in-flight pages or could be dead. Author should mark each.\n\n**API surface**\n- **crime_00031** (Option Bag Junk Drawer, 0.3 / 0.48) — `describeCheckout({options})` reads 6 distinct properties without a named shape.\n- **crime_00032** (Return Shape Roulette, 0.3 / 0.48) — `resolvePaymentResult` returns 3 disjoint shapes, no annotated type. Quote: *\"lowest key overlap: 0%\"*.\n\n---\n\n## IGNORE (8)\n\nStylistic or already-implied-by-other-findings. Not worth a PR comment.\n\n- **crime_00025** (Icon-Sized Raster, 0.35 / 0.5) — 32×32 PNG. Asset choice, not risk.\n- **crime_00028** / **crime_00029** (Unprefixed Boolean ×2, 0.3 / 0.49) — `paid`/`expired`/`stale` and `disableBilling`/`skipRetry`. Naming preference; detector even hints at `allowedNames` config if the project disagrees.\n- **crime_00033** (Negative Flag Maze, 0.25 / 0.47) — `!disableBilling && !skipRetry`. Style; consumed by 00029 if the booleans get renamed.\n- **crime_00034** (Plural Mismatch, 0.3 / 0.47) — `users: User` / `invoice: Invoice[]`. Could be a real typo, but v1 detector that \"silently skips type aliases\" — accept the false-positive risk on low-severity items.\n- **crime_00035** (Unfinished Business, billing.ts, 0.2 / 0.4) — only 12.9/kLOC in `billing.ts`. The bigger TODO problem (00019) covers the policy decision.\n\nThe 0.7.0 skill guidance applies: I'd recommend `crimes feedback <fingerprint> --verdict fp --note \"<reason>\"` for any of these the author actively disagrees with, rather than tightening detector thresholds in one PR.\n\n---\n\n## Summary line for the author\n\n> Blocking on 4 highs + 3 mediums (date module rewrite, two hardcoded environment paths, one billing god-function, one SVG with embedded rasters). Date module is the load-bearing fix — 00003 / 00004 / 00010 / 00009 / 00014 should land together. Everything else is debt I'd take as follow-up tickets, not gate this PR on.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

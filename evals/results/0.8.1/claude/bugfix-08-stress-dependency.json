@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.8.1",
+  "timestamp": "2026-05-18T22:17:06.239Z",
+  "run_id": "9c64f26c-c304-417d-841f-dd2e9d625452",
+  "response": "## The cycle (now confirmed from the fixture)\n\n```\napplication/billing-flow.ts  →  domain/billing.ts\ndomain/billing.ts            →  presentation/invoice-view.ts   ← break this one\npresentation/invoice-view.ts →  application/billing-flow.ts\n```\n\n`chargeCustomer` calls `renderInvoice`, which calls `runBillingFlow`, which calls `chargeCustomer` — that's not just a build-time cycle, it's unbounded recursion at runtime. That matches the \"circular-dependency runtime error\" you're seeing.\n\n## Break: `src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n\nWhy this edge specifically, out of the three:\n\n1. **`crimes` already names it as wrong-direction.** The medium `layer_violation` finding (`crime_00002`) calls out `domain cannotImport presentation`. Domain layers must not depend on presentation — that's the architectural inversion driving the cycle.\n2. **One fix clears two findings.** Removing this edge resolves both `crime_00001` (Circular Dependency, high) and `crime_00002` (Layer Violation, medium). Breaking either of the *other* two edges would clear the cycle but leave the layer violation in place, which means a future edit could re-introduce the cycle at any time.\n3. **It's the semantically wrong call.** `chargeCustomer` is a domain operation; it shouldn't be the one invoking a view formatter. Inverting this restores normal flow: application orchestrates → domain computes → application hands the result to presentation.\n\n## How to break it\n\n`chargeCustomer` currently returns `renderInvoice(amount)`. Two reasonable shapes:\n\n- **Preferred — domain returns data, application formats:** drop the `renderInvoice` import from `domain/billing.ts`, have `chargeCustomer` return the raw amount (or a `Charge` record), and let `runBillingFlow` call `renderInvoice` itself on the result. Domain becomes pure, presentation stays at the edge, no cycle.\n- **If `chargeCustomer` truly needs a string out**, accept a formatter as a parameter (dependency inversion) so domain names an interface it owns, not a concrete presentation module.\n\nThe `suggested_actions[0]` on `crime_00001` also offers `import type` as an escape hatch, but that only applies if the dependency is purely type-level — here it's a real runtime call (`renderInvoice(amount)`), so type-only import won't help.\n\nThe separate `deep_import` (`crime_00003`, low) on `some-pkg/dist/internal/private/helper.js` is unrelated to the cycle — worth fixing later but not part of this bug.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

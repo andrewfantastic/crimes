@@ -69,16 +69,27 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.8.0`
+## Status — `crimes@0.8.1`
 
-`crimes@0.8.0` is the latest published version on npm — _extended lens:
-date, naming, hot-path, and asset crimes_. One config feature plus
-**thirteen new detectors** across four families that mainstream
-linters don't catch. Detector count: **34 → 47**. Five accumulated
-patch bumps (0.7.6 → 0.7.15) roll up into this release. Release notes:
+`crimes@0.8.1` is the latest published version on npm — a _calibration
+patch on 0.8.0_. Three quietening changes: an eight-name expansion to
+`boolean_naming_drift`'s built-in React-state allowlist (`loaded`,
+`found`, `settled`, `overflow`, `typeonly`, `interpolated`, `limited`,
+`existed`); the crimes monorepo's own `crimes.config.json` excludes
+`evals/fixtures/**` and `examples/messy-ts-app/**` from the asset
+pass so the dogfood scan no longer surfaces intentional-bad demo
+assets at the top; a behaviour-preserving refactor of
+`scan-assets.ts` into four named helpers. No new detectors, no
+schema change, no new commands. Release notes:
+[`docs/releases/v0.8.1.md`](./docs/releases/v0.8.1.md).
+
+Earlier `0.8.0` work (_extended lens: date, naming, hot-path, and
+asset crimes_) remains shipped — one config feature plus **thirteen
+new detectors** across four families that mainstream linters don't
+catch. Detector count: **34 → 47**. Release notes:
 [`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
 
-New in `0.8.0`:
+What's in `0.8.0`:
 
 - **Per-detector exemption config.** `detectors.options.<id>` sits
   between `detectors.disable` (kills the detector everywhere) and
