@@ -1,0 +1,89 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "codex",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.777Z",
+  "run_id": "f61ce847-f69b-4205-84ca-a41e2c85d2e2",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3ccc-193d-7873-8ea4-703bba28e720\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Findings:\\n\\n1. **Block merge: `crime_00003` permission IA drift**\\n   `/admin` is described with conflicting access tokens across nav, route guard, and docs: `admin`, `manager`, `owner`.\\n   This should block because it touches authorization semantics. An agent changing one surface could expose, hide, or document the admin area incorrectly while leaving the real guard stale. The route guard evidence is especially risky because it contains multiple role literals in the implementation itself.\\n\\n2. **Warn: `crime_00004` parallel destination**\\n   `/admin/billing-plans` and `/billing-plans` appear to overlap, with no nav, docs, or import link explaining the relationship.\\n   This is merge-worthy only if intentional and documented. Otherwise it should be fixed or clarified soon, because agents will likely update one billing flow and miss the other. I would warn rather than block because the finding has lower confidence and does not directly imply broken permission behavior.\\n\\n3. **Warn: `crime_00006` docs reference missing command**\\n   `docs/routes.md` references `iaq teams`, `iaq workspace`, and `iaq refresh`, but the bin only advertises `iaq get` and `iaq list`.\\n   This should warn because it misleads humans and agents following docs, but it is docs-to-command drift rather than runtime app behavior. Fix by updating the docs or restoring/advertising the intended commands.\\n\\nHighest agent-risk: **`crime_00003` permission IA drift**.\\n\\nEven though its computed `agent_risk` is `0.59`, only slightly above the parallel destination’s `0.56` and command drift’s `0.51`, it carries the highest practical risk because the drift is about access policy. The same `/admin` destination has competing role concepts across the navigation, guard code, and docs, so an agent has no reliable canonical source of truth. That increases the chance of making a confident but unsafe edit to authorization behavior.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":22143,\"cached_input_tokens\":17792,\"output_tokens\":478,\"reasoning_output_tokens\":75}}\n",
+  "structural_score": {
+    "passed": 5,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  }
+}

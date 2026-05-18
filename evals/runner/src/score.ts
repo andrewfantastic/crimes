@@ -1,15 +1,18 @@
-import { builtInDetectors } from "@crimes/core";
+import { builtInAssetDetectors, builtInDetectors } from "@crimes/core";
 import type { ExpectedArtifacts, ScanContext, ScoreDetail } from "./types.js";
 
 /**
  * Set of every known detector id at runtime. Built from @crimes/core's
- * exported list so we don't have to mirror it. Used to scan agent
- * responses for detector-id mentions when applying the structural
- * rubric.
+ * exported lists so we don't have to mirror them. Includes both source
+ * detectors and asset detectors — the 0.8.0 asset pass introduced
+ * asset-only ids (`oversized_raster`, `raster_should_be_vector`,
+ * `svg_with_embedded_raster`) that agents can reference exactly like
+ * any source detector slug.
  */
-const DETECTOR_IDS: ReadonlySet<string> = new Set(
-  builtInDetectors.map((d) => d.id),
-);
+const DETECTOR_IDS: ReadonlySet<string> = new Set([
+  ...builtInDetectors.map((d) => d.id),
+  ...builtInAssetDetectors.map((d) => d.id),
+]);
 
 export interface StructuralScoreResult {
   passed: number;
@@ -145,12 +148,17 @@ function extractReferencedDetectorIds(
 
 /**
  * Find file-path-shaped tokens (anything containing `/` plus a recognised
- * source/text extension). Conservative — only counts paths that look like
- * actual source files an agent would name.
+ * source/asset/text extension). Conservative — only counts paths that
+ * look like actual files an agent would name. The asset extensions
+ * (`png` / `jpg` / `jpeg` / `gif` / `webp` / `avif` / `svg`) landed
+ * with the 0.8.0 asset pass: scenarios referencing image files would
+ * otherwise score 0 on `referenced_files` even when the agent quoted
+ * the path verbatim.
  */
 function extractFilePaths(response: string): Set<string> {
   const found = new Set<string>();
-  const re = /[\w./-]+\.(?:ts|tsx|js|jsx|mjs|cjs|md|json|yml|yaml|css|scss|html)\b/g;
+  const re =
+    /[\w./-]+\.(?:ts|tsx|js|jsx|mjs|cjs|md|json|yml|yaml|css|scss|html|png|jpg|jpeg|gif|webp|avif|svg)\b/g;
   const matches = response.matchAll(re);
   for (const m of matches) found.add(m[0]);
   return found;

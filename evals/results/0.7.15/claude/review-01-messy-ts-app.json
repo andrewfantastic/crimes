@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.707Z",
+  "run_id": "c1349803-506b-4442-b033-0b64c77da0f1",
+  "response": "# Review verdict — review-01-messy-ts-app\n\nTotal: **37 findings** (4 high, 15 medium, 18 low) over an empty baseline. Treating this as a single PR that introduces everything at once.\n\n## 🛑 Block merge (7)\n\nFindings that either don't work outside the author's machine, encode a real correctness bug, or carry enough agent-risk that landing them sets a bad precedent for the repo's first commit.\n\n| ID | Charge | Why block |\n|---|---|---|\n| `crime_00007` | Localhost-on-Disk (`/Users/andrew/…`) — med, agent_risk 0.61 | Severity rating understates impact: this literal **cannot work** for any other dev, CI runner, or deploy. Fix is one line. |\n| `crime_00006` | Dev-Server URL (`localhost:3000`) — med, agent_risk 0.61 | Same class of bug: silently fails in every non-local environment. Must be env-driven before merge. |\n| `crime_00004` | Half-UTC, Half-Local — **high**, agent_risk 0.68 | An actual correctness bug — same receiver `d` mixes `getUTCFullYear()` and `getMonth()`, will skew by the host's TZ offset. |\n| `crime_00010` | Timezone Roulette — med, agent_risk 0.61 | `new Date(\"2026-12-25T07:00:00\")` and `\"2026-12-20\"` parse against host TZ. With `crime_00004` in the same file, the date module is unfixable until both are resolved. |\n| `crime_00011` | Test That Proves Nothing — med, agent_risk 0.46 | Zero `expect` calls in \"renders the enterprise plan\". A test that asserts nothing is worse than no test; it creates false confidence for human reviewers and agents alike. |\n| `crime_00002` | God Function `generateInvoice` (204 lines) — **high**, agent_risk 0.63 | 3.4× the threshold, sitting in a billing module. Any agent edit later is a coin-flip; better to split before this lands than to retrofit it after callers form around it. |\n| `crime_00013` | `calculateRefundPreview` does refunds & emails — med, agent_risk 0.52 | Name promises pure preview, body calls `saveRefundAudit` + `sendRefundEmail`. This is exactly the kind of foot-gun an agent will pull mid-flight. |\n\n## ⚠️ Warn (15)\n\nReal issues — author should fix before or shortly after merge, but they don't block a first-pass review.\n\n| ID | Charge | Note |\n|---|---|---|\n| `crime_00001` | SVG With Embedded Raster — **high**, agent_risk 0.7 | High severity but cosmetic; warn unless asset is in the rendering hot path. |\n| `crime_00003` | Temporal Recklessness in `src/date.ts` (8 calls) — **high**, agent_risk 0.69 | The whole module needs a clock abstraction; flag as a follow-up issue rather than blocking this PR. |\n| `crime_00009` | Temporal Recklessness in `billing.ts` (7 calls) — med, agent_risk 0.53 | Same class of fix; track with `crime_00003`. |\n| `crime_00005` | Missing Agent Context — med, agent_risk 0.61 | Add `AGENTS.md`/`CLAUDE.md` before more agent work lands; non-blocking for the code itself. |\n| `crime_00014` | DST-Naive Day Math (`+ 86400000`) — med, agent_risk 0.59 | Real bug class but isolated to one line; fix in the date-module follow-up. |\n| `crime_00017` | Logic in the Alibi (refund auth rule in a comment) — med, agent_risk 0.5 | Encode the rule next to or after the refund refactor (`crime_00013`). |\n| `crime_00012` | \"enterprise\" literal across 4 files — med, agent_risk 0.6 | Centralise before the 5th copy appears. |\n| `crime_00015` | Tenant/account/organisation/team/workspace drift — med, agent_risk 0.58 | Pick the canonical noun before adding more routes. |\n| `crime_00018` | Duplicated Nav Source (`Plans` vs `Billing`) — med, agent_risk 0.57 | Pairs with `crime_00020`; fix together. |\n| `crime_00020` | Route Metadata Drift on `/settings/billing` — med, agent_risk 0.56 | Four names for one destination; align in the nav cleanup. |\n| `crime_00019` | TODO density in `src/todo.ts` (14 markers in 33 lines) — med, agent_risk 0.57 | This is mostly a fixture artefact, but if it's intended to ship, triage before merging. |\n| `crime_00016` | God File `billing.ts` (310 lines) — med, agent_risk 0.5 | Just past the threshold; will follow from splitting `generateInvoice`. |\n| `crime_00021` | Oversized Raster (253 KB hero) — low, agent_risk 0.52 | Page-weight concern; cheap to fix. |\n| `crime_00022` | Docs-Code Drift (`./setup.md` missing) — low, agent_risk 0.51 | Fix the link or restore the file. |\n| `crime_00023` | Sync I/O in Hot Path (3 `*Sync` calls in `loadPlanSchema`) — low, agent_risk 0.51 | Confidence 0.9 — clear async swap, but blast_radius is 0 here. |\n\n## 🤫 Ignore for this PR (15)\n\nLow severity AND agent_risk ≤ 0.51. Stylistic, ergonomic, or local — accumulate them on a backlog ticket, don't gate this merge.\n\n| ID | Charge | Why ignore |\n|---|---|---|\n| `crime_00024` | Temporal Recklessness — 1 `Date.now()` in `state.ts`, agent_risk 0.51 | Covered by the date-module follow-up. |\n| `crime_00025` | Icon-Sized Raster (32×32 check icon) — agent_risk 0.5 | Polish, not a risk. |\n| `crime_00026` | Date String Sewing — agent_risk 0.5 | Subsumed by the date-module fix. |\n| `crime_00027` | Host-Locale Drift (`toLocaleDateString()`) — agent_risk 0.5 | Same. |\n| `crime_00028` | Unprefixed booleans in `state.ts` — agent_risk 0.49 | Naming nit. |\n| `crime_00029` | Unprefixed booleans in `petty.ts` — agent_risk 0.49 | Same. |\n| `crime_00030` | Test with weak matcher (`creates an invoice`) — agent_risk 0.34 | Strengthen when the test next changes. |\n| `crime_00031` | Option-bag `describeCheckout` — agent_risk 0.48 | Type-shape nit. |\n| `crime_00032` | Return-shape roulette `resolvePaymentResult` — agent_risk 0.48 | Same. |\n| `crime_00033` | Negative-flag maze `!disableBilling && !skipRetry` — agent_risk 0.47 | Rename next time these flags change. |\n| `crime_00034` | Plural mismatch (`users: User`, `invoice: Invoice[]`) — agent_risk 0.47 | Likely a typo; one-line fix when convenient. |\n| `crime_00035` | TODO density in `billing.ts` (just over threshold) — agent_risk 0.4 | Triage with `crime_00019`. |\n| `crime_00036`–`38` | Orphaned destinations (`/account/subscription`, `/team`, `/workspace/members`) — agent_risk 0.46 each | Confidence 0.65 — could be in-flight pages. Ask the author rather than blocking. |\n\n## Summary\nBlock on the 7 things that won't work elsewhere or actively mislead readers. Warn on the 15 follow-ups (cluster them: one date-module ticket, one nav/routing ticket, one billing-refactor ticket). Ignore the rest for this review — they're noise unless `crimes scan` gets re-run after the blockers are cleared.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "hardcoded_local_path",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  }
+}

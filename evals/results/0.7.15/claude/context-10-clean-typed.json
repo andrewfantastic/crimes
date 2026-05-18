@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.685Z",
+  "run_id": "dbfc8fe7-a633-4ba3-a3c7-0267a316aea7",
+  "response": "## `crimes context src/billing.ts` — clean file\n\n**Findings:** none. `risk.level: \"none\"`, all severity buckets at 0.\n\n**Likely tests:** `src/billing.test.ts`\n\n**Why this is low risk to edit:**\n- **No detector signal.** Zero structural, dependency, duplication, testability, or churn findings — none of the v0 detectors fired on this file.\n- **No agent-risk red flags.** `agent_guidance` is empty: no misleading naming, hidden side effects, or multiple-sources-of-truth issues that would trip up an agent editing it.\n- **No coupling.** `related_files` is empty (no IA neighbourhood signal, no shared domain tokens, no same-directory siblings) — edits here aren't expected to ripple outward.\n- **Tests exist.** A co-located `src/billing.test.ts` is the conventional test path, so changes can be verified without scaffolding new test infrastructure.\n\nNet: a tidy, isolated, tested module — the kind of file `crimes` is explicitly telling the agent it can edit confidently.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.701Z",
+  "run_id": "6bebab44-09b6-4c90-b904-988963c15f83",
+  "response": "## Confirming the drift\n\nFindings `crime_00011` (action_label_drift) and `crime_00012` (copy_ia_drift) both fire on the same `delete` alias group, severity `low`, confidence `0.6`, agent_risk `0.46`. The evidence:\n\n| Component | \"delete\" | \"remove\" | \"archive\" |\n|---|---|---|---|\n| UserList.tsx | ✓ | ✓ | — |\n| TeamList.tsx | ✓ | — | ✓ |\n| SeatList.tsx | — | ✓ | ✓ |\n\nEvery component is internally inconsistent — each uses two of the three verbs. So the drift is worse than \"three files disagree\"; no single file is the source of truth.\n\n## Canonical label set\n\n- **Delete** — irreversible destruction of the entity. Use everywhere the action removes a row from the database with no recovery.\n- **Remove** — reserve only for dissociation (e.g. \"Remove user from team\" — user still exists). Not what's happening here based on the component names.\n- **Archive** — reserve only for soft-delete with a restore path. If there's no `archived_at` column, don't use this verb.\n\nIf all three lists are doing the same destructive thing, canonicalize on **Delete**. Document the carve-outs for *Remove* / *Archive* in a copy guide so the next agent doesn't reintroduce drift.\n\n## Refactor order\n\n**UserList.tsx first.** Reasons:\n1. It already uses \"delete\" — the canonical — so the change is just dropping the stray \"remove\" usage. Smallest diff, lowest blast radius, easiest to land and review.\n2. It sets the pattern. Once UserList is the reference implementation, TeamList and SeatList become \"match UserList\" PRs instead of greenfield decisions.\n3. TeamList is also entangled in `crime_00002` (concept_alias_drift for *tenant*/*team*/*workspace*) — touching it first risks conflating two refactors. Save it for second.\n\nOrder: **UserList → TeamList (drop `archive`) → SeatList (drop both `archive` and `remove`)**.\n\n## How the two detectors differ on this fixture\n\nThey don't, meaningfully — both findings have identical evidence, scores, suggested actions, and related files. That's the interesting result:\n\n- `action_label_drift` is the **specific** detector: it knows about an \"action verb\" lexicon (delete/remove/archive, save/submit/confirm, etc.) and flags drift inside one group.\n- `copy_ia_drift` is the **umbrella** detector for microcopy-as-IA drift across UI surfaces.\n\nOn a button label like \"Delete | Remove | Archive\", the action-verb signal *is* the copy-IA signal, so both detectors converge on the same row. They'd diverge on:\n- Non-action copy drift (empty-state strings, error messages, headings) → only `copy_ia_drift` should fire.\n- Action drift outside visible copy (e.g. enum values, handler names) → only `action_label_drift` should fire.\n\nThe duplication here is a real product question for crimes: either dedupe at report time (collapse to the more specific charge when both fire on the same evidence), or scope `copy_ia_drift` away from action verbs entirely. Worth flagging as a finding-quality issue on this fixture.",
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  }
+}

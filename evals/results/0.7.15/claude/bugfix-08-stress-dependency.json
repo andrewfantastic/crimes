@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.678Z",
+  "run_id": "f6efe117-7013-4fb4-af2e-d714b45296d2",
+  "response": "## The cycle\n\n```\napplication/billing-flow.ts  →  domain/billing.ts  →  presentation/invoice-view.ts  →  (back to billing-flow.ts)\n```\n\n## Break this edge: `domain/billing.ts` → `presentation/invoice-view.ts`\n\n### Why this one\n\n1. **It's already wrong on its own merits.** The scan flags it independently as a Layer Violation (`crime_00002`): the architecture rule says `domain cannotImport presentation`. Domain layers must not depend on view code — that inverts the intended direction of change. Removing this import kills two findings at once.\n2. **The other two edges are architecturally defensible.** `application → domain` is the normal direction (application orchestrates domain logic). `presentation → application` (the closing edge of the ring) is also a sane direction in a layered app. Breaking either of those would just paper over the cycle while leaving the real bug — domain reaching up into presentation — in place.\n3. **It explains the runtime error.** Domain is loaded early; when its module evaluation pulls in `invoice-view.ts`, and `invoice-view.ts` transitively pulls back through `billing-flow.ts` into `domain/billing.ts` before its exports are bound, you get the classic \"X is not a function / undefined\" re-entry symptom at startup.\n\n### How to break it\n\nPick whichever fits what the domain file is actually reaching for:\n\n- **If it's a type** (the most common case): change the import to `import type { … } from '../presentation/invoice-view'`. `import type` is erased at compile time and contributes no runtime edge, so the cycle disappears without moving code. Cheapest fix.\n- **If it's a value** (a formatter, constant, helper): the value belongs in the domain layer, not presentation. Move it down into `src/domain/` (or a new `src/domain/shared/`) and have `invoice-view.ts` import it from there. Presentation depending on domain is the correct direction.\n- **Do not** \"fix\" this by extracting a third module that both `domain` and `presentation` import from if the thing being shared is presentation-flavored — that just hides the layer violation behind an indirection.\n\n### What to leave alone\n\nThe Deep Import Abuse finding (`some-pkg/dist/internal/private/helper.js`) is unrelated to the cycle — worth fixing eventually, but it isn't what's blowing up at runtime.",
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  }
+}

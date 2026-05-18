@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.701Z",
+  "run_id": "c003739e-2e54-4e29-bab0-30e92f2f5eab",
+  "response": "## Duplication confirmed\n\nThe scan flags two distinct duplication clusters in `src/`:\n\n**Near-duplicate sanitiser bodies (crime_00002, confidence 0.85)** — the same 27-line pipeline appears three times with only identifier renames:\n\n| File | Function | Param name | Working var |\n|---|---|---|---|\n| `src/sanitize-a.ts:10-36` | `sanitizeUserInput` | `raw` | `working` |\n| `src/sanitize-b.ts:9-35` | `sanitizeText` | `input` | `cleaned` |\n| `src/sanitize-c.ts:9-35` | `cleanMessage` | `value` | `normalised` |\n\nThe bodies are byte-for-byte identical modulo names: trim → strip `[ -]` → collapse whitespace → cap at 1000 chars → reject leading `<`/`>` → reject `\\x` → reject >5 `!!!`/`???` runs → lowercase if >90% caps and >30 chars.\n\n**Exact-duplicate telemetry (crime_00001, confidence 0.95)** — `recordSanitiseEvent` is byte-identical in `src/telemetry-a.ts:6-19` and `src/telemetry-b.ts:6-19`.\n\n## Proposed refactor\n\n### 1. Consolidated sanitiser\n\nCreate `src/sanitize.ts` with a single canonical function. All three current functions accept and return `string`, so the API is straightforward:\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  /** Maximum length before truncation. Default: 1000. */\n  maxLength?: number;\n  /** All-caps ratio above which the text is lowercased. Default: 0.9. */\n  maxUpperRatio?: number;\n  /** Length threshold gating the upper-ratio check. Default: 30. */\n  upperRatioMinLength?: number;\n  /** Max allowed runs of 3+ `!`/`?` before rejecting. Default: 5. */\n  maxPunctuationRuns?: number;\n}\n\nexport function sanitize(input: unknown, options: SanitizeOptions = {}): string;\n```\n\nDefaults reproduce the current behaviour exactly, so the three call sites become one-liners:\n\n```ts\n// sanitize-a.ts\nexport const sanitizeUserInput = (raw: string) => sanitize(raw);\n// sanitize-b.ts\nexport const sanitizeText = (input: string) => sanitize(input);\n// sanitize-c.ts\nexport const cleanMessage = (value: string) => sanitize(value);\n```\n\nOr — preferred — delete the three wrappers entirely and update callers to import `sanitize` directly. The wrappers only exist because each file invented its own name; there is no behavioural difference to preserve.\n\n### 2. Consolidated telemetry\n\nMove `recordSanitiseEvent` into the same module (or `src/telemetry.ts`) once, and inject the clock to clear `crime_00004`/`crime_00005` while we're here:\n\n```ts\n// src/telemetry.ts\nexport interface Clock { now(): number; }\nconst systemClock: Clock = { now: () => Date.now() };\n\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  clock: Clock = systemClock,\n): void { /* ... */ }\n```\n\nBoth `telemetry-a.ts` and `telemetry-b.ts` re-export from this module (or are deleted if callers can be updated).\n\n### Files that change\n\n- **New:** `src/sanitize.ts`, `src/telemetry.ts`\n- **Modified or deleted:** `src/sanitize-a.ts`, `src/sanitize-b.ts`, `src/sanitize-c.ts`, `src/telemetry-a.ts`, `src/telemetry-b.ts`\n\n### Not addressed by this refactor\n\n`crime_00003` (the `role === \"admin\"` policy check across `policy.ts` + `sanitize-*.ts` via `assertAdminA/B/C`) is a **separate** duplication: the three `assertAdmin*` functions encode *different* rules (`=== \"admin\"`, `=== \"admin\" || === \"owner\"`, `!== \"admin\"`), so they can't be collapsed without first deciding which is correct. Flag it, but treat it as a follow-up that needs a product call before code changes.",
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  }
+}

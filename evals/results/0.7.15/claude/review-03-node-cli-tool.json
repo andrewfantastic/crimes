@@ -1,0 +1,113 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.713Z",
+  "run_id": "c1ab6840-c2e8-4ddc-bcbc-70d06bb9ab83",
+  "response": "# Review verdict: warn, do not block\n\nFor a single PR introducing a mature Commander.js codebase on an empty baseline, the structural findings are *expected* (this is a library, not greenfield code), but two real items deserve fixes before merge and several findings look like false positives that should be silenced rather than acted on.\n\n---\n\n## BLOCK (0)\n\nNo finding clears the bar for blocking merge. The three `high` severity findings (`crime_00001`, `crime_00002`, `crime_00003`) all describe shape, not behaviour — agent_risk caps at 0.70, churn=0, blast_radius≈0, and they're inherent to bringing in an existing library wholesale. Blocking on \"the file you're importing is 2179 lines\" punishes the import, not the change.\n\n---\n\n## FIX BEFORE MERGE (2 — warn with a hard expectation)\n\n**`crime_00005` / `crime_00006` — duplicated `choices` between `lib/argument.js` and `lib/option.js`** (severity medium, agent_risk 0.62)\nThis is a real production duplicate (not examples, not tests), in two sibling classes that already share a concept. Two crimes pointing at the same lines is the detector's way of saying \"this isn't an accidental hash collision.\" A future agent fixing a `choices`-related bug will land it in one file and miss the other. Cheap to extract to a shared validator.\n\n**`crime_00007` — `localhost:1234` in `lib/command.js:2152`** (severity medium, agent_risk 0.61)\nA hardcoded dev-server URL inside the main library file is anomalous for a CLI parser — Commander.js shouldn't be making network calls. This is almost certainly inside a JSDoc `@example` block, in which case it's a false positive and should be suppressed via config. But the location is suspicious enough that a reviewer should *look at line 2152* before accepting. Either confirm it's docstring text (then suppress) or extract it (then fix).\n\n---\n\n## WARN, NO MERGE BLOCK (~8)\n\n**God Functions in `lib/command.js`** — `_executeSubCommand` (120 lines, agent_risk 0.69), `parseOptions` (115, 0.61), `_parseCommand` (80, 0.60), `addOption` (69, 0.59). All real, all worth splitting opportunistically when next touched. Tracked as tech debt, not a blocker for ingesting a working library.\n\n**God Files** — `lib/command.js` (2179, 0.70), `typings/index.d.ts` (891, 0.70), `typings/index.test-d.ts` (480, 0.59), `lib/help.js` (461, 0.59), `lib/option.js` (326, 0.57). Same reasoning: real architectural smells in an established codebase, but the right time to break them apart is when adding a feature that touches them, not at intake.\n\n**`crime_00029` — 9 unprefixed booleans in `lib/command.js`** (agent_risk 0.59). Worth flagging to maintainers; Commander's API already exposes names like `combine`, `allowUnknown` as public surface, so renaming has compatibility cost. Project should likely add these to `boolean_naming_drift.allowedNames`.\n\n---\n\n## IGNORE / SUPPRESS (the noise — ~12 findings)\n\n**`crime_00017`–`crime_00024` — 8 weak tests in `tests/ts-imports.test.ts`** (agent_risk 0.46 each)\n**False positive.** These are TypeScript import-compilation tests — the *point* is that they have no runtime assertions; they verify the type imports resolve and compile. Add this file to a per-detector ignore list rather than fixing the tests.\n\n**`crime_00030` — 19 unprefixed booleans in `typings/index.d.ts`** (agent_risk 0.59)\n**False positive.** `required`, `variadic`, `optional`, `mandatory` are the established Commander.js public API surface — renaming would be a breaking change for every consumer. Add to `allowedNames`.\n\n**`crime_00026` — `\"PORT\"` literal scatter across examples + typings** (agent_risk 0.60)\n**False positive.** All five locations are in `examples/` (intentional demo code) or `typings/index.test-d.ts` (type tests). The detector should be configured to exclude `examples/**` and `**/*.test-d.ts` from this rule.\n\n**`crime_00009`–`crime_00016` — 8 weak tests in `tests/command.exitOverride.test.js`** (agent_risk 0.46 each)\n**Probable false positive, spot-check first.** A test called *\"when supply custom handler then throw custom error\"* with zero expects almost certainly uses try/catch + a side-effect spy rather than `expect().toThrow()`. The detector pattern-matches `expect(` and misses the assertion shape. Worth eyeballing one test (e.g. crime_00009 at L69–85) — if confirmed, suppress the file.\n\n**`crime_00025`, `crime_00038`–`crime_00042` — long `describe` callbacks in test files** (agent_risk 0.34–0.45)\nIgnore. Long test suites are an accepted Jest/Vitest convention; thresholds here flagged anything ≥200 lines, but Commander's per-feature suites legitimately group dozens of related cases.\n\n**`crime_00034`, `crime_00036` — broken local links in Chinese-language docs** (agent_risk 0.51)\nIgnore for this PR; file as a separate i18n maintenance ticket.\n\n**`crime_00035` — 3 `*Sync` calls in `lib/command.js`** (agent_risk 0.51)\nIgnore. `findFile` and `_executeSubCommand` are CLI startup paths in a non-server context — sync FS is appropriate. Async would complicate the API for no observable win.\n\n**`crime_00037`, `crime_00052` — commented-out code in tests, prose-rule in comment** (agent_risk 0.36, 0.31)\nIgnore. Both are isolated and noted with rationale (\"revisit if required: As described at https://…\"). Low-stakes housekeeping.\n\n**`crime_00043`–`crime_00051` — weak-matcher tests in `copySettings.test.js` and `variadic.test.js`** (agent_risk 0.34 each)\nIgnore as a batch. These assert that copied settings retain their values — the assertions are *narrow*, not absent. Detector is being strict about matcher choice; not a real risk.\n\n---\n\n## Bottom line\n\n**Merge after fixing**: the duplicate `choices()` (crime_00005/06) and confirming `localhost:1234` (crime_00007) is docstring text.\n**File as tracking debt**: the God File / God Function findings against `lib/command.js` and the typings.\n**Tune the config**: add `examples/**`, `**/*.test-d.ts`, and Commander's public API boolean names to suppressions before re-running, or the next scan will reproduce the same ~20 false positives.",
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "large_function",
+      "crime_00009": "weak_test_signal",
+      "crime_00010": "weak_test_signal",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "weak_test_signal",
+      "crime_00013": "weak_test_signal",
+      "crime_00014": "weak_test_signal",
+      "crime_00015": "weak_test_signal",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "weak_test_signal",
+      "crime_00018": "weak_test_signal",
+      "crime_00019": "weak_test_signal",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "large_function",
+      "crime_00026": "magic_domain_literal_scatter",
+      "crime_00027": "large_function",
+      "crime_00028": "large_function",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "boolean_naming_drift",
+      "crime_00031": "large_file",
+      "crime_00032": "large_file",
+      "crime_00033": "large_file",
+      "crime_00034": "docs_code_drift",
+      "crime_00035": "sync_io_in_hotpath",
+      "crime_00036": "docs_code_drift",
+      "crime_00037": "commented_out_code",
+      "crime_00038": "large_function",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "boolean_naming_drift",
+      "crime_00042": "large_function",
+      "crime_00043": "weak_test_signal",
+      "crime_00044": "weak_test_signal",
+      "crime_00045": "weak_test_signal",
+      "crime_00046": "weak_test_signal",
+      "crime_00047": "weak_test_signal",
+      "crime_00048": "weak_test_signal",
+      "crime_00049": "weak_test_signal",
+      "crime_00050": "weak_test_signal",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  }
+}

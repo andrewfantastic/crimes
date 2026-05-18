@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.703Z",
+  "run_id": "9f72b1cd-c2ca-415d-b742-ba7df14a3406",
+  "response": "## Findings to address\n\n**crime_00002 — layer_violation** (`severity: medium`, `agent_risk: 0.63`)\n`src/domain/billing.ts` → `src/presentation/invoice-view.ts`. Violates `domain cannotImport presentation`.\n\n**crime_00003 — deep_import** (`severity: low`, `agent_risk: 0.52`)\n`src/application/billing-flow.ts` → `some-pkg/dist/internal/private/helper.js`.\n\n(Both are entangled with crime_00001 — the layer_violation edge is one of the three sides of the import cycle.)\n\n## Proposed changes\n\n### 1. Break: `domain/billing.ts` → `presentation/invoice-view.ts` (ties to crime_00002)\n\nThe domain layer must not know how an invoice is rendered. Two cases, pick by what's actually being imported:\n\n- **If the import is a type only** → convert to `import type { ... } from \"../presentation/invoice-view\"` so it carries no runtime edge. Cheap, but a code smell — the type probably belongs in domain.\n- **If the import is a value (function/class)** → apply dependency inversion. Define the contract in domain:\n  ```ts\n  // src/domain/invoice-renderer.ts\n  export interface InvoiceRenderer { render(invoice: Invoice): string }\n  ```\n  `presentation/invoice-view.ts` implements it; `application/billing-flow.ts` wires the concrete implementation into the domain caller. Domain now points outward only through an interface it owns.\n\nThis single change also collapses the cycle in crime_00001, because the cycle's domain→presentation edge is the same edge.\n\n### 2. Redirect: `application/billing-flow.ts` deep import (ties to crime_00003)\n\nReplace `some-pkg/dist/internal/private/helper.js` with `some-pkg`'s public entry:\n\n```ts\nimport { helper } from \"some-pkg\"   // if exported\n```\n\nIf the symbol isn't on the public surface, the suggested action is right: file an upstream issue rather than locking us to a private path. Do **not** wrap the deep import in a local re-export — that just hides the same coupling behind one more file.\n\n## How the two findings differ in agent risk\n\nBoth score `test_gap: 1` and identical `blast_radius`, so the gap between 0.63 and 0.52 is almost entirely **severity** — and severity here is shorthand for *who gets misled and how*.\n\n- **Layer violation is a directional invariant inside our code.** An agent reading `domain/billing.ts` and seeing a presentation import will reasonably conclude that \"domain depends on presentation\" is allowed, and will propagate that pattern on the next change. It inverts the intended direction of change for the whole codebase, not just this file. That's why it scores higher despite being \"only\" medium severity.\n- **Deep import is a coupling to code we don't own.** The blast radius inside *our* repo is small — one file, one import — and an agent editing this file isn't going to mis-learn an architectural rule from it. The real risk is silent breakage on a `some-pkg` upgrade, which is a temporal/maintenance risk, not a confusion-propagation risk. Lower agent risk, correctly.\n\nShort version: layer_violation teaches the wrong lesson; deep_import is a tripwire that hasn't tripped yet.",
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  }
+}

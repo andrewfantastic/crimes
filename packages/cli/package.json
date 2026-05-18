@@ -1,6 +1,6 @@
 {
   "name": "crimes",
-  "version": "0.7.14",
+  "version": "0.7.15",
   "description": "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   "license": "MIT",
   "author": "Andrew Mayfield",

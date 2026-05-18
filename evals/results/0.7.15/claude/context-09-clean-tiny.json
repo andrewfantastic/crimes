@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.685Z",
+  "run_id": "596d552e-3444-4721-8bfc-08d7a7ddb19d",
+  "response": "`crimes context src/add.ts` returned zero findings — no structural, dependency, duplication, testability, or churn signals on this file.\n\n**Safe to extend.** No God Function, no churn hotspot, no layer violations, no test-gap warning. Proceed with normal care (keep the function focused, add a test alongside any new behavior), but there's no pre-existing risk the report is flagging.",
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  }
+}

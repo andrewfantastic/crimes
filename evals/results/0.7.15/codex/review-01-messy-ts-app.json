@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.773Z",
+  "run_id": "07a15393-7d74-48a6-8fc1-469b97d405b8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3ccb-8cd4-7123-8cd7-352b0f455963\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Rubric:** block merge = `high` severity with `agent_risk >= 0.63`; warn = all `medium` findings plus `low` findings with `agent_risk >= 0.50`; ignore = `low` findings below `0.50`.\\n\\n**Block Merge**\\n\\n| ID | Finding | Severity | Agent risk | Rationale |\\n|---|---|---:|---:|---|\\n| crime_00001 | SVG With Embedded Raster | high | 0.70 | High severity and highest agent risk in the scan. |\\n| crime_00002 | God Function | high | 0.63 | High severity; large billing function is risky to review or edit. |\\n| crime_00003 | Temporal Recklessness | high | 0.69 | High severity; direct clock reads make behavior non-deterministic. |\\n| crime_00004 | Half-UTC, Half-Local | high | 0.68 | High severity; timezone behavior can vary silently by host. |\\n\\n**Warn**\\n\\n| ID | Finding | Severity | Agent risk | Rationale |\\n|---|---|---:|---:|---|\\n| crime_00005 | Missing Agent Context | medium | 0.61 | Medium severity, high enough agent risk to require follow-up. |\\n| crime_00006 | Dev-Server URL | medium | 0.61 | Medium severity; hardcoded localhost breaks non-dev environments. |\\n| crime_00007 | Localhost-on-Disk | medium | 0.61 | Medium severity; machine-specific path is not portable. |\\n| crime_00009 | Temporal Recklessness | medium | 0.53 | Medium severity; less risky than `src/date.ts` but still test-hostile. |\\n| crime_00010 | Timezone Roulette | medium | 0.61 | Medium severity; ambiguous timezone parsing is review-worthy. |\\n| crime_00011 | Test That Proves Nothing | medium | 0.46 | Medium severity despite lower agent risk; weak tests affect confidence. |\\n| crime_00012 | String Sprinkles | medium | 0.60 | Medium severity; scattered domain literals can drift. |\\n| crime_00013 | False Identity | medium | 0.52 | Medium severity; safe-sounding side-effectful function is risky. |\\n| crime_00014 | DST-Naive Day Math | medium | 0.59 | Medium severity; calendar math can fail around DST. |\\n| crime_00015 | Concept Alias Drift | medium | 0.58 | Medium severity; competing vocabulary increases agent/edit risk. |\\n| crime_00016 | God File | medium | 0.50 | Medium severity; barely over threshold, but still a maintenance warning. |\\n| crime_00017 | Logic in the Alibi | medium | 0.50 | Medium severity; rule lives in prose instead of code/tests. |\\n| crime_00018 | Duplicated Navigation Source | medium | 0.57 | Medium severity; duplicated labels are likely to drift. |\\n| crime_00019 | Unfinished Business | medium | 0.57 | Medium severity; dense TODOs obscure intended behavior. |\\n| crime_00020 | Route Metadata Drift | medium | 0.56 | Medium severity; route naming inconsistency needs cleanup. |\\n| crime_00021 | Oversized Raster | low | 0.52 | Low severity but agent risk crosses warn threshold. |\\n| crime_00022 | Docs-Code Drift | low | 0.51 | Low severity but stale docs can mislead agents. |\\n| crime_00023 | Sync I/O in Hot Path | low | 0.51 | Low severity but actionable runtime concern. |\\n| crime_00024 | Temporal Recklessness | low | 0.51 | Low severity but deterministic testing concern. |\\n| crime_00025 | Icon-Sized Raster | low | 0.50 | Low severity, borderline warn. |\\n| crime_00026 | Date String Sewing | low | 0.50 | Low severity, borderline warn. |\\n| crime_00027 | Host-Locale Drift | low | 0.50 | Low severity, borderline warn. |\\n\\n**Ignore**\\n\\n| ID | Finding | Severity | Agent risk | Rationale |\\n|---|---|---:|---:|---|\\n| crime_00028 | Unprefixed Boolean | low | 0.49 | Low severity and below warn threshold. |\\n| crime_00029 | Unprefixed Boolean | low | 0.49 | Low severity and below warn threshold. |\\n| crime_00030 | Test That Proves Nothing | low | 0.34 | Low severity and low agent risk. |\\n| crime_00031 | Option Bag Junk Drawer | low | 0.48 | Low severity; worth cleanup later, not merge-blocking. |\\n| crime_00032 | Return Shape Roulette | low | 0.48 | Low severity; below warn threshold. |\\n| crime_00033 | Negative Flag Maze | low | 0.47 | Low severity; below warn threshold. |\\n| crime_00034 | Plural Mismatch | low | 0.47 | Low severity; below warn threshold. |\\n| crime_00035 | Unfinished Business | low | 0.40 | Low severity and low risk. |\\n| crime_00036 | Orphaned Destination | low | 0.46 | Low severity; may be intentional in-flight route. |\\n| crime_00037 | Orphaned Destination | low | 0.46 | Low severity; may be intentional in-flight route. |\\n| crime_00038 | Orphaned Destination | low | 0.46 | Low severity; may be intentional in-flight route. |\\n\\nNet: I would **not merge** until the 4 high findings are addressed. The medium findings should become PR comments or follow-up issues, with special attention to the hardcoded URL/path and date handling.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":29270,\"cached_input_tokens\":17792,\"output_tokens\":1755,\"reasoning_output_tokens\":516}}\n",
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  }
+}

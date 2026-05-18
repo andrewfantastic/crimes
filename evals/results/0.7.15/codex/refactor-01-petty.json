@@ -1,0 +1,117 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "codex",
+  "crimes_version": "0.7.15",
+  "timestamp": "2026-05-18T20:41:19.750Z",
+  "run_id": "3621c191-5e0f-45fd-9c7e-36c929a26b9d",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3cca-63ec-7430-aa59-ae22e32fc657\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested context command first so the refactor proposal is grounded in the file-level findings, not just the broader scan excerpt.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/petty.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/petty.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"messy-ts-app\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/examples/messy-ts-app\\\"\\n  },\\n  \\\"file\\\": \\\"src/petty.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"low\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 3,\\n    \\\"total\\\": 3\\n  },\\n  \\\"agent_guidance\\\": [\\n    \\\"Generic object bags hide required shape — identify the actual fields before adding or renaming properties.\\\",\\n    \\\"This function returns multiple object shapes; check every caller before depending on one result shape.\\\",\\n    \\\"Multiple negative flags make predicates easy to invert — simplify or name the predicate before extending it.\\\"\\n  ],\\n  \\\"related_files\\\": [\\n    {\\n      \\\"file\\\": \\\"src/billing.test.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/billing.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/date.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    },\\n    {\\n      \\\"file\\\": \\\"src/todo.ts\\\",\\n      \\\"reason\\\": \\\"same directory\\\",\\n      \\\"score\\\": 0.2\\n    }\\n  ],\\n  \\\"likely_tests\\\": [],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"crime_00001\\\",\\n      \\\"type\\\": \\\"option_bag_junk_drawer\\\",\\n      \\\"charge\\\": \\\"Option Bag Junk Drawer\\\",\\n      \\\"severity\\\": \\\"low\\\",\\n      \\\"confidence\\\": 0.74,\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"symbol\\\": \\\"describeCheckout\\\",\\n      \\\"lines\\\": [\\n        10,\\n        19\\n      ],\\n      \\\"summary\\\": \\\"describeCheckout accepts a broad `options` object with an implicit shape. Generic bags make it hard for agents to know which fields are required.\\\",\\n      \\\"evidence\\\": [\\n        \\\"parameter: options\\\",\\n        \\\"6 distinct property reads: currency, plan, region, retry, role, status\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.3,\\n        \\\"confidence\\\": 0.74,\\n        \\\"agent_risk\\\": 0.49,\\n        \\\"churn\\\": 0.05,\\n        \\\"test_gap\\\": 1,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"name_option_shape\\\",\\n          \\\"description\\\": \\\"Replace the generic bag with a named type/object shape, or destructure only the fields this function owns.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00002\\\",\\n      \\\"type\\\": \\\"return_shape_roulette\\\",\\n      \\\"charge\\\": \\\"Return Shape Roulette\\\",\\n      \\\"severity\\\": \\\"low\\\",\\n      \\\"confidence\\\": 0.73,\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"symbol\\\": \\\"resolvePaymentResult\\\",\\n      \\\"lines\\\": [\\n        21,\\n        32\\n      ],\\n      \\\"summary\\\": \\\"resolvePaymentResult returns several object shapes without an explicit return type. Callers and agents may infer the wrong result contract.\\\",\\n      \\\"evidence\\\": [\\n        \\\"3 object-literal return shapes\\\",\\n        \\\"lowest key overlap: 0%\\\",\\n        \\\"example keys: { code, message, ok } vs { permanent, url }\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.3,\\n        \\\"confidence\\\": 0.73,\\n        \\\"agent_risk\\\": 0.48,\\n        \\\"churn\\\": 0.05,\\n        \\\"test_gap\\\": 1,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"name_return_shape\\\",\\n          \\\"description\\\": \\\"Add an explicit return type or split branch-specific results into named result variants.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    },\\n    {\\n      \\\"id\\\": \\\"crime_00003\\\",\\n      \\\"type\\\": \\\"negative_flag_maze\\\",\\n      \\\"charge\\\": \\\"Negative Flag Maze\\\",\\n      \\\"severity\\\": \\\"low\\\",\\n      \\\"confidence\\\": 0.72,\\n      \\\"file\\\": \\\"src/petty.ts\\\",\\n      \\\"lines\\\": [\\n        35,\\n        35\\n      ],\\n      \\\"summary\\\": \\\"Conditional combines 2 negative flags. Double-negative logic is easy to invert during maintenance.\\\",\\n      \\\"evidence\\\": [\\n        \\\"negative flags: disableBilling, skipRetry\\\",\\n        \\\"condition: !disableBilling && !skipRetry\\\"\\n      ],\\n      \\\"scores\\\": {\\n        \\\"severity\\\": 0.25,\\n        \\\"confidence\\\": 0.72,\\n        \\\"agent_risk\\\": 0.48,\\n        \\\"churn\\\": 0.05,\\n        \\\"test_gap\\\": 1,\\n        \\\"blast_radius\\\": 0\\n      },\\n      \\\"suggested_actions\\\": [\\n        {\\n          \\\"kind\\\": \\\"rename_or_simplify_flags\\\",\\n          \\\"description\\\": \\\"Prefer positive flag names or extract the predicate into a named helper before extending this condition.\\\",\\n          \\\"risk\\\": \\\"low\\\"\\n        }\\n      ]\\n    }\\n  ],\\n  \\\"likely_tests_reason\\\": \\\"no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The context run confirms exactly three low-severity findings in `src/petty.ts`: `option_bag_junk_drawer`, `return_shape_roulette`, and `negative_flag_maze`. I’m reading the file now so the proposal maps to the actual code shape.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,140p' src/petty.ts\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,140p' src/petty.ts\\\"\",\"aggregated_output\":\"interface CheckoutOptions {\\n  plan: string;\\n  role: string;\\n  region: string;\\n  currency: string;\\n  status: string;\\n  retry: boolean;\\n}\\n\\nexport function describeCheckout(options: CheckoutOptions) {\\n  return [\\n    options.plan,\\n    options.role,\\n    options.region,\\n    options.currency,\\n    options.status,\\n    String(options.retry),\\n  ].join(\\\":\\\");\\n}\\n\\nexport function resolvePaymentResult(input: {\\n  error?: boolean;\\n  redirect?: boolean;\\n  code?: string;\\n  message?: string;\\n  url?: string;\\n  value?: string;\\n}) {\\n  if (input.error) return { ok: false, code: input.code, message: input.message };\\n  if (input.redirect) return { url: input.url, permanent: false };\\n  return { ok: true, value: input.value, cached: false };\\n}\\n\\nexport function canRunBilling(disableBilling: boolean, skipRetry: boolean) {\\n  if (!disableBilling && !skipRetry) return true;\\n  return false;\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"agent_message\",\"text\":\"I ran `crimes context src/petty.ts --format json`; it reports three findings in [src/petty.ts](/Users/andrew/dev/crimes/evals/fixtures/01-messy-ts-app/src/petty.ts:10).\\n\\n**Option Bag**\\n`describeCheckout` is flagged as `option_bag_junk_drawer`: it reads six fields from a generic `options` parameter.\\n\\nRefactor: destructure a named, exported shape at the boundary.\\n\\n```ts\\nexport interface CheckoutDescriptionInput {\\n  plan: string;\\n  role: string;\\n  region: string;\\n  currency: string;\\n  status: string;\\n  retry: boolean;\\n}\\n\\nexport function describeCheckout({\\n  plan,\\n  role,\\n  region,\\n  currency,\\n  status,\\n  retry,\\n}: CheckoutDescriptionInput): string {\\n  return [plan, role, region, currency, status, String(retry)].join(\\\":\\\");\\n}\\n```\\n\\nWhat an agent could get wrong today: add another `options.foo` read without realizing it has changed the function’s required contract, or pass a larger domain object and accidentally couple this formatter to unrelated checkout state.\\n\\n**Return Shape**\\n`resolvePaymentResult` is flagged as `return_shape_roulette`: it returns three unrelated object shapes with no explicit return type.\\n\\nRefactor: make the variants explicit with a discriminated union.\\n\\n```ts\\ntype PaymentResult =\\n  | { kind: \\\"error\\\"; ok: false; code?: string; message?: string }\\n  | { kind: \\\"redirect\\\"; url?: string; permanent: false }\\n  | { kind: \\\"success\\\"; ok: true; value?: string; cached: false };\\n\\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\\n  if (input.error) return { kind: \\\"error\\\", ok: false, code: input.code, message: input.message };\\n  if (input.redirect) return { kind: \\\"redirect\\\", url: input.url, permanent: false };\\n  return { kind: \\\"success\\\", ok: true, value: input.value, cached: false };\\n}\\n```\\n\\nWhat an agent could get wrong today: assume every result has `ok`, or every failure has `code`, then add caller logic that silently breaks for redirects because `{ url, permanent }` shares no keys with the error shape.\\n\\n**Negative Flag**\\n`canRunBilling` is flagged as `negative_flag_maze`: `!disableBilling && !skipRetry` combines two negative flags.\\n\\nRefactor: rename to positive booleans and return the predicate directly.\\n\\n```ts\\nexport function canRunBilling(isBillingEnabled: boolean, shouldRetry: boolean): boolean {\\n  return isBillingEnabled && shouldRetry;\\n}\\n```\\n\\nIf the call sites cannot be renamed immediately, add a transitional wrapper:\\n\\n```ts\\nexport function canRunBilling(disableBilling: boolean, skipRetry: boolean): boolean {\\n  const isBillingEnabled = !disableBilling;\\n  const shouldRetry = !skipRetry;\\n\\n  return isBillingEnabled && shouldRetry;\\n}\\n```\\n\\nWhat an agent could get wrong today: invert one side while extending the condition, especially if adding a third flag like `forceRetry` or `skipBillingAudit`; double-negative predicates are easy to make locally plausible and globally wrong.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":90886,\"cached_input_tokens\":71296,\"output_tokens\":987,\"reasoning_output_tokens\":86}}\n",
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  }
+}
