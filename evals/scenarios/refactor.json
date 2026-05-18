@@ -88,5 +88,20 @@
       "Did the agent pick one canonical verb (e.g. 'Remove') and apply it to all three components rather than patching each file in isolation?",
       "Did the agent explain why copy_ia_drift fires alongside action_label_drift on this fixture (JSX-restricted variant of the same heuristic)?"
     ]
+  },
+  {
+    "id": "refactor-08-architecture",
+    "fixture": "08",
+    "kind": "refactor",
+    "prompt": "The four-layer architecture (domain / application / presentation / infrastructure) declared in crimes.config.json is being violated, and one file reaches past a published package surface. Use `crimes scan --format json` to enumerate the layer_violation and deep_import findings, then propose which imports to break and which to redirect through a proper interface. Tie each change to its finding and explain how layer_violation and deep_import differ in agent risk.",
+    "expected_artifacts": {
+      "referenced_findings": ["layer_violation", "deep_import"],
+      "referenced_files": ["src/domain/billing.ts", "src/application/billing-flow.ts"],
+      "expected_priority": "layer_violation"
+    },
+    "judge_questions": [
+      "Did the agent propose moving the violating import to respect the configured layer direction rather than just suppressing the rule?",
+      "Did the agent recognise the deep_import as a stability hazard (importing past a package boundary couples to internals that may move)?"
+    ]
   }
 ]

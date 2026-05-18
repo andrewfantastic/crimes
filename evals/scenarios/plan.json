@@ -26,5 +26,19 @@
       "Did the agent split the work into two coherent changes (sanitise consolidation + policy consolidation) rather than ten tiny patches?",
       "Did the agent's plan call out where call sites would need updating after the refactor?"
     ]
+  },
+  {
+    "id": "plan-04-hotspots",
+    "fixture": "04",
+    "kind": "plan",
+    "prompt": "Use `crimes scan --format json` to find the hotspot files: those with high fan-in or fan-out (high_fan_in_fan_out), the large file findings, and the top large_function findings. Propose a triage order — which files would you refactor first to reduce blast radius across the codebase, and which would you leave alone? Justify each pick with the finding's evidence (fan-in / fan-out numbers).",
+    "expected_artifacts": {
+      "referenced_findings": ["high_fan_in_fan_out", "large_file", "large_function"],
+      "expected_priority": "high_fan_in_fan_out"
+    },
+    "judge_questions": [
+      "Did the agent prioritise high fan-in files (e.g. src/utils.ts) over high fan-out files because blast-radius cuts deeper on importers?",
+      "Did the agent quote the actual fan-in / fan-out numbers from the finding evidence rather than paraphrasing 'lots of imports'?"
+    ]
   }
 ]
