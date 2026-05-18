@@ -1,29 +1,31 @@
 import { existsSync } from "node:fs";
-import { readFile, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
-import { discoverFiles, parseFile } from "@crimes/language-js";
+import { realpath } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, parse, resolve } from "node:path";
+import { discoverFiles } from "@crimes/language-js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig } from "./config.js";
+import {
+  assignIds,
+  buildGuidance,
+  buildRisk,
+  sortFindings,
+  toRepoRelative,
+} from "./context-helpers.js";
+import {
+  runDetectorsOnTarget,
+  safelyBuildFunctionHashIndex,
+  safelyBuildIaIndex,
+  safelyBuildImportGraph,
+  safelyBuildJsxShapeIndex,
+  safelyBuildPettyIndex,
+  safelyBuildScoringContext,
+} from "./context-indexes.js";
+import { findLikelyTests } from "./context-likely-tests.js";
 import type { ContextRelatedFile } from "./context-related-files.js";
 import { findRelatedFiles } from "./context-related-files.js";
 import type { Detector } from "./detector.js";
-import type { Finding, Severity } from "./finding.js";
+import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
-import { buildIaIndex } from "./ia/build.js";
-import type { IaConceptAliasGroup, IaIndex } from "./ia/types.js";
-import { buildImportGraph } from "./imports/build.js";
-import type { ImportGraph } from "./imports/types.js";
-import { buildJsxShapeIndex } from "./jsx/shape-index.js";
-import type { JsxShapeIndex } from "./jsx/shape-index.js";
-import { buildFunctionHashIndex } from "./ast-hash/function-index.js";
-import type { FunctionHashIndex } from "./ast-hash/function-index.js";
-import { buildPettyIndex } from "./petty/build.js";
-import type { PettyIndex } from "./petty/types.js";
-import {
-  buildScoringContext,
-  finaliseFindingScores,
-} from "./scoring/build.js";
-import type { ScoringContext } from "./scoring/build.js";
 import {
   builtInDetectors,
   filterDetectors,
@@ -106,63 +108,6 @@ export interface ContextReport {
    */
   suppressed_count?: number;
 }
-
-/**
- * Per-finding-type guidance shown to agents in the human report and in
- * `agent_guidance`. Keep short and behavioural — not "fix this", but "don't
- * make it worse" before the agent edits.
- */
-const GUIDANCE: Record<string, string> = {
-  large_function:
-    "Prefer extracting pure helpers before adding more branches.",
-  large_file:
-    "Read the whole file before editing — propose splits in their own change.",
-  direct_date:
-    "Avoid adding more direct clock access; inject time where possible.",
-  todo_density:
-    "Review TODOs before relying on comments as current intent.",
-  commented_out_code:
-    "Do not copy disabled code from comments; verify whether it should be deleted or explained as rationale.",
-  logic_in_comments:
-    "Treat prose-only rules as suspect; encode them in guards, tests, config, or types before relying on them.",
-  name_behavior_mismatch:
-    "Safe-sounding names may hide side effects — inspect callers before moving, caching, or duplicating them.",
-  magic_domain_literal_scatter:
-    "Repeated domain literals can be duplicated policy — find or create the source of truth before adding another copy.",
-  weak_test_signal:
-    "Nearby tests may not protect behaviour; inspect assertions before treating them as safety coverage.",
-  option_bag_junk_drawer:
-    "Generic object bags hide required shape — identify the actual fields before adding or renaming properties.",
-  return_shape_roulette:
-    "This function returns multiple object shapes; check every caller before depending on one result shape.",
-  negative_flag_maze:
-    "Multiple negative flags make predicates easy to invert — simplify or name the predicate before extending it.",
-  missing_agent_context:
-    "Agents may miss project-specific commands, architecture rules, and safety checks.",
-  route_metadata_drift:
-    "The route path, title, breadcrumb, and component name appear to disagree — verify each before changing labels.",
-  duplicated_navigation_source:
-    "Multiple files declare this destination; updating only one will leave the others stale.",
-  concept_alias_drift:
-    "Other files describe this concept under a different name; read them before renaming or extending.",
-  docs_code_drift:
-    "Docs reference local files that no longer exist — update the docs in the same PR.",
-};
-
-const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-
-/**
- * Matches every test-file naming convention `findLikelyTests` honours:
- *
- *   foo.test.ts / foo.spec.ts           — Jest / Vitest infix convention
- *   foo_test.ts / foo_spec.ts           — Go-style underscore suffix
- *
- * Used both to recognise candidate test files and to strip the suffix back
- * to a target basename for matching. Keep the two halves of the alternation
- * symmetric so `stripTestSuffix` stays a simple `.replace(TEST_EXT, "")`.
- */
-const TEST_EXT =
-  /(?:\.(?:test|spec)|_(?:test|spec))\.(ts|tsx|js|jsx|mjs|cjs)$/;
 
 /**
  * Walk upward from `start` (a directory path) looking for an enclosing
@@ -289,6 +234,8 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     functionHashIndex,
     scoring,
   });
+  sortFindings(findings);
+  assignIds(findings);
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
 
@@ -296,7 +243,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   // related-files helper works in that vocabulary so it can compare
   // against IA index keys without re-resolving.
   const allFilesRel = allFiles.map((abs) =>
-    toRepoPath(relative(root, abs)),
+    toRepoRelative(root, abs),
   );
   const related_files = findRelatedFiles({
     fileRel,
@@ -366,334 +313,4 @@ export function applySuppressionsToContext(
   };
   if (suppressedCount > 0) next.suppressed_count = suppressedCount;
   return next;
-}
-
-async function runDetectorsOnTarget(args: {
-  allFiles: string[];
-  targetAbs: string;
-  root: string;
-  config: CrimesConfig;
-  detectors: Detector[];
-  ia?: IaIndex;
-  petty?: PettyIndex;
-  imports?: ImportGraph;
-  jsxShapeIndex?: JsxShapeIndex;
-  functionHashIndex?: FunctionHashIndex;
-  scoring?: ScoringContext;
-}): Promise<Finding[]> {
-  const {
-    allFiles,
-    targetAbs,
-    root,
-    config,
-    detectors,
-    ia,
-    petty,
-    imports,
-    jsxShapeIndex,
-    functionHashIndex,
-    scoring,
-  } = args;
-  if (!allFiles.includes(targetAbs)) return [];
-
-  const file = toRepoPath(relative(root, targetAbs));
-  const source = await readFile(targetAbs, "utf8");
-  const parsed = parseFile({ absolutePath: targetAbs, source });
-
-  const findings: Finding[] = [];
-  for (const detector of detectors) {
-    const detectorFindings = await detector.run({
-      file,
-      absolutePath: targetAbs,
-      source,
-      parsed,
-      config,
-      ia,
-      petty,
-      imports,
-      jsxShapeIndex,
-      functionHashIndex,
-      scoring,
-    });
-    findings.push(...detectorFindings);
-  }
-
-  // Backfill per-finding scores (churn / test_gap / blast_radius) and
-  // recompute agent_risk from the unified formula. Detectors that ran
-  // before scoring landed may have set agent_risk themselves; the
-  // finalisation pass overwrites with the canonical value.
-  for (const f of findings) {
-    finaliseFindingScores(f, scoring);
-  }
-
-  // `crimes context <file>` must only show findings that are *about*
-  // <file>. IA detectors fire at scan time using a deterministic anchor
-  // file (e.g. the lex-first source file in the repo), which may not be
-  // the target. Keep only findings whose `.file` or `.related_files`
-  // reference the target.
-  const relevant = findings.filter(
-    (f) => f.file === file || (f.related_files ?? []).includes(file),
-  );
-
-  sortFindings(relevant);
-  assignIds(relevant);
-  return relevant;
-}
-
-async function safelyBuildIaIndex(args: {
-  root: string;
-  allFiles: string[];
-  aliasGroups?: IaConceptAliasGroup[];
-}): Promise<IaIndex | undefined> {
-  try {
-    return await buildIaIndex({
-      root: args.root,
-      files: args.allFiles,
-      ...(args.aliasGroups !== undefined
-        ? { aliasGroups: args.aliasGroups }
-        : {}),
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-async function safelyBuildPettyIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<PettyIndex | undefined> {
-  try {
-    return await buildPettyIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-async function safelyBuildJsxShapeIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<JsxShapeIndex | undefined> {
-  try {
-    return await buildJsxShapeIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-async function safelyBuildFunctionHashIndex(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<FunctionHashIndex | undefined> {
-  try {
-    return await buildFunctionHashIndex({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-async function safelyBuildImportGraph(args: {
-  root: string;
-  allFiles: string[];
-}): Promise<ImportGraph | undefined> {
-  try {
-    return await buildImportGraph({ root: args.root, files: args.allFiles });
-  } catch {
-    return undefined;
-  }
-}
-
-async function safelyBuildScoringContext(args: {
-  root: string;
-  allFiles: string[];
-  imports: ImportGraph | undefined;
-}): Promise<ScoringContext | undefined> {
-  try {
-    return await buildScoringContext({
-      root: args.root,
-      files: args.allFiles,
-      imports: args.imports,
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-function buildRisk(findings: Finding[]): ContextRisk {
-  const counts: Record<Severity, number> = { high: 0, medium: 0, low: 0 };
-  for (const f of findings) counts[f.severity] += 1;
-  let level: ContextRisk["level"] = "none";
-  if (counts.high > 0) level = "high";
-  else if (counts.medium > 0) level = "medium";
-  else if (counts.low > 0) level = "low";
-  return { level, high: counts.high, medium: counts.medium, low: counts.low, total: findings.length };
-}
-
-/**
- * Guidance line emitted when a file has no findings but does have
- * deterministic related files. Keeps the "Agent guidance" block
- * non-empty in the common neighbourhood-only case (an agent landed on a
- * clean route file, but other files clearly share its domain).
- */
-const NEIGHBOURHOOD_GUIDANCE =
-  "Review related files before editing — they share domain tokens or route/navigation evidence with this target.";
-
-function buildGuidance(
-  findings: Finding[],
-  relatedFiles: ContextRelatedFile[],
-): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const f of findings) {
-    if (seen.has(f.type)) continue;
-    seen.add(f.type);
-    const line = GUIDANCE[f.type];
-    if (line) out.push(line);
-  }
-  // Add the neighbourhood line only when nothing else fired — when a
-  // finding-keyed guidance line is already present, the IA wording
-  // ("read them before renaming or extending", etc.) already covers
-  // related files. Adding both would dilute the more specific line.
-  if (out.length === 0 && relatedFiles.length > 0) {
-    out.push(NEIGHBOURHOOD_GUIDANCE);
-  }
-  return out;
-}
-
-async function findLikelyTests(args: {
-  root: string;
-  fileRel: string;
-  targetAbs: string;
-  allFiles: string[];
-}): Promise<string[]> {
-  const { root, fileRel, targetAbs, allFiles } = args;
-  const targetBaseNoExt = basename(fileRel).replace(SOURCE_EXT, "");
-  const result = new Set<string>();
-
-  for (const abs of allFiles) {
-    if (abs === targetAbs) continue;
-    const rel = toRepoPath(relative(root, abs));
-    const b = basename(rel);
-
-    // Sibling files matching one of the test-naming conventions
-    // (`foo.test.ts`, `foo.spec.tsx`, `foo_test.ts`, `foo_spec.ts`).
-    if (TEST_EXT.test(b)) {
-      const noTest = stripTestSuffix(b);
-      if (noTest === targetBaseNoExt) {
-        result.add(rel);
-        continue;
-      }
-    }
-
-    // Files under any __tests__ directory matching the basename. Same
-    // suffix-stripping rules — covers `__tests__/foo.test.ts` AND
-    // `__tests__/foo_test.ts`.
-    if (rel.split("/").includes("__tests__")) {
-      const noTest = stripTestSuffix(b);
-      if (noTest === targetBaseNoExt) {
-        result.add(rel);
-      }
-    }
-  }
-
-  // Test files that import the target via a relative path. Restrict to test
-  // files only — `likely_tests` should not list arbitrary consumers.
-  for (const abs of allFiles) {
-    if (abs === targetAbs) continue;
-    const rel = toRepoPath(relative(root, abs));
-    if (result.has(rel)) continue;
-    if (!isTestFile(rel)) continue;
-
-    let source: string;
-    try {
-      source = await readFile(abs, "utf8");
-    } catch {
-      continue;
-    }
-    if (importsTarget({ source, fromAbs: abs, targetAbs })) {
-      result.add(rel);
-    }
-  }
-
-  return [...result].sort();
-}
-
-function isTestFile(rel: string): boolean {
-  return TEST_EXT.test(basename(rel)) || rel.split("/").includes("__tests__");
-}
-
-/**
- * Strip a test-naming suffix from a basename to recover the "subject under
- * test" basename. Symmetric with {@link TEST_EXT} — `foo.test.ts` returns
- * `foo`, `foo_test.ts` returns `foo`. Returns the input unchanged when it
- * doesn't match either convention.
- */
-function stripTestSuffix(basenameWithExt: string): string {
-  return basenameWithExt.replace(TEST_EXT, "");
-}
-
-function importsTarget(args: {
-  source: string;
-  fromAbs: string;
-  targetAbs: string;
-}): boolean {
-  const { source, fromAbs, targetAbs } = args;
-  const fromDir = dirname(fromAbs);
-
-  // Strip extension and `/index` suffix from the target so we match the same
-  // shapes a user would actually write in an `import` statement.
-  const targetNoExt = targetAbs.replace(SOURCE_EXT, "");
-  let rel = relative(fromDir, targetNoExt);
-  rel = rel.split(sep).join("/");
-  if (!rel.startsWith(".")) rel = "./" + rel;
-
-  const candidates = new Set<string>([
-    rel,
-    `${rel}.ts`,
-    `${rel}.tsx`,
-    `${rel}.js`,
-    `${rel}.jsx`,
-    `${rel}.mjs`,
-    `${rel}.cjs`,
-  ]);
-
-  // Also handle `from "./dir"` resolving to `./dir/index.*` if the basename
-  // of the target is `index`.
-  if (basename(targetNoExt) === "index") {
-    const parent = rel.replace(/\/index$/, "");
-    candidates.add(parent);
-  }
-
-  for (const c of candidates) {
-    const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(
-      `(?:from|require|import)\\s*\\(?\\s*["']${escaped}["']`,
-    );
-    if (re.test(source)) return true;
-  }
-  return false;
-}
-
-function toRepoRelative(root: string, file: string): string {
-  const abs = isAbsolute(file) ? file : resolve(root, file);
-  return toRepoPath(relative(root, abs));
-}
-
-function toRepoPath(p: string): string {
-  return p.split(sep).join("/");
-}
-
-function sortFindings(findings: Finding[]): void {
-  const order = { high: 0, medium: 1, low: 2 } as const;
-  findings.sort((a, b) => {
-    const sev = order[a.severity] - order[b.severity];
-    if (sev !== 0) return sev;
-    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
-  });
-}
-
-function assignIds(findings: Finding[]): void {
-  findings.forEach((f, i) => {
-    f.id = `crime_${String(i + 1).padStart(5, "0")}`;
-  });
 }
