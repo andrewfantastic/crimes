@@ -1,0 +1,87 @@
+{
+  "scenario": "context-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:04:37.974Z",
+  "run_id": "aa7f8786-42c0-4e31-9e6b-ca5129dc32e7",
+  "response": "## What `src/billing.ts` does\n\nA 310-line billing module that handles invoice generation and refund handling for the \"enterprise\" plan. Key surface area:\n\n- `generateInvoice` — 204-line god function (lines 50–253) doing the bulk of invoicing\n- `calculateRefundPreview` (lines 40–44) — sounds pure but actually calls `saveRefundAudit` and `sendRefundEmail`\n- 5 top-level functions total\n- A prose rule sits in a comment at line 39: *\"Only owners can refund enterprise plans unless billing support approves.\"* — likely not encoded in code\n\n## Files to read before editing\n\n| File | Why |\n|---|---|\n| `src/billing.test.ts` | Existing tests — but one has 0 asserts and one uses weak matchers, so coverage is illusory |\n| `src/date.ts` | Likely the shared clock helper; also flagged for direct `Date.now()`/`new Date()` |\n| `src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts` | Share the `\"enterprise\"` literal — any plan-policy change must update all four call sites |\n| `src/routes/settings/billing.tsx` + `src/nav/registry.ts` + `src/nav/sidebar.ts` | Route/nav metadata for `/settings/billing` is labelled four different ways (`Plans`, `Billing`, `Subscription`, `PricingPage`) |\n| `docs/billing.md` | Uses `\"account\"` as an alias for tenant — concept drift between docs and code |\n\n## Risks the scan flagged for `src/billing.ts`\n\n1. **God Function** (HIGH, conf 0.95) — `generateInvoice` is 204 lines, 3.4× the 60-line threshold. Editing one section likely misses interactions elsewhere.\n2. **Temporal Recklessness** (MED) — 7 direct clock reads (`Date.now()` ×5, `new Date()` ×2) at lines 57, 63, 92, 198, 238, 250, 273. No clock injection → tests can't pin time.\n3. **String Sprinkles / \"enterprise\"** (MED) — literal scattered across 4 production files; refund-policy logic likely duplicated.\n4. **False Identity** (MED) — `calculateRefundPreview` performs side effects despite its read-only name.\n5. **God File** (MED) — 310 lines, just over the 300 threshold.\n6. **Logic in the Alibi** (MED) — the owner/billing-support refund rule lives only in a comment; domain terms `owner`, `plan`, `billing` don't appear near it in code.\n7. **Unfinished Business** (LOW) — 4 TODO/FIXME/HACK/XXX markers between lines 183–308 hint at known-incomplete logic.\n\nThe composite `agent_risk` story is: oversized function + hidden clock dependency + rule-in-prose + duplicated plan literal. Any non-trivial edit here should add a clock seam, encode the refund rule explicitly, and check the other three \"enterprise\" call sites before changing policy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 7.5,
+    "per_question": [
+      {
+        "question": "Did the agent quote at least one finding's evidence verbatim instead of paraphrasing?",
+        "score": 6,
+        "reasoning": "The agent quotes one item verbatim — the prose rule comment at line 39: \"Only owners can refund enterprise plans unless billing support approves.\" — which is a direct quote from the file's evidence. However, this is a quote from the source file rather than verbatim evidence text from a finding (e.g., a finding's `evidence.snippet` or `message` field). Other findings are presented as paraphrased summaries with line numbers and counts rather than verbatim evidence strings (e.g., 'God Function' description, line ranges). Partial credit for the one direct quote that does appear to be lifted from the finding's evidence context."
+      },
+      {
+        "question": "Did the agent list likely tests + related files before proposing changes?",
+        "score": 9,
+        "reasoning": "The agent explicitly lists `src/billing.test.ts` as the existing test file (noting its weaknesses — 0 asserts, weak matchers) and provides a structured table of related files to read before editing: `src/date.ts`, `src/api/plan.ts`, `src/jobs/plan-sync.ts`, `src/ui/pricing.ts`, route/nav files, and `docs/billing.md`, with a clear 'Why' column for each. This is done in a dedicated 'Files to read before editing' section that precedes any change proposals. Strong, well-organized fulfillment of the question."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

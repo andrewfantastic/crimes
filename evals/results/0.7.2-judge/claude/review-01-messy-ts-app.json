@@ -1,0 +1,99 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:08:01.561Z",
+  "run_id": "69eec454-a4b2-41a0-b788-47456a114d71",
+  "response": "## PR Review: 01-messy-ts-app\n\nCategorising 22 findings against an empty baseline. Cutoffs: **block** when severity ≥ 0.85 *or* a single finding combines a real correctness risk with a high agent_risk; **warn** for medium-severity issues an agent could plausibly compound on the next edit; **ignore** for low-severity style noise (still worth fixing eventually, not worth blocking the merge).\n\n### Block merge (1)\n\n| ID | Charge | Sev | agent_risk | Why block |\n|---|---|---|---|---|\n| crime_00001 | God Function (`generateInvoice`, 204 lines) | 0.9 | 0.63 | High severity *and* the function is in the billing path. 3.4× the domain threshold, mixed responsibilities → next agent edit will silently miss interactions. Extract before any further change lands. |\n\n### Warn (13)\n\nThese are real concerns but landable if tracked. Most cluster around two themes: **agents will be misled by this code** and **multiple-source-of-truth drift**.\n\n| ID | Charge | Sev / agent_risk | Why warn (not block) |\n|---|---|---|---|\n| crime_00008 | False Identity (`calculateRefundPreview` has 3 side-effect signals: `saveRefundAudit`, `sendRefundEmail`) | 0.55 / 0.52 | The closest call to \"block\" — a name lying about side effects is exactly the trap `crimes` is built to surface. Borderline; flag it loudly in the PR. |\n| crime_00002 | Missing Agent Context (no AGENTS.md/CLAUDE.md/SKILL.md) | 0.6 / 0.61 | Cheap fix, big agent payoff. Worth doing now but won't break anything if it slips. |\n| crime_00004 | Temporal Recklessness in `src/billing.ts` (7× clock reads) | 0.6 / 0.53 | Wall-clock in domain code = flaky tests + monkey-patching. Inject a clock. |\n| crime_00005 | Temporal Recklessness in `src/date.ts` (5× clock reads) | 0.6 / 0.61 | Same problem; `test_gap=1` (no tests) raises agent_risk further. |\n| crime_00007 | String Sprinkles (\"enterprise\" across 4 files / 4 areas) | 0.5 / 0.6 | One more copy lands and it's duplicated policy. Centralise before the next edit. |\n| crime_00009 | Concept Alias Drift (tenant/account/org/team/workspace across 5 files) | 0.55 / 0.58 | An agent extending one vocabulary will duplicate logic that already exists under another name. |\n| crime_00010 | God File (`billing.ts` 310 lines) | 0.6 / 0.5 | Same file as crime_00001 — fixing the God Function will likely shrink this naturally. |\n| crime_00011 | Logic in Comments (\"Only owners can refund enterprise plans unless billing support approves\") | 0.5 / 0.5 | Hidden prose rule on a refund path. Encode it as a guard or test. |\n| crime_00012 | Duplicated Navigation Source (`/settings/billing`: \"Plans\" vs \"Billing\") | 0.6 / 0.57 | Pair this with crime_00014 — same destination, multiple labels. Fix once. |\n| crime_00013 | TODO density in `src/todo.ts` (14 markers, 424/1k LOC) | 0.4 / 0.57 | The file *is* TODOs. Either it's a deliberate parking lot (move to issue tracker) or it shouldn't ship. |\n| crime_00014 | Route Metadata Drift (`/settings/billing` labelled 4 different ways) | 0.6 / 0.56 | Sibling to crime_00012 — align route + nav + page title in one pass. |\n| crime_00015 | Docs-Code Drift (`docs/teams.md` → missing `./setup.md`) | 0.35 / 0.51 | Low severity but `agent_risk > 0.5` because `test_gap=1` — agents will follow the stale link. Trivial to fix. |\n| crime_00006 | Test That Proves Nothing (\"renders the enterprise plan\", 0 asserts) | 0.45 / 0.46 | A green test with no assertion lies to humans *and* agents about what's covered. Borderline-block; warn because deleting it is acceptable. |\n\n### Ignore (8)\n\nLow severity, low agent_risk, or duplicates of warnings already flagged. Not worth blocking the PR — file as cleanup or leave for `crimes scan --all` later.\n\n| ID | Charge | Sev / agent_risk | Why ignore |\n|---|---|---|---|\n| crime_00016 | Weak test (\"creates an invoice\", weak matcher) | 0.25 / 0.34 | Lowest agent_risk in the report. Worth strengthening but not a merge gate. |\n| crime_00017 | Option Bag Junk Drawer (`describeCheckout` reads 6 props off generic `options`) | 0.3 / 0.48 | Style-shaped; agent_risk under 0.5. Name the shape next time you touch it. |\n| crime_00018 | Return Shape Roulette (`resolvePaymentResult`, 3 shapes, 0% key overlap) | 0.3 / 0.48 | Same module as 00017, same vibe. Annotate the return type when convenient. |\n| crime_00019 | Negative Flag Maze (`!disableBilling && !skipRetry`) | 0.25 / 0.47 | Local readability nit. |\n| crime_00020 | TODO density in `billing.ts` (4 markers, 12.9/1k LOC) | 0.2 / 0.4 | Already covered by the God File / God Function warnings — fixing those clears most of these. |\n| crime_00021 | Orphaned `/account/subscription` | 0.4 / 0.46 | The three orphan routes are below the warn bar individually. But: |\n| crime_00022 | Orphaned `/team` | 0.4 / 0.46 | …they're the same three files that drove crime_00009 (alias drift). |\n| crime_00023 | Orphaned `/workspace/members` | 0.4 / 0.46 | If the alias-drift cleanup picks a canonical term, two of these three routes should be deleted as part of it. Track there. |\n\n### One-line PR verdict\n\n**Request changes.** Block on crime_00001 (God Function in billing). The 13 warnings cluster into three cleanup passes — extract billing, pick canonical names (enterprise / tenant / `/settings/billing`), inject a clock — and the 8 ignores mostly fall out for free once those land.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 9.5,
+    "per_question": [
+      {
+        "question": "Did the agent's block/warn/ignore split align with severity (high → block, medium → warn, low → ignore)?",
+        "score": 9,
+        "reasoning": "The agent's categorization aligns well with severity thresholds. The single block is crime_00001 with severity 0.9 (highest, ≥0.85 cutoff stated explicitly). Warnings cluster in the 0.4-0.6 severity range (medium), and ignores are mostly 0.2-0.4 (low). The split is principled with a stated cutoff rule. Minor friction: a couple of warn items (crime_00013 at sev 0.4, crime_00015 at sev 0.35) fall into low-severity territory but are escalated to warn — though the agent explicitly justifies these by agent_risk, which is the correct framework. The ignore bucket includes some sev 0.4 items (orphan routes) which technically sit at the warn boundary, but the agent justifies bundling them under crime_00009. Overall a clean, defensible mapping."
+      },
+      {
+        "question": "Did the agent justify deviations by citing scores.agent_risk specifically?",
+        "score": 10,
+        "reasoning": "The agent explicitly cites scores.agent_risk to justify deviations from a pure severity-based split. Examples: crime_00015 ('Low severity but agent_risk > 0.5 because test_gap=1'), crime_00013 (sev 0.4 promoted to warn with agent_risk 0.57 noted), crime_00005 ('test_gap=1 raises agent_risk further'), and the explicit cutoff rule names agent_risk as a tiebreaker ('block when severity ≥ 0.85 or a single finding combines a real correctness risk with a high agent_risk'). Every warn-tier finding lists its agent_risk score in the table, and the ignore tier notes 'agent_risk under 0.5' as justification. The agent_risk framework is consistently invoked, exactly as the scenario asks."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

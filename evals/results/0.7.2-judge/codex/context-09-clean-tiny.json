@@ -1,0 +1,49 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:04:36.208Z",
+  "run_id": "0567e90a-faf1-4cce-ad0f-fcb585f8d601",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e390a-b8e3-7151-ad9c-6cc3518bc539\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the file-specific context command from the fixture repo so the answer is based on the same path `crimes` will resolve.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"09-clean-tiny\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny\\\"\\n  },\\n  \\\"file\\\": \\\"src/add.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/add.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`crimes context src/add.ts --format json` found no risk:\\n\\n- Risk level: `none`\\n- Findings: `0`\\n- Agent guidance: none\\n- Related files: none\\n- Likely test: `src/add.test.ts`\\n\\nThe file looks safe to extend. The only follow-through needed is to update or add coverage in `src/add.test.ts` if behavior changes.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":37173,\"cached_input_tokens\":30464,\"output_tokens\":183,\"reasoning_output_tokens\":0}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent correctly recognise this as a clean fixture (no findings)?",
+        "score": 10,
+        "reasoning": "The agent explicitly identified the fixture as clean, reporting risk level 'none', 0 findings across high/medium/low, and no agent guidance or related files. It correctly concluded the file is safe to extend based on the JSON output."
+      },
+      {
+        "question": "Did the agent avoid inventing findings that aren't in the JSON output?",
+        "score": 10,
+        "reasoning": "The agent faithfully reported only what was in the JSON output: zero findings, no agent guidance, no related files, and the one likely test file (src/add.test.ts). It did not fabricate any findings, did not mention forbidden actions like large_function or direct_date, and its only additional suggestion (updating the test if behavior changes) is a reasonable inference from the 'likely_tests' field rather than an invented finding."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

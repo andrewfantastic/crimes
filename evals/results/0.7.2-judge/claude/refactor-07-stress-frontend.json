@@ -1,0 +1,72 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:07:24.038Z",
+  "run_id": "243a373f-7fed-4f7b-a29c-6c9c9f490db8",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThe file is one component with three different kinds of frontend risk stacked on the same root `<div>`. I'll address each finding, then show the refactored file.\n\n### 1. `accessible_interaction_risk` (crime_00001) — line 10\n\nThe root `<div onClick>` is keyboard-unreachable and invisible to screen readers. There's no recovering this with `role=\"button\"` + `tabIndex={0}` + `onKeyDown` without re-implementing the focus/Enter/Space contract that the platform already gives you. **Swap the outer element for a real `<button>`** — semantics, focus ring, keyboard activation, and assistive-tech labelling all come for free.\n\nIf a `<button>` isn't acceptable (e.g. nesting interactive children later), the explicit fallback is `role=\"button\"` + `tabIndex={0}` + keyboard handler + `aria-label`. The first option is strictly better here.\n\n### 2. `design_token_escape` (crime_00002) — 9 raw values on lines 10/24/27\n\n`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, `#333333`, `#666666`, `0 2px 4px ...`, and the raw `px` paddings all bypass the theme. An agent extending this component will copy these literals forward and silently fork the palette. **Route every color, radius, shadow, and spacing value through the design system** — Tailwind classes (`bg-surface text-foreground border-border shadow-card`) or `theme.*` references depending on your stack. Even keeping inline `style` is fine if the values come from `tokens.color.*` / `tokens.shadow.*` rather than raw strings, because the agent risk is \"literal in JSX,\" not \"inline style.\"\n\n### 3. `responsive_fragility` (crime_00003) — `width: 800` / `width: 720` / `fontSize: 18`, no `@media`\n\nThree fixed pixel widths and a fixed font size with no media query — this card overflows on anything narrower than ~820 px. **Replace fixed widths with `width: 100%` + `max-width`, switch typography to `rem` / `clamp()`, and let the inner two-column row collapse below a breakpoint** (CSS grid `grid-template-columns: repeat(auto-fit, minmax(...))` is the lightest fix here, no explicit `@media` needed).\n\n### Refactored file\n\n```tsx\n// Tokens come from the design system — adjust the import path to taste.\nimport { tokens } from \"../theme/tokens\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate: () => void;\n  label: string; // accessible name for the clickable card\n};\n\nexport function Card({ children, onActivate, label }: CardProps) {\n  return (\n    <button\n      type=\"button\"\n      onClick={onActivate}\n      aria-label={label}\n      style={{\n        // design-token escape → tokens\n        background: tokens.color.surface,\n        color: tokens.color.foreground,\n        borderColor: tokens.color.border,\n        boxShadow: tokens.shadow.card,\n        outlineColor: tokens.color.focusRing,\n        padding: tokens.space.lg,\n        borderRadius: tokens.radius.md,\n\n        // responsive fragility → fluid sizing\n        width: \"100%\",\n        maxWidth: \"64rem\",          // was width: 800\n        minHeight: \"min(60vh, 600px)\", // was height: 600\n\n        // grid lets the body+sidebar collapse without an @media query\n        display: \"grid\",\n        gridTemplateColumns: \"repeat(auto-fit, minmax(16rem, 1fr))\",\n        gap: tokens.space.md,\n\n        // reset button defaults so it still looks like a card\n        textAlign: \"left\",\n        font: \"inherit\",\n        cursor: \"pointer\",\n      }}\n    >\n      <div\n        style={{\n          minWidth: 0,                 // was width: 720 — let grid track decide\n          fontSize: \"clamp(1rem, 1.5vw, 1.125rem)\", // was fontSize: 18\n          color: tokens.color.foreground,\n        }}\n      >\n        {children}\n      </div>\n      <div\n        style={{\n          minWidth: 0,                 // was width: 240\n          fontSize: \"clamp(0.875rem, 1.2vw, 1rem)\", // was fontSize: 14\n          color: tokens.color.mutedForeground,\n        }}\n      >\n        sidebar\n      </div>\n    </button>\n  );\n}\n```\n\n### Why each change maps to its finding\n\n| Finding | Change |\n|---|---|\n| `accessible_interaction_risk` | Root `<div onClick>` → `<button type=\"button\" aria-label>`; native keyboard + focus + AT support, no manual `role`/`tabIndex`/`onKeyDown`. |\n| `design_token_escape` | All nine hex/rgb/shadow/raw-px literals replaced with `tokens.color.*`, `tokens.shadow.*`, `tokens.space.*`, `tokens.radius.*`. Future agents extending the file have to reach for tokens — no literals to copy. |\n| `responsive_fragility` | `width: 800` → `width: 100%; max-width: 64rem`; inner `width: 720`/`240` → `minWidth: 0` inside an `auto-fit minmax` grid that collapses on narrow viewports without an `@media` query; `fontSize: 18`/`14` → `clamp()` with `rem` units. |\n\n### Risks worth flagging\n\n- **API change.** Adding `onActivate` + `label` is a breaking change for callers. If the card was decorative and the `onClick` was accidental, the right fix is to **remove** the handler entirely rather than promote it to a button — that's the cleanest resolution of `accessible_interaction_risk` and worth checking with the call sites before assuming it should be interactive.\n- **Token availability.** If `theme/tokens` doesn't exist yet, the design-token fix needs a tokens module first; otherwise you've just relocated the literals.\n- **Button-as-card semantics.** A `<button>` containing arbitrary `children` is fine as long as those children aren't themselves interactive (nested buttons/links are invalid HTML). If the card needs interactive children later, switch the root back to a `<div>` with the explicit `role=\"button\"` + `tabIndex={0}` + `onKeyDown` fallback.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent suggest tailwind classes (or other design-token references) instead of hex literals?",
+        "score": 10,
+        "reasoning": "The agent explicitly addresses the design_token_escape finding by replacing all nine hex/rgb/shadow/raw-px literals with design-token references (`tokens.color.*`, `tokens.shadow.*`, `tokens.space.*`, `tokens.radius.*`). It also mentions Tailwind classes (`bg-surface text-foreground border-border shadow-card`) as an alternative. The mapping table clearly ties the change to the finding type, and the refactored code demonstrates the substitution throughout."
+      },
+      {
+        "question": "Did the agent propose role + tabIndex (or convert the div to a real button) for the click handler?",
+        "score": 10,
+        "reasoning": "The agent proposes converting the `<div onClick>` to a real `<button type=\"button\">` as the primary fix, which is the strictly better option and explicitly recommended. It also presents the `role=\"button\"` + `tabIndex={0}` + `onKeyDown` + `aria-label` fallback for cases where a button isn't acceptable (e.g., nested interactive children). Both options requested by the judge question are covered, with clear rationale for the preference."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

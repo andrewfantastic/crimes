@@ -1,0 +1,72 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:04:04.669Z",
+  "run_id": "8df9e201-188a-4f8b-a7a7-63e131d2b144",
+  "response": "## Break: `src/domain/billing.ts` → `src/presentation/invoice-view.ts`\n\nThat single import is the root cause. Removing it both breaks the cycle and fixes the layer violation in one move.\n\n**Why this edge and not the others**\n\nThe three files form a ring. Two of the three edges are architecturally legitimate:\n\n- `presentation/invoice-view.ts` → `application/billing-flow.ts` — presentation calling into application is the normal direction.\n- `application/billing-flow.ts` → `domain/billing.ts` — application calling into domain is the normal direction.\n- `domain/billing.ts` → `presentation/invoice-view.ts` — **wrong direction**. Domain reaching into presentation inverts the dependency flow and is what `crime_00002` flags (`rule: domain cannotImport presentation`).\n\n`crime_00001` (the cycle) and `crime_00002` (the layer violation) share the same offending edge. Fix it once, both findings go away.\n\n**How to break it**\n\nThe suggested action on `crime_00001` lists two mechanical options; pick based on what `domain/billing.ts` is actually using from `invoice-view.ts`:\n\n1. **If it imports a type only** — change to `import type { ... } from '../presentation/invoice-view'`. Type-only imports are erased at compile time and don't contribute a runtime edge, so the cycle disappears without moving any code. Cheapest fix.\n2. **If it imports a value (function, class, constant)** — that's a real dependency in the wrong direction. Extract the shared piece (types, a formatter helper, whatever it actually needs) into a third module under `domain/` or a neutral `shared/` location, and have both `domain/billing.ts` and `presentation/invoice-view.ts` import from it. Don't relax the layer rule to make the import legal; the rule is correct.\n\n**What to check before editing**\n\nOpen `src/domain/billing.ts` and look at what it imports from `invoice-view.ts`. That determines which of the two fixes applies. `crime_00003` (deep import in `billing-flow.ts`) is unrelated to the cycle and can be addressed separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent correctly identify the cycle (domain → presentation → application → domain)?",
+        "score": 10,
+        "reasoning": "The agent correctly identifies all three edges of the cycle: presentation → application, application → domain, and the problematic domain → presentation edge. It explicitly enumerates the ring with all three files (domain/billing.ts, presentation/invoice-view.ts, application/billing-flow.ts) and correctly identifies the traversal direction. The cycle identification is complete and accurate."
+      },
+      {
+        "question": "Did the agent's fix preserve the dependency direction (lower-layer should not depend on higher)?",
+        "score": 10,
+        "reasoning": "The agent's proposed fix explicitly preserves correct layering. It identifies that domain → presentation is the 'wrong direction' that inverts dependency flow, and proposes breaking exactly that edge. Both suggested remediations (type-only import or extracting to a neutral/domain-level shared module) maintain the rule that lower layers (domain) must not depend on higher layers (presentation). The agent also explicitly warns against relaxing the layer rule, demonstrating clear understanding of the architectural principle."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

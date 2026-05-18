@@ -1,0 +1,49 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:04:29.217Z",
+  "run_id": "12c94cdd-bc6b-4945-bff4-f7ec9bd79815",
+  "response": "**Crimes found nothing.** The scan reports `total: 0` across all severities (high/medium/low) with an empty `findings` array.\n\n**Safe to extend.** No structural issues (large functions, deep nesting), no dependency problems (circular deps, layer violations), no duplication, no testability concerns, and no churn hotspots flagged for `src/add.ts` in the `09-clean-tiny` fixture. Proceed with the edit without additional guardrails.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent correctly recognise this as a clean fixture (no findings)?",
+        "score": 10,
+        "reasoning": "The agent correctly identified the fixture as clean, explicitly stating 'Crimes found nothing' and citing the JSON output structure ('total: 0' across all severities with an empty findings array). It also correctly concluded the file is safe to extend, matching the expected outcome for a clean fixture."
+      },
+      {
+        "question": "Did the agent avoid inventing findings that aren't in the JSON output?",
+        "score": 10,
+        "reasoning": "The agent did not invent any findings. It explicitly listed categories of issues that were NOT flagged (large functions, deep nesting, circular deps, layer violations, duplication, testability, churn) as a negative summary — confirming absence rather than fabricating presence. This aligns with the forbidden_actions constraint (no large_function or direct_date claims) and stays faithful to the empty JSON output."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

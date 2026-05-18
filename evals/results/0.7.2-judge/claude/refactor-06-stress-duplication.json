@@ -1,0 +1,81 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:06:51.406Z",
+  "run_id": "80d0edd0-9ff9-464e-8c46-ebd25b0752df",
+  "response": "## Confirmed duplication\n\n`crimes scan` flags `crime_00002` (near_duplicate_block, confidence 0.85): three sanitisers across `src/sanitize-a.ts`, `src/sanitize-b.ts`, and `src/sanitize-c.ts` share the same 27-line body — only the function name (`sanitizeUserInput` / `sanitizeText` / `cleanMessage`) and local variable name (`working` / `cleaned` / `normalised`) differ. The logic is identical: null/undefined → `\"\"`, trim, strip control chars, collapse whitespace, cap at 1000 chars, reject leading `<`/`>`, reject `\\x` escapes, reject >5 punctuation runs, lowercase when upper-ratio > 0.9 and length > 30.\n\n## Proposed refactor\n\nConsolidate into a single helper in a new file `src/sanitize.ts` and re-export from the three existing modules so call sites keep their current import paths during the transition.\n\n### Public API\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  maxLength?: number;        // default 1000\n  maxPunctuationRuns?: number; // default 5\n  upperRatioThreshold?: number; // default 0.9\n  upperRatioMinLength?: number; // default 30\n}\n\nexport function sanitize(input: unknown, options?: SanitizeOptions): string;\n```\n\n`sanitize` returns `\"\"` for null/undefined/non-coercible values and for any rejection branch (leading angle bracket, `\\x` escape, punctuation flood). Default behaviour matches the current functions exactly so the migration is a behaviour-preserving rename.\n\n### Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` *(new)* | Houses the consolidated `sanitize` + `SanitizeOptions`. |\n| `src/sanitize-a.ts` | Delete the body of `sanitizeUserInput`; re-export `export const sanitizeUserInput = sanitize;` (or remove entirely once callers are updated). Keep `assertAdminA` for now — that's a separate finding. |\n| `src/sanitize-b.ts` | Same: replace `sanitizeText` body with delegation to `sanitize`. |\n| `src/sanitize-c.ts` | Same: replace `cleanMessage` body with delegation to `sanitize`. |\n| Call sites | Anything importing the three old names continues to work via the re-export; a follow-up pass renames imports to `sanitize` from `./sanitize` and deletes the shim files. |\n\n### Why this shape\n\n- Single source of truth for the rejection rules — future tweaks (e.g. raising the 1000-char cap) land once.\n- Options object instead of positional params keeps the call sites readable and matches the existing zero-arg ergonomics (`sanitize(raw)` is unchanged).\n- `input: unknown` mirrors the runtime `String(raw)` coercion already in the code — the current `string` parameter type is a lie since the functions explicitly handle `null`/`undefined`.\n\n### Out of scope for this refactor\n\n- `crime_00001` (exact duplicate `recordSanitiseEvent` in `telemetry-a.ts` / `telemetry-b.ts`) — same playbook, different module; do it in a separate commit.\n- `crime_00003` (scattered `role === \"admin\"` checks across `assertAdminA/B/C` and `policy.ts`) — needs a `policy.ts`-owned `isAdmin(role)` helper, but the three `assertAdmin*` functions have *different* semantics (`=== \"admin\"` vs `|| \"owner\"` vs `!== \"admin\"`), so they can't be collapsed blindly. Triage call-site-by-call-site.\n- `crime_00004`/`00005` (`Date.now()` in telemetry) — orthogonal, fix when introducing a `Clock` interface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 9,
+    "per_question": [
+      {
+        "question": "Did the agent propose a single consolidated function rather than three thin wrappers?",
+        "score": 9,
+        "reasoning": "The agent clearly proposes a single consolidated `sanitize` function in a new `src/sanitize.ts` file with a unified `SanitizeOptions` interface. While the transition step does include thin wrapper re-exports (`export const sanitizeUserInput = sanitize`), this is explicitly framed as a temporary migration shim, with the end state being deletion of the shim files and direct imports of `sanitize`. The consolidated function is the clear single source of truth, with rejection rules and defaults all centralized."
+      },
+      {
+        "question": "Did the agent address what callers should import after the refactor?",
+        "score": 9,
+        "reasoning": "The agent explicitly addresses caller imports in the 'Call sites' row of the change table: existing imports continue to work via re-export during transition, then a follow-up pass renames imports to `sanitize` from `./sanitize` and deletes the shim files. This covers both the immediate migration path and the end state. It could have been slightly more concrete about specific call sites, but the import strategy is clearly articulated."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

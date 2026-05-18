@@ -1,0 +1,72 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:03:55.984Z",
+  "run_id": "4c4b7272-ea41-494e-8974-82f8d307060d",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e390a-117e-7273-969b-9564b757f82e\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy:\\n\\n- It is part of the 3-file cycle:\\n  `billing-flow.ts -> billing.ts -> invoice-view.ts -> billing-flow.ts`\\n- It is also the explicit layer violation:\\n  domain imports presentation, which inverts the intended architecture.\\n- Breaking this edge fixes both the high-severity circular dependency and the medium-severity domain-to-presentation boundary violation.\\n\\nBest fix: move whatever `billing.ts` needs from `invoice-view.ts` into a neutral module or a domain-owned type/interface. For example:\\n\\n- If `billing.ts` only needs a type from `invoice-view.ts`, convert it to `import type` if safe.\\n- If it needs formatting/rendering behavior, move that behavior out of presentation or invert it behind a domain/application interface.\\n- Presentation should depend on domain, not the other way around.\\n\\nI would not start by breaking the `billing-flow.ts` import unless inspection shows it is obviously type-only. The domain-to-presentation import is the architectural root of the cycle, so removing it gives the cleanest fix.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19273,\"cached_input_tokens\":12160,\"output_tokens\":259,\"reasoning_output_tokens\":24}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 9.5,
+    "per_question": [
+      {
+        "question": "Did the agent correctly identify the cycle (domain → presentation → application → domain)?",
+        "score": 9,
+        "reasoning": "The agent correctly identified the 3-file cycle involving billing.ts (domain), invoice-view.ts (presentation), and billing-flow.ts (application). The cycle is described as `billing-flow.ts -> billing.ts -> invoice-view.ts -> billing-flow.ts`, which traces application → domain → presentation → application — the same cycle as the expected domain → presentation → application → domain, just starting from a different node. All three expected files are referenced, and the agent explicitly calls out the domain-to-presentation layer violation as the architectural root."
+      },
+      {
+        "question": "Did the agent's fix preserve the dependency direction (lower-layer should not depend on higher)?",
+        "score": 10,
+        "reasoning": "The agent's proposed fix correctly preserves layer direction by targeting the domain → presentation import as the one to break, explicitly stating 'Presentation should depend on domain, not the other way around.' The remediation suggestions (move shared types to a neutral module, invert behavior behind a domain/application interface, use `import type` if applicable) all respect the rule that lower layers (domain) must not depend on higher layers (presentation/application). The reasoning explicitly rejects breaking the application → domain edge because that would not address the architectural inversion."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:05:57.946Z",
+  "run_id": "66b95ef3-403b-4410-a8ce-ce6e00440ce1",
+  "response": "# Refactor plan: consolidate sanitise helpers + admin checks\n\n## Why two steps in this order\n\nThe three sanitise functions are *near-duplicates*, not exact ones (crime_00002, confidence 0.85). The most likely source of drift is the inline `role === \"admin\"` check that crime_00003 flags inside each sanitize file. If we collapse the three helpers first, we'd have to decide which shape of the admin check is canonical mid-merge. If we collapse the admin check first, the three sanitise bodies become byte-identical and step 2 turns into a mechanical lift.\n\nSo: **policy first, helper second.**\n\n---\n\n## Step 1 — Extract `isAdmin(role)` and replace every call site\n\n**New code**\n\n- In `src/policy.ts`, add (or re-use top of file):\n  ```ts\n  export function isAdmin(role: string): boolean {\n    return role === \"admin\";\n  }\n  ```\n\n**Call sites to update**\n\n- `src/policy.ts:1, 3, 8, 13` — replace `role === \"admin\"` with `isAdmin(role)`.\n- `src/sanitize-a.ts:7` — same.\n- `src/sanitize-b.ts` and `src/sanitize-c.ts` — same (the \"+2 more\" in the evidence).\n\n**Verification before moving on**\n\n- Re-run `crimes scan --format json`. crime_00003 should be gone.\n- crime_00002 should now be reported as `exact_duplicate_block` (hash collapses across all three files), not near-duplicate. That's the green light for step 2 — if it's still \"near\", there's a second diverging line we haven't found yet and step 2 is unsafe.\n\n**Risk**: low. Pure mechanical rename, single literal, behaviour-preserving.\n\n---\n\n## Step 2 — Promote the sanitise body into one shared helper\n\n**New module**\n\n- Create `src/sanitize.ts` (or `src/lib/sanitize.ts`) exporting a single function — pick the most descriptive of the three existing names; `sanitizeUserInput` reads best:\n  ```ts\n  import { isAdmin } from \"./policy\";\n\n  export function sanitizeUserInput(input: string, role: string): string {\n    // the body that's now identical across sanitize-{a,b,c}.ts after step 1\n  }\n  ```\n\n**Old files**\n\n- Decide between two collapse strategies — pick one project-wide, don't mix:\n  - **A. Re-export shims** (safer, zero call-site churn): keep `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` as one-line re-exports under their original names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) so existing imports keep working. Flag them as deprecated.\n  - **B. Delete and migrate** (cleaner): grep every importer of `sanitizeText` / `cleanMessage` / `sanitizeUserInput`, point them at the new module, then delete the three old files.\n\n  Recommend **A** if there are external consumers or a large blast radius beyond this fixture; **B** here, since it's a single repo with three files and a known import graph.\n\n**Verification**\n\n- Re-run `crimes scan --format json`. crime_00002 should be gone.\n- Type-check + tests pass.\n\n**Risk**: medium *before* step 1, low *after*. The whole point of doing step 1 first is to retire that risk.\n\n---\n\n## Out of scope for this change set\n\n- **crime_00001** (exact duplicate of `recordSanitiseEvent` in `telemetry-{a,b}.ts`) and **crime_00004/00005** (`Date.now()` in those same telemetry files) are a separate cluster — they share files but not concepts. Bundle them into a follow-up \"consolidate telemetry + inject clock\" change, since fixing both at once gives you a natural place to thread a `now: () => number` parameter through the new shared `recordSanitiseEvent`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent split the work into two coherent changes (sanitise consolidation + policy consolidation) rather than ten tiny patches?",
+        "score": 10,
+        "reasoning": "The agent clearly structured the work as exactly two coherent change sets: Step 1 extracts isAdmin and consolidates the policy/role check across all call sites, and Step 2 promotes the now-identical sanitise body into a single shared helper. It explicitly justifies the ordering (policy first so the near-duplicates collapse to exact duplicates, making step 2 mechanical) and pushes the unrelated telemetry/clock cluster out of scope rather than fragmenting into many small patches. This is precisely the two-step framing the scenario asks for, and it correctly prioritizes the duplicated_role_status_plan_check finding."
+      },
+      {
+        "question": "Did the agent's plan call out where call sites would need updating after the refactor?",
+        "score": 10,
+        "reasoning": "The plan enumerates specific call sites with file paths and line numbers for Step 1 (src/policy.ts:1, 3, 8, 13; src/sanitize-a.ts:7; and sanitize-b.ts/sanitize-c.ts noted as the '+2 more'). For Step 2, it explicitly addresses call-site migration with two strategies — re-export shims to preserve existing imports, or grep every importer of sanitizeText/cleanMessage/sanitizeUserInput and repoint them before deletion — and gives a recommendation. Call-site impact is treated as a first-class concern in both steps, not an afterthought."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

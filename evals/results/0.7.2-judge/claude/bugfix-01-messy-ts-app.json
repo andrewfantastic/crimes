@@ -1,0 +1,93 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:04:13.187Z",
+  "run_id": "0e825cce-0b9d-4057-a554-40456f60d75b",
+  "response": "# Most likely cause: Temporal Recklessness in `generateInvoice`\n\nThe smoking gun is **crime_00004**: `src/billing.ts` has **7 direct reads of the system clock** (`5× Date.now()`, `2× new Date()`) at lines 57, 63, 92, 198, 238, 250, 273 — all inside the 204-line `generateInvoice` body (crime_00001, lines 50–253). Every one of those calls observes wall time at runtime, so the function's output depends on *when* it executes. That is exactly the shape of a date-boundary flake: tests pass at 14:00 and fail at 23:59:59 when one of those reads lands on the next day/month/year.\n\nCompounding factors from the same scan:\n\n- **crime_00005**: `src/date.ts` has another 5 direct clock reads — likely the helpers `billing.ts` calls, so swapping just the billing call sites won't fully fix it.\n- **crime_00006**: `renders the enterprise plan` test has zero assertions. Whatever it was meant to pin down at the boundary, it isn't pinning. False green.\n- **crime_00001 + crime_00010**: God Function + God File. The 7 clock reads are scattered across 200+ lines, so any \"just freeze time around this block\" fix will be fragile.\n\nThe lower-ranked findings (alias drift, nav drift, orphaned routes, option bags) don't plausibly cause time-boundary flakiness — ignore them for this bug.\n\n# Proposed fix\n\n1. **Introduce a `Clock` seam.** Add `interface Clock { now(): number }` and a default `systemClock`. Replace every `Date.now()` / `new Date()` in `src/billing.ts` *and* `src/date.ts` with `clock.now()` / `new Date(clock.now())`. Thread `clock` through `generateInvoice` (and the `src/date.ts` helpers) as a parameter with a default of `systemClock` so production callers don't change.\n2. **Pin the clock in tests.** In `src/billing.test.ts`, construct a `FakeClock` set to a known instant (and add cases at the suspect boundaries: end-of-day UTC, end-of-month, year rollover, DST transition if billing localizes).\n3. **Fix the empty test (crime_00006)** — `renders the enterprise plan` at lines 4–6 has no `expect`. Either assert the boundary behaviour it was meant to protect or delete it; right now it's hiding the regression.\n4. **Don't refactor the God Function yet.** crime_00001 is real but orthogonal — extracting helpers while chasing a flake risks moving the bug. Land the clock seam + tests first, then split `generateInvoice` in a separate commit.\n\nThe crimes scan can't tell you *which* of the 7 clock reads produced today's failure, but it tells you the whole class is non-deterministic — so the right fix is the seam, not patching one call site.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent connect the failing date test to direct clock access (Date.now()/new Date())?",
+        "score": 10,
+        "reasoning": "The agent explicitly identifies crime_00004 as 'Temporal Recklessness' with 7 direct clock reads (5× Date.now(), 2× new Date()) at specific line numbers in src/billing.ts, and directly explains how this causes date-boundary flakiness ('tests pass at 14:00 and fail at 23:59:59'). It also flags crime_00005 in src/date.ts as a compounding factor. The connection between the failing date test and direct clock access is made clearly, explicitly, and with concrete evidence."
+      },
+      {
+        "question": "Did the agent's fix introduce a clock/now() abstraction rather than monkey-patching globals?",
+        "score": 10,
+        "reasoning": "The agent proposes introducing a Clock seam: 'interface Clock { now(): number }' with a default systemClock, threading it through generateInvoice as a parameter, and using a FakeClock in tests. This is a textbook dependency-injection abstraction — no mention of monkey-patching globals, sinon fake timers, or overriding Date.now directly. The fix correctly addresses both billing.ts and the helpers in date.ts, and properly defers the orthogonal God Function refactor."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

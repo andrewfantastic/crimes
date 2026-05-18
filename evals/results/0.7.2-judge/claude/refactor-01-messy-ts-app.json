@@ -1,0 +1,99 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:06:18.881Z",
+  "run_id": "022ed155-2bc9-479d-8be5-0380736d0779",
+  "response": "# Top 3 changes to reduce risk in `src/billing.ts`\n\n## 1. Break up `generateInvoice` (lines 50–253)\n**Finding:** `crime_00001` — God Function, severity high, agent_risk 0.63.\n\n204 lines is 3.4× the 60-line domain threshold, and it's the single highest-risk finding in the scan. A function this size almost certainly mixes unrelated responsibilities — pricing, tax, proration, persistence, formatting — and is the main reason `src/billing.ts` itself crosses the 300-line `God File` threshold (`crime_00010`). Extracting cohesive sections into named helpers shrinks the surface an agent has to reason about per edit, and it's a prerequisite for almost every other fix below — you can't usefully inject a clock or rename a side-effectful function while it's buried inside a 200-line body.\n\n## 2. Inject a clock to kill the 7 direct `Date.now()` / `new Date()` calls\n**Finding:** `crime_00004` — Temporal Recklessness, lines 57, 63, 92, 198, 238, 250, 273.\n\nSeven separate wall-clock reads in domain code means every test that touches billing has to either run at wall time or monkey-patch globals. Combined with the weak/empty tests next door in `src/billing.test.ts` (`crime_00006`: zero asserts; `crime_00016`: weak matchers), this file currently has *both* non-deterministic logic *and* tests that wouldn't catch a regression anyway. Threading a `Clock` / `now()` abstraction through the extracted helpers from change #1 is what makes meaningful assertions possible.\n\n## 3. Fix the refund pair: rename `calculateRefundPreview` and encode its hidden rule\n**Findings:** `crime_00008` (False Identity, lines 40–44) + `crime_00011` (Logic in the Alibi, line 39, directly above it).\n\nThese are adjacent and the same defect viewed from two angles: a function named like a pure calculator (`calculateRefundPreview`) that actually calls `saveRefundAudit` and `sendRefundEmail`, sitting under a comment that quietly declares the policy *\"Only owners can refund enterprise plans unless billing support approves.\"* An agent reading the name will treat it as safe to call from a render path; an agent skimming the body will miss the comment's authorization rule entirely. Split the pure preview from the side effect, encode the owner/support check as a named guard returning a typed result, and delete the comment in favour of the guard's name. Bonus: the \"enterprise\" literal in the same area is part of the cross-file scatter in `crime_00007` — lifting it to a constant while you're here removes one more place the policy can drift.\n\n---\n\nDeliberately skipped from billing.ts: the file-level God File (`crime_00010`) resolves naturally once #1 lands, and the 4 in-file TODOs (`crime_00020`) are low-severity noise compared to the structural issues above.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 9,
+    "per_question": [
+      {
+        "question": "Did the agent correctly identify the largest function as the highest-risk item?",
+        "score": 10,
+        "reasoning": "The agent explicitly identified `generateInvoice` (lines 50-253, 204 lines) as the #1 priority, labeling it the 'single highest-risk finding in the scan' with the highest agent_risk score (0.63). It correctly framed this as the God Function (large_function finding) and noted it's 3.4x the threshold. The prioritization matches the expected_priority of 'large_function' exactly, and the reasoning ties the choice to concrete evidence (line count, threshold ratio, risk score, and downstream dependencies on other fixes)."
+      },
+      {
+        "question": "Did the agent's proposed refactor preserve the existing public API?",
+        "score": 8,
+        "reasoning": "The proposed refactors are generally API-preserving: extracting helpers from generateInvoice keeps the public function signature intact, and splitting calculateRefundPreview into a pure preview plus a side-effect path could preserve the original entry point if done carefully. However, the agent doesn't explicitly commit to preserving the public API — the clock injection (#2) implies threading a Clock parameter through helpers, which could leak into public signatures if generateInvoice or calculateRefundPreview accept it directly. The refund split (#3) also risks changing the call contract if 'split the pure preview from the side effect' means renaming or removing the original function. The agent's intent appears API-conscious (extracting internal helpers, encoding guards) but lacks an explicit statement that the external surface stays stable."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

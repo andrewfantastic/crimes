@@ -1,0 +1,99 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:07:51.463Z",
+  "run_id": "d40746b5-961a-4b9e-a4f3-20c63f984293",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e390d-73f5-71e3-a95e-83997bfbd580\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Merge Decision**\\n\\nI would **block merge on 1 finding**, **warn on 17**, and **ignore 4**. Since this PR is the entire repo over an empty baseline, I’d treat high severity as blocking, medium severity as warning unless the risk is clearly systemic, and low severity as warning only when `agent_risk` is around `0.5` or the issue points to broken repo navigation/docs.\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `large_function` | **Block merge** | `high`, `agent_risk: 0.63`. A 204-line billing domain function is the only high finding and is likely to make future edits unsafe. |\\n| `crime_00002` `missing_agent_context` | **Warn** | `medium`, `agent_risk: 0.61`. Important for this project’s agent workflow, but low-cost documentation/context debt rather than runtime breakage. |\\n| `crime_00004` `direct_date` | **Warn** | `medium`, `agent_risk: 0.53`. Non-deterministic billing behavior should be fixed, but does not alone block the initial import. |\\n| `crime_00005` `direct_date` | **Warn** | `medium`, `agent_risk: 0.61`. Higher test-gap risk than `crime_00004`; still a warning unless time behavior is business-critical. |\\n| `crime_00006` `weak_test_signal` | **Warn** | `medium`, `agent_risk: 0.46`. A no-assertion test is misleading, but localized. |\\n| `crime_00007` `magic_domain_literal_scatter` | **Warn** | `medium`, `agent_risk: 0.60`. Cross-area repeated `\\\"enterprise\\\"` policy can drift. |\\n| `crime_00008` `name_behavior_mismatch` | **Warn** | `medium`, `agent_risk: 0.52`. Side effects hidden behind a preview-style name are risky in billing code. |\\n| `crime_00009` `concept_alias_drift` | **Warn** | `medium`, `agent_risk: 0.58`. Tenant vocabulary drift across docs/routes can cause duplicate or inconsistent behavior. |\\n| `crime_00010` `large_file` | **Warn** | `medium`, `agent_risk: 0.50`. Barely over threshold, but combined with the god function it adds review/edit risk. |\\n| `crime_00011` `logic_in_comments` | **Warn** | `medium`, `agent_risk: 0.50`. Authorization/refund rule in prose is risky enough to track. |\\n| `crime_00012` `duplicated_navigation_source` | **Warn** | `medium`, `agent_risk: 0.57`. Conflicting labels for the same route are likely to drift further. |\\n| `crime_00013` `todo_density` | **Warn** | `medium`, `agent_risk: 0.57`. Very high TODO density makes intent unclear. |\\n| `crime_00014` `route_metadata_drift` | **Warn** | `medium`, `agent_risk: 0.56`. Four competing names for the billing route should be aligned. |\\n| `crime_00015` `docs_code_drift` | **Warn** | `low`, `agent_risk: 0.51`. Low severity, but a broken local doc link is concrete and easy to fix. |\\n| `crime_00016` `weak_test_signal` | **Ignore** | `low`, `agent_risk: 0.34`. Weak assertion is worth cleaning later, but below merge-review concern. |\\n| `crime_00017` `option_bag_junk_drawer` | **Warn** | `low`, `agent_risk: 0.48`. Low severity, but implicit option shape plus full test gap is enough to flag. |\\n| `crime_00018` `return_shape_roulette` | **Warn** | `low`, `agent_risk: 0.48`. Similar: low severity, but implicit return contract can mislead callers. |\\n| `crime_00019` `negative_flag_maze` | **Ignore** | `low`, `agent_risk: 0.47`. Annoying but small and localized. |\\n| `crime_00020` `todo_density` | **Ignore** | `low`, `agent_risk: 0.40`. Below warning threshold; already covered by larger billing-file concerns. |\\n| `crime_00021` `orphaned_destination` | **Warn** | `low`, `agent_risk: 0.46`. Route reachability should be confirmed for a newly added app. |\\n| `crime_00022` `orphaned_destination` | **Warn** | `low`, `agent_risk: 0.46`. Same route reachability concern. |\\n| `crime_00023` `orphaned_destination` | **Warn** | `low`, `agent_risk: 0.46`. Same route reachability concern. |\\n\\n`suppressed_count: 1` means one finding is intentionally absent from review; I would not re-litigate it without the suppressed finding details.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":17792,\"output_tokens\":1171,\"reasoning_output_tokens\":49}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 8,
+    "per_question": [
+      {
+        "question": "Did the agent's block/warn/ignore split align with severity (high → block, medium → warn, low → ignore)?",
+        "score": 8,
+        "reasoning": "The agent's split largely aligns with the severity mapping rubric: the single high-severity finding (large_function) is blocked, all medium-severity findings are categorized as warn, and low-severity findings are split between warn and ignore. The agent explicitly states the mapping rule upfront ('high severity as blocking, medium severity as warning... low severity as warning only when agent_risk is around 0.5'). The main deviation is that several low-severity findings are escalated to warn rather than ignored, but this is a defensible policy choice rather than misalignment. The high→block and medium→warn axes are perfectly clean."
+      },
+      {
+        "question": "Did the agent justify deviations by citing scores.agent_risk specifically?",
+        "score": 8,
+        "reasoning": "The agent does cite scores.agent_risk specifically for every finding, with numeric values (e.g., 'agent_risk: 0.63', 'agent_risk: 0.48'), and uses it as the explicit tiebreaker for low-severity items — the stated rule is that low severity warrants 'warning only when agent_risk is around 0.5'. This is visible in contrasts like crime_00017/00018 (low, 0.48 → warn) vs crime_00019 (low, 0.47 → ignore) and crime_00016 (low, 0.34 → ignore) vs crime_00015 (low, 0.51 → warn). The threshold is applied slightly inconsistently (0.47 ignored but 0.46 warned for orphaned_destination), but agent_risk is clearly the cited justification mechanism for deviations."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

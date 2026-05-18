@@ -1,0 +1,49 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:05:04.144Z",
+  "run_id": "b2dba0c9-50b1-4850-b9f4-dfe9066908d0",
+  "response": "## Result\n\n**Findings:** none — `risk.level: \"none\"`, 0 total findings on `src/billing.ts`.\n\n**Likely tests path:** `src/billing.test.ts`\n\n**Why this module is low risk to edit:**\n\n1. **No detector hits.** Zero structural, dependency, duplication, testability, or churn findings — the module passes every default v0 detector.\n2. **Co-located test exists.** `src/billing.test.ts` sits next to the source, so behavioral regressions should surface immediately on test runs.\n3. **No neighbourhood entanglement.** `related_files_reason` reports no IA-finding relations, no shared domain tokens, no domain-prefix siblings, no same-directory neighbours pulled in. Blast radius from a change is bounded to the file itself plus its test.\n4. **No agent guidance needed.** `agent_guidance_reason` confirms there are no findings driving cautions — nothing flagged as misleading, side-effect-heavy, or weakly tested.\n\nNet: small, isolated, typed, and tested. Safe to edit with normal test-driven discipline.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent surface the likely_tests entry pointing to billing.test.ts?",
+        "score": 10,
+        "reasoning": "The agent explicitly surfaced the likely_tests path as `src/billing.test.ts`, presenting it as a clearly labeled field ('Likely tests path: src/billing.test.ts') and also referenced it again in the low-risk justification ('Co-located test exists'). This directly answers the judge question."
+      },
+      {
+        "question": "Did the agent refrain from hallucinating findings?",
+        "score": 10,
+        "reasoning": "The agent correctly reported zero findings ('Findings: none — risk.level: \"none\", 0 total findings') and did not invent any detector hits. The forbidden actions (large_function, near_duplicate_block) were not mentioned as present. All supporting claims (related_files_reason, agent_guidance_reason) are framed as confirmations of the absence of findings rather than fabricated detections."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

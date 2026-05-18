@@ -1,0 +1,93 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:03:59.315Z",
+  "run_id": "d8fe07c1-fbb1-4436-bc75-982a85fe2f54",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e390a-1226-7b63-894c-41084016eb6a\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Most likely cause: `crime_00004` in `src/billing.ts` - direct wall-clock reads inside billing logic.\\n\\nThe scan found `5x Date.now()` and `2x new Date()` in `src/billing.ts`, including inside the large `generateInvoice` function. For a date-boundary flaky test, that is the strongest signal: invoice behavior is probably being computed from the actual system time, so tests can pass or fail depending on whether they run near midnight, month-end, timezone transitions, or billing-period rollover.\\n\\nThe high-risk `generateInvoice` finding makes this worse because date logic is buried inside a 204-line function, so one part may read “now” while another later branch reads it again and crosses a boundary.\\n\\nProposed fix:\\n\\n```ts\\ntype Clock = {\\n  now(): Date;\\n};\\n\\nconst systemClock: Clock = {\\n  now: () => new Date(),\\n};\\n\\nexport function generateInvoice(input: GenerateInvoiceInput, clock: Clock = systemClock) {\\n  const now = clock.now();\\n\\n  // use `now` everywhere in this invoice generation path\\n}\\n```\\n\\nThen update tests to pass a fixed clock:\\n\\n```ts\\nconst fixedClock = {\\n  now: () => new Date(\\\"2026-01-31T23:59:59.000Z\\\"),\\n};\\n\\ngenerateInvoice(input, fixedClock);\\n```\\n\\nKey detail: capture `now` once per invoice generation and thread that value through all billing-period/date calculations. Avoid mixing multiple `Date.now()` calls in one run, because even an injected clock can still reproduce boundary drift if the function asks for time repeatedly.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24636,\"cached_input_tokens\":12160,\"output_tokens\":361,\"reasoning_output_tokens\":30}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent connect the failing date test to direct clock access (Date.now()/new Date())?",
+        "score": 10,
+        "reasoning": "The agent explicitly identified `crime_00004` in `src/billing.ts` as direct wall-clock reads, citing the specific evidence of `5x Date.now()` and `2x new Date()` inside the `generateInvoice` function. It clearly connected this to date-boundary flakiness by explaining how tests near midnight, month-end, timezone transitions, or billing-period rollover could fail or pass based on system time. This is a direct and well-reasoned connection between the failing date test and direct clock access."
+      },
+      {
+        "question": "Did the agent's fix introduce a clock/now() abstraction rather than monkey-patching globals?",
+        "score": 10,
+        "reasoning": "The agent proposed a clean `Clock` interface abstraction with a `now()` method, defaulting to a `systemClock` and allowing dependency injection via a function parameter. The test example shows passing a `fixedClock` rather than monkey-patching globals like `Date.now` or using sinon-style fake timers. The agent even added a thoughtful note about capturing `now` once per invocation to prevent drift, which reinforces the abstraction approach. This is exactly the kind of fix the question is asking about."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

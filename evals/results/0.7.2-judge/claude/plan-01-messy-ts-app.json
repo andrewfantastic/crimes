@@ -1,0 +1,99 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:06:06.367Z",
+  "run_id": "4dd0b2d2-aeae-4048-9a3c-ef0adbd58376",
+  "response": "# Triage plan — top 10 findings\n\n**Bucket coverage:** the strict top 10 (by severity → agent_risk) is **8 structural + 2 duplication**. There are **no git-history findings** (every `churn` is 0 — this fixture has no git signal yet), **no IA or frontend findings** in the top 10. The first IA findings are at #11 (`crime_00012` duplicated nav source) and #13 (`crime_00014` route metadata drift); call them out if you want a broader sweep.\n\n## Structural (8)\n\n| # | ID | Charge | File | Action |\n|---|---|---|---|---|\n| 1 | `crime_00001` | God Function `generateInvoice` | `src/billing.ts:50–253` | **Fix now** — 204-line function is the highest-risk item; the surrounding cleanups (clock injection, comment-rule, file split) all become easier once it's broken up. |\n| 2 | `crime_00008` | False Identity `calculateRefundPreview` | `src/billing.ts:40` | **Fix now** — cheap rename/extract; misleading \"preview\" name is actively dangerous because callers will treat it as pure. |\n| 3 | `crime_00011` | Logic in the Alibi (owner/refund rule) | `src/billing.ts:39` | **Fix now** — encode the comment as a named guard + test alongside #2; same edit window. |\n| 4 | `crime_00004` | Temporal Recklessness (7×) | `src/billing.ts` | **Fix now** — inject a clock; prerequisite for testing #1 and #3 properly. |\n| 5 | `crime_00006` | Test That Proves Nothing | `src/billing.test.ts:4–6` | **Fix now** — 2-minute fix (add an expect or delete). Leaving it gives agents false coverage signal. |\n| 6 | `crime_00002` | Missing Agent Context | repo root | **Fix now** — `AGENTS.md` / `CLAUDE.md` is ~10 min and prevents repeated bad edits across every later task. |\n| 7 | `crime_00010` | God File `billing.ts` (310 LOC) | `src/billing.ts` | **Defer** — falls out naturally once #1 is extracted; doing both in one PR is fine but don't treat it as separate work. |\n| 8 | `crime_00005` | Temporal Recklessness (5×) | `src/date.ts` | **Defer** — same fix shape as #4, lower leverage. Wait until the clock abstraction exists, then sweep. |\n\n## Duplication (2)\n\n| # | ID | Charge | Action |\n|---|---|---|---|\n| 9 | `crime_00007` | String Sprinkles — `\"enterprise\"` in 4 files | **Fix now** — centralise to an enum/const before someone adds a 5th copy. Cheap and prevents a future round of policy-drift findings. |\n| 10 | `crime_00009` | Concept Alias Drift — tenant / account / team / workspace across 5 files | **Defer** — needs a product call on the canonical term first. Don't mass-rename until that decision exists, otherwise you'll re-do it. |\n\n## Git-history / IA / frontend\n\n**Empty in the top 10.** Worth flagging:\n\n- **Git-history:** every finding has `churn: 0` — the fixture either has no git history or the detector hasn't run with `--changed`. Re-run after a few commits land to surface hotspot-style findings.\n- **IA (runner-ups):** `crime_00012` (duplicated nav source for `/settings/billing`) → **fix now** if you widen the window; `crime_00014` (route metadata drift on the same destination) → **defer**, it resolves as a side-effect of fixing #12.\n- **Frontend:** no dedicated findings; the three `orphaned_destination` rows (`crime_00021–23`) are the closest, all **defer-or-ignore** until someone owns the routes.\n\n## Suggested execution order\n\n`#1 → #2+#3 → #4 → #5 → #6 → #9` as one or two PRs touching `billing.ts`; then `#7` (file split falls out); then a separate session for `#8`, `#10` once product weighs in. Skip nothing — every \"defer\" above has a concrete trigger that surfaces it again.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent group findings by category rather than by file?",
+        "score": 10,
+        "reasoning": "The agent explicitly organized findings into category sections (Structural, Duplication, Git-history/IA/frontend) with clear headers and separate tables per category. The bucket coverage summary at the top reinforces the categorical grouping (8 structural + 2 duplication), and the agent explicitly addressed the empty categories (git-history, IA, frontend) rather than ignoring them. While files are mentioned within entries, the primary organizational axis is detector category, not file."
+      },
+      {
+        "question": "Did the agent recommend defer/ignore decisions rather than blanket fix-everything?",
+        "score": 10,
+        "reasoning": "The agent clearly differentiates between fix-now and defer decisions with concrete reasoning for each. Items #7, #8, and #10 are explicitly tagged 'Defer' with rationale (falls out naturally, lower leverage waiting for prerequisite, needs product decision first). The runner-up IA findings include defer recommendations, and the frontend orphaned destinations are marked 'defer-or-ignore'. This is a nuanced triage, not a blanket fix-everything recommendation."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

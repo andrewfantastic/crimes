@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:08:06.218Z",
+  "run_id": "b3edbf18-0604-4f19-a940-9c250947d215",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e390d-e295-7b60-baca-ed99a2bb6c2d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- **Medium: tenant vocabulary drift in `src/nav.ts`**\\n  `crime_00001` is the main IA consistency issue. The same tenant concept appears as `organisation`, `team`, and `workspace` across `src/nav.ts`, `src/routes/organisation.ts`, `src/routes/teams.ts`, and `src/routes/workspace.ts`. This is a **blocking-quality issue if this fixture is meant to represent a coherent product IA**, because agents or contributors may extend one term while missing equivalent surfaces under another. Pick a canonical term, or document intentional aliases clearly.\\n\\n- **Low: orphaned route `/billing-plans` in `src/routes/billing-plans.ts`**\\n  `crime_00002` says the route is not referenced from nav, docs, or imports. This is a **follow-up**, unless billing plans are supposed to be reachable in the current user journey. Link it from `src/nav.ts` / `docs/routes.md`, or remove it if stale.\\n\\n- **Low: orphaned route `/organisation` in `src/routes/organisation.ts`**\\n  `crime_00003` is related to the alias drift. Because `organisation` is also one of the competing tenant terms, I would treat this as part of the same **blocking IA cleanup** if the intended canonical term is not `organisation`. Otherwise it is a follow-up to wire the route into nav/docs.\\n\\n- **Low: orphaned route `/workspace` in `src/routes/workspace.ts`**\\n  `crime_00004` is also tied to the tenant alias drift. Same recommendation: **blocking only as part of canonicalizing tenant IA**, otherwise a low-priority follow-up to link or retire the route.\\n\\n**Recommendation**\\n\\nBlock on `crime_00001`: the tenant concept needs a canonical IA decision before more route/nav/docs work lands. The orphaned destinations are individually low severity, but `/organisation` and `/workspace` become blocking-adjacent because they are evidence of that same drift. `/billing-plans` can stay a normal follow-up unless the product expects billing to be discoverable now.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19607,\"cached_input_tokens\":12160,\"output_tokens\":468,\"reasoning_output_tokens\":34}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": "src/routes/teams.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": "src/routes/workspace.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 9.5,
+    "per_question": [
+      {
+        "question": "Did the agent recognise that the same entities are referred to inconsistently across files?",
+        "score": 10,
+        "reasoning": "The agent clearly recognized the inconsistent naming of the same tenant concept across multiple files. It explicitly identified that 'organisation', 'team', and 'workspace' all refer to the same entity and appear across src/nav.ts, src/routes/organisation.ts, src/routes/teams.ts, and src/routes/workspace.ts. It also tied the orphaned routes (/organisation and /workspace) back to the same underlying drift, showing it understood these were not isolated issues but symptoms of the same vocabulary inconsistency."
+      },
+      {
+        "question": "Did the agent suggest a single normalised vocabulary rather than per-file patches?",
+        "score": 9,
+        "reasoning": "The agent recommended picking a 'canonical term' for the tenant concept and treating the canonicalization as a single blocking IA decision rather than patching each file independently. It explicitly framed the fix as 'canonicalizing tenant IA' and noted that the orphaned routes should be resolved as part of that same decision. It could have been slightly more prescriptive about producing a glossary or normalized vocabulary mapping, but the recommendation clearly favors a unified vocabulary approach over per-file patches."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}

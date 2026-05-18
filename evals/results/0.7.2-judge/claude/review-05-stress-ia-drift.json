@@ -1,0 +1,72 @@
+{
+  "scenario": "review-05-stress-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.2",
+  "timestamp": "2026-05-18T03:08:10.791Z",
+  "run_id": "de8bac83-a984-41c9-afd4-865a63b0bf36",
+  "response": "## Verdict: One blocking issue, one follow-up — and the orphans are mostly symptoms, not separate problems\n\n**The drift is one structural issue with downstream artifacts.** Finding #1 (Concept Alias Drift) is the root cause; findings #3 and #4 (orphaned `/organisation` and `/workspace`) are almost certainly *symptoms* of it. The nav references the alias variants of \"tenant,\" so the actual route files for `organisation` and `workspace` sit unreachable. Don't treat these as three separate items on a punch list.\n\n### Blocking: Concept Alias Drift (`crime_00001`)\n\nPick a canonical term for the tenant concept (tenant / organisation / team / workspace) and align `src/nav.ts`, `src/routes/`, and `docs/routes.md` on it. This is *the* IA decision and an agent extending this codebase will almost certainly duplicate logic under whichever alias they happened to read first — exactly the `agent_risk` the scoring is flagging (0.6, medium severity at 0.75 confidence). It's medium, not high, but it's structural and cheap to resolve while the surface area is still four files.\n\n**Why blocking despite \"medium\":** severity alone undersells it. Once the canonical term is chosen, two of the three orphans resolve naturally (either by pointing nav at the right routes or by deleting the duplicates). Shipping without picking a canonical term locks in the ambiguity.\n\n### Follow-up: `/billing-plans` orphan (`crime_00002`)\n\nThis one is *not* explained by the alias drift — it's a genuinely separate orphan. Could be in-flight work or dead code from a retired flow. Low severity, low confidence (0.65), no blast radius. Worth a quick check with whoever owns billing: link it from nav/docs, or retire it. Doesn't gate the review.\n\n### Recommended order\n\n1. Decide the canonical tenant term, update nav + routes + docs (resolves #1, #3, #4 together).\n2. After #1 lands, re-run `crimes scan` — `/billing-plans` should be the only remaining orphan.\n3. Triage `/billing-plans` with the relevant owner as a separate, non-blocking follow-up.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "concept_alias_drift",
+      "crime_00002": "orphaned_destination",
+      "crime_00003": "orphaned_destination",
+      "crime_00004": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "Concept Alias Drift": "concept_alias_drift",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "concept_alias_drift",
+        "observed": "concept_alias_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "orphaned_destination",
+        "observed": "orphaned_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/teams.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/workspace.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      }
+    ]
+  },
+  "judge_score": {
+    "overall": 10,
+    "per_question": [
+      {
+        "question": "Did the agent recognise that the same entities are referred to inconsistently across files?",
+        "score": 10,
+        "reasoning": "The agent clearly recognized the cross-file inconsistency, explicitly naming the 'tenant concept' with its aliases (tenant/organisation/team/workspace) drifting across src/nav.ts, src/routes/, and docs/routes.md. It correctly identified this as Concept Alias Drift and traced the orphaned destinations (/organisation, /workspace) as downstream symptoms of the same inconsistency rather than independent issues, demonstrating strong understanding of the entity-level drift across the three referenced surfaces."
+      },
+      {
+        "question": "Did the agent suggest a single normalised vocabulary rather than per-file patches?",
+        "score": 10,
+        "reasoning": "The agent explicitly recommended picking 'a canonical term for the tenant concept' and aligning all three files (nav.ts, routes/, docs/routes.md) on it, rather than patching each file independently. The recommended order reinforces this: decide the canonical term first, then propagate it across nav + routes + docs in a single coordinated change. This is exactly the normalized-vocabulary approach the question asks about, and the agent even notes that doing so resolves multiple findings together."
+      }
+    ],
+    "model": "claude-opus-4-7"
+  }
+}
