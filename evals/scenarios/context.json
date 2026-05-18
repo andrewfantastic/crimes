@@ -40,5 +40,19 @@
       "Did the agent surface the likely_tests entry pointing to billing.test.ts?",
       "Did the agent refrain from hallucinating findings?"
     ]
+  },
+  {
+    "id": "context-04-monorepo",
+    "fixture": "04",
+    "kind": "context",
+    "prompt": "You're about to land your first PR on this monorepo and want to know what agent-facing context the repo provides. Use `crimes scan --format json` to check whether the repo ships an AGENTS.md / CLAUDE.md / SKILL.md surface. If not, surface the finding, explain the consequence for future agent work, and propose a minimal AGENTS.md skeleton that would clear the finding.",
+    "expected_artifacts": {
+      "referenced_findings": ["missing_agent_context"],
+      "expected_priority": "missing_agent_context"
+    },
+    "judge_questions": [
+      "Did the agent identify missing_agent_context and propose creating AGENTS.md (or equivalent) rather than ignoring it?",
+      "Did the agent's proposed AGENTS.md skeleton include the project's bins / build commands rather than a generic template?"
+    ]
   }
 ]

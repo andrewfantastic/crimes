@@ -34,7 +34,7 @@
       "path": "evals/fixtures/05-stress-ia-drift",
       "name": "stress-ia-drift",
       "kind": "hand-crafted",
-      "purpose": "Plural/singular drift across routes, nav, and docs — exercises concept_alias_drift, copy_ia_drift, command_drift_docs_code_drift."
+      "purpose": "Plural/singular drift across routes, nav, and docs — exercises concept_alias_drift, copy_ia_drift, action_label_drift, command_drift_docs_code_drift, permission_ia_drift, parallel_destination, docs_code_drift."
     },
     {
       "id": "06",

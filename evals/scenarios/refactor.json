@@ -73,5 +73,20 @@
       "Did the agent propose renaming the `build`/`buildAll`/`getRollupConfig`/`buildStart` functions so the name signals the side effects, rather than just adding comments?",
       "Did the agent recommend typed return contracts for sveltePlugin / postcssPlugin instead of leaving the disjoint shapes inferred?"
     ]
+  },
+  {
+    "id": "refactor-05-action-labels",
+    "fixture": "05",
+    "kind": "refactor",
+    "prompt": "src/components/UserList.tsx, TeamList.tsx, and SeatList.tsx use different verbs for what should be the same destructive action (Delete / Remove / Archive). Use `crimes scan --format json` to confirm the drift, then propose a canonical label set and explain which component you'd refactor first. Tie each change to the finding (action_label_drift vs copy_ia_drift) and explain how the two detectors differ on this fixture.",
+    "expected_artifacts": {
+      "referenced_findings": ["action_label_drift", "copy_ia_drift"],
+      "referenced_files": ["src/components/UserList.tsx", "src/components/TeamList.tsx", "src/components/SeatList.tsx"],
+      "expected_priority": "action_label_drift"
+    },
+    "judge_questions": [
+      "Did the agent pick one canonical verb (e.g. 'Remove') and apply it to all three components rather than patching each file in isolation?",
+      "Did the agent explain why copy_ia_drift fires alongside action_label_drift on this fixture (JSX-restricted variant of the same heuristic)?"
+    ]
   }
 ]
