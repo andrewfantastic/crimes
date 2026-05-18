@@ -29,24 +29,46 @@ export async function runAssetDetectorsForRoot(args: {
   detectors: AssetDetector[];
 }): Promise<Finding[]> {
   if (args.detectors.length === 0) return [];
-  const includes = args.config.assets?.include;
-  const excludes = args.config.assets?.exclude;
+  const assetFiles = await discoverAssetFiles(args.root, args.config);
+  if (assetFiles.length === 0) return [];
+
+  const byExtension = groupDetectorsByExtension(args.detectors);
+
+  const findings: Finding[] = [];
+  for (const absolutePath of assetFiles) {
+    findings.push(...(await runDetectorsForAssetFile({
+      root: args.root,
+      absolutePath,
+      config: args.config,
+      byExtension,
+    })));
+  }
+  return findings;
+}
+
+async function discoverAssetFiles(
+  root: string,
+  config: CrimesConfig,
+): Promise<string[]> {
+  const includes = config.assets?.include;
   // No `assets.include` means the user explicitly cleared the
   // discovery pattern — treat that as "skip the asset pass entirely".
   if (!includes || includes.length === 0) return [];
-
-  const assetFiles = await discoverFiles({
-    root: args.root,
+  return discoverFiles({
+    root,
     include: includes,
-    exclude: excludes ?? [],
+    exclude: config.assets?.exclude ?? [],
   });
-  if (assetFiles.length === 0) return [];
+}
 
+function groupDetectorsByExtension(
+  detectors: AssetDetector[],
+): Map<string, AssetDetector[]> {
   // Group detectors by extension so each file walks only the detectors
   // that apply. A 5,000-image repo with 2 PNG detectors should not run
   // the SVG detector 5,000 times.
   const byExtension = new Map<string, AssetDetector[]>();
-  for (const detector of args.detectors) {
+  for (const detector of detectors) {
     for (const ext of detector.extensions) {
       const key = ext.toLowerCase();
       const list = byExtension.get(key) ?? [];
@@ -54,53 +76,73 @@ export async function runAssetDetectorsForRoot(args: {
       byExtension.set(key, list);
     }
   }
+  return byExtension;
+}
+
+async function runDetectorsForAssetFile(args: {
+  root: string;
+  absolutePath: string;
+  config: CrimesConfig;
+  byExtension: Map<string, AssetDetector[]>;
+}): Promise<Finding[]> {
+  const extension = extname(args.absolutePath).toLowerCase();
+  const applicable = args.byExtension.get(extension);
+  if (!applicable || applicable.length === 0) return [];
+
+  const ctx = await buildAssetContext({
+    root: args.root,
+    absolutePath: args.absolutePath,
+    extension,
+    config: args.config,
+  });
+  if (!ctx) return [];
 
   const findings: Finding[] = [];
-  for (const absolutePath of assetFiles) {
-    const extension = extname(absolutePath).toLowerCase();
-    const applicable = byExtension.get(extension);
-    if (!applicable || applicable.length === 0) continue;
-    const file = toRepoPath(relative(args.root, absolutePath));
-
-    let byteSize: number;
+  for (const detector of applicable) {
     try {
-      const stats = await stat(absolutePath);
-      byteSize = stats.size;
+      findings.push(...(await detector.run(ctx)));
     } catch {
-      // Unreadable files (permissions, vanished mid-scan) get skipped
-      // silently — the asset pass should never crash a scan.
+      // Per-detector failure on one file should not abort the scan.
+      // Skip and continue — same posture as the IA / scoring
+      // builders' `safely*` wrappers.
       continue;
-    }
-
-    let cachedBuffer: Buffer | undefined;
-    const read = async (): Promise<Buffer> => {
-      if (cachedBuffer === undefined) {
-        cachedBuffer = await readFile(absolutePath);
-      }
-      return cachedBuffer;
-    };
-
-    const ctx: AssetDetectorContext = {
-      file,
-      absolutePath,
-      extension,
-      byteSize,
-      read,
-      config: args.config,
-    };
-
-    for (const detector of applicable) {
-      try {
-        findings.push(...(await detector.run(ctx)));
-      } catch {
-        // Per-detector failure on one file should not abort the scan.
-        // Skip and continue — same posture as the IA / scoring
-        // builders' `safely*` wrappers.
-        continue;
-      }
     }
   }
   return findings;
+}
+
+async function buildAssetContext(args: {
+  root: string;
+  absolutePath: string;
+  extension: string;
+  config: CrimesConfig;
+}): Promise<AssetDetectorContext | undefined> {
+  let byteSize: number;
+  try {
+    const stats = await stat(args.absolutePath);
+    byteSize = stats.size;
+  } catch {
+    // Unreadable files (permissions, vanished mid-scan) get skipped
+    // silently — the asset pass should never crash a scan.
+    return undefined;
+  }
+
+  let cachedBuffer: Buffer | undefined;
+  const read = async (): Promise<Buffer> => {
+    if (cachedBuffer === undefined) {
+      cachedBuffer = await readFile(args.absolutePath);
+    }
+    return cachedBuffer;
+  };
+
+  return {
+    file: toRepoPath(relative(args.root, args.absolutePath)),
+    absolutePath: args.absolutePath,
+    extension: args.extension,
+    byteSize,
+    read,
+    config: args.config,
+  };
 }
 
 function toRepoPath(p: string): string {

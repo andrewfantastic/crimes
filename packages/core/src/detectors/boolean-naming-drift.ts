@@ -23,6 +23,7 @@ const optionsSchema = z
  */
 const REACT_STATE_ALLOWLIST = new Set([
   "loading",
+  "loaded",
   "ready",
   "active",
   "disabled",
@@ -48,6 +49,13 @@ const REACT_STATE_ALLOWLIST = new Set([
   "offline",
   "mounted",
   "unmounted",
+  "found",
+  "settled",
+  "overflow",
+  "typeonly",
+  "interpolated",
+  "limited",
+  "existed",
 ]);
 
 /**

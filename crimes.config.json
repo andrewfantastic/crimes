@@ -12,5 +12,22 @@
     "**/.crimes/**",
     "evals/fixtures/**",
     "examples/messy-ts-app/**"
-  ]
+  ],
+  "assets": {
+    "exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/out/**",
+      "**/coverage/**",
+      "**/.crimes/**",
+      "**/public/vendor/**",
+      "**/__snapshots__/**",
+      "**/fixtures/**",
+      "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}",
+      "evals/fixtures/**",
+      "examples/messy-ts-app/**"
+    ]
+  }
 }

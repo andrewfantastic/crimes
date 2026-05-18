@@ -79,8 +79,23 @@ describe("booleanNamingDriftDetector", () => {
     expect(findings).toEqual([]);
   });
 
-  it("does NOT fire on built-in React-state allowlist", async () => {
-    const allowlist = ["loading", "ready", "active", "disabled", "visible", "open"];
+  it("does NOT fire on built-in boolean-state allowlist", async () => {
+    const allowlist = [
+      "loading",
+      "loaded",
+      "ready",
+      "active",
+      "disabled",
+      "visible",
+      "open",
+      "found",
+      "settled",
+      "overflow",
+      "typeOnly",
+      "interpolated",
+      "limited",
+      "existed",
+    ];
     const findings = await booleanNamingDriftDetector.run(
       makeCtx(allowlist.map((n) => decl(n, { type: "boolean" }))),
     );
