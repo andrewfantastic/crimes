@@ -106,6 +106,8 @@ export { duplicateComponentShapeDetector } from "./detectors/duplicate-component
 export { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 export { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
 export { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
+export { hardcodedLocalPathDetector } from "./detectors/hardcoded-local-path.js";
+export { hardcodedLocalhostDetector } from "./detectors/hardcoded-localhost.js";
 export { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 export { largeFileDetector } from "./detectors/large-file.js";
 export { largeFunctionDetector } from "./detectors/large-function.js";
@@ -126,6 +128,7 @@ export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
+export { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 export { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";

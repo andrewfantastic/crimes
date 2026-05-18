@@ -24,6 +24,8 @@ import { duplicateComponentShapeDetector } from "./detectors/duplicate-component
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
 import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
+import { hardcodedLocalPathDetector } from "./detectors/hardcoded-local-path.js";
+import { hardcodedLocalhostDetector } from "./detectors/hardcoded-localhost.js";
 import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
@@ -44,6 +46,7 @@ import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
+import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
@@ -87,6 +90,11 @@ export const builtInDetectors: Detector[] = [
   // Naming-tier (0.8.0): consume typedDeclarations from the parser.
   booleanNamingDriftDetector,
   singularPluralTypeMismatchDetector,
+  // Hot-path & portability (0.8.0): sync I/O inside hot-path shapes,
+  // developer-specific local paths, and dev-server URL literals.
+  syncIoInHotpathDetector,
+  hardcodedLocalPathDetector,
+  hardcodedLocalhostDetector,
   // Petty crimes (small local patterns that increase agent confusion).
   commentedOutCodeDetector,
   logicInCommentsDetector,

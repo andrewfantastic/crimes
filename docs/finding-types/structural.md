@@ -25,6 +25,9 @@ For the agent workflow that consumes findings, see
 | `date_string_concat` | Date String Sewing | low-medium    | 0.85       |
 | `boolean_naming_drift` | Unprefixed Boolean | low-medium   | 0.80       |
 | `singular_plural_type_mismatch` | Plural Mismatch | low-medium | 0.70   |
+| `sync_io_in_hotpath` | Sync I/O in Hot Path | low-high     | 0.90       |
+| `hardcoded_local_path` | Localhost-on-Disk  | medium-high  | 0.90       |
+| `hardcoded_localhost` | Dev-Server URL    | medium-high   | 0.90       |
 
 All emit the standard `Finding` shape. No schema bump is required.
 
@@ -484,3 +487,175 @@ exempt — they're singular and plural simultaneously.
 **Suggested fix.** Rename to match the type's shape, or change
 the type to match the name. If the project intentionally
 diverges, add the name to `allowedNames`.
+
+## Sync I/O in Hot Path (`sync_io_in_hotpath`)
+
+**What it detects.** Calls to synchronous Node.js I/O APIs —
+`fs.readFileSync` / `fs.writeFileSync` / `fs.existsSync` /
+`fs.statSync` / `fs.readdirSync` / the rest of the `node:fs`
+`*Sync` family, plus the synchronous process-spawning helpers
+(`execSync`, `spawnSync`, `execFileSync`) — invoked inside a
+function whose `FunctionShape` is one of `route_handler`,
+`page_export`, `react_component`, or `domain`. Test callbacks and
+CLI command-registrar callbacks are exempt — sync I/O in those
+shapes is either intentional or harmless.
+
+The detector consumes the `syncIoCalls` parser surface (added in
+phase 4a of 0.8.0), which captures, for each call site, the full
+chain of enclosing function-like ancestors innermost-first. Any
+`test_callback` or `cli_command_registrar` ancestor anywhere in
+the chain suppresses the finding; otherwise the innermost
+hot-path ancestor is named in the evidence line.
+
+**Example evidence.**
+
+```text
+`fs.readFileSync` @L21 in `GET` (route handler)
+`fs.statSync` @L25 in `GET` (route handler)
+lines: 21, 25
+swap for the async variant (`readFile`, `writeFile`, `exec`, …) and `await` it
+```
+
+**Why it matters.** Synchronous I/O blocks the Node.js event
+loop for the entire duration of the read or write. In a route
+handler, every request pays the stall; in a React component
+(used server-side via Next.js or a similar framework), every
+render does. The async counterparts (`fs.readFile`, `fs.writeFile`,
+`fs.promises.*`, child-process equivalents) exist for every
+method captured and behave identically outside the performance
+envelope.
+
+Coding agents reach for the `*Sync` variant disproportionately
+because it produces shorter, synchronous-looking code. The bug
+class is silent: tests still pass (tests themselves are
+single-threaded), and the cost only materialises under
+concurrent load.
+
+**Severity ramp.**
+- `high` — two or more sync calls inside the same request-surface
+  shape (`route_handler` / `page_export` / `react_component`).
+- `medium` — one sync call inside a request-surface shape.
+- `low` — sync calls inside `domain` functions. Domain stays low
+  because the per-request amplification that justifies medium /
+  high isn't there; the bug class becomes "library happens to
+  block under load" rather than "request handler stalls on every
+  hit". Available under `--all`.
+
+Confidence `0.90` — the syntactic pattern is unambiguous.
+
+**Suggested fix.** Replace the `*Sync` call with its async
+counterpart (`readFile`, `writeFile`, `exec`, …) and `await` it.
+The function may need to be marked `async`; React components
+should move the I/O into a Server Component or `loader` rather
+than the render body.
+
+## Localhost-on-Disk (`hardcoded_local_path`)
+
+**What it detects.** User-home subpaths hardcoded into source —
+`/Users/<name>/…` (macOS), `/home/<name>/…` (Linux), and
+`C:\Users\<name>\…` (Windows, including the forward-slashed
+`C:/Users/<name>/…` form many editors display). Test files,
+`scripts/`, `examples/`, `fixtures/`, and `test/` / `tests/`
+directories are exempt — these are surfaces where a developer-
+specific path is legitimate.
+
+**Example evidence.**
+
+```text
+`/Users/andrew/dev/app/config.json` @L4
+`/home/alex/projects/data.json` @L7
+lines: 4, 7
+replace with `os.homedir()`, `process.env.HOME`, or a config-driven base path
+```
+
+**Why it matters.** A path hardcoded to one developer's home
+directory works on that developer's laptop and nowhere else. The
+failure mode is silent: tests pass locally, CI fails for unrelated-
+looking reasons, and the user-named segment is exactly the kind
+of constant a coding agent copies between files without
+noticing it's machine-specific. `os.homedir()`,
+`process.env.HOME`, or a config-driven base path eliminates the
+surface.
+
+**Severity ramp.** Default `medium`; escalates to `high` at 3+
+hardcoded paths in one file. Confidence `0.90`.
+
+**Project-specific exemptions** via
+`detectors.options.hardcoded_local_path.allowedPaths` — list any
+literal substrings that should be tolerated (sample paths in
+docstrings, intentionally-embedded references).
+
+```json
+{
+  "detectors": {
+    "options": {
+      "hardcoded_local_path": {
+        "allowedPaths": ["/Users/ci-runner/cache"]
+      }
+    }
+  }
+}
+```
+
+**Suggested fix.** Replace the literal with `os.homedir()` (or
+`process.env.HOME`) joined with the remainder of the path, or
+move the base path into configuration so each environment
+supplies its own.
+
+## Dev-Server URL (`hardcoded_localhost`)
+
+**What it detects.** Dev-server URLs hardcoded into non-test,
+non-config source — `localhost:NNNN`, `127.0.0.1:NNNN`,
+`0.0.0.0:NNNN`, and the IPv6 loopback `[::1]:NNNN`. The port
+requirement (2–5 digits) is what makes the signal strong: a bare
+`localhost` reference is often a doc placeholder, but
+`localhost:3000` is "the URL of the dev server I happen to be
+running right now."
+
+The following surfaces are exempt: test files, files under
+`scripts/` / `examples/` / `docs/` / `fixtures/` / `test/` /
+`tests/` / `__tests__/`, and config-style basenames (`.env*`,
+`*.config.{js,ts,mjs,cjs,json,yaml,yml}`, `docker-compose*`,
+`Dockerfile*`, `README*.md`, `CHANGELOG*.md`).
+
+**Example evidence.**
+
+```text
+`localhost:3000` @L8
+`127.0.0.1:8080` @L12
+lines: 8, 12
+move the value behind a config / env var (`process.env.API_URL`, settings module, etc.)
+```
+
+**Why it matters.** A `localhost:NNNN` URL inside source code is
+the URL of one specific dev server on one specific machine. In
+production the request hits whatever the deploy environment
+happens to have running on that port (often nothing), and the
+failure mode is opaque. Coding agents reach for the literal
+because they were just shown a working dev URL in the conversation
+— it sticks around long after that conversation ends.
+Configuration (env vars, settings module, framework runtime config)
+makes the per-environment value explicit.
+
+**Severity ramp.** Default `medium`; escalates to `high` at 3+
+hardcoded URLs in one file. Confidence `0.90`.
+
+**Project-specific exemptions** via
+`detectors.options.hardcoded_localhost.allowedUrls`:
+
+```json
+{
+  "detectors": {
+    "options": {
+      "hardcoded_localhost": {
+        "allowedUrls": ["localhost:9229"]
+      }
+    }
+  }
+}
+```
+
+**Suggested fix.** Replace the literal with a config-supplied
+URL (`process.env.API_URL`, a settings module, the framework's
+runtime config). Keep the dev-server URL in `.env.local` or
+`.env.example` so each environment supplies its own.

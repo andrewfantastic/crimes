@@ -6,10 +6,10 @@
     "root": "/Users/andrew/dev/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 31,
+    "total": 34,
     "high": 3,
-    "medium": 13,
-    "low": 15
+    "medium": 15,
+    "low": 16
   },
   "findings": [
     {
@@ -117,7 +117,7 @@
       "charge": "Missing Agent Context",
       "severity": "medium",
       "confidence": 0.9,
-      "file": "src/api/plan.ts",
+      "file": "src/api/files.ts",
       "summary": "Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.",
       "evidence": [
         "no AGENTS.md found at repo root",
@@ -128,8 +128,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.62,
-        "churn": 0.05,
+        "agent_risk": 0.61,
+        "churn": 0,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -142,7 +142,73 @@
       ]
     },
     {
+      "id": "crime_00005",
+      "type": "hardcoded_localhost",
+      "charge": "Dev-Server URL",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/api/files.ts",
+      "lines": [
+        8,
+        8
+      ],
+      "summary": "1 hardcoded dev-server URL (`localhost:NNNN` / `127.0.0.1:NNNN` / `0.0.0.0:NNNN`) in non-test, non-config source. These literals only work against whichever dev server happens to be running on that port — every other environment silently fails to connect.",
+      "evidence": [
+        "`localhost:3000` @L8",
+        "lines: 8",
+        "move the value behind a config / env var (`process.env.API_URL`, settings module, etc.)"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.61,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "move_url_to_config",
+          "description": "Replace the literal with a config-supplied URL (`process.env.API_URL`, a settings module, or the framework's runtime config). Keep the dev-server URL in `.env.local` / `.env.example` so each environment supplies its own.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
       "id": "crime_00006",
+      "type": "hardcoded_local_path",
+      "charge": "Localhost-on-Disk",
+      "severity": "medium",
+      "confidence": 0.9,
+      "file": "src/api/files.ts",
+      "lines": [
+        9,
+        9
+      ],
+      "summary": "1 hardcoded user-home path (`/Users/<name>/`, `/home/<name>/`, or `C:\\Users\\<name>\\`) in non-test source. These paths exist on exactly one machine — the code silently breaks for every other developer, every CI runner, and every deploy.",
+      "evidence": [
+        "`/Users/andrew/dev/crimes/schema.json` @L9",
+        "lines: 9",
+        "replace with `os.homedir()`, `process.env.HOME`, or a config-driven base path"
+      ],
+      "scores": {
+        "severity": 0.6,
+        "confidence": 0.9,
+        "agent_risk": 0.61,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "use_portable_home_path",
+          "description": "Replace the literal with `os.homedir()` (or `process.env.HOME`) and join the remainder, or pass the base path through configuration so each environment supplies its own.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00008",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -175,7 +241,7 @@
       ]
     },
     {
-      "id": "crime_00007",
+      "id": "crime_00009",
       "type": "timezone_unsafe_parse",
       "charge": "Timezone Roulette",
       "severity": "medium",
@@ -208,7 +274,7 @@
       ]
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00010",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -241,7 +307,7 @@
       ]
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00011",
       "type": "magic_domain_literal_scatter",
       "charge": "String Sprinkles",
       "severity": "medium",
@@ -279,7 +345,7 @@
       ]
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00012",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -313,7 +379,7 @@
       ]
     },
     {
-      "id": "crime_00011",
+      "id": "crime_00013",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -346,7 +412,7 @@
       ]
     },
     {
-      "id": "crime_00012",
+      "id": "crime_00014",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -384,7 +450,7 @@
       ]
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00015",
       "type": "large_file",
       "charge": "God File",
       "severity": "medium",
@@ -417,7 +483,7 @@
       ]
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00016",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -450,7 +516,7 @@
       ]
     },
     {
-      "id": "crime_00015",
+      "id": "crime_00017",
       "type": "duplicated_navigation_source",
       "charge": "Duplicated Navigation Source",
       "severity": "medium",
@@ -482,7 +548,7 @@
       ]
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00018",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -514,7 +580,7 @@
       ]
     },
     {
-      "id": "crime_00017",
+      "id": "crime_00019",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -551,7 +617,7 @@
       ]
     },
     {
-      "id": "crime_00018",
+      "id": "crime_00020",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -578,7 +644,42 @@
       ]
     },
     {
-      "id": "crime_00019",
+      "id": "crime_00021",
+      "type": "sync_io_in_hotpath",
+      "charge": "Sync I/O in Hot Path",
+      "severity": "low",
+      "confidence": 0.9,
+      "file": "src/api/files.ts",
+      "lines": [
+        12,
+        15
+      ],
+      "summary": "3 synchronous I/O calls inside domain function — each invocation blocks the event loop for the duration of the I/O. Async counterparts exist for every method captured.",
+      "evidence": [
+        "`existsSync` @L12 in `loadPlanSchema` (domain function)",
+        "`statSync` @L13 in `loadPlanSchema` (domain function)",
+        "`readFileSync` @L15 in `loadPlanSchema` (domain function)",
+        "lines: 12, 13, 15",
+        "swap for the async variant (`readFile`, `writeFile`, `exec`, …) and `await` it"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.9,
+        "agent_risk": 0.51,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "swap_for_async_io",
+          "description": "Replace the `*Sync` call with its async counterpart and `await` it. The function may need to be marked `async`; React components should move the I/O into a Server Component / loader rather than the render body.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00022",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "low",
@@ -597,8 +698,8 @@
       "scores": {
         "severity": 0.35,
         "confidence": 0.9,
-        "agent_risk": 0.51,
-        "churn": 0,
+        "agent_risk": 0.52,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -611,7 +712,7 @@
       ]
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00023",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -644,7 +745,7 @@
       ]
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00024",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -677,7 +778,7 @@
       ]
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00025",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -698,8 +799,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.8,
-        "agent_risk": 0.49,
-        "churn": 0,
+        "agent_risk": 0.5,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -712,7 +813,7 @@
       ]
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00026",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -746,7 +847,7 @@
       ]
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00027",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -779,7 +880,7 @@
       ]
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00028",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -812,7 +913,7 @@
       ]
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00029",
       "type": "return_shape_roulette",
       "charge": "Return Shape Roulette",
       "severity": "low",
@@ -846,7 +947,7 @@
       ]
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00030",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -878,7 +979,7 @@
       ]
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00031",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -897,8 +998,8 @@
       "scores": {
         "severity": 0.3,
         "confidence": 0.7,
-        "agent_risk": 0.47,
-        "churn": 0,
+        "agent_risk": 0.48,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -911,7 +1012,7 @@
       ]
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00032",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
@@ -943,7 +1044,7 @@
       ]
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00033",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -974,7 +1075,7 @@
       ]
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00034",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1005,7 +1106,7 @@
       ]
     },
     {
-      "id": "crime_00032",
+      "id": "crime_00035",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
