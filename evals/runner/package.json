@@ -11,6 +11,7 @@
     "evals:replay": "tsx src/replay.ts",
     "evals:diff": "tsx src/diff.ts",
     "evals:verify-scenarios": "tsx src/verify-scenarios.ts",
+    "evals:variance": "tsx src/variance.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
