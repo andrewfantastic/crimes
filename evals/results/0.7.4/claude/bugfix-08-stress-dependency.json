@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:54:03.883Z",
+  "run_id": "7025a145-7a65-4105-8585-c2b782ec5361",
+  "response": "## The cycle\n\n```\napplication/billing-flow.ts → domain/billing.ts → presentation/invoice-view.ts → application/billing-flow.ts\n```\n\nThree files, three edges. One of them has to go.\n\n## Break this edge: `domain/billing.ts → presentation/invoice-view.ts`\n\nTwo reasons converge on the same answer:\n\n1. **It's already flagged as a layer violation** (`crime_00002`). The configured rule is `domain cannotImport presentation` — domain reaching into the view layer inverts the intended direction of change. The architecture has already declared this edge illegal; the cycle is just the runtime consequence.\n2. **The other two edges are conventional.** `application → domain` (orchestration uses domain models) and `presentation → application` (view triggers a flow) are both flowing the \"right\" way down the dependency arrows. Breaking either would fight the design.\n\nBreaking the domain→presentation edge kills both findings (`crime_00001` and `crime_00002`) in one move.\n\n## How to break it\n\nLook at what `domain/billing.ts` actually pulls from `invoice-view.ts`:\n\n- **If it's a type only** (e.g. `InvoiceViewModel` for a return shape) → change to `import type { ... }`. TypeScript erases it at compile time, so the runtime edge disappears and the cycle resolves without restructuring. Cheapest fix.\n- **If it's a value/function** → that's a real design smell: domain shouldn't be calling into the view at runtime. Either (a) move the shared shape (e.g. an `Invoice` DTO) into a neutral module like `src/domain/types.ts` that both sides import from, or (b) invert the dependency — define an interface in `domain` that `presentation` implements, and have `application` wire it up.\n\n`import type` is the quick win if the import is purely structural. If it's behavioral, do the extract-shared-module refactor — the layer rule exists for a reason and converting the call site is the durable fix.\n\n(Sidenote: `crime_00003`, the deep import into `some-pkg/dist/internal/...`, is orthogonal to the cycle — worth fixing separately, not part of this bug.)",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

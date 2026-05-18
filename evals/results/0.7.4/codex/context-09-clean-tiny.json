@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:54:39.722Z",
+  "run_id": "82470019-141b-4c01-ac60-6743a68ed09d",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e396f-7933-7423-b43b-168075eaa394\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested file-level context command from the runner workspace and inspect the JSON for findings, likely tests, and edit guidance.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"09-clean-tiny\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes/evals/fixtures/09-clean-tiny\\\"\\n  },\\n  \\\"file\\\": \\\"src/add.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/add.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"`crimes context src/add.ts --format json` found no risk in `src/add.ts`.\\n\\n- Risk level: `none`\\n- Findings: `0`\\n- Agent guidance: none\\n- Related files: none\\n- Likely test: `src/add.test.ts`\\n\\nBased on this context and the provided scan output showing zero findings repo-wide, `src/add.ts` is safe to extend. The main thing to check after editing is `src/add.test.ts`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":37173,\"cached_input_tokens\":24320,\"output_tokens\":197,\"reasoning_output_tokens\":0}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

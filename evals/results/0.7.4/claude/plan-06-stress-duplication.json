@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:55:51.706Z",
+  "run_id": "9d146308-5428-4596-83d5-72821868c70f",
+  "response": "## Duplication findings\n\n| ID | Type | Locations |\n|---|---|---|\n| `crime_00002` | Near-duplicate sanitiser body | `src/sanitize-a.ts:10-36 sanitizeUserInput`, `src/sanitize-b.ts:9-35 sanitizeText`, `src/sanitize-c.ts:9-35 cleanMessage` |\n| `crime_00003` | `role === \"admin\"` literal check | `src/policy.ts` ×4, `src/sanitize-a.ts:7`, +2 more (likely `sanitize-b.ts` / `sanitize-c.ts`) |\n\n(`crime_00001` — duplicate `recordSanitiseEvent` across telemetry-a/b — is out of scope for this task but worth a follow-up.)\n\n## Refactor plan — two steps\n\n**Order matters:** sanitiser consolidation first, then policy. Step 1 collapses three files into one, shrinking the surface that step 2 has to rewrite, and each step ships as an independently revertable commit.\n\n---\n\n### Step 1 — Collapse the three sanitisers into one canonical helper\n\n**Goal:** one body, three names, zero behavioural drift.\n\n1. Diff the three bodies (`sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35`). The hash matches but the line counts differ by 1 — pin the divergence (likely a comment / formatting / one extra branch) and pick the union of behaviours as the canonical form. Add a unit test per existing call site's expected output **before** unifying so any silent behavioural drift fails loudly.\n2. Create `src/sanitize.ts` exporting a single `sanitize(input: string, opts?: SanitizeOptions): string`.\n3. Replace each existing file with a thin re-export so call sites don't move in this commit:\n   ```ts\n   // src/sanitize-a.ts\n   export { sanitize as sanitizeUserInput } from \"./sanitize\";\n   ```\n   Same for `sanitizeText` and `cleanMessage`.\n4. Run the new tests + existing suite. Commit.\n5. (Optional, separate commit) Codemod call sites to import `sanitize` directly and delete the three shim files.\n\n**Why shims first, then codemod:** keeps the behaviour-change commit (step 1) small and reviewable. The rename is mechanical and lands separately.\n\n---\n\n### Step 2 — Extract a single `isAdmin` policy predicate\n\n**Goal:** one place where \"admin\" is defined; every check delegates.\n\n1. In `src/policy.ts`, add:\n   ```ts\n   export const isAdmin = (role: string | undefined): boolean => role === \"admin\";\n   ```\n   (If other role literals — `\"editor\"`, `\"viewer\"` — appear in the codebase, extract them alongside in the same commit so the policy module is coherent rather than half-migrated.)\n2. Replace all `role === \"admin\"` sites with `isAdmin(role)`:\n   - 4 inside `policy.ts` itself (the new helper calls each other policy function — re-verify no circularity)\n   - 1 in `sanitize-a.ts:7` → now lives in `src/sanitize.ts` after step 1, so only one edit instead of three\n   - The \"+2 more\" occurrences (likely the other two sanitize files pre-step-1, or other callers — confirm with `crimes explain crime_00003` or `rg 'role === \"admin\"'`)\n3. Forbid the literal going forward — add a `no-restricted-syntax` lint rule or a `crimes` suppression note pointing at `isAdmin`.\n4. Run tests. Commit.\n\n**Why this depends on step 1:** the three sanitize files collapse to one in step 1, so the role-check rewrite touches a single sanitiser site instead of three. Doing step 2 first means rewriting the role check three times and then throwing two of those edits away.\n\n---\n\n## What this plan does *not* do\n\n- Doesn't touch `crime_00001` (telemetry duplication) — out of scope; flag as a follow-up that should reuse the same \"extract shared helper\" pattern.\n- Doesn't address the `Date.now()` findings (`crime_00004`, `crime_00005`) — orthogonal concern (clock injection), shouldn't ride along on a duplication-consolidation PR.\n- Doesn't rename any public API surface in step 1 — that's a follow-up codemod, kept separate so the behaviour-change diff stays reviewable.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

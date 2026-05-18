@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:55:04.833Z",
+  "run_id": "76eba5fa-df10-420a-9fa6-2ba931a98993",
+  "response": "`src/billing.ts` — context report\n\n- **Findings:** none. `risk.level: \"none\"` with `total: 0` across high/medium/low.\n- **likely_tests:** `src/billing.test.ts`\n- **agent_guidance:** empty (`\"no findings on this file and no deterministic related files\"`)\n- **related_files:** none (`\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"`)\n\n**Why this is low risk to edit:**\n\n`crimes` found nothing to charge it with on any of its detector axes — no large function / large file / deep nesting, no duplicate sources of truth, no hidden side effects (no bare `Date.now()` / `Math.random()` / `process.env`), no churn hotspot, no circular or layer-violating imports, no fan-in pulling other modules toward it. And it has a dedicated companion test at `src/billing.test.ts`, so behavior is pinned. The empty `related_files` is also a positive signal here: there's no neighbourhood you'd have to keep in sync when changing it — it's a self-contained, well-typed module with no detected cross-file entanglement. Run `src/billing.test.ts` after editing as the post-edit gate.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

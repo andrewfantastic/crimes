@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "codex",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:55:30.564Z",
+  "run_id": "c2853175-c4c0-4110-9643-4dda923618e8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3970-341e-7051-8c69-692e35aa5138\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Duplication findings from `crimes scan --format json`:\\n\\n1. `crime_00001` — `exact_duplicate_block`\\n   `recordSanitiseEvent` is duplicated in `src/telemetry-a.ts` and `src/telemetry-b.ts`.\\n\\n2. `crime_00002` — `near_duplicate_block`\\n   Three sanitise helpers share the same body:\\n   `sanitizeUserInput` in `src/sanitize-a.ts`, `sanitizeText` in `src/sanitize-b.ts`, and `cleanMessage` in `src/sanitize-c.ts`.\\n\\n3. `crime_00003` — `duplicated_role_status_plan_check`\\n   The `\\\"admin\\\"` role check appears across `src/policy.ts` and the three sanitise files, with multiple expression shapes.\\n\\n**Two-Step Refactor Plan**\\n\\n**Step 1: Extract the policy decision first**\\n\\nCreate one shared policy function, probably in `src/policy.ts`, that owns the admin rule:\\n\\n```ts\\nexport function canBypassSanitise(role: string): boolean {\\n  return role === \\\"admin\\\";\\n}\\n```\\n\\nThen replace the three sanitise-side checks with that function. Keep the existing exported sanitise function names unchanged so callers do not change yet:\\n\\n```ts\\nexport function sanitizeUserInput(input: string, role: string): string {\\n  return sanitizeInput(input, { bypass: canBypassSanitise(role) });\\n}\\n```\\n\\nThis removes the role-rule drift before touching the sanitisation algorithm.\\n\\n**Step 2: Extract the shared sanitise implementation**\\n\\nCreate one shared helper, for example `src/sanitize.ts`:\\n\\n```ts\\nexport function sanitizeInput(input: string, options: { bypass: boolean }): string {\\n  if (options.bypass) return input;\\n\\n  return input\\n    .trim()\\n    .replace(/<script\\\\b[^<]*(?:(?!<\\\\/script>)<[^<]*)*<\\\\/script>/gi, \\\"\\\")\\n    .replace(/[<>]/g, \\\"\\\")\\n    .slice(0, 500);\\n}\\n```\\n\\nThen turn the three existing helpers into thin compatibility wrappers:\\n\\n- `sanitizeUserInput(...)` delegates to `sanitizeInput(...)`\\n- `sanitizeText(...)` delegates to `sanitizeInput(...)`\\n- `cleanMessage(...)` delegates to `sanitizeInput(...)`\\n\\nThis keeps public names stable while making the implementation single-source.\\n\\nI would leave the telemetry duplicate and `Date.now()` findings out of this two-step change unless the user explicitly expands scope; they are related to sanitise events, but not required to consolidate the three sanitise helpers and role checks.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19931,\"cached_input_tokens\":12160,\"output_tokens\":608,\"reasoning_output_tokens\":78}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "exact_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

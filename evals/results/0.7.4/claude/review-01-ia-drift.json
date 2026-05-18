@@ -1,0 +1,101 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T05:01:04.532Z",
+  "run_id": "ce5b14d7-94b9-415b-9e09-0a325be625f3",
+  "response": "## Verdicts\n\n**1. `route_metadata_drift` (crime_00014) → WARN, escalate to BLOCK if PR touches `/settings/billing`**\n\nFour competing labels for one destination (file `billing.tsx`, component `PricingPage`, metadata.title `Plans`, `<title>` `Subscription`, nav labels `Plans`/`Billing`) is exactly the agent-risk pattern this charge is designed to catch — an agent renaming \"Subscription\" in the `<title>` will leave the other four out of sync, and there's no single source of truth to grep against. Doesn't break runtime, so don't block a drive-by PR on it. But any PR that edits `src/routes/settings/billing.tsx`, either nav file, or page chrome should block until the canonical name is picked and propagated. Agent risk 0.56 understates this because the `related_files` link straight to finding #12.\n\n**2. `duplicated_navigation_source` (crime_00012) → WARN**\n\nThe same destination labelled \"Plans\" in `registry.ts` and \"Billing\" in `sidebar.ts` is a user-visible inconsistency (different labels in different nav surfaces for the same page) and a maintenance trap — an agent updating one will leave the other stale. But this is the same underlying problem as #14 and should be triaged together; flagging both as block would double-charge the PR for one fix. Warn now, with the expectation that fixing #14 fixes this. Don't ignore: confidence is 0.7 and the evidence is unambiguous.\n\n**3. `docs_code_drift` (crime_00015) → IGNORE on most PRs, WARN if the PR touches `docs/teams.md`**\n\nOne broken relative link in a single doc page. High confidence (0.9) that it's actually broken, but low severity (0.35) and zero runtime impact — the worst case is an agent reading the docs and hitting a 404. Not worth gating a merge over. If the PR being reviewed is modifying `docs/teams.md` itself, surface it as a warn so the author fixes it in the same change; otherwise it's noise relative to findings #14 and #12.\n\n## Note on the cluster\n\nThese three findings overlap and should be reviewed together rather than treated as independent items: #14 and #12 are two views of the same `/settings/billing` mess (the `related_files` cross-reference makes this explicit), and #15 is a much smaller separate hygiene item. A reviewer should land one fix for the billing destination and one for the broken link, not three separate \"compliance\" PRs.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": "src/routes/settings/billing.tsx",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}

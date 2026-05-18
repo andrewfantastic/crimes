@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:59:05.281Z",
+  "run_id": "0e7b348d-b493-4fe7-81c0-fa52de0df31f",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3973-39e3-7361-a552-1426153949f7\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Block Merge**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `large_function` in `src/billing.ts` | block merge | `high` severity, `agent_risk: 0.63`. A 204-line billing function is the clearest merge blocker because future edits are likely to miss coupled behavior. |\\n| `crime_00002` `missing_agent_context` in `src/api/plan.ts` | block merge | `medium` severity, `agent_risk: 0.61`. On an empty baseline, shipping a CLI repo with no agent-readable instructions is high practical risk despite medium severity. |\\n| `crime_00005` `direct_date` in `src/date.ts` | block merge | `medium` severity, `agent_risk: 0.61`. Central date helpers using wall time directly create broad nondeterminism and a full `test_gap: 1`. |\\n| `crime_00007` `magic_domain_literal_scatter` in `src/api/plan.ts` | block merge | `medium` severity, `agent_risk: 0.60`. The `\\\"enterprise\\\"` policy literal is already scattered across four production areas. |\\n\\n**Warn**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00004` `direct_date` in `src/billing.ts` | warn | `medium` severity, `agent_risk: 0.53`. Risky and test-hostile, but localized enough to warn rather than block. |\\n| `crime_00006` `weak_test_signal` in `src/billing.test.ts` | warn | `medium` severity, `agent_risk: 0.46`. Medium severity, but lower agent risk; should be fixed soon because it gives false confidence. |\\n| `crime_00008` `name_behavior_mismatch` in `src/billing.ts` | warn | `medium` severity, `agent_risk: 0.52`. Misleading refund function name can cause bad caller assumptions. |\\n| `crime_00009` `concept_alias_drift` in docs/routes | warn | `medium` severity, `agent_risk: 0.58`. Near-blocking risk due to many tenant aliases, but mostly taxonomy/documentation cleanup. |\\n| `crime_00010` `large_file` in `src/billing.ts` | warn | `medium` severity, `agent_risk: 0.50`. The file barely exceeds threshold and overlaps with the blocked large function. |\\n| `crime_00011` `logic_in_comments` in `src/billing.ts` | warn | `medium` severity, `agent_risk: 0.50`. A policy rule in prose is risky, but the finding confidence/risk are moderate. |\\n| `crime_00012` `duplicated_navigation_source` | warn | `medium` severity, `agent_risk: 0.57`. Competing billing labels are likely to drift further. |\\n| `crime_00013` `todo_density` in `src/todo.ts` | warn | `medium` severity, `agent_risk: 0.57`. High TODO density should be triaged, though not necessarily merge-blocking. |\\n| `crime_00014` `route_metadata_drift` | warn | `medium` severity, `agent_risk: 0.56`. Multiple labels for one route are a real maintenance hazard. |\\n| `crime_00015` `docs_code_drift` in `docs/teams.md` | warn | `low` severity, `agent_risk: 0.51`. Low severity, but stale docs link with full test gap is worth calling out. |\\n| `crime_00017` `option_bag_junk_drawer` in `src/petty.ts` | warn | `low` severity, `agent_risk: 0.48`. Low severity but close to medium practical risk because the implicit shape is unclear. |\\n| `crime_00018` `return_shape_roulette` in `src/petty.ts` | warn | `low` severity, `agent_risk: 0.48`. Low severity, but explicit return types would materially reduce caller confusion. |\\n| `crime_00019` `negative_flag_maze` in `src/petty.ts` | warn | `low` severity, `agent_risk: 0.47`. Low severity, but easy to invert during edits. |\\n| `crime_00021` `orphaned_destination` `/account/subscription` | warn | `low` severity, `agent_risk: 0.46`. Low severity, but newly added unreachable route should be explained or linked. |\\n| `crime_00022` `orphaned_destination` `/team` | warn | `low` severity, `agent_risk: 0.46`. Same: low severity, but unreachable route needs intent clarified. |\\n| `crime_00023` `orphaned_destination` `/workspace/members` | warn | `low` severity, `agent_risk: 0.46`. Same: low severity, but unreachable route needs intent clarified. |\\n\\n**Ignore**\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00016` `weak_test_signal` in `src/billing.test.ts` | ignore | `low` severity, `agent_risk: 0.34`. Weak assertion should be improved opportunistically, but it is not worth gating this PR. |\\n| `crime_00020` `todo_density` in `src/billing.ts` | ignore | `low` severity, `agent_risk: 0.40`. Minor compared with the larger `src/billing.ts` blockers/warnings already covering the same area. |\\n\\nOverall: I would block the PR on 4 findings, warn on 16, and ignore 2. The missing `crime_00003` appears to be the one suppressed finding, so I would not categorize it from this scan output.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24642,\"cached_input_tokens\":12160,\"output_tokens\":1348,\"reasoning_output_tokens\":76}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

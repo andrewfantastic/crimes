@@ -1,0 +1,83 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:56:06.557Z",
+  "run_id": "fa8c6c3a-6b27-432c-b754-cf9ecb40113f",
+  "response": "# Triage plan — top 10 by agent_risk\n\nRanked by `agent_risk` (per `CLAUDE.md`: aggregate risk drives the default, not severity alone). Note: `verdict` output wasn't included, only `scan` — but `summary.total=22`, `high=1`, so verdict would almost certainly be \"fail\" / non-clean. Also worth noting up front: **every `churn` score is 0**, so there are no git-history findings in this fixture — that category is empty.\n\n## By category\n\n### Structural / testability (5)\n| # | id | charge | risk | action | rationale |\n|---|---|---|---|---|---|\n| 1 | crime_00001 | God Function (`generateInvoice`, 204 lines) | 0.63 | **fix now** | Only `high`. Anchors most other billing.ts findings (#4, #8, #10, #11, #20) — splitting it makes the rest cheaper. |\n| 3 | crime_00005 | Temporal Recklessness (`src/date.ts`) | 0.61 | **fix now** | This is literally the clock module — define the `now()` injection here first; #9 then consumes it. |\n| 9 | crime_00004 | Temporal Recklessness (`billing.ts`, 7 sites) | 0.53 | **defer** | Blocked on #3 landing. Do as part of the God Function split so call-sites are touched once. |\n| 10 | crime_00008 | False Identity (`calculateRefundPreview`) | 0.52 | **fix now** | Cheap rename / extract; misleading purity is exactly the agent-risk wedge. |\n| 7 | crime_00013 | Unfinished Business (`todo.ts`, 14 markers / 32 LOC) | 0.57 | **defer** | Not a code fix — convert to tracked issues. Low-risk to leave during structural work. |\n\n### IA / agent context (2)\n| # | id | charge | risk | action | rationale |\n|---|---|---|---|---|---|\n| 2 | crime_00002 | Missing Agent Context | 0.61 | **fix now** | Cheapest item with the largest leverage — write `AGENTS.md` / `CLAUDE.md` once, every later fix lands safer. Do first. |\n| 5 | crime_00009 | Concept Alias Drift (tenant ↔ account/team/workspace/org) | 0.58 | **defer** | Needs a product decision on the canonical noun — don't rename until #6/#8 land and the product owner picks the term. Pairs with #4 (duplication). |\n\n### Frontend / IA-of-the-app (2)\n| # | id | charge | risk | action | rationale |\n|---|---|---|---|---|---|\n| 6 | crime_00012 | Duplicated Navigation Source | 0.57 | **fix now** | Pair with #8 — same destination, same fix (single source of truth for `/settings/billing`). |\n| 8 | crime_00014 | Route Metadata Drift (`/settings/billing`) | 0.56 | **fix now** | Same root cause as #6. Do in one PR. |\n\n### Duplication (1)\n| # | id | charge | risk | action | rationale |\n|---|---|---|---|---|---|\n| 4 | crime_00007 | String Sprinkles (`\"enterprise\"` × 4 files) | 0.60 | **defer** | Resolve alongside #5 (alias drift) — both need the same naming/policy decision. Centralizing the literal before the concept is named just relocates the problem. |\n\n### Git-history\nNone in top 10 (all churn=0 in fixture — no commit history to mine).\n\n## Recommended execution order\n\n1. **crime_00002** (Missing Agent Context) — 30-min unblocker\n2. **crime_00012 + crime_00014** (nav + route metadata) — single PR, narrow blast radius\n3. **crime_00008** (False Identity rename) — cheap, isolated\n4. **crime_00005** (clock in `date.ts`) — define the abstraction\n5. **crime_00001** (God Function split) — biggest structural move; do #9 (#crime_00004) as part of it\n6. *Defer:* crime_00007 + crime_00009 (await canonical-term decision), crime_00013 (issue-tracker bulk move)\n7. *Ignore* — none. Nothing in the top 10 is a false positive worth suppressing; the only suppressed finding is already counted in `suppressed_count: 1`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-01-large-file",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:59:31.202Z",
+  "run_id": "c44abfe5-3d7c-4aa2-b216-445d519047ea",
+  "response": "I have what I need. The `large_file` finding (310 / 300 lines, 5 top-level functions) says \"split along clear responsibility boundaries\" — but the file is only 10 lines over threshold, so the structural reason it's large is one thing: the 204-line `generateInvoice` body. The split has to attack that, not just shuffle the slim functions.\n\nNo in-repo callers import from `src/billing.ts` — only `src/billing.test.ts` (per the context tool's `likely_tests`). That means the safe move is to keep `src/billing.ts` as a barrel that re-exports the public API, so no caller paths change.\n\n## Proposed split\n\nAnchored to the evidence in `crime_00010` (310 LOC, 5 top-level functions) and the co-located findings the context tool pulled in (God Function, False Identity on `calculateRefundPreview`, Logic in Comments at line 39, Temporal Recklessness lines 57–273, duplicated tax logic at 145–154 vs. 257–268, FIXME/HACK/XXX/TODO inside `generateInvoice`).\n\n| New file | What moves (current lines) | Tied to which evidence |\n|---|---|---|\n| `src/billing/types.ts` | `User`, `InvoiceLine`, `Invoice` (4–31) | Drops file under the 300-line threshold immediately; zero behavioural change. |\n| `src/billing/tax.ts` | `tax()` (257–268) **plus** the inline tax block (145–154) collapsed into the same function | Removes the duplicated tax rule the comment at L145 flags — the structural reason this section is \"two copies of one rule\". |\n| `src/billing/refund.ts` | `calculateRefundPreview` (40–44) | Lets us rename it (`previewAndAuditRefund` or split pure preview from `audit+email`) per the False Identity finding (`crime_00008`), and encode the prose rule at L39 as a guard — Logic in Comments (`crime_00011`). |\n| `src/billing/upgrade.ts` | `recommendUpgrade` (272–305) | Co-locates the \"days since signup\" policy that's currently duplicated between L92 and L273 — the comment at L91 calls this out explicitly. |\n| `src/billing/invoice/` (folder) | `generateInvoice` (50–253) decomposed by its own banner comments — see below | The actual driver of the 310-line count. Each banner is already a labelled responsibility. |\n| `src/billing/listRecentInvoices.ts` | `listRecentInvoices` (307–310) + the TODO at L308 | Trivial; keeps the barrel tidy. |\n| `src/billing.ts` (kept) | Barrel: `export * from \"./billing/...\"` | No caller updates needed; `src/billing.test.ts` keeps working. |\n\n### Inside `src/billing/invoice/`\n\n`generateInvoice` already self-documents its sections with `-- Section --` banners. Each banner becomes a pure helper, which directly addresses the God Function finding (`crime_00001`, 204 lines, 3.4× threshold) that the large_file finding is downstream of:\n\n| Helper | Source lines |\n|---|---|\n| `applyPlanPricing(items, plan)` → `{ lines, subtotal }` | 66–89 |\n| `loyaltyDiscount(plan, accountAgeDays)` → cents | 91–102 (shared with `recommendUpgrade`) |\n| `applyPromo(amount, code, plan)` → `{ amount, promoCents }` | 105–126 |\n| `scoreRisk({…})` → `{ score, decision }` | 128–143 |\n| `selectCurrency(country)` | 159–165 |\n| `formatInvoiceEmail(invoice, user)` → string | 213–233 |\n| `sendWithRetry(body, clock)` → `{ attempts, latencyMs }` | 235–250 |\n| `invoice/index.ts:: generateInvoice` orchestrates the above + `tax()` from the new module | 50–253 collapses to ~30 lines |\n\nTwo of these resolve cross-cutting findings as a side effect:\n- The 7 clock reads on lines 57/63/92/198/238/250/273 (`crime_00004`) get funneled through a single injected `clock` parameter at the new module boundary — easier to do at extraction time than later.\n- The PII `console.log` at 183–199 and metrics emission at 201–211 become an explicit `emitInvoiceAudit(invoice, log)` seam, which is where the `FIXME` at L183 actually belongs.\n\n### Order of operations\n\nEach step leaves the codebase compiling and the test suite runnable. Stop after any step if it's enough to retire the finding (after step 1 the file is already under threshold, but the God Function — the underlying reason — remains).\n\n1. **Extract `types.ts`** — pure type move, no callers to update. File drops to ~280 LOC; large_file finding clears, but `generateInvoice` is still 204 lines and the real risk hasn't moved.\n2. **Extract `tax.ts`** and replace the inline 145–154 block with a call to it. Resolves the duplication called out in the L145 and L255 comments.\n3. **Extract `refund.ts`**, rename to disclose side effects, encode the L39 prose rule as a guard. Resolves `crime_00008` and `crime_00011` in one move.\n4. **Extract `upgrade.ts`** and pull the duplicated \"days since signup\" math into a shared helper used by both `generateInvoice`'s loyalty block and `recommendUpgrade`.\n5. **Decompose `generateInvoice`** into `invoice/*` per the banner table above. This is the change that actually retires the God Function finding (`crime_00001`) and removes the structural reason the file ever got large.\n6. **Add a `clock` parameter** to the new orchestrator and thread it through the helpers that need it. Closes `crime_00004` for `billing.ts`.\n\n### Callers to update\n\n- `src/billing.test.ts` — only known consumer; should keep importing from `\"./billing\"` (the barrel). No path changes required. After step 5, the test can target the smaller helpers directly, which closes `crime_00006` (\"renders the enterprise plan\" has 0 assertions) and `crime_00016` (\"creates an invoice\" weak matcher) by giving them real seams to assert against.\n- No other in-repo importers found (`grep` for `from \".*billing\"` returned nothing).\n- External / future consumers — covered by the barrel.\n\n### What this plan deliberately doesn't do\n\n- It does not split the file just to hit a line count. Step 1 alone would technically clear `crime_00010`, but the underlying God Function is what made the file large; stopping at step 1 would be cosmetic.\n- It does not touch `src/date.ts` (separate Temporal Recklessness finding, `crime_00005`) or the orphaned-route / nav findings — those are out of scope for a file-level split of `billing.ts`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      }
+    ]
+  }
+}

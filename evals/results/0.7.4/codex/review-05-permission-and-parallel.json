@@ -1,0 +1,89 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "codex",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T05:00:22.433Z",
+  "run_id": "8d84046c-913b-44fa-b5c2-be8c74a1f610",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3974-b0c4-7530-8a32-dee7fac6c2f8\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n- **Block merge:** `crime_00003` `permission_ia_drift` in `docs/routes.md`\\n  \\n  `/admin` has conflicting access language across nav, route guard, and docs: `admin`, `manager`, and `owner`. This should block because permission drift can cause an agent or maintainer to update the wrong policy surface and accidentally expose, hide, or misdocument an admin route. The route guard evidence is especially concerning because multiple role literals appear in the enforcement layer itself.\\n\\n- **Warn:** `crime_00004` `parallel_destination` in `src/routes/admin/billing-plans.ts`\\n  \\n  `/admin/billing-plans` and `/billing-plans` appear to represent overlapping billing-plan intent with no nav, doc, or import link connecting them. This is merge-worthy only if intentional and documented. Otherwise, warn because future edits to billing-plan behavior may update one route and miss the other.\\n\\n- **Warn:** `crime_00006` `command_drift_docs_code_drift` in `docs/routes.md`\\n  \\n  Docs reference `iaq teams`, `iaq workspace`, and `iaq refresh`, but the bin advertises only `iaq get` and `iaq list`. This is a user-facing docs/code mismatch, but lower risk than the route IA issues because it fails visibly as “command not found” instead of silently changing app behavior.\\n\\n**Highest Agent Risk**\\n\\n`crime_00003` carries the highest agent-risk of the three: `0.59`, versus `0.56` for the parallel billing destination and `0.51` for missing CLI commands.\\n\\nIt is also the one I would treat most seriously because it combines three drift sources around an access-controlled destination: navigation, enforcement, and documentation. An agent extending `/admin` could plausibly pick any one of `admin`, `manager`, or `owner` as canonical and leave the other surfaces stale, producing a policy mismatch that reviewers may not catch from a single-file diff.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":22137,\"cached_input_tokens\":12160,\"output_tokens\":477,\"reasoning_output_tokens\":68}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": "src/routes/admin/billing-plans.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

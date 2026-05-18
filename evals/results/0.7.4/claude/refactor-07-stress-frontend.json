@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:57:02.198Z",
+  "run_id": "826b8aa1-0a08-47c7-9187-e8bacf61d9eb",
+  "response": "## Proposed refactor for `src/Card.tsx`\n\nThe current file packs an interactive root, raw style literals, and three fixed-pixel widths into ~25 lines — each maps cleanly to one finding. Here's a refactor that fixes all three at once, tied to each charge:\n\n```tsx\nimport styles from \"./Card.module.css\";\nimport { tokens } from \"@/design/tokens\";\n\ntype CardProps = {\n  children: React.ReactNode;\n  onActivate?: () => void;\n};\n\nexport function Card({ children, onActivate }: CardProps) {\n  const Root = onActivate ? \"button\" : \"div\";\n\n  return (\n    <Root\n      type={onActivate ? \"button\" : undefined}\n      onClick={onActivate}\n      className={styles.card}\n      style={{\n        background: tokens.color.surface.accent,\n        color: tokens.color.text.primary,\n        borderColor: tokens.color.border.subtle,\n        boxShadow: tokens.shadow.sm,\n        outlineColor: tokens.color.focus.ring,\n      }}\n    >\n      <div className={styles.main}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </Root>\n  );\n}\n```\n\n```css\n/* Card.module.css */\n.card {\n  width: 100%;\n  max-width: 50rem;          /* was width: 800px */\n  padding: var(--space-6);\n  display: grid;\n  grid-template-columns: 1fr 15rem;\n  gap: var(--space-4);\n}\n\n.main     { font-size: clamp(1rem, 0.9rem + 0.3vw, 1.125rem); } /* was 18px */\n.sidebar  { font-size: var(--text-sm); color: var(--color-text-muted); }\n\n@media (max-width: 640px) {\n  .card { grid-template-columns: 1fr; }\n  .sidebar { width: 100%; }\n}\n```\n\n### How each change ties to a finding\n\n| Finding | Charge | What changed |\n|---|---|---|\n| `crime_00001` | **Accessible Interaction Risk** — `<div onClick>` on line 10 | Element switches to `<button type=\"button\">` whenever `onActivate` is passed. A real button gets focus, keyboard activation (Enter/Space), and screen-reader semantics for free — no `role`/`tabIndex`/`onKeyDown` workaround needed. If the card isn't actually interactive, the caller omits `onActivate` and we render a plain `<div>` instead of leaking a fake click handler. |\n| `crime_00002` | **Design Token Escape** — 9 raw color/shadow values on lines 10/24/27 | All hex/rgb literals (`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, `#333333`, `#666666`) are replaced with `tokens.color.*` / `tokens.shadow.*` references, and CSS-module rules use `var(--color-*)` / `var(--space-*)` / `var(--text-*)`. Future agents extending this file copy token names forward instead of forking the palette. |\n| `crime_00003` | **Responsive Fragility** — `width: 800px` (line 12), `width: 720px` and `fontSize: 18px` (line 24), no `@media` | Fixed `width: 800` becomes `width: 100%` + `max-width: 50rem`. The inner `720px` column disappears — the layout uses `grid-template-columns: 1fr 15rem` so the main column flexes. `fontSize: 18` becomes `clamp(1rem, 0.9rem + 0.3vw, 1.125rem)`. A `@media (max-width: 640px)` query collapses the grid to a single column on phones. |\n\n### Why the structure changed too\n\nTwo side-effects of the refactor that aren't strictly required by the findings but follow from doing them properly:\n\n- **Styles move to a CSS module.** Inline `style={{}}` is the worst place to enforce tokens — every prop is a fresh literal opportunity. Moving layout/typography to a stylesheet keeps the inline `style` block down to the few token-bound colors that genuinely vary per instance.\n- **The sidebar becomes `<aside>`.** Not in the findings, but once the root is correctly a `<button>`-or-`<div>`, the nested `<div>` for \"sidebar\" is the obvious next semantic mismatch — cheap to fix while you're here.\n\nIf `onActivate` isn't part of the API yet, the minimal accessibility fix (and the one that matches the suggested action exactly) is to drop the `onClick` entirely — the original handler only logs, so it may be dead code.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

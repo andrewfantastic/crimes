@@ -1,0 +1,89 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:57:24.720Z",
+  "run_id": "bf3b9414-4f3d-4a0c-88d4-8ab3e931d7e4",
+  "response": "Three petty crimes in `src/petty.ts`, each one a different shape of ambiguity that bites an agent on the second edit, not the first.\n\n## 1. `describeCheckout` — Option Bag Junk Drawer (crime_00017, lines 10–19)\n\n**Evidence:** one `options` parameter, six distinct reads — `currency, plan, region, retry, role, status` — with no named shape.\n\n**Refactor:** replace the bag with an explicit input type and destructure at the boundary:\n\n```ts\ntype CheckoutDescription = {\n  plan: string;\n  region: string;\n  currency: string;\n  role: string;\n  status: string;\n  retry?: boolean;\n};\n\nfunction describeCheckout({ plan, region, currency, role, status, retry }: CheckoutDescription) { … }\n```\n\n**What an agent gets wrong today:** the six properties span three concerns — *what's being sold* (plan, currency, region), *who's buying* (role, status), and *control flow* (retry). An agent extending this with a seventh field has no signal about which concern it belongs to, whether it's required, or what other call sites need to be updated. The `options` shape is implicit, so TypeScript can't catch a misspelled key or a missing field at the call site — the function silently reads `undefined` and produces a subtly wrong description. The fix collapses test_gap (`1.0`) by giving the type checker something to enforce.\n\n## 2. `resolvePaymentResult` — Return Shape Roulette (crime_00018, lines 21–32)\n\n**Evidence:** three object-literal return shapes, **0% key overlap** between branches — `{ code, message, ok }` vs `{ permanent, url }` vs a third variant.\n\n**Refactor:** name each branch as a discriminated union:\n\n```ts\ntype PaymentResult =\n  | { kind: 'ok'; code: string; message: string }\n  | { kind: 'redirect'; url: string; permanent: boolean }\n  | { kind: 'error'; code: string; message: string };\n\nfunction resolvePaymentResult(…): PaymentResult { … }\n```\n\n**What an agent gets wrong today:** with no return annotation and disjoint keys, an agent reading one branch (\"returns `{ ok, code, message }`\") will write a caller that does `if (result.ok) …` — and that caller will silently no-op on the redirect branch, where `ok` is `undefined`. There's no exhaustiveness check, no compile error, no test failure (test_gap is `1.0`). A discriminated union forces every caller to handle every branch and turns \"I forgot a case\" into a build error.\n\n## 3. The `!disableBilling && !skipRetry` predicate — Negative Flag Maze (crime_00019, line 35)\n\n**Evidence:** two negative flags ANDed together — `disableBilling`, `skipRetry`. To execute the branch, *both* must be false.\n\n**Refactor:** invert the flags at the source, or extract a named positive predicate:\n\n```ts\n// Option A — invert at the source (best, if you own the flag names):\n//   billingEnabled, retryEnabled → if (billingEnabled && retryEnabled)\n\n// Option B — extract a named predicate (lowest blast radius):\nconst shouldChargeWithRetry = !disableBilling && !skipRetry;\nif (shouldChargeWithRetry) { … }\n```\n\n**What an agent gets wrong today:** adding a third condition to a double-negative is where bugs are born. An agent asked to \"also skip when the customer is in a dry-run\" will reach for `!dryRun`, producing `!disableBilling && !skipRetry && !dryRun` — which reads as \"do the thing unless any of these are set,\" but the next maintainer trying to *enable* dry-run reads it as the opposite. De Morgan's law is correct but unintuitive at 2am. A named predicate moves the negation logic to one place, and a positive name (`shouldChargeWithRetry`) makes the extension obvious: \"and not dryRun\" becomes `&& !dryRun`, which now reads correctly because the surrounding clause is positive.\n\n---\n\n**Common thread:** all three findings have `agent_risk` ≈ 0.47–0.48 with **low severity**. The code works today. The risk is the *next* edit — each of these patterns turns an ordinary extension into a guessing game about the function's contract.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

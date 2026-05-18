@@ -1,0 +1,83 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:59:20.543Z",
+  "run_id": "3cb68adf-d0d7-4d32-8652-31d37e36c7c9",
+  "response": "# Review verdict: review-01-messy-ts-app\n\n22 findings on what's effectively a greenfield diff. Treating the PR as a whole I'd **request changes** — but per-finding triage below.\n\n## Block merge (1)\n\n| ID | Charge | sev / agent_risk | Why block |\n|---|---|---|---|\n| `crime_00001` | God Function `generateInvoice` (204 lines, 3.4× threshold) | **high / 0.63** | Only `high` severity in the report and it's in a domain function. A 200-line invoice generator landing in a single PR is the kind of artefact that's far cheaper to split before it ships than after callers wire up to its current shape. |\n\n## Warn — fix before merge or file a follow-up (12)\n\nThese cluster around three real problems, not 12 unrelated nits, which is why I'd block the *PR* even though I wouldn't block any of them individually.\n\n**Cluster A — the \"enterprise refund\" rule is structurally unsafe**\n- `crime_00011` Logic in the Alibi (sev 0.5 / ar 0.5) — owner/billing-support rule lives only in a comment at `src/billing.ts:39`.\n- `crime_00008` False Identity `calculateRefundPreview` (sev 0.55 / ar 0.52) — \"preview\" name, but calls `saveRefundAudit` + `sendRefundEmail`. An agent that trusts the name will double-fire side effects.\n- `crime_00007` String Sprinkles `\"enterprise\"` (sev 0.5 / ar 0.6) — same literal spread across api/billing/jobs/ui; same rule will be re-implemented inconsistently next time.\n\n  Together these are a correctness footgun, not three style nits.\n\n**Cluster B — tenant/destination identity is incoherent**\n- `crime_00009` Concept Alias Drift `tenant` (sev 0.55 / ar 0.58) — account/organisation/team/workspace all coexist.\n- `crime_00012` Duplicated Navigation Source `/settings/billing` (sev 0.6 / ar 0.57) — labelled \"Plans\" vs \"Billing\" in two registries.\n- `crime_00014` Route Metadata Drift `/settings/billing` (sev 0.6 / ar 0.56) — four different names across path, file, component, `<title>`, and nav.\n\n  Pick canonical terms before merging or the next PR doubles the inconsistency.\n\n**Cluster C — determinism + agent legibility**\n- `crime_00004` Temporal Recklessness in `src/billing.ts` (sev 0.6 / ar 0.53) — 7 raw clock reads in domain code.\n- `crime_00005` Temporal Recklessness in `src/date.ts` (sev 0.6 / ar 0.61) — 5 more; date utilities should be the *fix*, not another offender. Higher agent_risk because `test_gap = 1`.\n- `crime_00002` Missing Agent Context (sev 0.6 / ar 0.61) — no AGENTS.md/CLAUDE.md/SKILL.md. Cheap to fix; high agent_risk because every future agent edit pays this tax.\n- `crime_00010` God File `src/billing.ts` 310 lines (sev 0.6 / ar 0.5) — only 1.0× threshold, so warn rather than block, but closely linked to crime_00001 — the split will likely resolve both.\n- `crime_00006` Test That Proves Nothing — `\"renders the enterprise plan\"` has zero asserts (sev 0.45 / ar 0.46). Delete or assert.\n- `crime_00013` Unfinished Business `src/todo.ts` — 14 markers in 32 LOC (sev 0.4 / ar 0.57). The file is mostly TODO noise; triage or drop before merging.\n\n## Ignore — non-blocking, file an issue if you want (9)\n\nAll low severity, agent_risk ≤ 0.51, no evidence of correctness risk.\n\n| ID | Charge | sev / ar | Comment |\n|---|---|---|---|\n| `crime_00015` | Docs-Code Drift `docs/teams.md → ./setup.md` | 0.35 / 0.51 | Stale link; fix opportunistically. |\n| `crime_00016` | Weak Test (weak matcher in `\"creates an invoice\"`) | 0.25 / 0.34 | Tighten when touched. |\n| `crime_00017` | Option Bag Junk Drawer `describeCheckout` | 0.30 / 0.48 | Stylistic; fixture-specific. |\n| `crime_00018` | Return Shape Roulette `resolvePaymentResult` | 0.30 / 0.48 | Add a return type next time it's edited. |\n| `crime_00019` | Negative Flag Maze `!disableBilling && !skipRetry` | 0.25 / 0.47 | Rename when touched. |\n| `crime_00020` | Unfinished Business in `src/billing.ts` | 0.20 / 0.40 | 4 markers, just over threshold. |\n| `crime_00021` | Orphaned `/account/subscription` | 0.40 / 0.46 | All three orphans line up with cluster B — same root cause. Resolving the tenant naming will likely promote or delete them. |\n| `crime_00022` | Orphaned `/team` | 0.40 / 0.46 | Same. |\n| `crime_00023` | Orphaned `/workspace/members` | 0.40 / 0.46 | Same. |\n\n## Net call\n\n**Request changes.** Block on `crime_00001` and the three clusters in Warn (especially A — the refund rule). The Ignore bucket can roll into a follow-up; cluster B will collapse most of it anyway.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

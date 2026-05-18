@@ -1,0 +1,118 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T05:00:38.713Z",
+  "run_id": "f01ff110-48a4-4770-b536-b2a5b831ce25",
+  "response": "# PR review verdict\n\nTreating this as a PR that imports the full Commander.js codebase on top of an empty baseline. Findings grouped by decision.\n\n## BLOCK MERGE (3 findings)\n\n**`crime_00001` — God File: `lib/command.js` (2179 lines, 7.3×)** · sev 0.85 / agent_risk 0.70\nSingle file with 150 top-level functions is the spine of the library. Any agent that edits one section will routinely miss interactions in code it never loaded. This is exactly the failure mode `agent_risk` is built to catch. Don't take it on without a split plan — at minimum, peel off `_executeSubCommand`, `parseOptions`, `_parseCommand`, help wiring, and the action/hook machinery into siblings.\n\n**`crime_00003` — God Function: `_executeSubCommand` (120 lines, 2.0×)** · sev 0.90 / agent_risk 0.69\nHighest severity in the report. Class method on the central `Command` class, mixing platform detection, signal forwarding, and subprocess wiring. Extract before merge — the cost of doing it later goes up the moment a second contributor touches it.\n\n**`crime_00002` — God File: `typings/index.d.ts` (891 lines, 3.0×)** · sev 0.85 / agent_risk 0.70\nPublic type surface in one wall. Same coupling problem as command.js, with the added hazard that breaking changes to types are invisible to runtime tests. Block on splitting by export group (Command, Option, Argument, Help, Errors).\n\n## WARN — note in PR, fix in follow-up\n\n**`crime_00020`, `crime_00039`, `crime_00040`** — `parseOptions` / `_parseCommand` / `addOption` God Functions in `lib/command.js` · agent_risk 0.59–0.61\nSame root cause as the God File. If the split lands, these come along for the ride.\n\n**`crime_00038` — \"PORT\" magic literal in 5 files** · sev 0.50 / agent_risk 0.60\nOnly `examples/*` and a `.test-d.ts` — example code, not the library. Real `String Sprinkles` would warrant a constants module; here it's just sample CLI flags showing what the API supports. Warn the example author, don't block.\n\n**`crime_00041`–`crime_00043`** — God Files `typings/index.test-d.ts` (480), `lib/help.js` (461), `lib/option.js` (326) · agent_risk 0.57–0.59\nAll over the 300-line threshold but only 1.1–1.6×. `lib/help.js` and `lib/option.js` are the better split candidates; the test-d file follows whatever the typings file does.\n\n**`crime_00021`–`crime_00028` (8× `command.exitOverride.test.js`)** · sev 0.45 / agent_risk 0.46\nEight tests reported with zero `expect/assert` calls. Worth a manual check — Commander's exitOverride tests typically rely on `expect.assertions(N)` + `try/catch` with the `expect` inside the catch. If the detector is missing those, this is a false-positive worth filing; if the tests really do only run setup, they need to be fixed before they protect anything. Either outcome is non-blocking but should not be silently merged.\n\n**`crime_00029`–`crime_00036` (8× `tests/ts-imports.test.ts`)** · agent_risk 0.46\nAlmost certainly intentional — these are TypeScript import smoke tests where the assertion *is* that the file compiles. Convert to a single `expect(typeof Command).toBe('function')` per import to silence the detector, or suppress this file in `crimes.config.json`. Don't block.\n\n**`crime_00004`–`crime_00008`** — duplicated `myParseInt`, `_concatValue`, `default`, `choices`, `choices`-arg-validator between `lib/argument.js` and `lib/option.js` · agent_risk 0.62\nThese are real shared-helper candidates. Argument and Option ship with literal copies of validation/coercion logic — fix in one place, ship in two. Worth filing but not worth blocking; the bodies are small and obvious.\n\n## IGNORE\n\n**`crime_00009`–`crime_00019`** — duplicate test scaffolding (`getCommand()` factories, fake exec helpers, no-op `it.skip` stubs) · agent_risk 0.47\nTest setup boilerplate. Yes, technically duplicated, but `test_gap` is 0 and severity is 0.55 because nothing about hoisting an `import` line into a helper protects production behaviour. Noise.\n\n**`crime_00037`, `crime_00047`–`crime_00050`** — large test describe callbacks · agent_risk 0.34–0.45\nTests are 1.0–1.7× over the test-callback threshold. Test files getting long is not the same problem as production files getting long — agents read tests top-to-bottom. Ignore.\n\n**`crime_00051`–`crime_00059`** — weak assertion matchers in `copySettings.test.js` and `options.variadic.test.js` · agent_risk 0.34\nThe `copySettings` tests use `toEqual`/`toBe` on inherited flags — that's the entire point of the test. The detector is flagging the pattern, not the substance. Ignore (or tune the detector).\n\n**`crime_00044`, `crime_00045`** — broken Chinese-translation doc links · sev 0.35 / agent_risk 0.51\nTranslation rot. Real for users browsing zh-CN, but not an agent-risk PR blocker. File an i18n issue.\n\n**`crime_00046`** — commented-out node spawn in `tests/command.executableSubcommand.search.test.js` · sev 0.25 / agent_risk 0.36\nTwo lines of dead comment. Delete in passing if you're already in the file.\n\n**`crime_00060`** — TODO comment about `SIGUSR1` in signals test · sev 0.30 / agent_risk 0.31\nGenuine prose-rule-in-comment, but the rule is \"this used to do X with sinon, revisit if needed\" — a historical note, not an active invariant. Ignore.\n\n---\n\n## Summary\n\n- **Block on 3**: the central God File `lib/command.js`, its God Function `_executeSubCommand`, and the 891-line typings wall. Everything else cascades from those.\n- **Warn on ~13**: duplication between argument/option, secondary God Files, the suspicious `exitOverride` zero-assertion cluster.\n- **Ignore the rest (~44)**: test-file size, test scaffolding duplication, weak-matcher false positives in inheritance tests, translation rot.\n\nThe `agent_risk` ranking is doing real work here: the top three findings cluster at 0.69–0.70 and they're all genuine \"an editing agent will get this wrong\" cases. The bottom of the report (0.31–0.47) is dominated by test-file noise and i18n drift — exactly the right shape.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_file",
+      "crime_00002": "large_file",
+      "crime_00003": "large_function",
+      "crime_00004": "exact_duplicate_block",
+      "crime_00005": "exact_duplicate_block",
+      "crime_00006": "exact_duplicate_block",
+      "crime_00007": "exact_duplicate_block",
+      "crime_00008": "exact_duplicate_block",
+      "crime_00009": "exact_duplicate_block",
+      "crime_00010": "exact_duplicate_block",
+      "crime_00011": "exact_duplicate_block",
+      "crime_00012": "exact_duplicate_block",
+      "crime_00013": "exact_duplicate_block",
+      "crime_00014": "exact_duplicate_block",
+      "crime_00015": "exact_duplicate_block",
+      "crime_00016": "exact_duplicate_block",
+      "crime_00017": "exact_duplicate_block",
+      "crime_00018": "exact_duplicate_block",
+      "crime_00019": "exact_duplicate_block",
+      "crime_00020": "large_function",
+      "crime_00021": "weak_test_signal",
+      "crime_00022": "weak_test_signal",
+      "crime_00023": "weak_test_signal",
+      "crime_00024": "weak_test_signal",
+      "crime_00025": "weak_test_signal",
+      "crime_00026": "weak_test_signal",
+      "crime_00027": "weak_test_signal",
+      "crime_00028": "weak_test_signal",
+      "crime_00029": "weak_test_signal",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "weak_test_signal",
+      "crime_00032": "weak_test_signal",
+      "crime_00033": "weak_test_signal",
+      "crime_00034": "weak_test_signal",
+      "crime_00035": "weak_test_signal",
+      "crime_00036": "weak_test_signal",
+      "crime_00037": "large_function",
+      "crime_00038": "magic_domain_literal_scatter",
+      "crime_00039": "large_function",
+      "crime_00040": "large_function",
+      "crime_00041": "large_file",
+      "crime_00042": "large_file",
+      "crime_00043": "large_file",
+      "crime_00044": "docs_code_drift",
+      "crime_00045": "docs_code_drift",
+      "crime_00046": "commented_out_code",
+      "crime_00047": "large_function",
+      "crime_00048": "large_function",
+      "crime_00049": "large_function",
+      "crime_00050": "large_function",
+      "crime_00051": "weak_test_signal",
+      "crime_00052": "weak_test_signal",
+      "crime_00053": "weak_test_signal",
+      "crime_00054": "weak_test_signal",
+      "crime_00055": "weak_test_signal",
+      "crime_00056": "weak_test_signal",
+      "crime_00057": "weak_test_signal",
+      "crime_00058": "weak_test_signal",
+      "crime_00059": "weak_test_signal",
+      "crime_00060": "logic_in_comments"
+    },
+    "detector_id_by_charge": {
+      "God File": "large_file",
+      "God Function": "large_function",
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "Docs-Code Drift": "docs_code_drift",
+      "Commented-Out Corpse": "commented_out_code",
+      "Logic in the Alibi": "logic_in_comments"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": "commented_out_code",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": "logic_in_comments",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": "weak_test_signal",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": "magic_domain_literal_scatter",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

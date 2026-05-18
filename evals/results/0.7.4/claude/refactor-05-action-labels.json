@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:57:57.970Z",
+  "run_id": "98b19b30-6296-4d07-a478-2bf3cf5a3fd4",
+  "response": "## Confirming the drift\n\nFindings `crime_00011` (action_label_drift) and `crime_00012` (copy/ia_drift) fire with identical evidence on the same three files. Per-component breakdown from the evidence:\n\n- **TeamList.tsx** — uses both `archive` and `delete`\n- **SeatList.tsx** — uses both `archive` and `remove`\n- **UserList.tsx** — uses both `delete` and `remove`\n\nEvery component is internally inconsistent, not just inconsistent with its siblings.\n\n## Proposed canonical label set\n\nThese three verbs aren't synonyms in product copy — they imply different reversibility:\n\n| Verb | Meaning | When to use |\n|---|---|---|\n| **Remove** | Sever a relationship; entity survives | \"Remove user from team\", \"Remove seat from plan\" |\n| **Delete** | Destroy the entity permanently | \"Delete team\" (terminal, irreversible) |\n| **Archive** | Soft-delete; recoverable | Only if the system actually supports restore |\n\nFor these three list views — UserList, TeamList, SeatList — the items are membership/relational. **Canonical: `Remove`** across all three lists, with the confirmation modal making consequences explicit (\"Remove user from team. They will lose access.\"). Reserve `Delete` for the team/seat/user *entity detail* pages, and only use `Archive` if a real archive store exists.\n\n## Refactor order\n\n**TeamList.tsx first.** Reasons in order:\n\n1. It collides with two findings, not one: `action_label_drift` plus `concept_alias_drift` on the \"tenant\" group (crime_00002 — `organisation`/`team`/`workspace` smear). Picking the verb forces the team-vs-workspace conversation too.\n2. It's the only component using `archive` *and* `delete` — the highest-stakes pair, because one is reversible and the other isn't. A user clicking the wrong one is a real incident.\n3. Once TeamList settles on `Remove`, SeatList and UserList are mechanical follow-ups.\n\n## How the two detectors differ on this fixture\n\nThey **don't differ here** — `action_label_drift` and `copy_ia_drift` produced byte-identical evidence, related_files, and scores. That's not a bug; it's what their definitions imply on this input:\n\n- **`action_label_drift`** is narrow: it scans for verbs in a known action group (`delete`/`remove`/`archive`) appearing on competing UI surfaces.\n- **`copy_ia_drift`** is broader: any copy/IA-level vocabulary mismatch — labels, headings, nav text, action verbs.\n\nOn this fixture the only copy drift present *is* the action-verb drift, so the broader detector's set fully contains the narrow one. In a richer fixture you'd expect `copy_ia_drift` to also fire on nav labels (e.g. the `organisation`/`team`/`workspace` smear in `src/nav.ts`) while `action_label_drift` stays silent. The duplication here is a signal that one fixture is exercising both detectors via a single anti-pattern — worth noting if you ever de-duplicate findings at the report layer.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:58:12.256Z",
+  "run_id": "38832c60-9ba8-4d0e-bbce-18600f6bd229",
+  "response": "## Proposed changes\n\n**1. `crime_00002` — Layer Violation (domain → presentation)**\n\n`src/domain/billing.ts` imports `src/presentation/invoice-view.ts`. Don't redirect this — **invert it**.\n\n- Define the collaboration as an interface owned by `domain` (e.g. `InvoiceRenderer` port in `src/domain/`).\n- Have `src/presentation/invoice-view.ts` implement that port.\n- Inject the implementation at the composition root (likely `application/billing-flow.ts` or an entry point).\n- Delete the `import` from `domain/billing.ts → presentation/invoice-view.ts`.\n\nThis also collapses `crime_00001`: the cycle `billing-flow → billing → invoice-view → billing-flow` exists *only* because of the inverted edge. Remove it and the ring breaks without touching the other two files.\n\n**2. `crime_00003` — Deep Import Abuse**\n\n`src/application/billing-flow.ts` reaches into `some-pkg/dist/internal/private/helper.js`.\n\n- Change the specifier to `some-pkg` (or whatever subpath the package actually publishes via its `exports` map).\n- If the helper isn't re-exported, that's an upstream gap — file an issue, don't paper over it with a deep path. As a stopgap, wrap the call in a single adapter module in `infrastructure/` so the blast radius of an upstream rename is one file, not many.\n\n## Why their agent risk differs\n\nBoth are \"imports in the wrong place,\" but they fail in different directions:\n\n- **`layer_violation` (agent_risk 0.63)** lies about *where logic lives*. An agent reading `domain/billing.ts` will assume domain is the stable inner ring and edit it without checking presentation; but a presentation change can now reach back through this edge and break domain invariants. The risk is **structural confusion at edit time** — the directory layout no longer predicts the dependency graph, so an agent's mental model is wrong before it writes a single character.\n- **`deep_import` (agent_risk 0.52)** lies about *what's part of the contract*. The path resolves and the code runs, so nothing tells an agent it's holding a package by its private parts. The failure is **deferred to upgrade time** — silent until the vendor reorganises `dist/internal/`, then loud and remote from the edit that introduced it. Lower agent risk because it doesn't mislead reasoning *now*; it just leaves a tripwire for later.\n\nShort version: layer violations corrupt the map an agent reads; deep imports corrupt the assumption that \"if it imports cleanly, it's a supported API.\"",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

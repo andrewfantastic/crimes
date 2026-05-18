@@ -1,0 +1,77 @@
+{
+  "scenario": "bugfix-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T04:54:06.638Z",
+  "run_id": "4d451785-d70f-466d-b2ce-a568cefde9cb",
+  "response": "# Most likely cause: Temporal Recklessness in `generateInvoice`\n\nThe smoking gun is **crime_00004** combined with **crime_00001**:\n\n- `src/billing.ts` calls `Date.now()` / `new Date()` **7 times** at lines 57, 63, 92, 198, 238, 250, 273.\n- All seven calls live inside `generateInvoice` (lines 50–253) or immediately after it.\n- Each call independently observes wall-clock time.\n\nThat pattern is exactly the shape of date-boundary flakiness: a single invoice generation reads the clock multiple times. If the test runs near midnight / month-end / year-end / DST, two reads inside the *same* call can land on different days, months, or years — so `period_start`, `period_end`, `due_date`, the invoice number suffix, etc. disagree with each other. The God Function size (204 lines) hides this from any agent editing one section, which is why the bug survives review.\n\nSupporting evidence the scan surfaces:\n- `crime_00001` (God Function): 3.4× threshold, multiple responsibilities folded together — encourages the \"read the clock again when I need it\" pattern.\n- `crime_00006` and `crime_00016` (weak tests in `billing.test.ts`): one test has zero asserts, the other only weak matchers — so the test suite never pins time, never asserts boundary behaviour, and the flake only shows up when the runner happens to straddle a boundary.\n\n## Proposed fix\n\n1. **Inject a clock.** Add a `now: Date` (or `clock: { now(): Date }`) parameter to `generateInvoice`. Call it **once** at the top of the function and pass the resulting `Date` (or epoch ms) to every downstream computation. Replace all 7 internal `Date.now()` / `new Date()` reads with that single value.\n2. **Apply the same pattern in `src/date.ts`** (`crime_00005`, 5 more direct reads) so helpers accept the pinned moment instead of consulting the system clock themselves.\n3. **Add a boundary test.** Call `generateInvoice` with a `now` pinned to `23:59:59.999` UTC on a month-end and assert `period_end`, `period_start`, and `due_date` are mutually consistent. Repeat at year-end and across a DST transition. Without a real assertion (cf. `crime_00006`), the flake will keep reappearing.\n\nThe clock injection is the load-bearing fix; the test is what stops the regression from sneaking back through `generateInvoice`'s 204 lines next time an agent edits it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "scenario": "review-01-ia-drift",
+  "agent": "codex",
+  "crimes_version": "0.7.4",
+  "timestamp": "2026-05-18T05:00:51.494Z",
+  "run_id": "197fb5c5-b65e-41ec-b6a7-f0181ef38be8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e3975-21cc-7a21-a0d7-52f2546b3a1c\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n1. **Warn: `route_metadata_drift` / `crime_00014`**\\n   The `/settings/billing` destination has four competing names: file/path says billing, component says `PricingPage`, metadata/nav say `Plans`, and `<title>` says `Subscription`.\\n\\n   This should warn, not block, unless the PR is specifically changing IA, routing, billing settings, nav, or page metadata. The risk is real: future edits can update only one label and make the product feel inconsistent. But this is a medium-confidence IA coherence issue, not evidence of broken runtime behavior.\\n\\n2. **Warn: `duplicated_navigation_source` / `crime_00012`**\\n   `/settings/billing` appears in both `src/nav/registry.ts` and `src/nav/sidebar.ts` with different labels: `Plans` vs `Billing`.\\n\\n   This should warn. It overlaps with `crime_00014` and is probably one concrete cause of the broader route metadata drift. I would not treat it as a separate merge blocker unless this PR adds or edits duplicated nav sources. Recommended fix is to choose one canonical nav metadata source or document which file owns labels.\\n\\n3. **Warn, low priority: `docs_code_drift` / `crime_00015`**\\n   `docs/teams.md:5` links to `./setup.md`, which does not exist.\\n\\n   This is worth fixing, but I would not block merge for it unless the PR touches `docs/teams.md`, onboarding docs, or setup instructions. The confidence is high, but severity is low: it misleads agents and readers, but does not imply product behavior is broken.\\n\\n**Merge Recommendation**\\n\\nOverall: **warn, do not block by default**.\\n\\nThese three findings point to one IA hygiene problem: the repo has no clear source of truth for destinations, labels, and docs references. If this branch is about navigation, settings, billing, docs, or route metadata, I would upgrade `crime_00012` and `crime_00014` to **block merge until aligned**. Otherwise, track them as follow-up cleanup, with `crime_00014` as the umbrella issue and `crime_00012` as the likely first fix.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":24671,\"cached_input_tokens\":12160,\"output_tokens\":491,\"reasoning_output_tokens\":31}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "large_function",
+      "crime_00002": "missing_agent_context",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date",
+      "crime_00006": "weak_test_signal",
+      "crime_00007": "magic_domain_literal_scatter",
+      "crime_00008": "name_behavior_mismatch",
+      "crime_00009": "concept_alias_drift",
+      "crime_00010": "large_file",
+      "crime_00011": "logic_in_comments",
+      "crime_00012": "duplicated_navigation_source",
+      "crime_00013": "todo_density",
+      "crime_00014": "route_metadata_drift",
+      "crime_00015": "docs_code_drift",
+      "crime_00016": "weak_test_signal",
+      "crime_00017": "option_bag_junk_drawer",
+      "crime_00018": "return_shape_roulette",
+      "crime_00019": "negative_flag_maze",
+      "crime_00020": "todo_density",
+      "crime_00021": "orphaned_destination",
+      "crime_00022": "orphaned_destination",
+      "crime_00023": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Temporal Recklessness": "direct_date",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Docs-Code Drift": "docs_code_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_navigation_source",
+        "observed": "duplicated_navigation_source",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "docs_code_drift",
+        "observed": "docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav/registry.ts",
+        "observed": "src/nav/registry.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/settings/billing.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/teams.md",
+        "observed": "docs/teams.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "route_metadata_drift",
+        "observed": "route_metadata_drift",
+        "passed": true
+      }
+    ]
+  }
+}
