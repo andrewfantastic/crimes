@@ -261,6 +261,114 @@ describe("parseFile", () => {
   });
 });
 
+describe("parseFile — sync I/O calls", () => {
+  it("captures `fs.readFileSync` with property-access callee and receiver", () => {
+    const src =
+      "import fs from 'node:fs';\n" +
+      "function load() {\n" +
+      "  return fs.readFileSync('/etc/x', 'utf8');\n" +
+      "}\n";
+    const result = parse(src);
+    expect(result.syncIoCalls).toEqual([
+      {
+        callee: "fs.readFileSync",
+        method: "readFileSync",
+        receiver: "fs",
+        line: 3,
+        enclosingFunctions: [
+          { name: "load", shape: "domain", startLine: 2, endLine: 4 },
+        ],
+      },
+    ]);
+  });
+
+  it("captures bare-identifier sync calls (named imports)", () => {
+    const src =
+      "import { existsSync } from 'node:fs';\n" +
+      "function check() { return existsSync('/etc/x'); }\n";
+    const result = parse(src);
+    expect(result.syncIoCalls).toEqual([
+      {
+        callee: "existsSync",
+        method: "existsSync",
+        line: 2,
+        enclosingFunctions: [
+          { name: "check", shape: "domain", startLine: 2, endLine: 2 },
+        ],
+      },
+    ]);
+  });
+
+  it("records the full enclosing chain, innermost first", () => {
+    const src =
+      "import fs from 'node:fs';\n" +
+      "describe('x', () => {\n" +
+      "  it('y', () => {\n" +
+      "    fs.readFileSync('/etc/x');\n" +
+      "  });\n" +
+      "});\n";
+    const result = parse(src);
+    const call = result.syncIoCalls?.[0];
+    expect(call?.callee).toBe("fs.readFileSync");
+    const shapes = call?.enclosingFunctions.map((f) => f.shape) ?? [];
+    expect(shapes).toEqual(["test_callback", "test_callback"]);
+  });
+
+  it("attributes shape to a Next.js route handler", () => {
+    const result = parseFile({
+      absolutePath: "/repo/app/api/users/route.ts",
+      source:
+        "import fs from 'node:fs';\n" +
+        "export async function GET() {\n" +
+        "  return new Response(fs.readFileSync('/data', 'utf8'));\n" +
+        "}\n",
+    });
+    const call = result.syncIoCalls?.[0];
+    expect(call?.enclosingFunctions[0]?.shape).toBe("route_handler");
+    expect(call?.enclosingFunctions[0]?.name).toBe("GET");
+  });
+
+  it("ignores non-sync calls and unrelated method names", () => {
+    const src =
+      "import fs from 'node:fs';\n" +
+      "function f() {\n" +
+      "  fs.readFile('x', cb);\n" +
+      "  fs.promises.readFile('x');\n" +
+      "  console.log('ok');\n" +
+      "}\n";
+    const result = parse(src);
+    expect(result.syncIoCalls).toBeUndefined();
+  });
+
+  it("ignores chained-receiver sync calls (foo.fs.readFileSync())", () => {
+    const src =
+      "function f() { return obj.fs.readFileSync('/x'); }\n";
+    const result = parse(src);
+    expect(result.syncIoCalls).toBeUndefined();
+  });
+
+  it("captures top-level sync calls with empty enclosingFunctions", () => {
+    const src =
+      "import fs from 'node:fs';\n" +
+      "const data = fs.readFileSync('/etc/x', 'utf8');\n";
+    const result = parse(src);
+    expect(result.syncIoCalls).toEqual([
+      {
+        callee: "fs.readFileSync",
+        method: "readFileSync",
+        receiver: "fs",
+        line: 2,
+        enclosingFunctions: [],
+      },
+    ]);
+  });
+
+  it("leaves syncIoCalls absent when no sync I/O is observed", () => {
+    const result = parse("export const ok = 1;\n");
+    expect(result.syncIoCalls).toBeUndefined();
+  });
+});
+
 describe("parseFile — default export", () => {
   it("captures `export default function Foo`", () => {
     const result = parse(`export default function Foo() { return 1; }\n`);

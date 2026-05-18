@@ -10,6 +10,7 @@ import { collectTypedDeclaration } from "./declarations.js";
 import { collectFunction } from "./functions.js";
 import { collectJsxRoot } from "./jsx.js";
 import { collectTopLevelNavLiterals } from "./nav.js";
+import { collectSyncIoCall } from "./sync-io.js";
 import { collectUiStringLiteral } from "./ui-strings.js";
 import {
   countNonEmptyLines,
@@ -26,6 +27,7 @@ import type {
   ParseInput,
   ParsedFile,
   ParsedFunction,
+  SyncIoCall,
   TypedDeclaration,
   UiStringLiteral,
 } from "./types.js";
@@ -39,6 +41,7 @@ export type {
   DateStringConcat,
   DateUse,
   DeclarationKind,
+  EnclosingFunction,
   FunctionKind,
   FunctionShape,
   InitializerKind,
@@ -50,6 +53,7 @@ export type {
   ParsedFile,
   ParsedFunction,
   ParseInput,
+  SyncIoCall,
   TypedDeclaration,
   UiStringContext,
   UiStringLiteral,
@@ -72,18 +76,26 @@ export function parseFile(input: ParseInput): ParsedFile {
   const dateArithmetic: DateArithmetic[] = [];
   const dateStringConcats: DateStringConcat[] = [];
   const typedDeclarations: TypedDeclaration[] = [];
+  const syncIoCalls: SyncIoCall[] = [];
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
   const jsxElements: JsxElementInfo[] = [];
   let defaultExport: string | undefined;
 
   const visit = (node: ts.Node): void => {
+    // `collectFunction` runs first so the function-like nodes we visit
+    // are recorded before any nested calls are inspected — the sync-I/O
+    // collector walks the partially-populated `functions[]` to build
+    // its enclosing-chain, and depth-first traversal guarantees that
+    // every ancestor function has been pushed by the time its child
+    // calls are visited.
     collectFunction(node, sourceFile, functions, input.absolutePath);
     collectDateUse(node, sourceFile, dateUses);
     collectDateMethodCall(node, sourceFile, dateMethodCalls);
     collectDateArithmetic(node, sourceFile, dateArithmetic);
     collectDateStringConcat(node, sourceFile, dateStringConcats);
     collectTypedDeclaration(node, sourceFile, typedDeclarations);
+    collectSyncIoCall(node, sourceFile, functions, syncIoCalls);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     collectJsxRoot(node, sourceFile, input.source, jsxElements);
     ts.forEachChild(node, visit);
@@ -108,5 +120,6 @@ export function parseFile(input: ParseInput): ParsedFile {
   if (dateArithmetic.length > 0) result.dateArithmetic = dateArithmetic;
   if (dateStringConcats.length > 0) result.dateStringConcats = dateStringConcats;
   if (typedDeclarations.length > 0) result.typedDeclarations = typedDeclarations;
+  if (syncIoCalls.length > 0) result.syncIoCalls = syncIoCalls;
   return result;
 }

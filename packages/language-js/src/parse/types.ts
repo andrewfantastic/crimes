@@ -142,6 +142,61 @@ export interface DateStringConcat {
 }
 
 /**
+ * One ancestor of a call site that is a function-like node. The parser
+ * captures the chain of these (innermost first) so call-in-hotpath
+ * detectors can implement their own gating logic without re-walking the
+ * AST. `name` mirrors {@link ParsedFunction.name}: present when the
+ * function has a binding (named declaration, assigned arrow, named
+ * method); absent for true anonymous callbacks.
+ */
+export interface EnclosingFunction {
+  name?: string;
+  shape: FunctionShape;
+  /** 1-based inclusive line range — matches the {@link ParsedFunction}. */
+  startLine: number;
+  endLine: number;
+}
+
+/**
+ * One call to a Node.js synchronous I/O API collected verbatim. The
+ * parser does not decide whether the call is "in a hot path" — it
+ * captures the full chain of enclosing functions, innermost first, and
+ * the detector (`sync_io_in_hotpath`) applies the shape-based gating
+ * policy. Calls at module top level (no enclosing function) are still
+ * captured with an empty `enclosingFunctions` chain — detectors can
+ * choose to skip them.
+ *
+ * Method coverage targets the common synchronous APIs from `node:fs`
+ * (the `*Sync` family) and the synchronous process-spawning helpers.
+ * The set is deliberately conservative — extending it later is
+ * additive.
+ */
+export interface SyncIoCall {
+  /**
+   * Full callee text as written. For member-access calls
+   * (`fs.readFileSync(...)`) this is `"fs.readFileSync"`; for
+   * bare-identifier calls (after a named import of the sync method)
+   * this is the bare method name, e.g. `"readFileSync"`.
+   */
+  callee: string;
+  /** Receiver identifier when the call is a property access, e.g. `"fs"`. */
+  receiver?: string;
+  /** Method portion of the callee — always the bare sync method name. */
+  method: string;
+  /** 1-based line of the call site. */
+  line: number;
+  /**
+   * Ancestor function-like nodes, innermost first. Empty when the call
+   * is at module top level. A test-callback or CLI-registrar anywhere
+   * in this chain means "this call is in a test / declarative
+   * registration"; a route_handler / page_export / react_component /
+   * domain anywhere in this chain means "this call runs per request /
+   * render / domain call". Detectors apply their own policy.
+   */
+  enclosingFunctions: EnclosingFunction[];
+}
+
+/**
  * What kind of construct the declaration came from. Detectors that
  * care about scope (e.g. only flag exported names) consume this.
  */
@@ -308,6 +363,12 @@ export interface ParsedFile {
    * declares no names of interest to the naming-tier detectors.
    */
   typedDeclarations?: TypedDeclaration[];
+  /**
+   * Every observed call to a synchronous Node.js I/O API, with the
+   * chain of enclosing functions captured for shape-based gating.
+   * Absent when no sync I/O calls were observed in the file.
+   */
+  syncIoCalls?: SyncIoCall[];
   /** Name of the file's default export, when recoverable. */
   defaultExport?: string;
   /** Array literals that look like navigation entries. */
