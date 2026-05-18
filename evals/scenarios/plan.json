@@ -1,5 +1,20 @@
 [
   {
+    "id": "plan-01-date-string-concat",
+    "fixture": "01",
+    "kind": "plan",
+    "prompt": "Plan a migration of all manual date-string construction in this repo to standardized formatting (`toISOString()` or `Intl.DateTimeFormat`). Use `crimes scan --format json` to find every `date_string_concat` finding. For each file flagged, propose the specific replacement and explain whether to use `toISOString()` (machine-readable / persistence / IDs) or `Intl.DateTimeFormat` (user-facing). Don't paraphrase — quote each finding's evidence.",
+    "expected_artifacts": {
+      "referenced_findings": ["date_string_concat"],
+      "referenced_files": ["src/date.ts"],
+      "expected_priority": "date_string_concat"
+    },
+    "judge_questions": [
+      "Did the agent distinguish machine-readable (`toISOString()`) from user-facing (`Intl.DateTimeFormat`) replacements rather than recommending one for everything?",
+      "Did the agent quote at least one date_string_concat finding's evidence verbatim?"
+    ]
+  },
+  {
     "id": "plan-01-messy-ts-app",
     "fixture": "01",
     "kind": "plan",

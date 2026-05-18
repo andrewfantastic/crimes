@@ -1,5 +1,20 @@
 [
   {
+    "id": "refactor-01-mixed-utc",
+    "fixture": "01",
+    "kind": "refactor",
+    "prompt": "Reduce timezone fragility in src/date.ts. Use `crimes context src/date.ts --format json` to find functions that mix UTC and local Date methods on the same receiver. Pick one function to fix first, name the receiver identifier whose methods disagree, and propose a refactor that picks a single Date-method family.",
+    "expected_artifacts": {
+      "referenced_findings": ["mixed_utc_local_methods"],
+      "referenced_files": ["src/date.ts"],
+      "expected_priority": "mixed_utc_local_methods"
+    },
+    "judge_questions": [
+      "Did the agent name the offending receiver identifier (e.g. `d` in `dateLabel`) and quote both family methods from the finding evidence?",
+      "Did the agent's refactor pick a single family rather than computing the same value twice?"
+    ]
+  },
+  {
     "id": "refactor-01-messy-ts-app",
     "fixture": "01",
     "kind": "refactor",

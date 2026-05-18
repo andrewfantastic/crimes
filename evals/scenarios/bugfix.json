@@ -30,6 +30,21 @@
     ]
   },
   {
+    "id": "bugfix-01-timezone-parse",
+    "fixture": "01",
+    "kind": "bugfix",
+    "prompt": "A promo window test passes in CI (UTC server) but in production the promo opens a day early for European users. Use `crimes scan src/date.ts --format json` to find the parse-time timezone bug, name the literal that's responsible, and propose the smallest change that makes the production behaviour match the CI behaviour without renaming the function.",
+    "expected_artifacts": {
+      "referenced_findings": ["timezone_unsafe_parse"],
+      "referenced_files": ["src/date.ts"],
+      "expected_priority": "timezone_unsafe_parse"
+    },
+    "judge_questions": [
+      "Did the agent identify the unzoned literal (e.g. \"2026-12-20\") as the source of the off-by-one-day bug?",
+      "Did the agent's fix explicitly add `Z` or an offset (or switch to a timezone-aware parser) rather than papering over the bug with arithmetic?"
+    ]
+  },
+  {
     "id": "bugfix-04-weak-tests",
     "fixture": "04",
     "kind": "bugfix",

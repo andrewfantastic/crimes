@@ -1,5 +1,20 @@
 [
   {
+    "id": "review-01-dst-arithmetic",
+    "fixture": "01",
+    "kind": "review",
+    "prompt": "A PR adds a `tomorrowMs` helper to src/date.ts that adds 86_400_000 to a timestamp. Use `crimes scan src/date.ts --format json` to find the DST-naive arithmetic finding. Explain whether you'd block the PR or request changes, citing the finding's evidence verbatim. Identify which two dates per year the helper would produce a wrong answer.",
+    "expected_artifacts": {
+      "referenced_findings": ["dst_naive_arithmetic"],
+      "referenced_files": ["src/date.ts"],
+      "expected_priority": "dst_naive_arithmetic"
+    },
+    "judge_questions": [
+      "Did the agent quote the day-level constant (86400000 or `day` unit) from the finding evidence verbatim?",
+      "Did the agent name the two DST-transition days as the failure window rather than treating the bug as universal?"
+    ]
+  },
+  {
     "id": "review-01-messy-ts-app",
     "fixture": "01",
     "kind": "review",

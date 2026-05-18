@@ -1,5 +1,19 @@
 [
   {
+    "id": "context-01-locale-drift",
+    "fixture": "01",
+    "kind": "context",
+    "prompt": "You are about to add a new due-date display to the billing UI by reusing helpers from src/date.ts. Use `crimes context src/date.ts --format json` to find any locale-naive renderers already there. Identify which helper function you should NOT copy as a starting point, name the method it calls, and quote the finding evidence verbatim.",
+    "expected_artifacts": {
+      "referenced_findings": ["locale_drift"],
+      "referenced_files": ["src/date.ts"]
+    },
+    "judge_questions": [
+      "Did the agent name the locale-drifting helper (e.g. `prettyDueDate`) and the `toLocale*()` method it relies on?",
+      "Did the agent quote the finding evidence verbatim rather than paraphrasing the locale-drift problem?"
+    ]
+  },
+  {
     "id": "context-01-messy-ts-app",
     "fixture": "01",
     "kind": "context",
