@@ -120,6 +120,7 @@ export { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
+export { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 export {

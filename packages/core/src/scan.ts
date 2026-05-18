@@ -38,6 +38,7 @@ import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
+import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
 import type { Finding, ScanReport, ScanSummary } from "./finding.js";
@@ -72,6 +73,7 @@ export const builtInDetectors: Detector[] = [
   largeFunctionDetector,
   todoDensityDetector,
   directDateDetector,
+  timezoneUnsafeParseDetector,
   // Petty crimes (small local patterns that increase agent confusion).
   commentedOutCodeDetector,
   logicInCommentsDetector,

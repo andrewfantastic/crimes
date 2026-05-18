@@ -18,8 +18,9 @@ For the agent workflow that consumes findings, see
 | `large_file`       | God File            | medium-high    | 0.80-0.90  |
 | `todo_density`     | TODO Tombstone      | low-medium     | 0.75-0.85  |
 | `direct_date`      | Temporal Recklessness | medium       | 0.80       |
+| `timezone_unsafe_parse` | Timezone Roulette | medium-high  | 0.90       |
 
-All four emit the standard `Finding` shape. No schema bump is required.
+All five emit the standard `Finding` shape. No schema bump is required.
 
 ---
 
@@ -173,3 +174,68 @@ finding goes away.
 **Suggested fix.** Replace the direct call with a parameter on the
 nearest call boundary (`now()`, `clock`, etc.). Inject the real clock
 from the entry point and a fixed timestamp from tests.
+
+---
+
+## Timezone Roulette (`timezone_unsafe_parse`)
+
+**What it detects.** `new Date("…")` calls whose string argument has
+no timezone marker — no trailing `Z`, no `±HH:MM` offset, no
+`GMT±NNNN` segment. The detector skips literals that don't look
+date-like (no 4-digit year + separator), epoch numbers, multi-arg
+forms, and dynamic expressions. Test files are exempt — fixtures
+routinely pin literal dates.
+
+**Example evidence.**
+
+```text
+unsafe literals: "2026-12-25T07:00:00", "2027-01-01", "2027-06-15T14:30:00", …
+lines: 29, 33, 41
+add `Z` for UTC, `±HH:MM` for an offset, or parse through a timezone-aware library
+```
+
+**Why it matters.** JavaScript parses date strings differently
+depending on their shape:
+
+- `"2026-12-25"` (date-only, ISO 8601 calendar date) → **UTC**
+  midnight per the ES spec. The developer often expects local
+  midnight.
+- `"2026-12-25T07:00:00"` (datetime with no zone) → **local** time.
+  The developer often expects UTC.
+- `"2026-12-25T07:00:00Z"` → **UTC**, explicit. No ambiguity.
+- `"2026-12-25T07:00:00+05:30"` → that offset, explicit.
+
+Coding agents are especially prone to this — they copy a literal
+that worked in one environment and silently break in another. Adding
+`Z` or an explicit offset removes the guess.
+
+**Severity ramp.** Default `medium`; escalates to `high` when one
+file accrues 5 or more unsafe literals (a systemic pattern, not an
+accident). Confidence is `0.90` — the pattern is unambiguous when
+the string survives the date-like filter.
+
+**Suggested fix.** Append `Z` for UTC, an explicit `±HH:MM` offset,
+or switch to a timezone-aware library (Luxon, Temporal API,
+date-fns-tz).
+
+**Exemptions.** For configuration-style literals that legitimately
+represent "whatever the host's local zone is", add the exact literal
+to `detectors.options.timezone_unsafe_parse.allowedLiterals` in
+`crimes.config.json`:
+
+```jsonc
+{
+  "detectors": {
+    "options": {
+      "timezone_unsafe_parse": {
+        "allowedLiterals": ["2026-12-25T07:00:00"]
+      }
+    }
+  }
+}
+```
+
+The option is validated at config-load time — unknown keys or
+wrong-shape values fail fast with `ConfigParseError` (exit `2`).
+For a one-off exception, prefer `crimes ignore <fingerprint>`
+with a reason instead.

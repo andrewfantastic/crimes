@@ -21,3 +21,14 @@ export function isWeekend(): boolean {
 export function ageMs(createdAt: number): number {
   return Date.now() - createdAt;
 }
+
+// Intentionally bad: parses a date-only string (UTC midnight) plus a
+// datetime without a zone (local time). Both interpretations surprise
+// the reader and depend on the runtime's timezone.
+export function christmasMorning(): Date {
+  return new Date("2026-12-25T07:00:00");
+}
+
+export function startOfPromoWindow(): Date {
+  return new Date("2026-12-20");
+}
