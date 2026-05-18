@@ -31,6 +31,8 @@ export interface BuildFunctionHashIndexOptions {
 }
 
 const SOURCE_EXT_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+const MIN_EXACT_DUPLICATE_TOKENS = 40;
+const MIN_EXACT_DUPLICATE_LINES = 8;
 
 export async function buildFunctionHashIndex(
   options: BuildFunctionHashIndexOptions,
@@ -57,7 +59,12 @@ export async function buildFunctionHashIndex(
       for (const fn of parsed.functions) {
         if (skipFunction(fn)) continue;
         const hash = hashFunction(fn, source);
-        if (hash.tokens < 20) continue;
+        if (
+          hash.tokens < MIN_EXACT_DUPLICATE_TOKENS ||
+          lineSpan(fn) < MIN_EXACT_DUPLICATE_LINES
+        ) {
+          continue;
+        }
         const hit: FunctionHit = {
           file: repoPath,
           symbol: fn.name,
@@ -77,6 +84,10 @@ function skipFunction(fn: ParsedFunction): boolean {
   // Test callbacks are intentionally repetitive and skew the duplicate
   // signal. Defer to the existing shape classification.
   return fn.shape === "test_callback";
+}
+
+function lineSpan(fn: ParsedFunction): number {
+  return fn.endLine - fn.startLine + 1;
 }
 
 function push(

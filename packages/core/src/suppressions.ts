@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { z } from "zod";
+import { systemClock } from "./clock.js";
 import type { CrimesConfig } from "./config.js";
 import { resolveSuppressionsPath } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
@@ -171,7 +172,7 @@ export async function appendSuppression(
   entry: Omit<SuppressionEntry, "created_at">,
   options: AppendSuppressionOptions = {},
 ): Promise<AppendSuppressionResult> {
-  const now = (options.now ?? (() => new Date()))();
+  const now = (options.now ?? systemClock)();
   const iso = now.toISOString();
 
   let doc: Suppressions;
@@ -288,7 +289,7 @@ export async function removeSuppression(
   const removedEntry = loaded.entries[idx]!;
   const remaining = loaded.entries.filter((_, i) => i !== idx);
 
-  const now = (options.now ?? (() => new Date()))();
+  const now = (options.now ?? systemClock)();
   const iso = now.toISOString();
   const priorCreated = readCreatedAt(path) ?? iso;
 

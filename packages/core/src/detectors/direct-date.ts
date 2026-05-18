@@ -20,6 +20,7 @@ export const directDateDetector: Detector = {
     // — flagging that pattern is a false positive. Domain code is where
     // direct clock access matters.
     if (isTestFile(ctx.file)) return [];
+    if (isClockBoundary(ctx.file)) return [];
 
     const hits = ctx.parsed.dateNowOrNewDateUses;
     if (hits.length === 0) return [];
@@ -79,6 +80,10 @@ function pickSeverity(count: number): Severity {
   if (count >= 8) return "high";
   if (count >= 2) return "medium";
   return "low";
+}
+
+function isClockBoundary(file: string): boolean {
+  return /(^|\/)(clock|time)\.[cm]?[jt]sx?$/.test(file);
 }
 
 function severityScoreFor(s: Severity): number {

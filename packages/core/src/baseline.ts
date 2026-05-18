@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { systemClock } from "./clock.js";
 import { loadConfig } from "./config.js";
 import { fingerprintFinding } from "./fingerprint.js";
 import type {
@@ -274,7 +275,7 @@ export async function saveBaseline(
 ): Promise<SaveBaselineResult> {
   const root = resolve(options.root ?? process.cwd());
   const path = resolveBaselinePath(root, options.path);
-  const now = (options.now ?? (() => new Date()))();
+  const now = (options.now ?? systemClock)();
 
   const report = await scan({ root });
 

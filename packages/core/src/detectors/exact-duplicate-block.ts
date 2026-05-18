@@ -8,7 +8,7 @@ import type { FunctionHit } from "../ast-hash/function-index.js";
  * duplicate set so the per-file detector loop emits each finding
  * exactly once.
  *
- * Token threshold ≥20 (set in the index builder) excludes trivial
+ * Token and line thresholds in the index builder exclude trivial
  * helpers — three duplicate one-liners is noise, three duplicate
  * 30-line bodies is signal.
  */

@@ -134,81 +134,22 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const config = options.config ?? loadConfig(root);
   const detectors =
     options.detectors ?? filterDetectors(builtInDetectors, config);
-
-  const allFiles = await discoverFiles({
+  const inputs = await resolveScanInputs({ root, config, options });
+  const indexes = await buildScanIndexes({ root, config, allFiles: inputs.allFiles });
+  const findings = await runDetectorsForFiles({
     root,
-    include: config.include,
-    exclude: config.exclude,
+    files: inputs.files,
+    detectors,
+    config,
+    indexes,
   });
-
-  let changedAll: string[] | undefined;
-  let files: string[];
-  if (options.changed) {
-    const restricted = await restrictToChanged({
-      root,
-      allFiles,
-      base: options.base,
-    });
-    files = restricted.scanFiles;
-    changedAll = restricted.allChangedRepoPaths;
-  } else {
-    files = allFiles;
-  }
-
-  // Build the IA index over the FULL discovered file set, not just the
-  // changed slice -- IA findings are cross-file by definition. `--changed`
-  // gates only finding emission, not the underlying signal.
-  const ia = await safelyBuildIaIndex({
-    root,
-    allFiles,
-    aliasGroups: resolveAliasGroups(config),
-  });
-  const petty = await safelyBuildPettyIndex({ root, allFiles });
-  // The import graph is also a cross-file index — build it over `allFiles`
-  // so that dependency-graph detectors and `scores.blast_radius` see the
-  // full picture, not just the `--changed` slice.
-  const imports = await safelyBuildImportGraph({ root, allFiles });
-  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
-  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
-  // Scoring context: built once, queried per-finding during finalisation.
-  // Always present (degrades gracefully when git is unavailable).
-  const scoring = await safelyBuildScoringContext({
-    root,
-    allFiles,
-    imports,
-  });
-
-  const findings: Finding[] = [];
-
-  for (const absolutePath of files) {
-    const file = toRepoPath(relative(root, absolutePath));
-    const source = await readFile(absolutePath, "utf8");
-    const parsed = parseFile({ absolutePath, source });
-
-    for (const detector of detectors) {
-      const detectorFindings = await detector.run({
-        file,
-        absolutePath,
-        source,
-        parsed,
-        config,
-        ia,
-        petty,
-        imports,
-        jsxShapeIndex,
-        functionHashIndex,
-        scoring,
-      });
-      findings.push(...detectorFindings);
-    }
-  }
 
   // Backfill the per-finding scoring fields (churn / test_gap /
   // blast_radius) and recompute `agent_risk` from the unified 0.6.0
   // formula. Done once after all detectors have emitted so the
   // signal-source code lives in one place, not 17.
   for (const f of findings) {
-    finaliseFindingScores(f, scoring);
+    finaliseFindingScores(f, indexes.scoring);
   }
 
   const sorted = sortFindings(findings);
@@ -224,10 +165,112 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     summary: summarise(sorted),
     findings: sorted,
   };
-  if (changedAll !== undefined) {
-    report.changed_files = changedAll;
+  if (inputs.changedAll !== undefined) {
+    report.changed_files = inputs.changedAll;
   }
   return report;
+}
+
+interface ScanInputs {
+  allFiles: string[];
+  files: string[];
+  changedAll?: string[];
+}
+
+async function resolveScanInputs(args: {
+  root: string;
+  config: CrimesConfig;
+  options: ScanOptions;
+}): Promise<ScanInputs> {
+  const allFiles = await discoverFiles({
+    root: args.root,
+    include: args.config.include,
+    exclude: args.config.exclude,
+  });
+  if (!args.options.changed) return { allFiles, files: allFiles };
+
+  const restricted = await restrictToChanged({
+    root: args.root,
+    allFiles,
+    base: args.options.base,
+  });
+  return {
+    allFiles,
+    files: restricted.scanFiles,
+    changedAll: restricted.allChangedRepoPaths,
+  };
+}
+
+interface ScanIndexes {
+  ia?: IaIndex;
+  petty?: PettyIndex;
+  imports?: ImportGraph;
+  jsxShapeIndex?: JsxShapeIndex;
+  functionHashIndex?: FunctionHashIndex;
+  scoring?: ScoringContext;
+}
+
+async function buildScanIndexes(args: {
+  root: string;
+  config: CrimesConfig;
+  allFiles: string[];
+}): Promise<ScanIndexes> {
+  const { root, config, allFiles } = args;
+  // Cross-file indexes always use the full discovered file set. `--changed`
+  // gates finding emission, not the context detectors and scoring inspect.
+  const ia = await safelyBuildIaIndex({
+    root,
+    allFiles,
+    aliasGroups: resolveAliasGroups(config),
+  });
+  const petty = await safelyBuildPettyIndex({ root, allFiles });
+  const imports = await safelyBuildImportGraph({ root, allFiles });
+  const jsxShapeIndex = await safelyBuildJsxShapeIndex({ root, allFiles });
+  const functionHashIndex = await safelyBuildFunctionHashIndex({ root, allFiles });
+  const scoring = await safelyBuildScoringContext({ root, allFiles, imports });
+
+  return { ia, petty, imports, jsxShapeIndex, functionHashIndex, scoring };
+}
+
+async function runDetectorsForFiles(args: {
+  root: string;
+  files: string[];
+  detectors: Detector[];
+  config: CrimesConfig;
+  indexes: ScanIndexes;
+}): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  for (const absolutePath of args.files) {
+    findings.push(...(await runDetectorsForFile({ ...args, absolutePath })));
+  }
+  return findings;
+}
+
+async function runDetectorsForFile(args: {
+  root: string;
+  absolutePath: string;
+  detectors: Detector[];
+  config: CrimesConfig;
+  indexes: ScanIndexes;
+}): Promise<Finding[]> {
+  const file = toRepoPath(relative(args.root, args.absolutePath));
+  const source = await readFile(args.absolutePath, "utf8");
+  const parsed = parseFile({ absolutePath: args.absolutePath, source });
+  const findings: Finding[] = [];
+
+  for (const detector of args.detectors) {
+    findings.push(
+      ...(await detector.run({
+        file,
+        absolutePath: args.absolutePath,
+        source,
+        parsed,
+        config: args.config,
+        ...args.indexes,
+      })),
+    );
+  }
+  return findings;
 }
 
 /**

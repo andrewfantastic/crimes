@@ -79,6 +79,20 @@ describe("exactDuplicateBlockDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("ignores dense but short helpers below the line threshold", async () => {
+    const body = `export function tiny(input) {
+  return input.filter((item) => item.active && item.enabled && item.visible).map((item) => item.id).sort().join(",");
+}
+`;
+    const root = await makeRepo({
+      "src/a.ts": body,
+      "src/b.ts": body,
+    });
+    const ctx = await ctxFor("src/a.ts", root);
+    const findings = await exactDuplicateBlockDetector.run(ctx);
+    expect(findings).toEqual([]);
+  });
+
   it("emits nothing when ctx.functionHashIndex is absent", async () => {
     const findings = await exactDuplicateBlockDetector.run({
       file: "src/a.ts",

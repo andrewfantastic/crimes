@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { systemClock } from "./clock.js";
 import type { CrimesConfig } from "./config.js";
 import { loadConfig, resolveSuppressionsPath } from "./config.js";
 import { SCHEMA_VERSION } from "./finding.js";
@@ -107,7 +108,7 @@ export function auditSuppressions(
     ? resolve(root, options.path)
     : resolveSuppressionsPath(root, config);
 
-  const generated = (options.now ?? (() => new Date()))();
+  const generated = (options.now ?? systemClock)();
   const generatedMs = generated.getTime();
 
   const loaded = loadSuppressions(path);

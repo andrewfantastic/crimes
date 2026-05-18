@@ -1,0 +1,16 @@
+{
+  "$schema": "https://crimes.sh/schema/0.1.0/config.json",
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/coverage/**",
+    "**/*.min.js",
+    "**/*.generated.*",
+    "**/.crimes/**",
+    "evals/fixtures/**",
+    "examples/messy-ts-app/**"
+  ]
+}

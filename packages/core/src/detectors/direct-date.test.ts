@@ -94,4 +94,12 @@ describe("directDateDetector", () => {
     );
     expect(findings).toHaveLength(1);
   });
+
+  it("skips explicit clock boundary modules", async () => {
+    const uses = [{ kind: "new" as const, line: 1 }];
+    for (const file of ["src/clock.ts", "packages/core/src/time.ts"]) {
+      const findings = await directDateDetector.run(makeCtx(uses, { file }));
+      expect(findings).toEqual([]);
+    }
+  });
 });

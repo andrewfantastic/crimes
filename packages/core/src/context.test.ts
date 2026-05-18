@@ -132,8 +132,8 @@ describe("context", () => {
       "export const a = " +
       Array.from({ length: 10 }, () => "Date.now()").join(" + ") +
       ";\n";
-    const root = await makeRepo({ "src/clock.ts": date });
-    const report = await context({ root, file: "src/clock.ts" });
+    const root = await makeRepo({ "src/billing.ts": date });
+    const report = await context({ root, file: "src/billing.ts" });
 
     expect(report.findings.some((f) => f.type === "direct_date")).toBe(true);
     expect(
@@ -447,12 +447,12 @@ describe("context", () => {
     it("emits agent_guidance_reason only when guidance is empty", async () => {
       const root = await makeRepo({
         "package.json": JSON.stringify({ name: "app" }),
-        "src/clock.ts":
+        "src/billing.ts":
           "export const a = " +
           Array.from({ length: 10 }, () => "Date.now()").join(" + ") +
           ";\n",
       });
-      const report = await context({ root, file: "src/clock.ts" });
+      const report = await context({ root, file: "src/billing.ts" });
       expect(report.agent_guidance.length).toBeGreaterThan(0);
       expect(report.agent_guidance_reason).toBeUndefined();
     });

@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { systemClock } from "../clock.js";
 import type { FeedbackEntry } from "./types.js";
 
 export interface WriteFeedbackOptions {
@@ -25,7 +26,7 @@ export async function writeFeedbackEntry(
   entry: Omit<FeedbackEntry, "timestamp">,
   options: WriteFeedbackOptions = {},
 ): Promise<WriteFeedbackResult> {
-  const now = options.now ?? (() => new Date());
+  const now = options.now ?? systemClock;
   const timestamp = now().toISOString();
   const full: FeedbackEntry = { timestamp, ...entry };
   await mkdir(dirname(path), { recursive: true });

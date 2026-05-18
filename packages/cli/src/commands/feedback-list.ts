@@ -8,6 +8,7 @@ import {
 import type { FeedbackEntry } from "@crimes/core";
 import type { Command } from "commander";
 import { isVerdict } from "./feedback-write.js";
+import { currentEpochMs } from "../time.js";
 
 interface FeedbackListOptions {
   format: "human" | "json";
@@ -79,7 +80,7 @@ export function registerFeedbackListSubcommand(parent: Command): void {
       );
 
       const filtered = sorted.filter((e) => {
-        if (sinceCutoff && new Date(e.timestamp).getTime() < sinceCutoff) {
+        if (sinceCutoff && Date.parse(e.timestamp) < sinceCutoff) {
           return false;
         }
         if (options.verdict && e.verdict !== options.verdict) return false;
@@ -153,5 +154,5 @@ function parseSinceDuration(input: string): number | undefined {
               ? value * 1000
               : undefined;
   if (ms === undefined) return undefined;
-  return Date.now() - ms;
+  return currentEpochMs() - ms;
 }
