@@ -122,5 +122,20 @@
       "Did the agent extract a single shared component rather than copying-and-pasting another variant?",
       "Did the agent address the starter-example AND final-example duplicates together rather than only one of the two?"
     ]
+  },
+  {
+    "id": "refactor-01-large-file",
+    "fixture": "01",
+    "kind": "refactor",
+    "prompt": "src/billing.ts has tripped the large_file threshold (file-level structural finding, separate from large_function). Use `crimes context src/billing.ts --format json` to gather context, then propose a file-level split: which logical chunks would you move to new files, in what order, and which callers would update? Tie your plan to the large_file finding's evidence rather than just 'feels too long'.",
+    "expected_artifacts": {
+      "referenced_findings": ["large_file"],
+      "referenced_files": ["src/billing.ts"],
+      "expected_priority": "large_file"
+    },
+    "judge_questions": [
+      "Did the agent propose a file-level split (multiple new files with clear responsibilities) rather than just extracting one function?",
+      "Did the agent quote the large_file evidence (line-count threshold) rather than handwaving about size?"
+    ]
   }
 ]
