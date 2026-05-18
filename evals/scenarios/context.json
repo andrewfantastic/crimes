@@ -82,5 +82,19 @@
       "Did the agent identify missing_agent_context and propose creating AGENTS.md (or equivalent) rather than ignoring it?",
       "Did the agent's proposed AGENTS.md skeleton include the project's bins / build commands rather than a generic template?"
     ]
+  },
+  {
+    "id": "context-01-raster-icon",
+    "fixture": "01",
+    "kind": "context",
+    "prompt": "You're about to add a new status indicator next to `src/assets/check-icon.png`. Before you copy that asset's pattern for the new indicator, use `crimes scan --format json` to inspect what the scanner says about it. Quote the finding's dimensions verbatim and explain why a new SVG indicator would be a better starting point than another PNG at those dimensions.",
+    "expected_artifacts": {
+      "referenced_findings": ["raster_should_be_vector"],
+      "referenced_files": ["src/assets/check-icon.png"]
+    },
+    "judge_questions": [
+      "Did the agent quote the actual pixel dimensions (e.g. `32 × 32`) from the finding evidence rather than paraphrasing 'small icon'?",
+      "Did the agent explain at least one concrete reason an SVG wins (DPI independence, smaller bytes, theming via CSS) rather than asserting it generically?"
+    ]
   }
 ]
