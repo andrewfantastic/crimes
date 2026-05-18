@@ -40,8 +40,105 @@ describe("parseFile", () => {
     const result = parse(src);
     expect(result.dateNowOrNewDateUses).toEqual([
       { kind: "now", line: 1 },
-      { kind: "new", line: 2 },
+      {
+        kind: "new",
+        line: 2,
+        argKind: "string-literal",
+        argValue: "2026-01-01",
+      },
     ]);
+  });
+
+  it("classifies new Date() with no args as argKind:none", () => {
+    const result = parse("const a = new Date();\n");
+    expect(result.dateNowOrNewDateUses).toEqual([
+      { kind: "new", line: 1, argKind: "none" },
+    ]);
+  });
+
+  it("classifies new Date(epoch) as argKind:number", () => {
+    const result = parse("const a = new Date(1704067200000);\n");
+    expect(result.dateNowOrNewDateUses).toEqual([
+      { kind: "new", line: 1, argKind: "number", argValue: "1704067200000" },
+    ]);
+  });
+
+  it("classifies multi-arg new Date() as argKind:expression", () => {
+    const result = parse("const a = new Date(2024, 0, 1);\n");
+    expect(result.dateNowOrNewDateUses).toEqual([
+      { kind: "new", line: 1, argKind: "expression" },
+    ]);
+  });
+
+  it("classifies new Date(identifier) as argKind:expression", () => {
+    const result = parse("const a = new Date(ts);\n");
+    expect(result.dateNowOrNewDateUses).toEqual([
+      { kind: "new", line: 1, argKind: "expression" },
+    ]);
+  });
+
+  it("collects Date method calls with family and receiver", () => {
+    const src =
+      "const d = new Date();\n" +
+      "const a = d.getUTCHours();\n" +
+      "const b = d.getHours();\n" +
+      "const c = d.toLocaleDateString('en-GB');\n";
+    const result = parse(src);
+    expect(result.dateMethodCalls).toEqual([
+      { receiver: "d", method: "getUTCHours", family: "utc", line: 2, argCount: 0 },
+      { receiver: "d", method: "getHours", family: "local", line: 3, argCount: 0 },
+      {
+        receiver: "d",
+        method: "toLocaleDateString",
+        family: "local",
+        line: 4,
+        argCount: 1,
+      },
+    ]);
+  });
+
+  it("ignores toString and other broad methods", () => {
+    const src = "const d = new Date();\nconst s = d.toString();\n";
+    const result = parse(src);
+    expect(result.dateMethodCalls).toBeUndefined();
+  });
+
+  it("ignores chained-receiver method calls (a.b.getHours())", () => {
+    const src = "const x = obj.inner.getHours();\n";
+    const result = parse(src);
+    expect(result.dateMethodCalls).toBeUndefined();
+  });
+
+  it("collects day-level arithmetic with magic constants", () => {
+    const src =
+      "const tomorrow = now + 86400000;\n" +
+      "const lastWeek = ts - 604800000;\n";
+    const result = parse(src);
+    expect(result.dateArithmetic).toEqual([
+      { kind: "add", line: 1, operand: 86400000, unit: "day" },
+      { kind: "subtract", line: 2, operand: 604800000, unit: "week" },
+    ]);
+  });
+
+  it("folds nested * to recognise 24 * 60 * 60 * 1000 as a day", () => {
+    const src = "const tomorrow = now + 24 * 60 * 60 * 1000;\n";
+    const result = parse(src);
+    expect(result.dateArithmetic).toEqual([
+      { kind: "add", line: 1, operand: 86400000, unit: "day" },
+    ]);
+  });
+
+  it("does not flag arbitrary additions", () => {
+    const src = "const x = a + 1000;\nconst y = b + offset;\n";
+    const result = parse(src);
+    expect(result.dateArithmetic).toBeUndefined();
+  });
+
+  it("leaves date fields absent when source has no date code", () => {
+    const result = parse("export const ok = 1;\n");
+    expect(result.dateNowOrNewDateUses).toEqual([]);
+    expect(result.dateMethodCalls).toBeUndefined();
+    expect(result.dateArithmetic).toBeUndefined();
   });
 
   it("parses TSX without throwing", () => {

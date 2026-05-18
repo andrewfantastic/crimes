@@ -70,6 +70,62 @@ export interface DateUse {
   /** `Date.now()` or `new Date(...)` */
   kind: "now" | "new";
   line: number;
+  /**
+   * Shape of the single argument to `new Date(...)`, when present. Used
+   * by `timezone_unsafe_parse` to flag locally-parsed date strings.
+   * Absent for `Date.now()` and for `new Date()` with no args.
+   *
+   * - `none`: zero arguments (current time).
+   * - `string-literal`: a `"…"` or `'…'` literal — `argValue` is the
+   *   literal text. Template literals with no substitutions also land
+   *   here (their text is statically known).
+   * - `number`: a numeric epoch.
+   * - `expression`: anything else (identifier, call, computed
+   *   expression). `argValue` is undefined.
+   */
+  argKind?: "none" | "string-literal" | "number" | "expression";
+  argValue?: string;
+}
+
+/**
+ * One invocation of a `Date.prototype` method (`getUTCHours`,
+ * `toLocaleDateString`, etc.). Collected verbatim — the parser does
+ * not verify that the receiver is actually a Date; detectors apply
+ * additional heuristics or type info to reduce false positives.
+ *
+ * Method coverage: every `get*` / `set*` / `to{UTC,Date,Time,Locale*}`
+ * method on `Date`. `toString` is intentionally omitted because it
+ * appears on every JS object and would dominate the collected set.
+ * `valueOf`, `getTime`, `toJSON` are omitted because they're not
+ * involved in any 0.8.0 detector.
+ */
+export interface DateMethodCall {
+  /** Receiver identifier as written, e.g. `"d"` in `d.getHours()`. */
+  receiver: string;
+  /** Method name, e.g. `"getUTCHours"`, `"toLocaleDateString"`. */
+  method: string;
+  /** Whether the method belongs to the UTC family. */
+  family: "utc" | "local";
+  /** 1-based line where the call site begins. */
+  line: number;
+  /** Number of arguments passed (for locale-arg-presence checks). */
+  argCount: number;
+}
+
+/**
+ * One `+` or `-` binary expression whose numeric operand matches a
+ * known day-level constant (or a fold of one, e.g.
+ * `24 * 60 * 60 * 1000`). Smaller granularities (minute, hour) are
+ * excluded — the DST-naive concern only kicks in at day-level math.
+ */
+export interface DateArithmetic {
+  kind: "add" | "subtract";
+  /** 1-based line of the binary expression. */
+  line: number;
+  /** Numeric operand value in milliseconds. */
+  operand: number;
+  /** Plain-English unit label for evidence strings. */
+  unit: "day" | "week" | "month_approx" | "year_approx";
 }
 
 /**
@@ -162,6 +218,17 @@ export interface ParsedFile {
   functions: ParsedFunction[];
   /** Every call to `Date.now()` or `new Date(...)` in the file. */
   dateNowOrNewDateUses: DateUse[];
+  /**
+   * Every `Date.prototype` method invocation observed in the file.
+   * Present even when empty so detectors can iterate without
+   * undefined checks. Absent when no methods were observed.
+   */
+  dateMethodCalls?: DateMethodCall[];
+  /**
+   * Every `+` or `-` binary expression whose numeric operand looks
+   * like a day-level millisecond constant. Absent when none seen.
+   */
+  dateArithmetic?: DateArithmetic[];
   /** Name of the file's default export, when recoverable. */
   defaultExport?: string;
   /** Array literals that look like navigation entries. */

@@ -1,6 +1,10 @@
 import { extname } from "node:path";
 import ts from "typescript";
-import { collectDateUse } from "./dates.js";
+import {
+  collectDateArithmetic,
+  collectDateMethodCall,
+  collectDateUse,
+} from "./dates.js";
 import { collectFunction } from "./functions.js";
 import { collectJsxRoot } from "./jsx.js";
 import { collectTopLevelNavLiterals } from "./nav.js";
@@ -11,6 +15,8 @@ import {
   pickScriptKind,
 } from "./utils.js";
 import type {
+  DateArithmetic,
+  DateMethodCall,
   DateUse,
   JsxElementInfo,
   NavLiteral,
@@ -24,6 +30,8 @@ import type {
 // (`import type { ParsedFile, ... } from "@crimes/language-js"`) keep
 // working unchanged after the 0.7.0 split.
 export type {
+  DateArithmetic,
+  DateMethodCall,
   DateUse,
   FunctionKind,
   FunctionShape,
@@ -52,6 +60,8 @@ export function parseFile(input: ParseInput): ParsedFile {
 
   const functions: ParsedFunction[] = [];
   const dateUses: DateUse[] = [];
+  const dateMethodCalls: DateMethodCall[] = [];
+  const dateArithmetic: DateArithmetic[] = [];
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
   const jsxElements: JsxElementInfo[] = [];
@@ -60,6 +70,8 @@ export function parseFile(input: ParseInput): ParsedFile {
   const visit = (node: ts.Node): void => {
     collectFunction(node, sourceFile, functions, input.absolutePath);
     collectDateUse(node, sourceFile, dateUses);
+    collectDateMethodCall(node, sourceFile, dateMethodCalls);
+    collectDateArithmetic(node, sourceFile, dateArithmetic);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     collectJsxRoot(node, sourceFile, input.source, jsxElements);
     ts.forEachChild(node, visit);
@@ -80,5 +92,7 @@ export function parseFile(input: ParseInput): ParsedFile {
     uiStringLiterals,
   };
   if (jsxElements.length > 0) result.jsxElements = jsxElements;
+  if (dateMethodCalls.length > 0) result.dateMethodCalls = dateMethodCalls;
+  if (dateArithmetic.length > 0) result.dateArithmetic = dateArithmetic;
   return result;
 }
