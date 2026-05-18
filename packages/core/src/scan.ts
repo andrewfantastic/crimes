@@ -1,11 +1,11 @@
-import { readFile, realpath } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { readFile, realpath, stat } from "node:fs/promises";
+import { basename, extname, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { FailOn } from "./baseline.js";
 import { severityAtLeast } from "./baseline.js";
 import type { CrimesConfig, DetectorRegistry } from "./config.js";
 import { loadConfig } from "./config.js";
-import type { Detector } from "./detector.js";
+import type { AssetDetector, AssetDetectorContext, Detector } from "./detector.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
 import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
@@ -133,18 +133,31 @@ export const builtInDetectors: Detector[] = [
 ];
 
 /**
+ * Built-in asset detectors — image-shaped findings that the source
+ * pipeline can't surface because they don't have an AST. Populated by
+ * phase 5b (0.8.0). Empty for now.
+ */
+export const builtInAssetDetectors: AssetDetector[] = [];
+
+/**
  * Project a detector list down to the slice the config loader uses for
  * validating `detectors.options.<id>`. Exported so other scan entry
  * points (`context`, future commands) can share a single source of
  * truth without re-importing every detector.
+ *
+ * Asset detectors share the same `detectors.options.<id>` namespace as
+ * source detectors — pass both lists so the loader recognises asset-
+ * detector ids and validates any options blocks against the asset
+ * detector's `optionsSchema`.
  */
 export function buildDetectorRegistry(
   detectors: readonly Detector[],
+  assetDetectors: readonly AssetDetector[] = [],
 ): DetectorRegistry {
-  return detectors.map((d) => ({
-    id: d.id,
-    optionsSchema: d.optionsSchema,
-  }));
+  return [
+    ...detectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
+    ...assetDetectors.map((d) => ({ id: d.id, optionsSchema: d.optionsSchema })),
+  ];
 }
 
 export interface ScanOptions {
@@ -154,6 +167,11 @@ export interface ScanOptions {
   config?: CrimesConfig;
   /** Override detectors. Defaults to all built-ins. */
   detectors?: Detector[];
+  /**
+   * Override asset detectors. Defaults to all built-ins. Pass `[]` to
+   * skip the asset-file second pass entirely.
+   */
+  assetDetectors?: AssetDetector[];
   /**
    * Restrict the scan to files changed in the working tree (and, when
    * `base` is also set, between `<base>...HEAD`). Requires `root` to be
@@ -170,9 +188,18 @@ export interface ScanOptions {
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const root = resolve(options.root ?? process.cwd());
   const config =
-    options.config ?? loadConfig(root, buildDetectorRegistry(builtInDetectors));
+    options.config ??
+    loadConfig(
+      root,
+      buildDetectorRegistry(builtInDetectors, builtInAssetDetectors),
+    );
+  const allKnownIds = collectKnownIds(builtInDetectors, builtInAssetDetectors);
   const detectors =
-    options.detectors ?? filterDetectors(builtInDetectors, config);
+    options.detectors ??
+    filterDetectors(builtInDetectors, config, allKnownIds);
+  const assetDetectors =
+    options.assetDetectors ??
+    filterAssetDetectors(builtInAssetDetectors, config, allKnownIds);
   const inputs = await resolveScanInputs({ root, config, options });
   const indexes = await buildScanIndexes({ root, config, allFiles: inputs.allFiles });
   const findings = await runDetectorsForFiles({
@@ -182,11 +209,19 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     config,
     indexes,
   });
+  const assetFindings = await runAssetDetectorsForRoot({
+    root,
+    config,
+    detectors: assetDetectors,
+  });
+  findings.push(...assetFindings);
 
   // Backfill the per-finding scoring fields (churn / test_gap /
   // blast_radius) and recompute `agent_risk` from the unified 0.6.0
   // formula. Done once after all detectors have emitted so the
-  // signal-source code lives in one place, not 17.
+  // signal-source code lives in one place, not 17. Asset files aren't
+  // in the scoring context — those findings get 0 for every backfilled
+  // signal, which is intentional and documented.
   for (const f of findings) {
     finaliseFindingScores(f, indexes.scoring);
   }
@@ -308,6 +343,99 @@ async function runDetectorsForFile(args: {
         ...args.indexes,
       })),
     );
+  }
+  return findings;
+}
+
+/**
+ * Run every asset detector against every discovered asset file. Each
+ * file is `stat`-ed once for byte size; the file bytes themselves are
+ * loaded lazily and cached per-file so a detector that only needs
+ * size never opens the file, and two detectors that both need bytes
+ * read the file once between them.
+ *
+ * `--changed` is intentionally not honoured for the asset pass in
+ * v1 — asset detection is per-file cheap and doesn't rely on the
+ * cross-file scoring context, so a full asset walk on every PR is
+ * acceptable. If asset scan time becomes a bottleneck we can plumb
+ * through `restrictToChanged` later.
+ */
+async function runAssetDetectorsForRoot(args: {
+  root: string;
+  config: CrimesConfig;
+  detectors: AssetDetector[];
+}): Promise<Finding[]> {
+  if (args.detectors.length === 0) return [];
+  const includes = args.config.assets?.include;
+  const excludes = args.config.assets?.exclude;
+  // No `assets.include` means the user explicitly cleared the
+  // discovery pattern — treat that as "skip the asset pass entirely".
+  if (!includes || includes.length === 0) return [];
+
+  const assetFiles = await discoverFiles({
+    root: args.root,
+    include: includes,
+    exclude: excludes ?? [],
+  });
+  if (assetFiles.length === 0) return [];
+
+  // Group detectors by extension so each file walks only the detectors
+  // that apply. A 5,000-image repo with 2 PNG detectors should not run
+  // the SVG detector 5,000 times.
+  const byExtension = new Map<string, AssetDetector[]>();
+  for (const detector of args.detectors) {
+    for (const ext of detector.extensions) {
+      const key = ext.toLowerCase();
+      const list = byExtension.get(key) ?? [];
+      list.push(detector);
+      byExtension.set(key, list);
+    }
+  }
+
+  const findings: Finding[] = [];
+  for (const absolutePath of assetFiles) {
+    const extension = extname(absolutePath).toLowerCase();
+    const applicable = byExtension.get(extension);
+    if (!applicable || applicable.length === 0) continue;
+    const file = toRepoPath(relative(args.root, absolutePath));
+
+    let byteSize: number;
+    try {
+      const stats = await stat(absolutePath);
+      byteSize = stats.size;
+    } catch {
+      // Unreadable files (permissions, vanished mid-scan) get skipped
+      // silently — the asset pass should never crash a scan.
+      continue;
+    }
+
+    let cachedBuffer: Buffer | undefined;
+    const read = async (): Promise<Buffer> => {
+      if (cachedBuffer === undefined) {
+        cachedBuffer = await readFile(absolutePath);
+      }
+      return cachedBuffer;
+    };
+
+    const ctx: AssetDetectorContext = {
+      file,
+      absolutePath,
+      extension,
+      byteSize,
+      read,
+      config: args.config,
+    };
+
+    for (const detector of applicable) {
+      try {
+        findings.push(...(await detector.run(ctx)));
+      } catch {
+        // Per-detector failure on one file should not abort the scan.
+        // Skip and continue — same posture as the IA / scoring
+        // builders' `safely*` wrappers.
+        continue;
+      }
+    }
   }
   return findings;
 }
@@ -456,14 +584,43 @@ export function resolveAliasGroups(
  * `disable` runs **after** `enable` so a user can shrink the set in two
  * passes if they want to. An unknown id in either list raises
  * {@link UnknownDetectorError} — typos should not silently no-op.
+ *
+ * `allKnownIds` (optional) carries the combined source + asset
+ * detector id set so an asset-detector id in `enable`/`disable` is
+ * recognised as known even though it isn't in this `available`
+ * source-detector pool. When omitted, validation falls back to
+ * `available`'s ids only.
  */
 export function filterDetectors(
   available: Detector[],
   config: CrimesConfig,
+  allKnownIds?: Set<string>,
 ): Detector[] {
+  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
+  return applyEnableDisable(available, config, knownIds);
+}
+
+/**
+ * Asset-pipeline counterpart of {@link filterDetectors}. Same
+ * `config.detectors.enable` / `config.detectors.disable` lists apply
+ * — asset and source detectors share one id namespace.
+ */
+export function filterAssetDetectors(
+  available: AssetDetector[],
+  config: CrimesConfig,
+  allKnownIds?: Set<string>,
+): AssetDetector[] {
+  const knownIds = allKnownIds ?? new Set(available.map((d) => d.id));
+  return applyEnableDisable(available, config, knownIds);
+}
+
+function applyEnableDisable<T extends { id: string }>(
+  available: T[],
+  config: CrimesConfig,
+  knownIds: Set<string>,
+): T[] {
   const enable = config.detectors?.enable ?? [];
   const disable = config.detectors?.disable ?? [];
-  const knownIds = new Set(available.map((d) => d.id));
 
   for (const id of enable) {
     if (!knownIds.has(id)) throw new UnknownDetectorError(id);
@@ -482,6 +639,16 @@ export function filterDetectors(
     pool = pool.filter((d) => !disableSet.has(d.id));
   }
   return pool;
+}
+
+function collectKnownIds(
+  detectors: readonly Detector[],
+  assetDetectors: readonly AssetDetector[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const d of detectors) ids.add(d.id);
+  for (const d of assetDetectors) ids.add(d.id);
+  return ids;
 }
 
 export class UnknownDetectorError extends Error {

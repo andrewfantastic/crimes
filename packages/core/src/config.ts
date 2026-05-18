@@ -52,6 +52,31 @@ export interface CrimesConfig {
       domain?: number;
       test_file?: number;
     };
+    /**
+     * Severity thresholds for `oversized_raster`. Sizes are in KB
+     * (1 KB = 1024 bytes). A subset is fine — unset levels fall back to
+     * the built-in defaults (`lowKb: 200`, `mediumKb: 500`,
+     * `highKb: 1000`), which mirror common web-perf guidance.
+     *
+     * Severity rule: `< lowKb` → no finding; `[lowKb, mediumKb)` → low;
+     * `[mediumKb, highKb)` → medium; `>= highKb` → high.
+     */
+    assetWeight?: {
+      lowKb?: number;
+      mediumKb?: number;
+      highKb?: number;
+    };
+  };
+  /**
+   * Asset-file discovery overrides. Asset detectors (raster sizing,
+   * raster-should-be-vector, SVG-with-embedded-raster) run a second
+   * pass over files that don't parse as TS/JS. `include`/`exclude`
+   * are independent of the top-level source `include`/`exclude` so
+   * users can tune asset discovery without touching source scope.
+   */
+  assets?: {
+    include?: string[];
+    exclude?: string[];
   };
   /**
    * IA seed overrides. Always **additive** to
@@ -116,6 +141,26 @@ export const DEFAULT_CONFIG: CrimesConfig = {
     largeFileLines: 300,
     largeFunctionLines: 60,
     todoDensityPerKLoc: 10,
+    assetWeight: {
+      lowKb: 200,
+      mediumKb: 500,
+      highKb: 1000,
+    },
+  },
+  assets: {
+    include: ["**/*.{png,jpg,jpeg,gif,webp,avif,svg}"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/out/**",
+      "**/coverage/**",
+      "**/.crimes/**",
+      "**/public/vendor/**",
+      "**/__snapshots__/**",
+      "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}",
+    ],
   },
 };
 
@@ -175,6 +220,14 @@ const largeFileShapesSchema = z
   })
   .strict();
 
+const assetWeightSchema = z
+  .object({
+    lowKb: z.number().int().positive().optional(),
+    mediumKb: z.number().int().positive().optional(),
+    highKb: z.number().int().positive().optional(),
+  })
+  .strict();
+
 const thresholdsSchema = z
   .object({
     largeFileLines: z.number().int().positive().optional(),
@@ -182,6 +235,14 @@ const thresholdsSchema = z
     todoDensityPerKLoc: z.number().int().nonnegative().optional(),
     largeFunction: largeFunctionShapesSchema.optional(),
     largeFile: largeFileShapesSchema.optional(),
+    assetWeight: assetWeightSchema.optional(),
+  })
+  .strict();
+
+const assetsSchema = z
+  .object({
+    include: z.array(z.string().min(1)).optional(),
+    exclude: z.array(z.string().min(1)).optional(),
   })
   .strict();
 
@@ -254,6 +315,7 @@ export const CrimesConfigSchema = z
     include: z.array(z.string().min(1)).optional(),
     exclude: z.array(z.string().min(1)).optional(),
     thresholds: thresholdsSchema.optional(),
+    assets: assetsSchema.optional(),
     detectors: detectorsSchema.optional(),
     ia: iaSchema.optional(),
     suppressions: suppressionsConfigSchema.optional(),
@@ -392,6 +454,25 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
   }
   if (override.thresholds?.largeFile !== undefined) {
     merged.thresholds.largeFile = { ...override.thresholds.largeFile };
+  }
+  // assetWeight merges field-by-field so a user-supplied `mediumKb` keeps
+  // the default `lowKb` / `highKb` instead of wiping them.
+  if (
+    override.thresholds?.assetWeight !== undefined ||
+    base.thresholds.assetWeight !== undefined
+  ) {
+    merged.thresholds.assetWeight = {
+      ...base.thresholds.assetWeight,
+      ...stripUndefined(override.thresholds?.assetWeight ?? {}),
+    };
+  }
+  // assets.include / assets.exclude each replace the default wholesale
+  // when set — same contract as the top-level `include` / `exclude`.
+  if (override.assets !== undefined || base.assets !== undefined) {
+    merged.assets = {
+      include: override.assets?.include ?? base.assets?.include,
+      exclude: override.assets?.exclude ?? base.assets?.exclude,
+    };
   }
   if (override.detectors !== undefined) merged.detectors = override.detectors;
   if (override.ia !== undefined) merged.ia = override.ia;

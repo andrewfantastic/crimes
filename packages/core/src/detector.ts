@@ -43,6 +43,63 @@ export interface Detector {
   run(ctx: DetectorContext): Promise<Finding[]> | Finding[];
 }
 
+/**
+ * An asset detector inspects files that aren't TS/JS source — images,
+ * SVGs, and other binary or markup assets. It runs in a separate
+ * scanner pass so the source-detector pipeline doesn't have to thread
+ * "parsed AST is optional" through every detector.
+ *
+ * Asset detectors are stateless and safe to call in parallel. The
+ * orchestrator pre-fetches the file's byte size (cheap, one `fs.stat`)
+ * and exposes a lazy `read()` for detectors that need the bytes. The
+ * buffer is cached across detectors viewing the same file so a scan
+ * never re-reads.
+ */
+export interface AssetDetector {
+  /** Stable machine id, e.g. `oversized_raster`. */
+  id: string;
+  /** Short human-friendly name. */
+  name: string;
+  /** One-line description of what this detector finds. */
+  description: string;
+  /** Paragraph rationale shown by `crimes explain`. */
+  whyItMatters: string;
+  /**
+   * Lowercase file extensions (including the leading dot) this detector
+   * applies to. The orchestrator skips the detector entirely for files
+   * whose extension is not in this set, so detectors don't need to
+   * recheck.
+   */
+  extensions: string[];
+  /**
+   * Optional zod schema for per-detector exemption config under
+   * `detectors.options.<id>`. Same contract as {@link Detector.optionsSchema}.
+   */
+  optionsSchema?: z.ZodType<unknown>;
+  run(ctx: AssetDetectorContext): Promise<Finding[]> | Finding[];
+}
+
+export interface AssetDetectorContext {
+  /** Repo-relative path with forward slashes. */
+  file: string;
+  /** Absolute path on disk. */
+  absolutePath: string;
+  /** Lowercase extension including the leading dot (e.g. `".png"`). */
+  extension: string;
+  /** Byte size pre-fetched by the orchestrator (`fs.stat().size`). */
+  byteSize: number;
+  /**
+   * Lazy reader. The orchestrator only opens the file when a detector
+   * calls this; repeated calls within one scan return the same buffer
+   * (cached per file). Detectors that only need byte size should not
+   * call `read()` at all — the optimisation matters when scanning
+   * thousands of images.
+   */
+  read(): Promise<Buffer>;
+  /** Resolved config (already merged with defaults). */
+  config: CrimesConfig;
+}
+
 export interface DetectorContext {
   /** Repo-relative path with forward slashes. */
   file: string;
