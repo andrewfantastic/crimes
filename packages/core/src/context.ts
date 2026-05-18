@@ -27,6 +27,7 @@ import type { Detector } from "./detector.js";
 import type { Finding } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import {
+  buildDetectorRegistry,
   builtInDetectors,
   filterDetectors,
   resolveAliasGroups,
@@ -192,7 +193,8 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     targetAbs,
     explicitRoot: options.root,
   });
-  const config = options.config ?? loadConfig(root);
+  const config =
+    options.config ?? loadConfig(root, buildDetectorRegistry(builtInDetectors));
   const detectors =
     options.detectors ?? filterDetectors(builtInDetectors, config);
 

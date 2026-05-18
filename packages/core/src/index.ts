@@ -63,6 +63,8 @@ export type {
 export type {
   ConfigIssue,
   CrimesConfig,
+  DetectorRegistry,
+  DetectorRegistryEntry,
   LoadConfigResult,
 } from "./config.js";
 export {
@@ -259,6 +261,7 @@ export type {
 export {
   applyScanFailOn,
   applySuppressionsToScan,
+  buildDetectorRegistry,
   builtInDetectors,
   filterDetectors,
   resolveAliasGroups,

@@ -66,12 +66,23 @@ export interface CrimesConfig {
     }>;
   };
   /**
-   * Detector toggles. `enable` is an allowlist (empty/omitted means all
-   * built-ins). `disable` is a blocklist that runs **after** `enable`.
+   * Detector toggles and per-detector options.
+   *
+   * - `enable` is an allowlist (empty/omitted means all built-ins).
+   * - `disable` is a blocklist that runs **after** `enable`.
+   * - `options.<id>` carries per-detector exemption values (e.g.
+   *   `allowedNames`, `allowedLiterals`). Each detector declares an
+   *   optional zod schema via `Detector.optionsSchema`; the loader
+   *   validates the supplied options against that schema at config
+   *   load time. Unknown detector ids and unsupported keys for known
+   *   detectors raise {@link ConfigParseError}. Setting `options.<id>`
+   *   for a known detector that has no `optionsSchema` is also an
+   *   error — that detector accepts no options.
    */
   detectors?: {
     enable?: string[];
     disable?: string[];
+    options?: Record<string, unknown>;
   };
   /** Suppression file path override. Defaults to `.crimes/suppressions.json`. */
   suppressions?: {
@@ -178,8 +189,22 @@ const detectorsSchema = z
   .object({
     enable: z.array(z.string().min(1)).optional(),
     disable: z.array(z.string().min(1)).optional(),
+    options: z.record(z.string().min(1), z.unknown()).optional(),
   })
   .strict();
+
+/**
+ * Minimal slice of {@link Detector} that the config loader consumes for
+ * validating `detectors.options.<id>`. Pass {@link buildDetectorRegistry}
+ * from the scan entry points; direct callers that don't need
+ * options-validation may omit the registry.
+ */
+export interface DetectorRegistryEntry {
+  id: string;
+  optionsSchema?: z.ZodType<unknown>;
+}
+
+export type DetectorRegistry = readonly DetectorRegistryEntry[];
 
 const iaSchema = z
   .object({
@@ -243,9 +268,18 @@ export const CrimesConfigSchema = z
  * Throws {@link ConfigParseError} when the file exists but is unreadable,
  * not JSON, or contains a known key with a malformed value. The CLI maps
  * this to exit code 2.
+ *
+ * When `registry` is provided, every `detectors.options.<id>` block is
+ * validated against the detector's registered `optionsSchema` (or
+ * rejected as "no options accepted" / "unknown detector id"). When
+ * omitted, options-level validation is skipped — useful for tests and
+ * for direct programmatic callers that don't carry a detector list.
  */
-export function loadConfig(root: string): CrimesConfig {
-  return loadConfigDetailed(root).config;
+export function loadConfig(
+  root: string,
+  registry?: DetectorRegistry,
+): CrimesConfig {
+  return loadConfigDetailed(root, registry).config;
 }
 
 /**
@@ -253,7 +287,10 @@ export function loadConfig(root: string): CrimesConfig {
  * the merged config. Reserved for programmatic consumers that want to
  * surface advisory warnings; the CLI prefers the throw-on-error path.
  */
-export function loadConfigDetailed(root: string): LoadConfigResult {
+export function loadConfigDetailed(
+  root: string,
+  registry?: DetectorRegistry,
+): LoadConfigResult {
   const path = resolve(root, "crimes.config.json");
   if (!existsSync(path)) {
     return { config: DEFAULT_CONFIG, issues: [] };
@@ -281,7 +318,54 @@ export function loadConfigDetailed(root: string): LoadConfigResult {
   }
 
   const merged = mergeConfig(DEFAULT_CONFIG, result.data as CrimesConfig);
+  if (registry !== undefined) {
+    validateDetectorOptions(merged, registry, path);
+  }
   return { config: merged, issues: [], path };
+}
+
+/**
+ * Walk `config.detectors.options` and validate each entry against the
+ * registry. Three failure modes, all `ConfigParseError`:
+ *
+ * 1. Unknown detector id — the user typed an id that no built-in
+ *    detector exposes.
+ * 2. Known detector with no `optionsSchema` — that detector accepts
+ *    no options; the block is likely a typo.
+ * 3. Schema validation failure — the value's shape doesn't match the
+ *    detector's declared options.
+ */
+function validateDetectorOptions(
+  config: CrimesConfig,
+  registry: DetectorRegistry,
+  path: string,
+): void {
+  const options = config.detectors?.options;
+  if (!options) return;
+  const byId = new Map<string, DetectorRegistryEntry>();
+  for (const entry of registry) byId.set(entry.id, entry);
+  for (const [detectorId, value] of Object.entries(options)) {
+    const entry = byId.get(detectorId);
+    if (!entry) {
+      throw new ConfigParseError(
+        path,
+        `detectors.options.${detectorId}: unknown detector id`,
+      );
+    }
+    if (!entry.optionsSchema) {
+      throw new ConfigParseError(
+        path,
+        `detectors.options.${detectorId}: this detector accepts no options`,
+      );
+    }
+    const parsed = entry.optionsSchema.safeParse(value);
+    if (!parsed.success) {
+      throw new ConfigParseError(
+        path,
+        `detectors.options.${detectorId}: ${formatZodIssues(parsed.error.issues)}`,
+      );
+    }
+  }
 }
 
 function formatZodIssues(issues: z.core.$ZodIssue[]): string {

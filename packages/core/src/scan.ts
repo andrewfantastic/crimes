@@ -3,7 +3,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { discoverFiles, parseFile } from "@crimes/language-js";
 import type { FailOn } from "./baseline.js";
 import { severityAtLeast } from "./baseline.js";
-import type { CrimesConfig } from "./config.js";
+import type { CrimesConfig, DetectorRegistry } from "./config.js";
 import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
@@ -109,6 +109,21 @@ export const builtInDetectors: Detector[] = [
   duplicatedRoleStatusPlanCheckDetector,
 ];
 
+/**
+ * Project a detector list down to the slice the config loader uses for
+ * validating `detectors.options.<id>`. Exported so other scan entry
+ * points (`context`, future commands) can share a single source of
+ * truth without re-importing every detector.
+ */
+export function buildDetectorRegistry(
+  detectors: readonly Detector[],
+): DetectorRegistry {
+  return detectors.map((d) => ({
+    id: d.id,
+    optionsSchema: d.optionsSchema,
+  }));
+}
+
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
   root?: string;
@@ -131,7 +146,8 @@ export interface ScanOptions {
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
   const root = resolve(options.root ?? process.cwd());
-  const config = options.config ?? loadConfig(root);
+  const config =
+    options.config ?? loadConfig(root, buildDetectorRegistry(builtInDetectors));
   const detectors =
     options.detectors ?? filterDetectors(builtInDetectors, config);
   const inputs = await resolveScanInputs({ root, config, options });

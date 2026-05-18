@@ -11,6 +11,7 @@ in PRs — every entry requires a `reason`.
 | Situation | Right answer |
 | --------- | ------------ |
 | A specific finding is acceptable in this one place. | `crimes ignore <fingerprint> --reason "…"` |
+| A particular value is fine for *one* detector across the whole repo. | `detectors.options.<id>` in [`configuration.md`](./configuration.md#detectorsoptions). |
 | You're migrating to `crimes` and don't want to fix everything first. | `crimes baseline save` — see [`ci.md`](./ci.md). |
 | A detector fundamentally doesn't fit the repo. | `detectors.disable` in [`configuration.md`](./configuration.md). |
 | A threshold is wrong for the repo. | `thresholds.*` in [`configuration.md`](./configuration.md). |

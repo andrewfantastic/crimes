@@ -1,4 +1,5 @@
 import type { ParsedFile } from "@crimes/language-js";
+import type { z } from "zod";
 import type { FunctionHashIndex } from "./ast-hash/function-index.js";
 import type { CrimesConfig } from "./config.js";
 import type { Finding } from "./finding.js";
@@ -29,6 +30,16 @@ export interface Detector {
    * this type.
    */
   whyItMatters: string;
+  /**
+   * Optional zod schema for per-detector exemption config under
+   * `detectors.options.<id>` in `crimes.config.json`. When set, the
+   * config loader validates the user's options against this schema at
+   * load time — typos surface immediately rather than at scan time.
+   * Detectors that do not accept options leave this undefined; the
+   * loader rejects any `detectors.options.<id>` block for such
+   * detectors. See `0.8.0-extended-lens.md` §6 for the shape.
+   */
+  optionsSchema?: z.ZodType<unknown>;
   run(ctx: DetectorContext): Promise<Finding[]> | Finding[];
 }
 

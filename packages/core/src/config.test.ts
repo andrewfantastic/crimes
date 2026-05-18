@@ -2,6 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   ConfigParseError,
   DEFAULT_CONFIG,
@@ -209,6 +210,133 @@ describe("suppressions.path", () => {
       suppressions: { path: ".crimes/custom.json" },
     });
     expect(resolved).toBe(`${root}/.crimes/custom.json`);
+  });
+});
+
+describe("detectors.options validation", () => {
+  it("accepts an empty options block when no registry is passed", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { detectors: { options: {} } });
+    const config = loadConfig(root);
+    expect(config.detectors?.options).toEqual({});
+  });
+
+  it("preserves options through merge when no registry is passed", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      detectors: { options: { some_detector: { allowedNames: ["data"] } } },
+    });
+    const config = loadConfig(root);
+    expect(config.detectors?.options).toEqual({
+      some_detector: { allowedNames: ["data"] },
+    });
+  });
+
+  it("rejects a value that isn't an object (top-level schema)", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { detectors: { options: "not an object" } });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+
+  it("registry: known detector id with a matching schema validates", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      detectors: {
+        options: { example_detector: { allowedNames: ["data", "ctx"] } },
+      },
+    });
+    const registry = [
+      {
+        id: "example_detector",
+        optionsSchema: z.object({
+          allowedNames: z.array(z.string()).optional(),
+        }),
+      },
+    ];
+    const config = loadConfig(root, registry);
+    expect(config.detectors?.options).toEqual({
+      example_detector: { allowedNames: ["data", "ctx"] },
+    });
+  });
+
+  it("registry: unknown detector id raises ConfigParseError", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      detectors: { options: { not_a_detector: { foo: 1 } } },
+    });
+    const registry = [
+      { id: "example_detector", optionsSchema: z.object({}) },
+    ];
+    expect(() => loadConfig(root, registry)).toThrowError(
+      /detectors\.options\.not_a_detector: unknown detector id/,
+    );
+  });
+
+  it("registry: known detector with no optionsSchema raises ConfigParseError", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      detectors: { options: { example_detector: { foo: 1 } } },
+    });
+    const registry = [{ id: "example_detector" }];
+    expect(() => loadConfig(root, registry)).toThrowError(
+      /detectors\.options\.example_detector: this detector accepts no options/,
+    );
+  });
+
+  it("registry: known detector with malformed options raises ConfigParseError", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      detectors: {
+        options: { example_detector: { allowedNames: "not an array" } },
+      },
+    });
+    const registry = [
+      {
+        id: "example_detector",
+        optionsSchema: z.object({
+          allowedNames: z.array(z.string()).optional(),
+        }),
+      },
+    ];
+    expect(() => loadConfig(root, registry)).toThrowError(
+      /detectors\.options\.example_detector:/,
+    );
+  });
+
+  it("registry: empty options block passes registry validation", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { detectors: { options: {} } });
+    const registry = [
+      { id: "example_detector", optionsSchema: z.object({}) },
+    ];
+    expect(() => loadConfig(root, registry)).not.toThrow();
+  });
+
+  it("registry: omitted options field passes registry validation", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { detectors: { enable: ["large_file"] } });
+    const registry = [
+      { id: "example_detector", optionsSchema: z.object({}) },
+    ];
+    const config = loadConfig(root, registry);
+    expect(config.detectors?.options).toBeUndefined();
+  });
+
+  it("scan passes the built-in registry through loadConfig (live integration)", async () => {
+    const root = await makeTempDir();
+    await writeFile(
+      join(root, "noop.ts"),
+      "export const ok = 1;\n",
+      "utf8",
+    );
+    await writeConfig(root, {
+      detectors: { options: { not_a_detector_xyz: {} } },
+    });
+    // None of the built-ins have the id `not_a_detector_xyz`, so scan
+    // should bubble up the ConfigParseError from the registry check.
+    await expect(scan({ root })).rejects.toThrowError(
+      /detectors\.options\.not_a_detector_xyz: unknown detector id/,
+    );
   });
 });
 

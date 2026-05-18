@@ -155,6 +155,46 @@ Reserve `disable` for detectors that fundamentally don't fit your
 repo (`todo_density` on a research codebase where TODO is a tracking
 convention, not debt).
 
+### `detectors.options`
+
+Per-detector exemption values. Sits between `detectors.disable`
+(kills the detector everywhere) and `crimes ignore` (kills one
+specific finding) — `detectors.options.<id>` lets you say "this
+value is fine for this detector across the whole codebase, but
+keep firing on others."
+
+```jsonc
+{
+  "detectors": {
+    "options": {
+      "boolean_naming_drift": {
+        "allowedNames": ["loading", "ready"]
+      },
+      "magic_domain_literal_scatter": {
+        "allowedLiterals": ["draft", "published"]
+      }
+    }
+  }
+}
+```
+
+Each detector that accepts options declares its own schema; the
+config loader validates supplied options against the schema at
+load time. Three failure modes — all CLI exit `2`
+(`ConfigParseError`):
+
+1. `detectors.options.<id>`: unknown detector id — the id doesn't
+   match any built-in.
+2. `detectors.options.<id>`: this detector accepts no options —
+   the id is real but the detector has not registered any options
+   schema.
+3. `detectors.options.<id>`: ... — the value's shape doesn't
+   match the detector's declared options.
+
+The keys each detector understands are documented alongside that
+detector under [`finding-types/`](./finding-types/). Detectors
+that don't appear in those docs accept no options.
+
 ### `ia.aliasGroups`
 
 Seed entries for `concept_alias_drift`. Each group is `{ id,
