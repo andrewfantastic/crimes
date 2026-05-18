@@ -18,6 +18,7 @@ import { duplicateComponentShapeDetector } from "./detectors/duplicate-component
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
 import { exactDuplicateBlockDetector } from "./detectors/exact-duplicate-block.js";
+import { finderDuplicateFilenameDetector } from "./detectors/finder-duplicate-filename.js";
 import { hardcodedLocalPathDetector } from "./detectors/hardcoded-local-path.js";
 import { hardcodedLocalhostDetector } from "./detectors/hardcoded-localhost.js";
 import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
@@ -75,6 +76,7 @@ export const builtInDetectors: Detector[] = [
   syncIoInHotpathDetector,
   hardcodedLocalPathDetector,
   hardcodedLocalhostDetector,
+  finderDuplicateFilenameDetector,
   // Petty crimes (small local patterns that increase agent confusion).
   commentedOutCodeDetector,
   logicInCommentsDetector,

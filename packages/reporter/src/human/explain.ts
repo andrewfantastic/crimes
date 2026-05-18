@@ -21,26 +21,7 @@ export function formatExplainReport(
   const f = report.finding;
   const lines: string[] = [];
 
-  lines.push(colour.bold("CRIMES EXPLAIN"));
-  lines.push(`${colour.bold("charge:")}    ${f.charge}`);
-  lines.push(`${colour.bold("type:")}      ${f.type}`);
-  lines.push(
-    `${colour.bold("severity:")}  ${severityCell(f.severity, colour)}` +
-      `   ${colour.bold("confidence:")} ${f.confidence.toFixed(2)}`,
-  );
-  lines.push(`${colour.bold("file:")}      ${f.file}`);
-  if (f.symbol) {
-    lines.push(`${colour.bold("symbol:")}    ${f.symbol}`);
-  }
-  if (f.lines) {
-    const span = f.lines[0] === f.lines[1] ? `${f.lines[0]}` : `${f.lines[0]}–${f.lines[1]}`;
-    lines.push(`${colour.bold("lines:")}     ${span}`);
-  }
-  if (f.suppressed === true) {
-    lines.push(
-      `${colour.bold("suppressed:")} ${f.suppression_reason ?? "(no reason)"}`,
-    );
-  }
+  lines.push(...explainHeaderBlock(f, colour));
 
   lines.push("");
   lines.push(colour.bold("What this detector looks for"));
@@ -49,36 +30,11 @@ export function formatExplainReport(
   lines.push(colour.bold("Why it matters"));
   lines.push(`  ${report.why_it_matters || "(no rationale text for this detector)"}`);
 
-  if (f.evidence.length > 0) {
-    lines.push("");
-    lines.push(colour.bold("Evidence"));
-    for (const ev of f.evidence) {
-      lines.push(`  · ${colour.dim(ev)}`);
-    }
-  }
-
-  const riskBlock = explainRiskProfileBlock(f, colour);
-  if (riskBlock.length > 0) {
-    lines.push("");
-    lines.push(...riskBlock);
-  }
-
-  if (f.suggested_actions && f.suggested_actions.length > 0) {
-    lines.push("");
-    lines.push(colour.bold("Suggested actions"));
-    for (const action of f.suggested_actions) {
-      lines.push(`  · ${action.kind} (risk: ${action.risk})`);
-      lines.push(`      ${action.description}`);
-    }
-  }
-
-  if (f.related_files && f.related_files.length > 0) {
-    lines.push("");
-    lines.push(colour.bold("Related files"));
-    for (const rel of f.related_files) {
-      lines.push(`  · ${colour.cyan(rel)}`);
-    }
-  }
+  pushSection(lines, evidenceBlock(f, colour));
+  pushSection(lines, explainRiskProfileBlock(f, colour));
+  pushSection(lines, suggestedActionsBlock(f, colour));
+  pushSection(lines, likelyRemediesBlock(report, colour));
+  pushSection(lines, relatedFilesBlock(f, colour));
 
   lines.push("");
   lines.push(
@@ -87,6 +43,71 @@ export function formatExplainReport(
   lines.push(`  ${report.suggested_suppression_command}`);
 
   return lines.join("\n");
+}
+
+function explainHeaderBlock(finding: Finding, colour: ColourFns): string[] {
+  const lines: string[] = [
+    colour.bold("CRIMES EXPLAIN"),
+    `${colour.bold("charge:")}    ${finding.charge}`,
+    `${colour.bold("type:")}      ${finding.type}`,
+    `${colour.bold("severity:")}  ${severityCell(finding.severity, colour)}` +
+      `   ${colour.bold("confidence:")} ${finding.confidence.toFixed(2)}`,
+    `${colour.bold("file:")}      ${finding.file}`,
+  ];
+  if (finding.symbol) lines.push(`${colour.bold("symbol:")}    ${finding.symbol}`);
+  if (finding.lines) {
+    const span = finding.lines[0] === finding.lines[1]
+      ? `${finding.lines[0]}`
+      : `${finding.lines[0]}–${finding.lines[1]}`;
+    lines.push(`${colour.bold("lines:")}     ${span}`);
+  }
+  if (finding.suppressed === true) {
+    lines.push(`${colour.bold("suppressed:")} ${finding.suppression_reason ?? "(no reason)"}`);
+  }
+  return lines;
+}
+
+function pushSection(lines: string[], section: string[]): void {
+  if (section.length === 0) return;
+  lines.push("");
+  lines.push(...section);
+}
+
+function evidenceBlock(finding: Finding, colour: ColourFns): string[] {
+  if (finding.evidence.length === 0) return [];
+  return [
+    colour.bold("Evidence"),
+    ...finding.evidence.map((ev) => `  · ${colour.dim(ev)}`),
+  ];
+}
+
+function suggestedActionsBlock(finding: Finding, colour: ColourFns): string[] {
+  if (!finding.suggested_actions || finding.suggested_actions.length === 0) return [];
+  const lines = [colour.bold("Suggested actions")];
+  for (const action of finding.suggested_actions) {
+    lines.push(`  · ${action.kind} (risk: ${action.risk})`);
+    lines.push(`      ${action.description}`);
+  }
+  return lines;
+}
+
+function likelyRemediesBlock(
+  report: ExplainReport,
+  colour: ColourFns,
+): string[] {
+  if (report.likely_remedies.length === 0) return [];
+  return [
+    colour.bold("Likely remedies"),
+    ...report.likely_remedies.map((remedy, index) => `  ${index + 1}. ${remedy}`),
+  ];
+}
+
+function relatedFilesBlock(finding: Finding, colour: ColourFns): string[] {
+  if (!finding.related_files || finding.related_files.length === 0) return [];
+  return [
+    colour.bold("Related files"),
+    ...finding.related_files.map((rel) => `  · ${colour.cyan(rel)}`),
+  ];
 }
 
 /**

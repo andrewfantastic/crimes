@@ -63,6 +63,7 @@ describe("crimes explain", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("CRIMES EXPLAIN");
     expect(result.stdout).toContain("God Function");
+    expect(result.stdout).toContain("Likely remedies");
     expect(result.stdout).toContain("crimes ignore large_function::billing.ts::generateInvoice");
     expect(result.stdout).toContain("--reason");
   });
@@ -86,6 +87,8 @@ describe("crimes explain", () => {
     expect(parsed.finding.type).toBe("large_function");
     expect(parsed.detector.charge).toBe("God Function");
     expect(typeof parsed.why_it_matters).toBe("string");
+    expect(Array.isArray(parsed.likely_remedies)).toBe(true);
+    expect(parsed.likely_remedies.length).toBeGreaterThan(0);
     expect(parsed.suggested_suppression_command).toContain("crimes ignore");
   });
 

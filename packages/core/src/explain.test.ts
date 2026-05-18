@@ -30,6 +30,8 @@ describe("explain", () => {
     expect(report.detector.type).toBe("large_function");
     expect(report.detector.charge).toBe("God Function");
     expect(report.why_it_matters.length).toBeGreaterThan(0);
+    expect(report.likely_remedies.length).toBeGreaterThan(0);
+    expect(report.likely_remedies.join(" ")).toContain("configure the detector");
     expect(report.suggested_suppression_command).toContain(
       "crimes ignore large_function::billing.ts::generateInvoice",
     );

@@ -23,8 +23,9 @@ For the agent workflow that consumes findings, see
 | `option_bag_junk_drawer`        | Option Bag Junk Drawer    | low            | 0.74-0.82  |
 | `return_shape_roulette`         | Return Shape Roulette     | low            | 0.73-0.82  |
 | `negative_flag_maze`            | Negative Flag Maze        | low            | 0.72       |
+| `finder_duplicate_filename`     | Finder Duplicate Filename | medium         | 0.90       |
 
-All eight emit the existing `Finding` shape. No schema bump is required:
+All emit the existing `Finding` shape. No schema bump is required:
 petty crimes are a detector family, not a new severity level or required
 field.
 
@@ -262,3 +263,31 @@ named helper before extending the condition.
 - Test files are ignored.
 - The detector requires negative-sounding names; arbitrary `!value` checks
   are not enough.
+
+---
+
+## Finder Duplicate Filename
+
+**What it detects.** macOS Finder / iCloud conflict-copy filenames that end
+with a space and a number before the extension, such as `Button 2.tsx`.
+
+**Example evidence.**
+
+```text
+filename ends with Finder conflict suffix: "Button 2.tsx"
+likely intended canonical path: src/components/Button.tsx
+suffix number: 2
+```
+
+**Why it matters.** These files are usually accidental local conflict copies.
+Agents and humans then have to guess which file is canonical, or accidentally
+edit the suffixed copy.
+
+**Suggested fix.** Compare the suffixed file with the likely canonical file.
+If it is accidental, delete it. If both are real, rename one with a
+domain-specific name.
+
+**False-positive notes.**
+
+- Versioned names such as `Page2.tsx` and `v2.ts` are ignored.
+- The detector requires the Finder-style space before the number.

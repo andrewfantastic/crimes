@@ -22,7 +22,11 @@ program
   .description(
     "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   )
-  .version(__CRIMES_VERSION__);
+  .version(__CRIMES_VERSION__)
+  .addHelpText(
+    "after",
+    "\nTip: run `crimes init --agent-skill` to add a Claude Code skill so future agents discover crimes automatically.",
+  );
 
 registerInitCommand(program);
 registerIgnoreCommand(program);

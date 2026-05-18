@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -83,5 +83,42 @@ describe("crimes init", () => {
     // Should not throw.
     const config = loadConfig(root);
     expect(config.include?.[0]).toContain("ts");
+  });
+
+  it("--agent-skill writes a Claude Code skill file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const result = await runCli(["init", "--agent-skill"], root);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(".claude/skills/crimes/SKILL.md");
+    const skillPath = join(root, ".claude", "skills", "crimes", "SKILL.md");
+    expect(existsSync(skillPath)).toBe(true);
+    const raw = readFileSync(skillPath, "utf8");
+    expect(raw).toContain("crimes context <file> --format json");
+    expect(raw).toContain("severity: \"high\"");
+  });
+
+  it("--agent-skill refuses to overwrite an existing skill without --force", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const skillPath = join(root, ".claude", "skills", "crimes", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "custom skill", { encoding: "utf8", flag: "w" });
+
+    const result = await runCli(["init", "--agent-skill"], root);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("already exists");
+    expect(readFileSync(skillPath, "utf8")).toBe("custom skill");
+  });
+
+  it("--agent-skill --force overwrites an existing skill", async () => {
+    const root = await mkdtemp(join(tmpdir(), "crimes-init-"));
+    const skillPath = join(root, ".claude", "skills", "crimes", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(join(root, "crimes.config.json"), `{ "include": ["custom"] }`);
+    writeFileSync(skillPath, "custom skill", { encoding: "utf8", flag: "w" });
+
+    const result = await runCli(["init", "--agent-skill", "--force"], root);
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(skillPath, "utf8")).toContain("codebase risk workflow");
   });
 });

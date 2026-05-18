@@ -1156,6 +1156,8 @@ interface ExplainReport {
   };
   /** One-paragraph rationale for why this kind of finding matters. */
   why_it_matters: string;
+  /** Ranked, human-readable remediation paths for this finding. */
+  likely_remedies: string[];
   /**
    * Verbatim shell line that would suppress this finding. Always
    * starts with `crimes ignore <fingerprint> --reason ` and ends with

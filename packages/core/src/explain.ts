@@ -29,6 +29,7 @@ export interface ExplainReport {
     description: string;
   };
   why_it_matters: string;
+  likely_remedies: string[];
   suggested_suppression_command: string;
 }
 
@@ -119,10 +120,23 @@ export async function explain(
       description: detector.description,
     },
     why_it_matters: detector.whyItMatters,
+    likely_remedies: likelyRemedies(match),
     suggested_suppression_command:
       `crimes ignore ${fingerprint} ` +
       `--reason "<one-sentence justification>"`,
   };
+}
+
+function likelyRemedies(finding: Finding): string[] {
+  const actions = finding.suggested_actions?.map((action) => action.description) ?? [];
+  const remedies = actions.slice(0, 3);
+  remedies.push(
+    "If this reflects a real project convention, configure the detector or record feedback instead of renaming code blindly.",
+  );
+  remedies.push(
+    "If the team accepts the risk, suppress this exact fingerprint with a one-sentence reason.",
+  );
+  return [...new Set(remedies)];
 }
 
 function findFinding(findings: Finding[], identifier: string): Finding | undefined {
