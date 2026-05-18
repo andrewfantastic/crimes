@@ -122,12 +122,15 @@ export { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js"
 export { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 export { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 export { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
+export { oversizedRasterDetector } from "./detectors/oversized-raster.js";
 export { parallelDestinationDetector } from "./detectors/parallel-destination.js";
 export { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
+export { rasterShouldBeVectorDetector } from "./detectors/raster-should-be-vector.js";
 export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 export { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
+export { svgWithEmbeddedRasterDetector } from "./detectors/svg-with-embedded-raster.js";
 export { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 export { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";

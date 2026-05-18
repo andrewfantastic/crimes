@@ -159,6 +159,11 @@ export const DEFAULT_CONFIG: CrimesConfig = {
       "**/.crimes/**",
       "**/public/vendor/**",
       "**/__snapshots__/**",
+      // Test / scenario fixtures often carry intentionally-broken
+      // assets (oversized inputs, icon-sized rasters that demonstrate
+      // the smell). Scans of a fixture root pass through cleanly —
+      // this only excludes nested `fixtures/` directories.
+      "**/fixtures/**",
       "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}",
     ],
   },

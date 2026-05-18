@@ -6,14 +6,44 @@
     "root": "/Users/andrew/dev/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 34,
-    "high": 3,
+    "total": 37,
+    "high": 4,
     "medium": 15,
-    "low": 16
+    "low": 18
   },
   "findings": [
     {
       "id": "crime_00001",
+      "type": "svg_with_embedded_raster",
+      "charge": "SVG With Embedded Raster",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "src/assets/partner-logo.svg",
+      "summary": "2 embedded base64 rasters inside the SVG (image/jpeg, image/png). The SVG mime type promises infinite scale, but the actual pixels are locked to one resolution — usually larger than a plain PNG.",
+      "evidence": [
+        "2 `<image href=\"data:image/…;base64,…\">` occurrences",
+        "embedded MIME types: image/jpeg, image/png",
+        "SVG byte size: 592 bytes (includes the base64 overhead)",
+        "re-author the raster region as vector paths, or split it out to its own asset"
+      ],
+      "scores": {
+        "severity": 0.75,
+        "confidence": 0.95,
+        "agent_risk": 0.7,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "remove_embedded_raster",
+          "description": "Re-export the SVG from the design tool with the raster layer flattened to vector geometry, or split the embedded image out to its own PNG / WebP asset referenced by URL.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00002",
       "type": "large_function",
       "charge": "God Function",
       "severity": "high",
@@ -47,7 +77,7 @@
       ]
     },
     {
-      "id": "crime_00002",
+      "id": "crime_00003",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "high",
@@ -80,7 +110,7 @@
       ]
     },
     {
-      "id": "crime_00003",
+      "id": "crime_00004",
       "type": "mixed_utc_local_methods",
       "charge": "Half-UTC, Half-Local",
       "severity": "high",
@@ -112,7 +142,7 @@
       ]
     },
     {
-      "id": "crime_00004",
+      "id": "crime_00005",
       "type": "missing_agent_context",
       "charge": "Missing Agent Context",
       "severity": "medium",
@@ -128,8 +158,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.61,
-        "churn": 0,
+        "agent_risk": 0.62,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -142,7 +172,7 @@
       ]
     },
     {
-      "id": "crime_00005",
+      "id": "crime_00006",
       "type": "hardcoded_localhost",
       "charge": "Dev-Server URL",
       "severity": "medium",
@@ -161,8 +191,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.61,
-        "churn": 0,
+        "agent_risk": 0.62,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -175,7 +205,7 @@
       ]
     },
     {
-      "id": "crime_00006",
+      "id": "crime_00007",
       "type": "hardcoded_local_path",
       "charge": "Localhost-on-Disk",
       "severity": "medium",
@@ -194,8 +224,8 @@
       "scores": {
         "severity": 0.6,
         "confidence": 0.9,
-        "agent_risk": 0.61,
-        "churn": 0,
+        "agent_risk": 0.62,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -208,7 +238,7 @@
       ]
     },
     {
-      "id": "crime_00008",
+      "id": "crime_00009",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "medium",
@@ -241,7 +271,7 @@
       ]
     },
     {
-      "id": "crime_00009",
+      "id": "crime_00010",
       "type": "timezone_unsafe_parse",
       "charge": "Timezone Roulette",
       "severity": "medium",
@@ -274,7 +304,7 @@
       ]
     },
     {
-      "id": "crime_00010",
+      "id": "crime_00011",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "medium",
@@ -307,7 +337,7 @@
       ]
     },
     {
-      "id": "crime_00011",
+      "id": "crime_00012",
       "type": "magic_domain_literal_scatter",
       "charge": "String Sprinkles",
       "severity": "medium",
@@ -345,7 +375,7 @@
       ]
     },
     {
-      "id": "crime_00012",
+      "id": "crime_00013",
       "type": "name_behavior_mismatch",
       "charge": "False Identity",
       "severity": "medium",
@@ -379,7 +409,7 @@
       ]
     },
     {
-      "id": "crime_00013",
+      "id": "crime_00014",
       "type": "dst_naive_arithmetic",
       "charge": "DST-Naive Day Math",
       "severity": "medium",
@@ -412,7 +442,7 @@
       ]
     },
     {
-      "id": "crime_00014",
+      "id": "crime_00015",
       "type": "concept_alias_drift",
       "charge": "Concept Alias Drift",
       "severity": "medium",
@@ -450,7 +480,7 @@
       ]
     },
     {
-      "id": "crime_00015",
+      "id": "crime_00016",
       "type": "large_file",
       "charge": "God File",
       "severity": "medium",
@@ -483,7 +513,7 @@
       ]
     },
     {
-      "id": "crime_00016",
+      "id": "crime_00017",
       "type": "logic_in_comments",
       "charge": "Logic in the Alibi",
       "severity": "medium",
@@ -516,7 +546,7 @@
       ]
     },
     {
-      "id": "crime_00017",
+      "id": "crime_00018",
       "type": "duplicated_navigation_source",
       "charge": "Duplicated Navigation Source",
       "severity": "medium",
@@ -548,7 +578,7 @@
       ]
     },
     {
-      "id": "crime_00018",
+      "id": "crime_00019",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "medium",
@@ -580,7 +610,7 @@
       ]
     },
     {
-      "id": "crime_00019",
+      "id": "crime_00020",
       "type": "route_metadata_drift",
       "charge": "Route Metadata Drift",
       "severity": "medium",
@@ -617,7 +647,37 @@
       ]
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00021",
+      "type": "oversized_raster",
+      "charge": "Oversized Raster",
+      "severity": "low",
+      "confidence": 0.95,
+      "file": "src/assets/hero-banner.png",
+      "summary": "253.9 KB raster asset (threshold 200 / 500 / 1000 KB). Heavy images directly inflate page weight and Core Web Vitals; the fix is usually a resize plus a modern-format re-encode, not a build change.",
+      "evidence": [
+        "byte size: 260,000 bytes (253.9 KB)",
+        "severity ladder: low ≥ 200 KB · medium ≥ 500 KB · high ≥ 1000 KB",
+        "format: png",
+        "consider resizing to the rendered dimensions and re-encoding to webp or avif"
+      ],
+      "scores": {
+        "severity": 0.4,
+        "confidence": 0.95,
+        "agent_risk": 0.52,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "shrink_raster",
+          "description": "Resize the image to the dimensions it actually renders at and re-encode as WebP or AVIF. If the asset is decorative, consider whether an SVG icon or CSS gradient would replace it entirely.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00022",
       "type": "docs_code_drift",
       "charge": "Docs-Code Drift",
       "severity": "low",
@@ -644,7 +704,7 @@
       ]
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00023",
       "type": "sync_io_in_hotpath",
       "charge": "Sync I/O in Hot Path",
       "severity": "low",
@@ -665,8 +725,8 @@
       "scores": {
         "severity": 0.4,
         "confidence": 0.9,
-        "agent_risk": 0.51,
-        "churn": 0,
+        "agent_risk": 0.52,
+        "churn": 0.05,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -679,7 +739,7 @@
       ]
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00024",
       "type": "direct_date",
       "charge": "Temporal Recklessness",
       "severity": "low",
@@ -712,7 +772,36 @@
       ]
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00025",
+      "type": "raster_should_be_vector",
+      "charge": "Icon-Sized Raster",
+      "severity": "low",
+      "confidence": 0.85,
+      "file": "src/assets/check-icon.png",
+      "summary": "32×32 PNG icon-sized raster. SVG would scale cleanly across DPIs and ship smaller; the current asset locks the image to a single resolution.",
+      "evidence": [
+        "dimensions: 32 × 32 px (≤ 64 threshold both sides)",
+        "format: png",
+        "consider replacing with an SVG icon — same render at every DPI, smaller bytes"
+      ],
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.85,
+        "agent_risk": 0.5,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "switch_to_svg_icon",
+          "description": "Re-author or re-export the icon as an SVG. If the source is a designer's PNG, the original vector likely exists in Figma / Sketch / Illustrator — re-export from there.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00026",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -745,7 +834,7 @@
       ]
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00027",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -778,7 +867,7 @@
       ]
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00028",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -813,7 +902,7 @@
       ]
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00029",
       "type": "boolean_naming_drift",
       "charge": "Unprefixed Boolean",
       "severity": "low",
@@ -847,7 +936,7 @@
       ]
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00030",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -880,7 +969,7 @@
       ]
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00031",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -913,7 +1002,7 @@
       ]
     },
     {
-      "id": "crime_00029",
+      "id": "crime_00032",
       "type": "return_shape_roulette",
       "charge": "Return Shape Roulette",
       "severity": "low",
@@ -947,7 +1036,7 @@
       ]
     },
     {
-      "id": "crime_00030",
+      "id": "crime_00033",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -979,7 +1068,7 @@
       ]
     },
     {
-      "id": "crime_00031",
+      "id": "crime_00034",
       "type": "singular_plural_type_mismatch",
       "charge": "Plural Mismatch",
       "severity": "low",
@@ -1012,7 +1101,7 @@
       ]
     },
     {
-      "id": "crime_00032",
+      "id": "crime_00035",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
@@ -1044,7 +1133,7 @@
       ]
     },
     {
-      "id": "crime_00033",
+      "id": "crime_00036",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1075,7 +1164,7 @@
       ]
     },
     {
-      "id": "crime_00034",
+      "id": "crime_00037",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -1106,7 +1195,7 @@
       ]
     },
     {
-      "id": "crime_00035",
+      "id": "crime_00038",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",

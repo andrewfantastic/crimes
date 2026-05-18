@@ -40,12 +40,15 @@ import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js"
 import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
 import { optionBagJunkDrawerDetector } from "./detectors/option-bag-junk-drawer.js";
 import { orphanedDestinationDetector } from "./detectors/orphaned-destination.js";
+import { oversizedRasterDetector } from "./detectors/oversized-raster.js";
 import { parallelDestinationDetector } from "./detectors/parallel-destination.js";
 import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
+import { rasterShouldBeVectorDetector } from "./detectors/raster-should-be-vector.js";
 import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
 import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
+import { svgWithEmbeddedRasterDetector } from "./detectors/svg-with-embedded-raster.js";
 import { syncIoInHotpathDetector } from "./detectors/sync-io-in-hotpath.js";
 import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
@@ -134,10 +137,14 @@ export const builtInDetectors: Detector[] = [
 
 /**
  * Built-in asset detectors — image-shaped findings that the source
- * pipeline can't surface because they don't have an AST. Populated by
- * phase 5b (0.8.0). Empty for now.
+ * pipeline can't surface because they don't have an AST. Run in a
+ * separate second pass after every source detector emits.
  */
-export const builtInAssetDetectors: AssetDetector[] = [];
+export const builtInAssetDetectors: AssetDetector[] = [
+  oversizedRasterDetector,
+  rasterShouldBeVectorDetector,
+  svgWithEmbeddedRasterDetector,
+];
 
 /**
  * Project a detector list down to the slice the config loader uses for
