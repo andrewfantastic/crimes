@@ -90,6 +90,7 @@ export type {
 export type { Detector, DetectorContext } from "./detector.js";
 export { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 export { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
+export { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
 export { circularDependencyDetector } from "./detectors/circular-dependency.js";
 export { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 export { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
@@ -124,6 +125,7 @@ export { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 export { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 export { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 export { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
+export { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
 export { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 export { todoDensityDetector } from "./detectors/todo-density.js";
 export { weakTestSignalDetector } from "./detectors/weak-test-signal.js";

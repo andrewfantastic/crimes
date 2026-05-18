@@ -6,10 +6,10 @@
     "root": "/Users/andrew/dev/crimes/examples/messy-ts-app"
   },
   "summary": {
-    "total": 27,
+    "total": 31,
     "high": 3,
     "medium": 13,
-    "low": 11
+    "low": 15
   },
   "findings": [
     {
@@ -67,7 +67,7 @@
         "severity": 0.8,
         "confidence": 0.9,
         "agent_risk": 0.71,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -99,7 +99,7 @@
         "severity": 0.8,
         "confidence": 0.85,
         "agent_risk": 0.7,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -195,7 +195,7 @@
         "severity": 0.6,
         "confidence": 0.9,
         "agent_risk": 0.63,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -333,7 +333,7 @@
         "severity": 0.6,
         "confidence": 0.8,
         "agent_risk": 0.61,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -579,6 +579,39 @@
     },
     {
       "id": "crime_00019",
+      "type": "direct_date",
+      "charge": "Temporal Recklessness",
+      "severity": "low",
+      "confidence": 0.9,
+      "file": "src/api/state.ts",
+      "lines": [
+        18,
+        18
+      ],
+      "summary": "1 direct use of Date.now()/new Date(). Reading the system clock in domain code makes behaviour non-deterministic and couples tests to wall time.",
+      "evidence": [
+        "1× Date.now()",
+        "lines: 18",
+        "each call observes wall time at runtime — tests cannot pin a fixed moment without monkey-patching"
+      ],
+      "scores": {
+        "severity": 0.35,
+        "confidence": 0.9,
+        "agent_risk": 0.51,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "inject_clock",
+          "description": "Inject a clock/now() abstraction so domain code is deterministic in tests and free of hidden temporal coupling.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00020",
       "type": "date_string_concat",
       "charge": "Date String Sewing",
       "severity": "low",
@@ -598,7 +631,7 @@
         "severity": 0.3,
         "confidence": 0.85,
         "agent_risk": 0.52,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -611,7 +644,7 @@
       ]
     },
     {
-      "id": "crime_00020",
+      "id": "crime_00021",
       "type": "locale_drift",
       "charge": "Host-Locale Drift",
       "severity": "low",
@@ -631,7 +664,7 @@
         "severity": 0.3,
         "confidence": 0.85,
         "agent_risk": 0.52,
-        "churn": 0.1,
+        "churn": 0.15,
         "test_gap": 1,
         "blast_radius": 0
       },
@@ -644,7 +677,76 @@
       ]
     },
     {
-      "id": "crime_00021",
+      "id": "crime_00022",
+      "type": "boolean_naming_drift",
+      "charge": "Unprefixed Boolean",
+      "severity": "low",
+      "confidence": 0.8,
+      "file": "src/api/state.ts",
+      "lines": [
+        15,
+        21
+      ],
+      "summary": "3 boolean-typed declarations without a recognised boolean prefix. Booleans read as nouns when unprefixed; `is`/`has`/`should`/`can` makes intent obvious to the reader.",
+      "evidence": [
+        "`paid` @L15",
+        "`expired` @L18",
+        "`stale` @L21",
+        "lines: 15, 18, 21",
+        "built-in React-state names (loading/ready/active/…) are exempt; add project-specific names via `detectors.options.boolean_naming_drift.allowedNames`"
+      ],
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.8,
+        "agent_risk": 0.49,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "prefix_boolean",
+          "description": "Rename to `is*` / `has*` / `should*` / `can*` (or add to `detectors.options.boolean_naming_drift.allowedNames` if the current name is a project idiom).",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00023",
+      "type": "boolean_naming_drift",
+      "charge": "Unprefixed Boolean",
+      "severity": "low",
+      "confidence": 0.8,
+      "file": "src/petty.ts",
+      "lines": [
+        34,
+        34
+      ],
+      "summary": "2 boolean-typed declarations without a recognised boolean prefix. Booleans read as nouns when unprefixed; `is`/`has`/`should`/`can` makes intent obvious to the reader.",
+      "evidence": [
+        "`disableBilling` @L34",
+        "`skipRetry` @L34",
+        "lines: 34, 34",
+        "built-in React-state names (loading/ready/active/…) are exempt; add project-specific names via `detectors.options.boolean_naming_drift.allowedNames`"
+      ],
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.8,
+        "agent_risk": 0.5,
+        "churn": 0.05,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "prefix_boolean",
+          "description": "Rename to `is*` / `has*` / `should*` / `can*` (or add to `detectors.options.boolean_naming_drift.allowedNames` if the current name is a project idiom).",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00024",
       "type": "weak_test_signal",
       "charge": "Test That Proves Nothing",
       "severity": "low",
@@ -677,7 +779,7 @@
       ]
     },
     {
-      "id": "crime_00022",
+      "id": "crime_00025",
       "type": "option_bag_junk_drawer",
       "charge": "Option Bag Junk Drawer",
       "severity": "low",
@@ -710,7 +812,7 @@
       ]
     },
     {
-      "id": "crime_00023",
+      "id": "crime_00026",
       "type": "return_shape_roulette",
       "charge": "Return Shape Roulette",
       "severity": "low",
@@ -744,7 +846,7 @@
       ]
     },
     {
-      "id": "crime_00024",
+      "id": "crime_00027",
       "type": "negative_flag_maze",
       "charge": "Negative Flag Maze",
       "severity": "low",
@@ -776,7 +878,40 @@
       ]
     },
     {
-      "id": "crime_00025",
+      "id": "crime_00028",
+      "type": "singular_plural_type_mismatch",
+      "charge": "Plural Mismatch",
+      "severity": "low",
+      "confidence": 0.7,
+      "file": "src/api/state.ts",
+      "lines": [
+        24,
+        27
+      ],
+      "summary": "2 declarations whose plural form disagrees with the annotated type's array shape.",
+      "evidence": [
+        "plural name, singular type: `users: User` @L24",
+        "singular name, array type: `invoice: Invoice[]` @L27",
+        "v1 detector — type aliases and generic types are silently skipped"
+      ],
+      "scores": {
+        "severity": 0.3,
+        "confidence": 0.7,
+        "agent_risk": 0.47,
+        "churn": 0,
+        "test_gap": 1,
+        "blast_radius": 0
+      },
+      "suggested_actions": [
+        {
+          "kind": "rename_or_reshape",
+          "description": "Rename the variable to match the type's shape, or change the type to match the name. If the project intentionally diverges, add the name to `detectors.options.singular_plural_type_mismatch.allowedNames`.",
+          "risk": "low"
+        }
+      ]
+    },
+    {
+      "id": "crime_00029",
       "type": "todo_density",
       "charge": "Unfinished Business",
       "severity": "low",
@@ -808,7 +943,7 @@
       ]
     },
     {
-      "id": "crime_00026",
+      "id": "crime_00030",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -839,7 +974,7 @@
       ]
     },
     {
-      "id": "crime_00027",
+      "id": "crime_00031",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",
@@ -870,7 +1005,7 @@
       ]
     },
     {
-      "id": "crime_00028",
+      "id": "crime_00032",
       "type": "orphaned_destination",
       "charge": "Orphaned Destination",
       "severity": "low",

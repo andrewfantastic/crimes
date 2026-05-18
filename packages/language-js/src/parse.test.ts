@@ -166,6 +166,94 @@ describe("parseFile", () => {
     expect(result.dateStringConcats).toBeUndefined();
   });
 
+  it("captures typed const/let declarations with annotation text and initializer kind", () => {
+    const src =
+      "const isReady: boolean = false;\n" +
+      'let count: number = 1;\n' +
+      "const users: User[] = [];\n";
+    const result = parse(src);
+    expect(result.typedDeclarations).toEqual([
+      { name: "isReady", declarationKind: "const", type: "boolean", initializerKind: "boolean_literal", exported: false, line: 1 },
+      { name: "count", declarationKind: "let", type: "number", initializerKind: "number", exported: false, line: 2 },
+      { name: "users", declarationKind: "const", type: "User[]", initializerKind: "array", exported: false, line: 3 },
+    ]);
+  });
+
+  it("marks top-level export modifiers on variable statements", () => {
+    const src = "export const KEY: string = \"x\";\n";
+    const result = parse(src);
+    expect(result.typedDeclarations).toEqual([
+      { name: "KEY", declarationKind: "const", type: "string", initializerKind: "string", exported: true, line: 1 },
+    ]);
+  });
+
+  it("classifies initializer expressions by shape", () => {
+    const src =
+      "const isHidden = !visible;\n" +
+      "const sameDay = a === b;\n" +
+      "const eitherOr = a || b;\n" +
+      "const greeting = `hi`;\n" +
+      "const obj = { ok: 1 };\n" +
+      "const result = fetchSomething();\n" +
+      "const other = (x) => x;\n";
+    const result = parse(src);
+    const byName = Object.fromEntries(
+      (result.typedDeclarations ?? []).map((d) => [d.name, d.initializerKind]),
+    );
+    expect(byName).toEqual({
+      isHidden: "negation",
+      sameDay: "comparison",
+      eitherOr: "logical",
+      greeting: "string",
+      obj: "object",
+      result: "call",
+      other: "other",
+    });
+  });
+
+  it("captures function parameters as typed declarations", () => {
+    const src = "function f(loading: boolean, name: string): void {}\n";
+    const result = parse(src);
+    expect(result.typedDeclarations).toEqual([
+      { name: "loading", declarationKind: "param", type: "boolean", exported: false, line: 1 },
+      { name: "name", declarationKind: "param", type: "string", exported: false, line: 1 },
+    ]);
+  });
+
+  it("captures class properties as typed declarations", () => {
+    const src =
+      "class X {\n" +
+      "  active: boolean = true;\n" +
+      "  label: string = \"hi\";\n" +
+      "}\n";
+    const result = parse(src);
+    expect(result.typedDeclarations).toEqual([
+      { name: "active", declarationKind: "property", type: "boolean", initializerKind: "boolean_literal", exported: false, line: 2 },
+      { name: "label", declarationKind: "property", type: "string", initializerKind: "string", exported: false, line: 3 },
+    ]);
+  });
+
+  it("skips destructuring patterns (only simple identifier names)", () => {
+    const src = "const { a, b } = obj;\nconst [x, y] = arr;\n";
+    const result = parse(src);
+    expect(result.typedDeclarations).toBeUndefined();
+  });
+
+  it("normalises whitespace in type annotation text", () => {
+    const src = "const x: string   |   null = null;\n";
+    const result = parse(src);
+    expect(result.typedDeclarations?.[0]?.type).toBe("string | null");
+  });
+
+  it("normalises Array<User> the same as User[] (both as written)", () => {
+    const src = "const a: Array<User> = [];\nconst b: User[] = [];\n";
+    const result = parse(src);
+    expect(result.typedDeclarations?.map((d) => d.type)).toEqual([
+      "Array<User>",
+      "User[]",
+    ]);
+  });
+
   it("parses TSX without throwing", () => {
     const src = `export const Hello = () => <div>hi</div>;\n`;
     const result = parse(src, ".tsx");

@@ -8,6 +8,7 @@ import { loadConfig } from "./config.js";
 import type { Detector } from "./detector.js";
 import { accessibleInteractionRiskDetector } from "./detectors/accessible-interaction-risk.js";
 import { actionLabelDriftDetector } from "./detectors/action-label-drift.js";
+import { booleanNamingDriftDetector } from "./detectors/boolean-naming-drift.js";
 import { circularDependencyDetector } from "./detectors/circular-dependency.js";
 import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-docs-code-drift.js";
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
@@ -42,6 +43,7 @@ import { permissionIaDriftDetector } from "./detectors/permission-ia-drift.js";
 import { responsiveFragilityDetector } from "./detectors/responsive-fragility.js";
 import { returnShapeRouletteDetector } from "./detectors/return-shape-roulette.js";
 import { routeMetadataDriftDetector } from "./detectors/route-metadata-drift.js";
+import { singularPluralTypeMismatchDetector } from "./detectors/singular-plural-type-mismatch.js";
 import { timezoneUnsafeParseDetector } from "./detectors/timezone-unsafe-parse.js";
 import { todoDensityDetector } from "./detectors/todo-density.js";
 import { weakTestSignalDetector } from "./detectors/weak-test-signal.js";
@@ -82,6 +84,9 @@ export const builtInDetectors: Detector[] = [
   localeDriftDetector,
   dstNaiveArithmeticDetector,
   dateStringConcatDetector,
+  // Naming-tier (0.8.0): consume typedDeclarations from the parser.
+  booleanNamingDriftDetector,
+  singularPluralTypeMismatchDetector,
   // Petty crimes (small local patterns that increase agent confusion).
   commentedOutCodeDetector,
   logicInCommentsDetector,

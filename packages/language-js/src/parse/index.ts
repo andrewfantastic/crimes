@@ -6,6 +6,7 @@ import {
   collectDateStringConcat,
   collectDateUse,
 } from "./dates.js";
+import { collectTypedDeclaration } from "./declarations.js";
 import { collectFunction } from "./functions.js";
 import { collectJsxRoot } from "./jsx.js";
 import { collectTopLevelNavLiterals } from "./nav.js";
@@ -25,6 +26,7 @@ import type {
   ParseInput,
   ParsedFile,
   ParsedFunction,
+  TypedDeclaration,
   UiStringLiteral,
 } from "./types.js";
 
@@ -36,8 +38,10 @@ export type {
   DateMethodCall,
   DateStringConcat,
   DateUse,
+  DeclarationKind,
   FunctionKind,
   FunctionShape,
+  InitializerKind,
   JsxAttributeValue,
   JsxElementInfo,
   JsxNode,
@@ -46,6 +50,7 @@ export type {
   ParsedFile,
   ParsedFunction,
   ParseInput,
+  TypedDeclaration,
   UiStringContext,
   UiStringLiteral,
 } from "./types.js";
@@ -66,6 +71,7 @@ export function parseFile(input: ParseInput): ParsedFile {
   const dateMethodCalls: DateMethodCall[] = [];
   const dateArithmetic: DateArithmetic[] = [];
   const dateStringConcats: DateStringConcat[] = [];
+  const typedDeclarations: TypedDeclaration[] = [];
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
   const jsxElements: JsxElementInfo[] = [];
@@ -77,6 +83,7 @@ export function parseFile(input: ParseInput): ParsedFile {
     collectDateMethodCall(node, sourceFile, dateMethodCalls);
     collectDateArithmetic(node, sourceFile, dateArithmetic);
     collectDateStringConcat(node, sourceFile, dateStringConcats);
+    collectTypedDeclaration(node, sourceFile, typedDeclarations);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     collectJsxRoot(node, sourceFile, input.source, jsxElements);
     ts.forEachChild(node, visit);
@@ -100,5 +107,6 @@ export function parseFile(input: ParseInput): ParsedFile {
   if (dateMethodCalls.length > 0) result.dateMethodCalls = dateMethodCalls;
   if (dateArithmetic.length > 0) result.dateArithmetic = dateArithmetic;
   if (dateStringConcats.length > 0) result.dateStringConcats = dateStringConcats;
+  if (typedDeclarations.length > 0) result.typedDeclarations = typedDeclarations;
   return result;
 }

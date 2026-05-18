@@ -142,6 +142,61 @@ export interface DateStringConcat {
 }
 
 /**
+ * What kind of construct the declaration came from. Detectors that
+ * care about scope (e.g. only flag exported names) consume this.
+ */
+export type DeclarationKind =
+  | "const"
+  | "let"
+  | "var"
+  | "param"
+  | "property";
+
+/**
+ * Best-effort classification of the right-hand-side initializer
+ * shape. Used by `boolean_naming_drift` to decide whether an
+ * untyped declaration is "really" a boolean. `undefined` when the
+ * declaration has no initializer (parameters, class fields without
+ * `=`).
+ */
+export type InitializerKind =
+  | "boolean_literal"
+  | "negation"
+  | "comparison"
+  | "logical"
+  | "string"
+  | "number"
+  | "array"
+  | "object"
+  | "call"
+  | "other";
+
+/**
+ * A name + (optional) type annotation + (optional) initializer-shape
+ * record for one declaration in the file. Covers `const`/`let`/`var`,
+ * function parameters, and class properties. Destructuring patterns
+ * are intentionally skipped — the v1 naming detectors only look at
+ * simple identifier names.
+ */
+export interface TypedDeclaration {
+  name: string;
+  declarationKind: DeclarationKind;
+  /**
+   * Normalised type annotation text — `getText()` with internal
+   * whitespace collapsed. Examples: `"User"`, `"User[]"`,
+   * `"Array<User>"`, `"boolean"`, `"string | null"`. `undefined`
+   * when no annotation is written.
+   */
+  type?: string;
+  /** Shape of the initializer expression, when present. */
+  initializerKind?: InitializerKind;
+  /** True for top-level declarations carrying the `export` modifier. */
+  exported: boolean;
+  /** 1-based line of the declaration. */
+  line: number;
+}
+
+/**
  * A single entry in a nav-like array literal.
  *
  * Optional fields are populated when the corresponding object key is found
@@ -247,6 +302,12 @@ export interface ParsedFile {
    * expression. Absent when none seen.
    */
   dateStringConcats?: DateStringConcat[];
+  /**
+   * Every typed declaration the file emits — variable bindings,
+   * function parameters, and class properties. Absent when the file
+   * declares no names of interest to the naming-tier detectors.
+   */
+  typedDeclarations?: TypedDeclaration[];
   /** Name of the file's default export, when recoverable. */
   defaultExport?: string;
   /** Array literals that look like navigation entries. */

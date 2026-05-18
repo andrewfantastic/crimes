@@ -23,6 +23,8 @@ For the agent workflow that consumes findings, see
 | `locale_drift`     | Host-Locale Drift   | low-high       | 0.85       |
 | `dst_naive_arithmetic` | DST-Naive Day Math | medium-high | 0.80       |
 | `date_string_concat` | Date String Sewing | low-medium    | 0.85       |
+| `boolean_naming_drift` | Unprefixed Boolean | low-medium   | 0.80       |
+| `singular_plural_type_mismatch` | Plural Mismatch | low-medium | 0.70   |
 
 All emit the standard `Finding` shape. No schema bump is required.
 
@@ -376,3 +378,109 @@ bugs).
 **Suggested fix.** Replace the concatenation with
 `d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`,
 or a timezone-aware library's formatter.
+
+---
+
+## Unprefixed Boolean (`boolean_naming_drift`)
+
+**What it detects.** Declarations whose value is clearly boolean —
+annotated `: boolean`, or initialised from `true`/`false`/`!x`/
+`a === b`/`a || b` — and whose name lacks a recognised boolean
+prefix (`is`/`has`/`should`/`can`/`will`/`did`/`was`/`were`/`are`/
+`needs`/`wants`/`allows`/`supports`/`owns`/`knows`/`expects`/
+`requires`/`enables`/`prevents`/`blocks`/`denies`).
+
+**Example evidence.**
+
+```text
+`paid` @L17
+`expired` @L20
+`stale` @L23
+lines: 17, 20, 23
+built-in React-state names (loading/ready/active/…) are exempt; …
+```
+
+**Why it matters.** Booleans named without a prefix read as nouns
+to skimming reviewers and coding agents. The convention is cheap
+and lets every `if (x.thing)` call site match the reader's
+expectation. Coding agents in particular often introduce subtle
+bugs by passing a boolean where a value is expected, or vice
+versa, when the names don't disclose intent.
+
+**Severity ramp.** Default `low`; escalates to `medium` at 5+
+offenders in one file. Confidence `0.80`.
+
+**Built-in exemptions.** 26 React-state idioms are exempt by
+default: `loading, ready, active, disabled, expanded, pending,
+open, closed, visible, hidden, selected, focused, dirty, valid,
+submitting, editing, dragging, hovering, checked, busy, empty,
+full, online, offline, mounted, unmounted`. All-uppercase
+constants (`FEATURE_X_ENABLED`) and single-letter names are also
+exempt.
+
+**Project-specific exemptions** via
+`detectors.options.boolean_naming_drift.allowedNames`:
+
+```jsonc
+{
+  "detectors": {
+    "options": {
+      "boolean_naming_drift": {
+        "allowedNames": ["pristine", "processed"]
+      }
+    }
+  }
+}
+```
+
+**Suggested fix.** Rename to one of the recognised prefixes
+(`isPaid`, `hasExpired`, `shouldRetry`, `canEdit`). For names
+that are project-specific UI-state idioms, add them to
+`allowedNames` rather than renaming.
+
+---
+
+## Plural Mismatch (`singular_plural_type_mismatch`)
+
+**What it detects.** Declarations where the name's plural shape
+disagrees with the annotated type's array shape:
+
+- `users: User` — name plural, type singular
+- `user: User[]` (or `Array<User>` / `ReadonlyArray<User>`) — name
+  singular, type array
+
+**Example evidence.**
+
+```text
+plural name, singular type: `users: User` @L26
+singular name, array type: `invoice: Invoice[]` @L29
+v1 detector — type aliases and generic types are silently skipped
+```
+
+**Why it matters.** When an identifier's plural form lies about
+the value's shape, readers and coding agents iterate the wrong
+way: `for (const u of users)` against a `User`, or `.find(...)`
+on a `User[]`. The name and the type are both load-bearing — they
+should agree.
+
+**v1 limitations.** The detector fires only on a bare type
+annotation that's either an `Identifier` (`User`) or a simple
+array shape (`User[]` / `Array<User>` / `ReadonlyArray<User>`).
+Aliased types (`type UserId = string`), generic types (`Map<…>`),
+and union types are silently skipped. This is intentional — the
+v1 detector trades coverage for confidence. A v2 backed by full
+type info is tracked for 0.9.0+.
+
+**Severity ramp.** Default `low`; escalates to `medium` at 4+
+offenders in one file. Confidence `0.70`.
+
+**Uncountable nouns.** Names matching the built-in uncountable
+list (`data`, `information`, `news`, `software`, `staff`, …) are
+exempt — they're singular and plural simultaneously.
+
+**Project-specific exemptions** via
+`detectors.options.singular_plural_type_mismatch.allowedNames`.
+
+**Suggested fix.** Rename to match the type's shape, or change
+the type to match the name. If the project intentionally
+diverges, add the name to `allowedNames`.

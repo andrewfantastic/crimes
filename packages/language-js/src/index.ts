@@ -6,8 +6,10 @@ export type {
   DateMethodCall,
   DateStringConcat,
   DateUse,
+  DeclarationKind,
   FunctionKind,
   FunctionShape,
+  InitializerKind,
   JsxAttributeValue,
   JsxElementInfo,
   JsxNode,
@@ -16,6 +18,7 @@ export type {
   ParsedFile,
   ParsedFunction,
   ParseInput,
+  TypedDeclaration,
   UiStringContext,
   UiStringLiteral,
 } from "./parse/index.js";
