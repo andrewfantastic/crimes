@@ -103,5 +103,24 @@
       "Did the agent propose moving the violating import to respect the configured layer direction rather than just suppressing the rule?",
       "Did the agent recognise the deep_import as a stability hazard (importing past a package boundary couples to internals that may move)?"
     ]
+  },
+  {
+    "id": "refactor-02-component-shape",
+    "fixture": "02",
+    "kind": "refactor",
+    "prompt": "The dashboard's invoice forms share a JSX subtree shape across multiple files — when one form changes, the others drift. Use `crimes scan --format json` to find the duplicate_component_shape finding, then propose a shared component that consolidates the repeated div subtree. Name the files that would change and the shared component's public API (props + slots).",
+    "expected_artifacts": {
+      "referenced_findings": ["duplicate_component_shape"],
+      "referenced_files": [
+        "dashboard/final-example/app/ui/invoices/create-form.tsx",
+        "dashboard/final-example/app/ui/invoices/edit-form.tsx",
+        "dashboard/starter-example/app/ui/invoices/create-form.tsx"
+      ],
+      "expected_priority": "duplicate_component_shape"
+    },
+    "judge_questions": [
+      "Did the agent extract a single shared component rather than copying-and-pasting another variant?",
+      "Did the agent address the starter-example AND final-example duplicates together rather than only one of the two?"
+    ]
   }
 ]
