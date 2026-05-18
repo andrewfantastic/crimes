@@ -44,6 +44,12 @@ interface CliFlags {
   judge: boolean;
   bail: boolean;
   concurrency: number;
+  /**
+   * Optional suffix appended to the version-keyed output directory.
+   * Used for repeat-run variance sampling without burning a patch
+   * version — e.g. `--label r2` writes to `evals/results/0.7.2-r2/`.
+   */
+  label?: string;
 }
 
 interface WorkItem {
@@ -74,7 +80,10 @@ async function main(): Promise<void> {
   }
 
   const crimesVersion = await readCrimesVersion();
-  const outDir = resolve(RESULTS_DIR, crimesVersion);
+  const outDirName = flags.label
+    ? `${crimesVersion}-${flags.label}`
+    : crimesVersion;
+  const outDir = resolve(RESULTS_DIR, outDirName);
   mkdirSync(outDir, { recursive: true });
 
   const scanCache = new Map<string, Promise<string>>();
@@ -342,6 +351,9 @@ function parseFlags(args: string[]): CliFlags {
   const flags: CliFlags = { judge: false, bail: false, concurrency: 4 };
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i]!;
+    // `pnpm run evals -- --flag` forwards a literal "--" through to argv;
+    // tolerate it instead of rejecting as unknown.
+    if (arg === "--") continue;
     if (arg === "--judge") flags.judge = true;
     else if (arg === "--bail") flags.bail = true;
     else if (arg === "--agent") {
@@ -375,6 +387,15 @@ function parseFlags(args: string[]): CliFlags {
         process.exit(2);
       }
       flags.concurrency = value;
+    } else if (arg === "--label") {
+      const raw = args[++i];
+      if (!raw || !/^[A-Za-z0-9._-]+$/.test(raw)) {
+        process.stderr.write(
+          "evals: --label must be a non-empty token of [A-Za-z0-9._-]\n",
+        );
+        process.exit(2);
+      }
+      flags.label = raw;
     } else if (arg.startsWith("--")) {
       process.stderr.write(`evals: unknown flag ${arg}\n`);
       process.exit(2);
