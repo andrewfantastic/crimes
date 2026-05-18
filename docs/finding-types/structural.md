@@ -19,8 +19,12 @@ For the agent workflow that consumes findings, see
 | `todo_density`     | TODO Tombstone      | low-medium     | 0.75-0.85  |
 | `direct_date`      | Temporal Recklessness | medium       | 0.80       |
 | `timezone_unsafe_parse` | Timezone Roulette | medium-high  | 0.90       |
+| `mixed_utc_local_methods` | Half-UTC, Half-Local | high     | 0.85       |
+| `locale_drift`     | Host-Locale Drift   | low-high       | 0.85       |
+| `dst_naive_arithmetic` | DST-Naive Day Math | medium-high | 0.80       |
+| `date_string_concat` | Date String Sewing | low-medium    | 0.85       |
 
-All five emit the standard `Finding` shape. No schema bump is required.
+All emit the standard `Finding` shape. No schema bump is required.
 
 ---
 
@@ -239,3 +243,136 @@ The option is validated at config-load time — unknown keys or
 wrong-shape values fail fast with `ConfigParseError` (exit `2`).
 For a one-off exception, prefer `crimes ignore <fingerprint>`
 with a reason instead.
+
+---
+
+## Half-UTC, Half-Local (`mixed_utc_local_methods`)
+
+**What it detects.** A single receiver identifier (`const d = new Date()`)
+reads or writes both UTC-family methods (`getUTCHours`, `setUTCDate`,
+…) and local-family methods (`getHours`, `setDate`, …) in the same
+file. The detector groups calls by receiver name and fires when the
+same name touches both families.
+
+**Example evidence.**
+
+```text
+"d" uses getUTCFullYear() @L13 and getMonth() @L13
+…and 1 more receiver
+```
+
+**Why it matters.** Mixing UTC and local Date methods silently
+shifts the value by the host's UTC offset. Tests that don't cross
+a DST or international-date-line boundary will pass; production
+quietly misbehaves whenever the runtime sits in a non-UTC timezone.
+Convention: UTC for storage and computation, local only at the
+display boundary.
+
+**Severity.** High by default — the bug class is silent and rarely
+caught by tests. Confidence `0.85` (heuristic: the receiver is
+inferred from name, not type).
+
+**Suggested fix.** Convert all reads on the receiver to one family.
+If both views are genuinely needed, derive them from a single
+canonical value rather than mixing on the same instance.
+
+---
+
+## Host-Locale Drift (`locale_drift`)
+
+**What it detects.** `.toLocaleString()`, `.toLocaleDateString()`,
+or `.toLocaleTimeString()` invoked with no locale argument. Output
+varies by the runtime's host locale.
+
+**Example evidence.**
+
+```text
+due.toLocaleDateString() @L17
+lines: 17, 24, 41
+pass an explicit locale (e.g. 'en-US') or use Intl.DateTimeFormat
+```
+
+**Why it matters.** Same line renders as `"3/15/2026"` on a US
+machine, `"15/03/2026"` on a UK one, and `"15.03.2026"` on a German
+one. For logs, IDs, persisted text, or anything passed across a
+network, the drift produces silent bugs. For user-facing copy, the
+implicit locale is rarely the right contract either — make it
+explicit.
+
+**Severity ramp.** Default `low`; bumped to `medium` in
+user-facing paths (`ui/`, `components/`, `pages/`, `app/`,
+`routes/`, `views/`) and to `high` when one user-facing file has 5
+or more locale-naive calls. Non-user-facing paths escalate from
+`low` to `medium` at 3+ hits.
+
+**Suggested fix.** Pass an explicit BCP-47 locale (`'en-US'`), or
+construct an `Intl.DateTimeFormat(locale, options)` once and reuse
+it. For machine-readable strings, switch to `toISOString()`.
+
+---
+
+## DST-Naive Day Math (`dst_naive_arithmetic`)
+
+**What it detects.** `+` / `-` arithmetic on timestamps where the
+numeric operand is a recognised day-level millisecond constant:
+86,400,000 (1 day), 604,800,000 (1 week), 2,419,200,000 /
+2,592,000,000 (≈ 1 month), 31,536,000,000 (≈ 1 year). Folded
+multiplications like `24 * 60 * 60 * 1000` are recognised as the
+same constant.
+
+**Example evidence.**
+
+```text
++ 86400000 (day) @L23
+lines: 23, 47
+file looks like scheduling/billing code — drift here directly affects users
+```
+
+**Why it matters.** A "day" isn't always 86,400,000 ms. DST
+transitions skip an hour in spring and repeat an hour in autumn;
+leap seconds and timezone-policy changes nudge it further. Adding
+the constant silently drifts the result. Tests that don't cross a
+transition won't catch the bug; the report runs differently in
+March or October.
+
+**Severity ramp.** Default `medium`, with two escalations to
+`high`: files matching `billing` / `invoice` / `schedul` / `cron` /
+`payment` / `subscription` paths jump immediately, and any file
+with 3+ occurrences also escalates.
+
+**Suggested fix.** Use a timezone-aware library that knows about
+the calendar — Luxon's `plus({ days: 1 })`, the Temporal API,
+date-fns-tz, etc. For low-level "exactly N milliseconds later",
+keep the math but rename the variable to `nextEpochMs` so the
+reader doesn't expect a calendar day.
+
+---
+
+## Date String Sewing (`date_string_concat`)
+
+**What it detects.** String literals concatenated with Date method
+results — `"year-" + d.getUTCFullYear()` or
+`d.getMonth() + "-month"`. The parser captures only the
+concat-with-literal form to keep noise low.
+
+**Example evidence.**
+
+```text
+`"…" + .getUTCFullYear()` @L29
+lines: 29, 30, 31
+use `toISOString()` or `Intl.DateTimeFormat` instead of `+`-concatenation
+```
+
+**Why it matters.** Hand-rolled date strings routinely drop
+zero-padding (`"2026-3-5"` instead of `"2026-03-05"`), ignore
+timezones, and forget that months are zero-indexed. The result
+looks fine in dev and breaks parsers in production. `toISOString()`
+and `Intl.DateTimeFormat` give you correctness for free.
+
+**Severity ramp.** Default `low`; escalates to `medium` at 3+
+hits in one file (a recurring formatter is usually a small bag of
+bugs).
+
+**Suggested fix.** Replace the concatenation with
+`d.toISOString()`, `Intl.DateTimeFormat(locale, opts).format(d)`,
+or a timezone-aware library's formatter.

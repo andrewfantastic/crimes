@@ -32,3 +32,22 @@ export function christmasMorning(): Date {
 export function startOfPromoWindow(): Date {
   return new Date("2026-12-20");
 }
+
+// Intentionally bad: mixes UTC reads with local reads on the same `d`,
+// and builds the label with string concatenation that drops the
+// zero-padding and zero-index correction (months are 0-indexed).
+export function dateLabel(): string {
+  const d = new Date();
+  return d.getUTCFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+}
+
+// Intentionally bad: host-locale-dependent rendering.
+export function prettyDueDate(due: Date): string {
+  return due.toLocaleDateString();
+}
+
+// Intentionally bad: "+ 1 day" using a raw ms constant. Wrong on DST
+// transitions.
+export function tomorrowMs(nowMs: number): number {
+  return nowMs + 86400000;
+}

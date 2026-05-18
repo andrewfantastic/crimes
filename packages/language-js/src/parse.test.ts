@@ -139,6 +139,31 @@ describe("parseFile", () => {
     expect(result.dateNowOrNewDateUses).toEqual([]);
     expect(result.dateMethodCalls).toBeUndefined();
     expect(result.dateArithmetic).toBeUndefined();
+    expect(result.dateStringConcats).toBeUndefined();
+  });
+
+  it("captures `\"…\" + d.dateMethod()` string concatenation", () => {
+    const src =
+      "const d = new Date();\n" +
+      'const s = "year-" + d.getUTCFullYear();\n' +
+      'const t = d.getMonth() + "-month";\n';
+    const result = parse(src);
+    expect(result.dateStringConcats).toEqual([
+      { line: 2, method: "getUTCFullYear" },
+      { line: 3, method: "getMonth" },
+    ]);
+  });
+
+  it("ignores `string + nonDateMethod()` concatenations", () => {
+    const src = 'const s = "x-" + obj.toString();\n';
+    const result = parse(src);
+    expect(result.dateStringConcats).toBeUndefined();
+  });
+
+  it("ignores method+method concatenations without a string operand", () => {
+    const src = "const s = d.getUTCFullYear() + d.getUTCMonth();\n";
+    const result = parse(src);
+    expect(result.dateStringConcats).toBeUndefined();
   });
 
   it("parses TSX without throwing", () => {

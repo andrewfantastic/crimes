@@ -4,6 +4,7 @@ export { parseFile } from "./parse/index.js";
 export type {
   DateArithmetic,
   DateMethodCall,
+  DateStringConcat,
   DateUse,
   FunctionKind,
   FunctionShape,

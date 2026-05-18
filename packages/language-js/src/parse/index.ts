@@ -3,6 +3,7 @@ import ts from "typescript";
 import {
   collectDateArithmetic,
   collectDateMethodCall,
+  collectDateStringConcat,
   collectDateUse,
 } from "./dates.js";
 import { collectFunction } from "./functions.js";
@@ -17,6 +18,7 @@ import {
 import type {
   DateArithmetic,
   DateMethodCall,
+  DateStringConcat,
   DateUse,
   JsxElementInfo,
   NavLiteral,
@@ -32,6 +34,7 @@ import type {
 export type {
   DateArithmetic,
   DateMethodCall,
+  DateStringConcat,
   DateUse,
   FunctionKind,
   FunctionShape,
@@ -62,6 +65,7 @@ export function parseFile(input: ParseInput): ParsedFile {
   const dateUses: DateUse[] = [];
   const dateMethodCalls: DateMethodCall[] = [];
   const dateArithmetic: DateArithmetic[] = [];
+  const dateStringConcats: DateStringConcat[] = [];
   const navLiterals: NavLiteral[] = [];
   const uiStringLiterals: UiStringLiteral[] = [];
   const jsxElements: JsxElementInfo[] = [];
@@ -72,6 +76,7 @@ export function parseFile(input: ParseInput): ParsedFile {
     collectDateUse(node, sourceFile, dateUses);
     collectDateMethodCall(node, sourceFile, dateMethodCalls);
     collectDateArithmetic(node, sourceFile, dateArithmetic);
+    collectDateStringConcat(node, sourceFile, dateStringConcats);
     collectUiStringLiteral(node, sourceFile, uiStringLiterals);
     collectJsxRoot(node, sourceFile, input.source, jsxElements);
     ts.forEachChild(node, visit);
@@ -94,5 +99,6 @@ export function parseFile(input: ParseInput): ParsedFile {
   if (jsxElements.length > 0) result.jsxElements = jsxElements;
   if (dateMethodCalls.length > 0) result.dateMethodCalls = dateMethodCalls;
   if (dateArithmetic.length > 0) result.dateArithmetic = dateArithmetic;
+  if (dateStringConcats.length > 0) result.dateStringConcats = dateStringConcats;
   return result;
 }

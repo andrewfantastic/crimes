@@ -13,10 +13,12 @@ import { commandDriftDocsCodeDriftDetector } from "./detectors/command-drift-doc
 import { commentedOutCodeDetector } from "./detectors/commented-out-code.js";
 import { conceptAliasDriftDetector } from "./detectors/concept-alias-drift.js";
 import { copyIaDriftDetector } from "./detectors/copy-ia-drift.js";
+import { dateStringConcatDetector } from "./detectors/date-string-concat.js";
 import { deepImportDetector } from "./detectors/deep-import.js";
 import { designTokenEscapeDetector } from "./detectors/design-token-escape.js";
 import { directDateDetector } from "./detectors/direct-date.js";
 import { docsCodeDriftDetector } from "./detectors/docs-code-drift.js";
+import { dstNaiveArithmeticDetector } from "./detectors/dst-naive-arithmetic.js";
 import { duplicateComponentShapeDetector } from "./detectors/duplicate-component-shape.js";
 import { duplicatedNavigationSourceDetector } from "./detectors/duplicated-navigation-source.js";
 import { duplicatedRoleStatusPlanCheckDetector } from "./detectors/duplicated-role-status-plan-check.js";
@@ -25,9 +27,11 @@ import { highFanInFanOutDetector } from "./detectors/high-fan-in-fan-out.js";
 import { largeFileDetector } from "./detectors/large-file.js";
 import { largeFunctionDetector } from "./detectors/large-function.js";
 import { layerViolationDetector } from "./detectors/layer-violation.js";
+import { localeDriftDetector } from "./detectors/locale-drift.js";
 import { logicInCommentsDetector } from "./detectors/logic-in-comments.js";
 import { magicDomainLiteralScatterDetector } from "./detectors/magic-domain-literal-scatter.js";
 import { missingAgentContextDetector } from "./detectors/missing-agent-context.js";
+import { mixedUtcLocalMethodsDetector } from "./detectors/mixed-utc-local-methods.js";
 import { nameBehaviorMismatchDetector } from "./detectors/name-behavior-mismatch.js";
 import { nearDuplicateBlockDetector } from "./detectors/near-duplicate-block.js";
 import { negativeFlagMazeDetector } from "./detectors/negative-flag-maze.js";
@@ -74,6 +78,10 @@ export const builtInDetectors: Detector[] = [
   todoDensityDetector,
   directDateDetector,
   timezoneUnsafeParseDetector,
+  mixedUtcLocalMethodsDetector,
+  localeDriftDetector,
+  dstNaiveArithmeticDetector,
+  dateStringConcatDetector,
   // Petty crimes (small local patterns that increase agent confusion).
   commentedOutCodeDetector,
   logicInCommentsDetector,

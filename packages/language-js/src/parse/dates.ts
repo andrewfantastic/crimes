@@ -1,5 +1,10 @@
 import ts from "typescript";
-import type { DateArithmetic, DateMethodCall, DateUse } from "./types.js";
+import type {
+  DateArithmetic,
+  DateMethodCall,
+  DateStringConcat,
+  DateUse,
+} from "./types.js";
 
 // ----- DateUse: `Date.now()` and `new Date(...)` --------------------------
 
@@ -184,6 +189,44 @@ export function collectDateArithmetic(
     operand,
     unit,
   });
+}
+
+// ----- DateStringConcat: `"…" + d.method()` ------------------------------
+
+export function collectDateStringConcat(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+  out: DateStringConcat[],
+): void {
+  if (!ts.isBinaryExpression(node)) return;
+  if (node.operatorToken.kind !== ts.SyntaxKind.PlusToken) return;
+  const left = node.left;
+  const right = node.right;
+  const leftIsStr = isStringLiteralLike(left);
+  const rightIsStr = isStringLiteralLike(right);
+  if (!leftIsStr && !rightIsStr) return;
+  const dateSide = leftIsStr ? right : left;
+  const method = dateMethodCallName(dateSide);
+  if (!method) return;
+  const { line } = sourceFile.getLineAndCharacterOfPosition(
+    node.getStart(sourceFile),
+  );
+  out.push({ line: line + 1, method });
+}
+
+function isStringLiteralLike(node: ts.Expression): boolean {
+  return (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node)
+  );
+}
+
+function dateMethodCallName(node: ts.Expression): string | undefined {
+  if (!ts.isCallExpression(node)) return undefined;
+  if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
+  const method = node.expression.name.text;
+  if (UTC_METHODS.has(method) || LOCAL_METHODS.has(method)) return method;
+  return undefined;
 }
 
 /**

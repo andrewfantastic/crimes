@@ -129,6 +129,19 @@ export interface DateArithmetic {
 }
 
 /**
+ * One `string + dateMethodCall()` (or vice versa) binary expression —
+ * the manual-date-formatting smell. The parser captures only the
+ * concat-with-string-literal form to keep false positives low; a
+ * detector layered on top scores the file-level pattern.
+ */
+export interface DateStringConcat {
+  /** 1-based line of the binary expression. */
+  line: number;
+  /** The Date method being concatenated, e.g. `"getUTCFullYear"`. */
+  method: string;
+}
+
+/**
  * A single entry in a nav-like array literal.
  *
  * Optional fields are populated when the corresponding object key is found
@@ -229,6 +242,11 @@ export interface ParsedFile {
    * like a day-level millisecond constant. Absent when none seen.
    */
   dateArithmetic?: DateArithmetic[];
+  /**
+   * Every `"…" + d.dateMethod()` / `d.dateMethod() + "…"` binary
+   * expression. Absent when none seen.
+   */
+  dateStringConcats?: DateStringConcat[];
   /** Name of the file's default export, when recoverable. */
   defaultExport?: string;
   /** Array literals that look like navigation entries. */
