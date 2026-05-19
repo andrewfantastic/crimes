@@ -4,11 +4,12 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.8.1` (npm) ✅ shipped —
-  _calibration patch on 0.8.0_.
+- **Last published version:** `crimes@0.9.0` (npm) ✅ shipped —
+  _Codex agent discovery + Finder-duplicate petty crime_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.8.1.md`](./docs/releases/v0.8.1.md).
-- **Previously shipped milestones:** `crimes@0.8.0` — _extended lens:
+  notes: [`docs/releases/v0.9.0.md`](./docs/releases/v0.9.0.md).
+- **Previously shipped milestones:** `crimes@0.8.1` — _calibration
+  patch on 0.8.0_ — `crimes@0.8.0` — _extended lens:
   date, naming, hot-path, and asset crimes_ — `crimes@0.7.5` —
   _eval-harness graduation and detector trim_ — `crimes@0.7.0` —
   _calibration and
@@ -34,6 +35,37 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.9.0`
+
+> **Theme: Codex agent discovery + one new petty crime.** Minor bump
+> for the new detector and the expanded agent surface.
+>
+> Release notes: [`docs/releases/v0.9.0.md`](./docs/releases/v0.9.0.md).
+
+- **Codex agent discovery is first-class.** `crimes init --agents`
+  now writes both `.claude/skills/crimes/SKILL.md` and
+  `.agents/skills/crimes/SKILL.md`; a new `--codex-skill` flag writes
+  only the Codex skill. The `missing_agent_context` detector treats
+  `.agents/skills/*/SKILL.md` as a satisfying signal.
+- **New detector: `finder_duplicate_filename`** (petty). Flags
+  macOS Finder / iCloud conflict-copy filenames like `Button 2.tsx`
+  that slip into repos as accidental duplicates. Medium severity,
+  0.90 confidence.
+- **`crimes explain` rewrite.** Output broken into named section
+  helpers; new "Likely remedies" block synthesised from the finding's
+  `suggested_actions` plus generic next-steps. The `ExplainReport`
+  JSON gains a new `likely_remedies: string[]` field. `Finding` wire
+  format unchanged.
+- **Post-install nudge.** `npm install -g crimes` now prints a
+  one-line reminder to run `crimes init --agents` (suppressed in CI
+  and behind `CRIMES_DISABLE_POSTINSTALL=1`).
+- **Landing-page broken link fix.** "Live status" and `llms.txt`
+  roadmap pointer now resolve to `docs/roadmap.md`.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
 
 ---
 
