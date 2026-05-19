@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.8.1)
+## Commands (latest published v0.9.0)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -333,7 +333,39 @@ which gating command is used.
 Release notes:
 https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.8.1 — calibration patch (current release)
+## 0.9.0 — Codex agent discovery + petty crime (current release)
+
+Minor bump. One new detector and an expanded agent surface; the
+`Finding` wire format is unchanged.
+
+- Codex agent discovery is first-class. `crimes init --agents`
+  writes both `.claude/skills/crimes/SKILL.md` and
+  `.agents/skills/crimes/SKILL.md`; a new `--codex-skill` flag
+  writes only the Codex skill. The `missing_agent_context`
+  detector recognises `.agents/skills/*/SKILL.md` as a satisfying
+  signal — so a repo with a Codex skill but no `AGENTS.md` /
+  `CLAUDE.md` no longer fires.
+- New detector `finder_duplicate_filename` (petty). Flags macOS
+  Finder / iCloud conflict-copy filenames like `Button 2.tsx`
+  that slip into repos as accidental duplicates. Filename-only;
+  requires the Finder-style space before the number, so
+  `Page2.tsx` and `v2.ts` are not flagged. Medium severity, 0.90
+  confidence.
+- `crimes explain` rewrite. Output broken into named section
+  helpers; new "Likely remedies" block synthesised from the
+  finding's `suggested_actions` plus two generic next-steps. The
+  `ExplainReport` JSON gains a new `likely_remedies: string[]`
+  field.
+- `npm install -g crimes` now prints a one-line nudge to run
+  `crimes init --agents`. Suppressed in CI and behind
+  `CRIMES_DISABLE_POSTINSTALL=1`.
+
+Schema unchanged (`schema_version: "0.1.0"`).
+
+Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.0.md
+
+## 0.8.1 — calibration patch
 
 Patch on top of 0.8.0. No new detectors, no schema change.
 

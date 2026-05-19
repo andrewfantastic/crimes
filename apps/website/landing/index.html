@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.8.1",
+            "softwareVersion": "0.9.0",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.8.1 · calibration patch on 0.8.0 · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.9.0 · Codex agent discovery + Finder-duplicate detector · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1138,6 +1138,34 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.1.md"
               ><code>docs/releases/v0.8.1.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.9.0 — Codex agent discovery + petty crime.</strong>
+            Minor bump. Codex is now a first-class consumer of crimes'
+            on-disk agent assets: <code>crimes init --agents</code>
+            writes both <code>.claude/skills/crimes/SKILL.md</code> and
+            <code>.agents/skills/crimes/SKILL.md</code>, a new
+            <code>--codex-skill</code> flag writes only the Codex
+            skill, and the <code>missing_agent_context</code> detector
+            recognises <code>.agents/skills/*/SKILL.md</code> as a
+            satisfying signal. New detector
+            <code>finder_duplicate_filename</code> (petty) flags macOS
+            Finder / iCloud conflict copies like
+            <code>Button 2.tsx</code> that slip into repos as
+            accidental duplicates. <code>crimes explain</code> output
+            broken into named section helpers and gains a "Likely
+            remedies" block synthesised from
+            <code>suggested_actions</code> plus generic next-steps;
+            the <code>ExplainReport</code> JSON gains a new
+            <code>likely_remedies: string[]</code> field. Post-install
+            nudge prints a one-line reminder to run
+            <code>crimes init --agents</code> (CI-suppressed).
+            Schema unchanged (<code>schema_version: "0.1.0"</code>).
+            Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.0.md"
+              ><code>docs/releases/v0.9.0.md</code></a
             >.
           </li>
           <li>
