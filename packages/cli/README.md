@@ -15,13 +15,18 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
-**`0.9.1` headline:** bare `crimes` now prints a short welcome
-banner with three first-step commands instead of Commander's long
-help dump — `crimes@0.9.0` shipped Codex agent discovery, a seventh
-petty-crime detector (`finder_duplicate_filename`), and a `crimes
-explain` rewrite with a new **Likely remedies** block. Still
-deterministic, still no LLM / API key / network required. See the
-[root README](https://github.com/ortomate/crimes#status--crimes091)
+**`0.9.2` headline:** a single emoji severity glyph
+(🚨 high · ⚠️ medium · 🔎 low) now prefixes every finding and
+severity heading in the human report, with ✅ / ❌ on the
+`--fail-on` gate line — suppressed when stdout isn't a TTY, when
+`NO_COLOR` is set, or when `--no-color` is passed, so JSON output
+and CI logs stay emoji-free. Plus metadata housekeeping after the
+repo moved to `ortomate/crimes`. `crimes@0.9.1` shipped the bare-
+`crimes` welcome banner; `crimes@0.9.0` shipped Codex agent
+discovery, the `finder_duplicate_filename` petty-crime detector,
+and a `crimes explain` rewrite with a **Likely remedies** block.
+Still deterministic, still no LLM / API key / network required.
+See the [root README](https://github.com/ortomate/crimes#status--crimes092)
 for the full version history.
 
 - Website: **[crimes.sh](https://crimes.sh)**

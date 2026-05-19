@@ -4,11 +4,13 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.9.1` (npm) ✅ shipped —
-  _visible welcome banner on bare `crimes`_.
+- **Last published version:** `crimes@0.9.2` (npm) ✅ shipped —
+  _emoji severity glyphs in human output + repository moved to
+  ortomate_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.9.1.md`](./docs/releases/v0.9.1.md).
-- **Previously shipped milestones:** `crimes@0.9.0` — _Codex agent
+  notes: [`docs/releases/v0.9.2.md`](./docs/releases/v0.9.2.md).
+- **Previously shipped milestones:** `crimes@0.9.1` — _visible
+  welcome banner on bare `crimes`_ — `crimes@0.9.0` — _Codex agent
   discovery + Finder-duplicate petty crime_ — `crimes@0.8.1` —
   _calibration patch on 0.8.0_ — `crimes@0.8.0` — _extended lens:
   date, naming, hot-path, and asset crimes_ — `crimes@0.7.5` —
@@ -36,6 +38,35 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.9.2`
+
+> **Theme: emoji severity glyphs + ortomate move.** UX-only patch.
+> No schema change, no new detectors.
+>
+> Release notes: [`docs/releases/v0.9.2.md`](./docs/releases/v0.9.2.md).
+
+- **Severity glyphs in the human report.** 🚨 high · ⚠️ medium · 🔎 low
+  prefix every finding's title line and the severity heading. ✅ / ❌
+  on the `--fail-on` gate line; ✨ on the "no crimes detected" empty
+  state. Suppressed when stdout isn't a TTY, when `NO_COLOR` is set,
+  or when `--no-color` is passed — JSON output, CI logs, and piped
+  invocations stay emoji-free.
+- **Repository moved to `ortomate/crimes`.** `repository.url` and
+  `bugs.url` in the published package now point at the new GitHub
+  org; every documentation deep link follows. npm Trusted Publisher
+  config moved to the new org in the same cut-over — this release is
+  the OIDC handoff verification.
+- **Release checklist gap closed.** `docs/releasing.md` Step 2 now
+  explicitly requires both READMEs, the roadmap, the release-notes
+  file, and both landing-page surfaces (`llms.txt` + `index.html`)
+  to reflect the new version before the GitHub Release is cut. The
+  drift that left the root README pinned at `0.8.1` through `0.9.0`
+  and `0.9.1` should not recur.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
 
 ---
 

@@ -69,13 +69,29 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.9.1`
+## Status — `crimes@0.9.2`
 
-`crimes@0.9.1` is the latest published version on npm — a _UX-only
-patch_. Two changes: bare `crimes` now prints a short welcome banner
-(version, three first-step commands, docs link) instead of Commander's
-long help dump; the post-install message is expanded to match. No new
-detectors, no schema change, no new commands. Release notes:
+`crimes@0.9.2` is the latest published version on npm — a _UX-only
+patch_. Two threads: a single emoji severity glyph
+(🚨 high · ⚠️ medium · 🔎 low) prefixes every finding and severity
+heading in the human report, with ✅ / ❌ on the `--fail-on` gate
+line and ✨ on the "no crimes detected" empty state — suppressed
+when stdout isn't a TTY, when `NO_COLOR` is set, or when
+`--no-color` is passed, so JSON output, CI logs, and piped
+invocations stay emoji-free. Plus the metadata housekeeping after
+the repo transferred to [`ortomate/crimes`](https://github.com/ortomate/crimes):
+`repository.url` / `bugs.url` updated, every documentation deep
+link rewritten, npm Trusted Publisher config moved to the new org.
+No new detectors, no schema change. Release notes:
+[`docs/releases/v0.9.2.md`](./docs/releases/v0.9.2.md).
+
+Earlier `0.9.1` work (_visible welcome banner on bare `crimes`_)
+remains shipped: running `crimes` with no arguments now prints a
+short banner with the version, three first-step commands, and a
+docs link instead of Commander's long help dump; the post-install
+message was expanded to match (though npm 7+ silently suppresses
+post-install stdout by default — the bare-`crimes` banner is the
+reliable surface). Release notes:
 [`docs/releases/v0.9.1.md`](./docs/releases/v0.9.1.md).
 
 Earlier `0.9.0` work (_Codex agent discovery + petty crime_) remains

@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.9.1 · visible welcome banner on bare `crimes` · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.9.2 · emoji severity glyphs (🚨 ⚠️ 🔎) · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1188,6 +1188,33 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.9.1.md"
               ><code>docs/releases/v0.9.1.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.9.2 — emoji severity glyphs + ortomate move.</strong>
+            UX-only patch. A single emoji glyph
+            (🚨 high · ⚠️ medium · 🔎 low) now prefixes every
+            finding's title line and the severity heading in the
+            human report, with ✅ / ❌ on the
+            <code>--fail-on</code> gate line and ✨ on the "no
+            crimes detected" empty state. The entire emoji layer
+            follows the same suppression gate as ANSI colour —
+            <code>--no-color</code>, <code>NO_COLOR=1</code>, or a
+            non-TTY stdout (piped output, CI logs) all turn it off.
+            JSON output never goes through this renderer, so the
+            structured contract is unaffected. The repository
+            also transferred from <code>andrewfantastic/crimes</code>
+            to <code>ortomate/crimes</code>:
+            <code>repository.url</code> and <code>bugs.url</code> in
+            the published package now point at the new GitHub org,
+            every documentation deep link was rewritten, and the
+            npm Trusted Publisher config moved to the new org in
+            the same cut-over. No new detectors, no schema change
+            (<code>schema_version: "0.1.0"</code>).
+            Release notes:
+            <a
+              href="https://github.com/ortomate/crimes/blob/main/docs/releases/v0.9.2.md"
+              ><code>docs/releases/v0.9.2.md</code></a
             >.
           </li>
           <li>
