@@ -3,7 +3,7 @@
 > A crime scene investigator for your codebase. **Built for agents, readable by humans.**
 
 [![npm version](https://img.shields.io/npm/v/crimes.svg)](https://www.npmjs.com/package/crimes)
-[![license](https://img.shields.io/npm/l/crimes.svg)](https://github.com/andrewfantastic/crimes/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/crimes.svg)](https://github.com/ortomate/crimes/blob/main/LICENSE)
 
 `crimes` is an open-source CLI that scans a repository for maintainability
 risks, code smells, duplicated business rules, weak test boundaries,
@@ -21,11 +21,11 @@ help dump — `crimes@0.9.0` shipped Codex agent discovery, a seventh
 petty-crime detector (`finder_duplicate_filename`), and a `crimes
 explain` rewrite with a new **Likely remedies** block. Still
 deterministic, still no LLM / API key / network required. See the
-[root README](https://github.com/andrewfantastic/crimes#status--crimes091)
+[root README](https://github.com/ortomate/crimes#status--crimes091)
 for the full version history.
 
 - Website: **[crimes.sh](https://crimes.sh)**
-- Repo: **[github.com/andrewfantastic/crimes](https://github.com/andrewfantastic/crimes)**
+- Repo: **[github.com/ortomate/crimes](https://github.com/ortomate/crimes)**
 
 ---
 
@@ -76,7 +76,7 @@ Agents should consume it directly.
 
 Uniform exit-code contract across all gating commands: `0` success,
 `1` configured `--fail-on` threshold met, `2` usage / environment
-error. See [`docs/ci.md`](https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md)
+error. See [`docs/ci.md`](https://github.com/ortomate/crimes/blob/main/docs/ci.md)
 for the three recommended CI modes and a copy-paste GitHub Actions
 workflow.
 
@@ -107,7 +107,7 @@ IA findings populate `related_files` with the other paths that
 contributed evidence, and the human reporter renders them as an "Also
 touches:" block (capped at 5). Long-form reference (quorum rules,
 false-positive notes, suggested fixes):
-[`docs/finding-types/ia.md`](https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md).
+[`docs/finding-types/ia.md`](https://github.com/ortomate/crimes/blob/main/docs/finding-types/ia.md).
 
 IA findings phrase summaries as "appears to" / "may" — they are
 **ambiguity signals**, not claims of semantic truth.
@@ -132,8 +132,8 @@ crimes context <file> --format json
 crimes scan --changed --format json
 ```
 
-Repos that bundle [`AGENTS.md`](https://github.com/andrewfantastic/crimes/blob/main/AGENTS.md)
-or [`.claude/skills/crimes/SKILL.md`](https://github.com/andrewfantastic/crimes/blob/main/.claude/skills/crimes/SKILL.md)
+Repos that bundle [`AGENTS.md`](https://github.com/ortomate/crimes/blob/main/AGENTS.md)
+or [`.claude/skills/crimes/SKILL.md`](https://github.com/ortomate/crimes/blob/main/.claude/skills/crimes/SKILL.md)
 will surface this workflow to their agents automatically.
 
 Decision rule: any **new `severity: "high"` finding** introduced by your
@@ -141,7 +141,7 @@ edit is a blocker — fix it, or surface it citing the finding `id` and
 `charge`.
 
 Full agent guide:
-[`docs/agent-usage.md`](https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md).
+[`docs/agent-usage.md`](https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md).
 
 ---
 
@@ -166,13 +166,13 @@ override:
 
 ## Docs
 
-- [README](https://github.com/andrewfantastic/crimes/blob/main/README.md) — full tour
-- [Agent guide](https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md) — pre/post-edit workflow
-- [JSON schema](https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md) — wire format
-- [Roadmap](https://github.com/andrewfantastic/crimes/blob/main/docs/roadmap.md) — what's next
+- [README](https://github.com/ortomate/crimes/blob/main/README.md) — full tour
+- [Agent guide](https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md) — pre/post-edit workflow
+- [JSON schema](https://github.com/ortomate/crimes/blob/main/docs/json-schema.md) — wire format
+- [Roadmap](https://github.com/ortomate/crimes/blob/main/docs/roadmap.md) — what's next
 
 ---
 
 ## License
 
-[MIT](https://github.com/andrewfantastic/crimes/blob/main/LICENSE).
+[MIT](https://github.com/ortomate/crimes/blob/main/LICENSE).

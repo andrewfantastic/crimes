@@ -131,7 +131,7 @@ async function main() {
       "",
       "Or browse by category — finding types are grouped under **Finding types** in the sidebar.",
       "",
-      "The raw markdown sources live under [`docs/`](https://github.com/andrewfantastic/crimes/tree/main/docs) so agents that read GitHub directly get the same content.",
+      "The raw markdown sources live under [`docs/`](https://github.com/ortomate/crimes/tree/main/docs) so agents that read GitHub directly get the same content.",
       "",
     ].join("\n"),
     "utf8",

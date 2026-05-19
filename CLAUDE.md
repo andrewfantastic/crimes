@@ -128,7 +128,7 @@ improvement (or vice versa), say so in the commit message.
 
 PRD §26's open questions have mostly settled into shipped reality:
 npm name `crimes` is taken (the published package), the GitHub org
-is `andrewfantastic`, the license stays MIT, the site is Astro +
+is `ortomate`, the license stays MIT, the site is Astro +
 Starlight under `apps/website/`. Python in v0 is still deferred per
 PRD §26. `crimes ask` is still deferred to v1+ — explicitly out of
 scope through the 0.8.0 milestone.

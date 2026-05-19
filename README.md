@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/crimes.svg)](https://www.npmjs.com/package/crimes)
 [![license](https://img.shields.io/npm/l/crimes.svg)](./LICENSE)
-[![CI](https://github.com/andrewfantastic/crimes/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewfantastic/crimes/actions/workflows/ci.yml)
+[![CI](https://github.com/ortomate/crimes/actions/workflows/ci.yml/badge.svg)](https://github.com/ortomate/crimes/actions/workflows/ci.yml)
 
 `crimes` is an open-source CLI that scans a repository for maintainability
 risks, code smells, duplicated business rules, weak test boundaries, and
@@ -18,7 +18,7 @@ It is **not** another linter. Linters catch local syntax and style issues.
 
 - Website: **[crimes.sh](https://crimes.sh)**
 - npm: **[`crimes`](https://www.npmjs.com/package/crimes)**
-- Repo: **[`andrewfantastic/crimes`](https://github.com/andrewfantastic/crimes)**
+- Repo: **[`ortomate/crimes`](https://github.com/ortomate/crimes)**
 
 This README has a first-time-CLI-user path near the top and a “for agents”
 section near the bottom. Pick whichever you are.
@@ -1107,7 +1107,7 @@ crimes/
 ## Development
 
 ```bash
-git clone https://github.com/andrewfantastic/crimes.git
+git clone https://github.com/ortomate/crimes.git
 cd crimes
 pnpm install                  # install everything
 pnpm build                    # build all packages (tsup)
@@ -1165,7 +1165,7 @@ Full detail: [`PRD.md`](./PRD.md). Live status: [`docs/roadmap.md`](./docs/roadm
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Issues and PRs welcome on
-[github.com/andrewfantastic/crimes](https://github.com/andrewfantastic/crimes).
+[github.com/ortomate/crimes](https://github.com/ortomate/crimes).
 
 ---
 

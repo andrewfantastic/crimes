@@ -197,7 +197,7 @@ detector that already shipped. Headline additions:
 
 All additions are additive and backwards-compatible. `schema_version`
 stays at `"0.1.0"`. Live on npm. Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.4.0.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.4.0.md
 
 ## Detectors shipped in v0.6.0
 
@@ -331,7 +331,7 @@ suppressed finding never trips a gate, regardless of severity or
 which gating command is used.
 
 Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.5.0.md
 
 ## 0.9.1 — visible welcome banner on bare `crimes` (current release)
 
@@ -354,7 +354,7 @@ UX-only patch. No new detectors, no schema change.
 Schema unchanged (`schema_version: "0.1.0"`).
 
 Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.1.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.9.1.md
 
 ## 0.9.0 — Codex agent discovery + petty crime
 
@@ -386,7 +386,7 @@ Minor bump. One new detector and an expanded agent surface; the
 Schema unchanged (`schema_version: "0.1.0"`).
 
 Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.0.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.9.0.md
 
 ## 0.8.1 — calibration patch
 
@@ -405,7 +405,7 @@ Patch on top of 0.8.0. No new detectors, no schema change.
   asset pass. No effect on downstream users.
 
 Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.1.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.8.1.md
 
 ## 0.8.0 — extended lens
 
@@ -453,7 +453,7 @@ Asset detectors run a separate second-pass walk over
 `assets.include` / `assets.exclude`.
 
 Release notes:
-https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md
+https://github.com/ortomate/crimes/blob/main/docs/releases/v0.8.0.md
 
 ## Not shipped yet — do not invoke or document as available
 
@@ -471,13 +471,13 @@ https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.8.0.md
 ## Resources
 
 - Website:        https://crimes.sh/
-- Source:         https://github.com/andrewfantastic/crimes
+- Source:         https://github.com/ortomate/crimes
 - npm package:    https://www.npmjs.com/package/crimes
-- License:        MIT (https://github.com/andrewfantastic/crimes/blob/main/LICENSE)
-- PRD (spec):     https://github.com/andrewfantastic/crimes/blob/main/PRD.md
-- Agent guide:    https://github.com/andrewfantastic/crimes/blob/main/docs/agent-usage.md
-- CI guide:       https://github.com/andrewfantastic/crimes/blob/main/docs/ci.md
-- JSON schema:    https://github.com/andrewfantastic/crimes/blob/main/docs/json-schema.md
-- IA detectors:   https://github.com/andrewfantastic/crimes/blob/main/docs/finding-types/ia.md
-- Sample output:  https://github.com/andrewfantastic/crimes/blob/main/docs/fixtures/messy-ts-app.json
-- Roadmap status: https://github.com/andrewfantastic/crimes/blob/main/docs/roadmap.md
+- License:        MIT (https://github.com/ortomate/crimes/blob/main/LICENSE)
+- PRD (spec):     https://github.com/ortomate/crimes/blob/main/PRD.md
+- Agent guide:    https://github.com/ortomate/crimes/blob/main/docs/agent-usage.md
+- CI guide:       https://github.com/ortomate/crimes/blob/main/docs/ci.md
+- JSON schema:    https://github.com/ortomate/crimes/blob/main/docs/json-schema.md
+- IA detectors:   https://github.com/ortomate/crimes/blob/main/docs/finding-types/ia.md
+- Sample output:  https://github.com/ortomate/crimes/blob/main/docs/fixtures/messy-ts-app.json
+- Roadmap status: https://github.com/ortomate/crimes/blob/main/docs/roadmap.md

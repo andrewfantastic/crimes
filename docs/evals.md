@@ -219,5 +219,5 @@ just the CLI you have available.
   quick reference (same content but lives next to the harness).
 - [`docs/scoring.md`](./scoring.md) — the per-finding score model
   the eval rubric tests detectors against.
-- [§5 of `.planning/archive/0.7.0-calibration-evidence-loop.md`](https://github.com/andrewfantastic/crimes/blob/main/.planning/archive/0.7.0-calibration-evidence-loop.md)
+- [§5 of `.planning/archive/0.7.0-calibration-evidence-loop.md`](https://github.com/ortomate/crimes/blob/main/.planning/archive/0.7.0-calibration-evidence-loop.md)
   — the spec the harness implements.

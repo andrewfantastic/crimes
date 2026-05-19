@@ -25,7 +25,7 @@ release.
    Publishers → "Add Trusted Publisher"**.
 3. Configure:
    - **Provider:** GitHub Actions
-   - **Organization or user:** `andrewfantastic`
+   - **Organization or user:** `ortomate`
    - **Repository name:** `crimes`
    - **Workflow filename:** `release.yml`
    - **Environment:** _leave blank_

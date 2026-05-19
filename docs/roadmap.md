@@ -25,7 +25,7 @@ mirror, not a planning doc.
   on npm — `npm install -g crimes` and `npx crimes scan .` both work today.
 - **Website:** [crimes.sh](https://crimes.sh) — live, deployed from this
   monorepo via Vercel (auto-deploys on push to `main`).
-- **Repository:** [`andrewfantastic/crimes`](https://github.com/andrewfantastic/crimes).
+- **Repository:** [`ortomate/crimes`](https://github.com/ortomate/crimes).
 
 | Milestone                     | Status                                                                                  |
 | ----------------------------- | --------------------------------------------------------------------------------------- |

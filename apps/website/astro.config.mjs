@@ -31,7 +31,7 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/andrewfantastic/crimes",
+          href: "https://github.com/ortomate/crimes",
         },
       ],
       // Sidebar built from the migrated `docs/**/*.md` tree. The
