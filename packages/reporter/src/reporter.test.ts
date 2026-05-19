@@ -653,6 +653,45 @@ describe("formatScanFailOnLine", () => {
     expect(out).toContain('"medium"');
     expect(out).not.toMatch(/^OK/);
   });
+
+  it("prefixes OK with ✅ when colour is on", () => {
+    const report: ScanReport = { ...sampleReport, fail_on: "high", failed: false };
+    const out = formatScanFailOnLine(report, { noColor: false });
+    expect(out).toContain("✅");
+  });
+
+  it("prefixes FAILED with ❌ when colour is on", () => {
+    const report: ScanReport = { ...sampleReport, fail_on: "medium", failed: true };
+    const out = formatScanFailOnLine(report, { noColor: false });
+    expect(out).toContain("❌");
+  });
+});
+
+describe("severity glyphs in human report", () => {
+  it("prefixes severity heading and each finding when colour is on", () => {
+    const out = formatHumanReport(sampleReport, { noColor: false });
+    expect(out).toContain("🚨");
+    expect(out).toContain("⚠️");
+  });
+
+  it("omits glyphs entirely when noColor is true", () => {
+    const out = formatHumanReport(sampleReport, { noColor: true });
+    expect(out).not.toContain("🚨");
+    expect(out).not.toContain("⚠️");
+    expect(out).not.toContain("🔎");
+    expect(out).not.toContain("✨");
+  });
+
+  it("prefixes the 'no crimes' line with ✨ when colour is on", () => {
+    const empty: ScanReport = {
+      ...sampleReport,
+      summary: { total: 0, high: 0, medium: 0, low: 0 },
+      findings: [],
+    };
+    const out = formatHumanReport(empty, { noColor: false });
+    expect(out).toContain("✨");
+    expect(out).toContain("No crimes detected");
+  });
 });
 
 const sampleHotspots: HotspotsReport = {

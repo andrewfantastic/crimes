@@ -1,4 +1,4 @@
-import type { Finding } from "@crimes/core";
+import type { Finding, Severity } from "@crimes/core";
 import { fingerprintFinding } from "@crimes/core";
 import pc from "picocolors";
 
@@ -50,6 +50,25 @@ export interface FeedbackHintOptions {
 export const DEFAULT_FEEDBACK_HINT_CAP = 5;
 export const RELATED_FILES_DISPLAY_CAP = 5;
 
+/**
+ * Single-glyph severity prefix for human output. Suppressed when
+ * `noColor` is true so piped output, CI logs, and `--no-color` stay
+ * emoji-free. JSON output never goes through this path.
+ *
+ * Glyphs are mirrored on the severity heading and on each finding's
+ * title line, so a fast skim ("where are the sirens?") works on the
+ * report without reading prose.
+ */
+export const SEVERITY_GLYPH: Record<Severity, string> = {
+  high: "🚨",
+  medium: "⚠️ ",
+  low: "🔎",
+};
+
+export function severityGlyph(severity: Severity, noColor: boolean): string {
+  return noColor ? "" : `${SEVERITY_GLYPH[severity]} `;
+}
+
 export function renderFinding(
   finding: Finding,
   n: number,
@@ -67,7 +86,8 @@ export function renderFinding(
   const symbol = finding.symbol ? ` (${finding.symbol})` : "";
 
   const out: string[] = [];
-  out.push(`  ${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`);
+  const glyph = severityGlyph(finding.severity, options.noColor === true);
+  out.push(`  ${glyph}${colour.bold(`${n}.`)} ${colour.cyan(location)}${colour.dim(symbol)}`);
   out.push(`     ${colour.bold("Charge:")} ${finding.charge}`);
   const riskLine = renderRiskProfileLine(finding, colour, options);
   if (riskLine) out.push(riskLine);

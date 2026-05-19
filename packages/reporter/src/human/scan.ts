@@ -1,6 +1,6 @@
 import type { Finding, ScanReport, Severity } from "@crimes/core";
 import type { ColourFns, FeedbackHintOptions } from "./shared.js";
-import { pc, plainColour, renderFinding } from "./shared.js";
+import { pc, plainColour, renderFinding, severityGlyph } from "./shared.js";
 
 export interface HumanReportOptions {
   /** When true, every finding is shown. Otherwise the top N. */
@@ -29,7 +29,8 @@ export function formatHumanReport(
   lines.push("");
 
   if (report.findings.length === 0) {
-    lines.push(colour.green("No crimes detected. Suspiciously clean."));
+    const cleanPrefix = options.noColor ? "" : "✨ ";
+    lines.push(colour.green(`${cleanPrefix}No crimes detected. Suspiciously clean.`));
     return lines.join("\n");
   }
 
@@ -39,7 +40,7 @@ export function formatHumanReport(
   for (const sev of ["high", "medium", "low"] as const) {
     const group = grouped[sev];
     if (group.length === 0) continue;
-    lines.push(severityHeading(sev, group.length, colour));
+    lines.push(severityHeading(sev, group.length, colour, options.noColor === true));
     group.forEach((finding, idx) => {
       lines.push(
         ...renderFinding(finding, idx + 1, colour, {
@@ -83,8 +84,9 @@ function severityHeading(
   sev: Severity,
   count: number,
   colour: ColourFns,
+  noColor: boolean,
 ): string {
-  const label = `${sev.toUpperCase()} severity (${count})`;
+  const label = `${severityGlyph(sev, noColor)}${sev.toUpperCase()} severity (${count})`;
   switch (sev) {
     case "high":
       return colour.red(colour.bold(label));
@@ -121,16 +123,17 @@ export function formatScanFailOnLine(
 ): string {
   const colour = options.noColor ? plainColour() : pc;
   const failOn = report.fail_on ?? "medium";
+  const glyph = options.noColor ? "" : (report.failed ? "❌ " : "✅ ");
   if (report.failed) {
     return colour.red(
       colour.bold(
-        `FAILED: at least one finding at or above "${failOn}" severity in the changed set.`,
+        `${glyph}FAILED: at least one finding at or above "${failOn}" severity in the changed set.`,
       ),
     );
   }
   return colour.green(
     colour.bold(
-      `OK: no findings at or above "${failOn}" severity in the changed set.`,
+      `${glyph}OK: no findings at or above "${failOn}" severity in the changed set.`,
     ),
   );
 }
