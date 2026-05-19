@@ -7,11 +7,11 @@
   "homepage": "https://crimes.sh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andrewfantastic/crimes.git",
+    "url": "git+https://github.com/ortomate/crimes.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/andrewfantastic/crimes/issues"
+    "url": "https://github.com/ortomate/crimes/issues"
   },
   "keywords": [
     "cli",
