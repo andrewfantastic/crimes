@@ -72,14 +72,36 @@ Edit
 
 ### 2. Update changelogs and docs
 
-- Update [`docs/roadmap.md`](./roadmap.md) if the milestone
-  status has changed.
-- If you keep release notes in-repo, add them now. (Currently they live
-  on the GitHub Release page itself — `CHANGELOG.md` is not maintained
-  yet.)
-- If the JSON schema gained fields, update
-  [`docs/json-schema.md`](./json-schema.md) and the pinned fixture at
-  [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
+Every file in this list must reflect `X.Y.Z` **before** the GitHub
+Release is cut — they are mirrored to the website and to the npm
+README at publish time, and stale ones are not patched after the fact.
+
+- **[`README.md`](../README.md)** — root README. Update the
+  `## Status — crimes@X.Y.Z` heading and the lead paragraph; push the
+  previous version down into an "Earlier X.Y.Z work" subsection
+  following the existing pattern. The shields.io badge at the top
+  pulls live from npm; no edit needed there.
+- **[`packages/cli/README.md`](../packages/cli/README.md)** — npm
+  package README (this is what users see on npmjs.com). Update the
+  `**X.Y.Z headline:**` line and any version references in the lead.
+- **[`docs/roadmap.md`](./roadmap.md)** — milestone status mirror.
+- **[`docs/releases/vX.Y.Z.md`](./releases/)** — in-repo draft release
+  notes. Add the new file; its body is the canonical text for the
+  GitHub Release in Step 5.
+- **[`apps/website/landing/llms.txt`](../apps/website/landing/llms.txt)**
+  — add a `docs/releases/vX.Y.Z.md` entry so the AI-overview pass picks
+  up the new release.
+- **[`apps/website/landing/index.html`](../apps/website/landing/index.html)**
+  — landing page has a "Recent releases" list that links to each
+  `docs/releases/vX.Y.Z.md`. Add a row.
+- **JSON schema only if it changed.** If the schema gained fields,
+  also update [`docs/json-schema.md`](./json-schema.md) and the pinned
+  fixture at [`docs/fixtures/messy-ts-app.json`](./fixtures/messy-ts-app.json).
+  Major schema changes also bump `schema_version` in
+  [`finding.ts`](../packages/core/src/finding.ts).
+
+`CHANGELOG.md` is intentionally not maintained — the GitHub Release
+page is the canonical changelog surface.
 
 ### 3. Run the local pre-flight
 

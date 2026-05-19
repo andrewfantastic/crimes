@@ -15,9 +15,14 @@ It is **not** another linter. It answers a higher-value question:
 > _Where in this repo is future change most likely to go wrong, and what
 > should a human or coding agent know before editing it?_
 
-**`0.3.0` headline:** information architecture crimes — deterministic
-evidence that the repo tells multiple competing stories about the same
-product concept. No LLM, no API key, no network access required.
+**`0.9.1` headline:** bare `crimes` now prints a short welcome
+banner with three first-step commands instead of Commander's long
+help dump — `crimes@0.9.0` shipped Codex agent discovery, a seventh
+petty-crime detector (`finder_duplicate_filename`), and a `crimes
+explain` rewrite with a new **Likely remedies** block. Still
+deterministic, still no LLM / API key / network required. See the
+[root README](https://github.com/andrewfantastic/crimes#status--crimes091)
+for the full version history.
 
 - Website: **[crimes.sh](https://crimes.sh)**
 - Repo: **[github.com/andrewfantastic/crimes](https://github.com/andrewfantastic/crimes)**

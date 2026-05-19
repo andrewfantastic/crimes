@@ -69,27 +69,70 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.8.1`
+## Status — `crimes@0.9.1`
 
-`crimes@0.8.1` is the latest published version on npm — a _calibration
-patch on 0.8.0_. Three quietening changes: an eight-name expansion to
-`boolean_naming_drift`'s built-in React-state allowlist (`loaded`,
-`found`, `settled`, `overflow`, `typeonly`, `interpolated`, `limited`,
-`existed`); the crimes monorepo's own `crimes.config.json` excludes
-`evals/fixtures/**` and `examples/messy-ts-app/**` from the asset
-pass so the dogfood scan no longer surfaces intentional-bad demo
-assets at the top; a behaviour-preserving refactor of
-`scan-assets.ts` into four named helpers. No new detectors, no
-schema change, no new commands. Release notes:
+`crimes@0.9.1` is the latest published version on npm — a _UX-only
+patch_. Two changes: bare `crimes` now prints a short welcome banner
+(version, three first-step commands, docs link) instead of Commander's
+long help dump; the post-install message is expanded to match. No new
+detectors, no schema change, no new commands. Release notes:
+[`docs/releases/v0.9.1.md`](./docs/releases/v0.9.1.md).
+
+Earlier `0.9.0` work (_Codex agent discovery + petty crime_) remains
+shipped — one new detector, a Codex-aware update to
+`missing_agent_context`, a `crimes explain` rewrite, and a
+post-install nudge. Detector count: **47 → 48**. Release notes:
+[`docs/releases/v0.9.0.md`](./docs/releases/v0.9.0.md).
+
+What's in `0.9.0`:
+
+- **Codex is a first-class agent.** `crimes init --agents` now writes
+  both `.claude/skills/crimes/SKILL.md` and
+  `.agents/skills/crimes/SKILL.md`; the new `--codex-skill` flag
+  writes only the Codex skill. The `missing_agent_context` detector
+  treats the Codex path as a satisfying signal, so repos that already
+  ship a Codex skill no longer false-fire. See
+  [`docs/skills.md`](./docs/skills.md).
+- **`finder_duplicate_filename` (petty crime).** The seventh
+  petty-crime detector. Flags macOS Finder / iCloud conflict-copy
+  filenames like `Button 2.tsx` that slip into repos as accidental
+  duplicates and force agents and humans to guess which file is
+  canonical. Filename-only detection (Finder-style space + digit
+  suffix), confidence 0.90. See
+  [`docs/finding-types/petty.md`](./docs/finding-types/petty.md#finder-duplicate-filename).
+- **`crimes explain` rewrite.** Output is split into named section
+  helpers and gains a **Likely remedies** block synthesised from
+  `suggested_actions` plus generic next-steps. `ExplainReport` JSON
+  gains a new `likely_remedies: string[]` field (additive — the
+  `Finding` wire format is byte-identical to 0.8.1).
+- **Post-install nudge.** `npm install -g crimes` now prints a
+  one-line reminder to run `crimes init --agents` (suppressed in CI
+  and behind `CRIMES_DISABLE_POSTINSTALL=1`). npm 7+ swallows
+  postinstall stdout by default — the 0.9.1 bare-`crimes` banner is
+  the reliable surface for the same nudge.
+- **Landing-page broken link fix.** The "Live status" link on
+  [crimes.sh](https://crimes.sh) and the `llms.txt` roadmap pointer
+  now resolve to `docs/roadmap.md` instead of the moved
+  `ROADMAP_STATUS.md` path.
+- Schema: `schema_version` stays at `"0.1.0"`. Existing scan JSON
+  files load unchanged.
+
+Earlier `0.8.1` work (_calibration patch on 0.8.0_) remains shipped:
+an eight-name expansion to `boolean_naming_drift`'s built-in
+React-state allowlist (`loaded`, `found`, `settled`, `overflow`,
+`typeonly`, `interpolated`, `limited`, `existed`); the crimes
+monorepo's own `crimes.config.json` excludes `evals/fixtures/**` and
+`examples/messy-ts-app/**` from the asset pass so the dogfood scan no
+longer surfaces intentional-bad demo assets at the top; and a
+behaviour-preserving refactor of `scan-assets.ts` into four named
+helpers. No new detectors, no schema change. Release notes:
 [`docs/releases/v0.8.1.md`](./docs/releases/v0.8.1.md).
 
 Earlier `0.8.0` work (_extended lens: date, naming, hot-path, and
 asset crimes_) remains shipped — one config feature plus **thirteen
 new detectors** across four families that mainstream linters don't
 catch. Detector count: **34 → 47**. Release notes:
-[`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md).
-
-What's in `0.8.0`:
+[`docs/releases/v0.8.0.md`](./docs/releases/v0.8.0.md):
 
 - **Per-detector exemption config.** `detectors.options.<id>` sits
   between `detectors.disable` (kills the detector everywhere) and
