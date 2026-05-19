@@ -22,6 +22,16 @@ export default defineConfig({
       title: "crimes docs",
       description:
         "Documentation for `crimes`, the agent-native change & risk scanner for TypeScript / JavaScript repos.",
+      head: [
+        {
+          tag: "script",
+          attrs: {
+            defer: true,
+            "data-domain": "crimes.sh",
+            src: "https://plausible.io/js/script.js",
+          },
+        },
+      ],
       logo: {
         light: "./public/favicon.svg",
         dark: "./public/favicon.svg",
