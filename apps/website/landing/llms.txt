@@ -31,7 +31,7 @@ Core principles:
 - one-shot: `npx crimes scan .`
 - requires Node.js 18+
 
-## Commands (latest published v0.9.0)
+## Commands (latest published v0.9.1)
 
 `crimes feedback` (shipped in v0.7.0) — capture per-finding verdicts that
 feed the calibration loop:
@@ -333,7 +333,30 @@ which gating command is used.
 Release notes:
 https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.5.0.md
 
-## 0.9.0 — Codex agent discovery + petty crime (current release)
+## 0.9.1 — visible welcome banner on bare `crimes` (current release)
+
+UX-only patch. No new detectors, no schema change.
+
+- Bare `crimes` (no subcommand) prints a short welcome banner
+  with the version, three first-step commands
+  (`crimes init --agents`, `crimes init`, `crimes --help`), and
+  a docs link — instead of Commander's long help dump.
+  `crimes --help` still renders the full usage output;
+  `crimes --version` still prints just the version.
+- Post-install message expanded to include the version and the
+  same three commands. The script still runs, but npm 7+
+  swallows post-install stdout / stderr by default, so the
+  bare-`crimes` banner is the reliable surface. Users who want
+  to see post-install output need
+  `npm install -g --foreground-scripts crimes` or
+  `foreground-scripts=true` in `~/.npmrc`.
+
+Schema unchanged (`schema_version: "0.1.0"`).
+
+Release notes:
+https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.1.md
+
+## 0.9.0 — Codex agent discovery + petty crime
 
 Minor bump. One new detector and an expanded agent surface; the
 `Finding` wire format is unchanged.

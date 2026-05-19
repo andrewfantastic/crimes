@@ -26,7 +26,30 @@ program
   .addHelpText(
     "after",
     "\nTip: run `crimes init --agents` to add Claude Code and Codex skills so future agents discover crimes automatically.",
-  );
+  )
+  .action(() => {
+    // Bare `crimes` (no subcommand) prints a welcome banner pointing at
+    // the three first-step commands. The postinstall message says the
+    // same thing, but npm 7+ swallows postinstall stdout/stderr by
+    // default — so this CLI path is the reliable surface.
+    process.stdout.write(welcomeBanner());
+  });
+
+function welcomeBanner(): string {
+  return [
+    `crimes ${__CRIMES_VERSION__}`,
+    "",
+    "A crime scene investigator for your codebase. Built for agents, readable by humans.",
+    "",
+    "Pick one to get started:",
+    "  crimes init --agents   config + Claude Code and Codex skills",
+    "  crimes init            just the config",
+    "  crimes --help          list all commands",
+    "",
+    "Docs: https://crimes.sh",
+    "",
+  ].join("\n");
+}
 
 registerInitCommand(program);
 registerIgnoreCommand(program);

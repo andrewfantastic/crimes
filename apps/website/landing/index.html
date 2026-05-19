@@ -80,7 +80,7 @@
             "applicationSubCategory": "CommandLineTool",
             "operatingSystem": "macOS, Linux, Windows",
             "description": "A local, open-source CLI that scans TypeScript and JavaScript repositories for change risk and agent risk — duplicated business rules, ambiguous sources of truth, weakly tested hotspots, and patterns that confuse AI coding agents.",
-            "softwareVersion": "0.9.0",
+            "softwareVersion": "0.9.1",
             "downloadUrl": "https://www.npmjs.com/package/crimes",
             "codeRepository": "https://github.com/andrewfantastic/crimes",
             "programmingLanguage": "TypeScript",
@@ -197,7 +197,7 @@
     <main id="main">
       <section id="top" class="hero">
         <p class="eyebrow">
-          <span class="pill">v0.9.0 · Codex agent discovery + Finder-duplicate detector · <a href="/docs/">docs live</a></span>
+          <span class="pill">v0.9.1 · visible welcome banner on bare `crimes` · <a href="/docs/">docs live</a></span>
           <span class="dot" aria-hidden="true">·</span>
           <span>open source · MIT · local · no cloud</span>
         </p>
@@ -1166,6 +1166,28 @@ docs/teams.md:5 → ./setup.md (not found)</code></pre>
             <a
               href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.0.md"
               ><code>docs/releases/v0.9.0.md</code></a
+            >.
+          </li>
+          <li class="done">
+            <strong>v0.9.1 — visible welcome on bare <code>crimes</code>.</strong>
+            UX-only patch. Running <code>crimes</code> with no
+            arguments now prints a short welcome banner with the
+            version, three first-step commands
+            (<code>crimes init --agents</code>, <code>crimes init</code>,
+            <code>crimes --help</code>), and a docs link — instead of
+            Commander's long help dump. <code>crimes --help</code>
+            still renders the full usage output;
+            <code>crimes --version</code> still prints just the
+            version. The 0.9.0 post-install message was expanded to
+            include the version and the same three commands, but
+            since npm 7+ silently suppresses post-install stdout /
+            stderr by default, the bare-<code>crimes</code> banner
+            is the reliable surface. No new detectors, no schema
+            change (<code>schema_version: "0.1.0"</code>).
+            Release notes:
+            <a
+              href="https://github.com/andrewfantastic/crimes/blob/main/docs/releases/v0.9.1.md"
+              ><code>docs/releases/v0.9.1.md</code></a
             >.
           </li>
           <li>

@@ -4,12 +4,13 @@ Snapshot of the repo against the PRD milestones (`PRD.md` §22). Updated as
 work lands. Authoritative spec stays in `PRD.md` — this file is a status
 mirror, not a planning doc.
 
-- **Last published version:** `crimes@0.9.0` (npm) ✅ shipped —
-  _Codex agent discovery + Finder-duplicate petty crime_.
+- **Last published version:** `crimes@0.9.1` (npm) ✅ shipped —
+  _visible welcome banner on bare `crimes`_.
   `packages/cli/package.json` tracks the latest shipped version. Release
-  notes: [`docs/releases/v0.9.0.md`](./docs/releases/v0.9.0.md).
-- **Previously shipped milestones:** `crimes@0.8.1` — _calibration
-  patch on 0.8.0_ — `crimes@0.8.0` — _extended lens:
+  notes: [`docs/releases/v0.9.1.md`](./docs/releases/v0.9.1.md).
+- **Previously shipped milestones:** `crimes@0.9.0` — _Codex agent
+  discovery + Finder-duplicate petty crime_ — `crimes@0.8.1` —
+  _calibration patch on 0.8.0_ — `crimes@0.8.0` — _extended lens:
   date, naming, hot-path, and asset crimes_ — `crimes@0.7.5` —
   _eval-harness graduation and detector trim_ — `crimes@0.7.0` —
   _calibration and
@@ -35,6 +36,27 @@ mirror, not a planning doc.
 | M4 — Diff and CI              | 🟢 completed in `0.5.0` — every gating mode now lands: `scan --changed --fail-on` (0.2.0), `baseline check --fail-on` (0.2.0), `verdict --fail-on` (0.2.0), and finally `diff --fail-on new-high \| new-medium` (0.5.0). Suppressions apply before every gate; per-finding `crimes ignore` is shipped. |
 | M5 — Public launch            | ✅ completed in `0.6.0` — full `/docs` site at [`crimes.sh/docs/`](https://crimes.sh/docs/) via Astro + Starlight; landing page unchanged. |
 | M6 — Homebrew / binaries      | 🚧 not started                                                                            |
+
+---
+
+## ✅ Shipped in `crimes@0.9.1`
+
+> **Theme: visible welcome on bare `crimes`.** UX-only patch.
+> No schema change, no new detectors.
+>
+> Release notes: [`docs/releases/v0.9.1.md`](./docs/releases/v0.9.1.md).
+
+- **Bare `crimes` prints a welcome banner.** Running `crimes` with no
+  arguments now shows version, three first-step commands
+  (`crimes init --agents`, `crimes init`, `crimes --help`), and a
+  docs link — instead of Commander's long help dump. `crimes --help`
+  still renders the full usage output.
+- **Post-install message expanded.** Includes the version and the
+  same three commands. The script still runs, but npm 7+ swallows
+  post-install stdout / stderr by default, so the bare-`crimes`
+  banner is the reliable surface.
+
+Schema unchanged. `schema_version` stays at `"0.1.0"`.
 
 ---
 
