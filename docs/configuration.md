@@ -18,6 +18,16 @@ Writes a starter `crimes.config.json` with sensible defaults and an
 inline `$schema` URL for IDE validation. Refuses to overwrite an
 existing file unless you pass `--force`.
 
+To also make `crimes` discoverable to future Claude Code and Codex
+sessions in the repo:
+
+```bash
+npx crimes init --agents
+```
+
+That writes `.claude/skills/crimes/SKILL.md` and
+`.agents/skills/crimes/SKILL.md` alongside the config.
+
 ## Shape
 
 ```jsonc

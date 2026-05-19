@@ -142,6 +142,7 @@ describe("buildIaIndex", () => {
         bin: { mycli: "dist/index.js" },
       }),
       ".claude/skills/example/SKILL.md": "---\nname: example\n---\n",
+      ".agents/skills/crimes/SKILL.md": "---\nname: crimes\n---\n",
     });
     const files = await discover(root);
     const index = await buildIaIndex({ root, files });
@@ -150,6 +151,9 @@ describe("buildIaIndex", () => {
     expect(index.agentContext.declaredBins).toEqual(["mycli"]);
     expect(index.agentContext.claudeSkills).toEqual([
       ".claude/skills/example/SKILL.md",
+    ]);
+    expect(index.agentContext.codexSkills).toEqual([
+      ".agents/skills/crimes/SKILL.md",
     ]);
     expect(index.agentContext.referencedCommands.sort()).toEqual([
       "mycli context",

@@ -538,7 +538,7 @@ look for ambiguous sources of truth across the repo:
 
 | `Finding.type`                  | Charge                       | Reads                                                                                  |
 | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
-| `missing_agent_context`         | Missing Agent Context        | `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md` + `package.json` `bin`         |
+| `missing_agent_context`         | Missing Agent Context        | `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md` / `.agents/skills/*/SKILL.md` + `package.json` `bin`         |
 | `route_metadata_drift`          | Route Metadata Drift         | Route file paths, default exports, `<title>` / `metadata.title`, and nav-source labels |
 | `duplicated_navigation_source`  | Duplicated Navigation Source | Top-level nav-array literals across files                                              |
 | `concept_alias_drift`           | Concept Alias Drift          | Path tokens, route paths, labels, nav entries, and doc headings                        |

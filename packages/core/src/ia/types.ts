@@ -132,6 +132,8 @@ export interface IaAgentInventory {
   claudeMdPath?: RepoPath;
   /** All discovered .claude/skills/<name>/SKILL.md paths. */
   claudeSkills: RepoPath[];
+  /** All discovered .agents/skills/<name>/SKILL.md paths. */
+  codexSkills?: RepoPath[];
   /** Bin names declared by the repo-root package.json (if present). */
   declaredBins: string[];
   /** Distinct `crimes <subcommand>` / bin-name commands referenced from agent docs. */

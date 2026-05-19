@@ -70,7 +70,8 @@ schema is otherwise unchanged — `schema_version` is still `"0.1.0"`.
 
 **What it detects.** Repos that declare a `bin` in `package.json` but
 ship **no** agent-readable instructions — no `AGENTS.md`, no `CLAUDE.md`,
-and no `.claude/skills/*/SKILL.md`. Agents loading the repo have nothing
+no `.claude/skills/*/SKILL.md`, and no `.agents/skills/*/SKILL.md`.
+Agents loading the repo have nothing
 to read: no install / build commands, no architecture notes, no safety
 rules. They guess instead.
 
@@ -80,6 +81,7 @@ rules. They guess instead.
 no AGENTS.md found at repo root
 no CLAUDE.md found at repo root
 no .claude/skills/*/SKILL.md present
+no .agents/skills/*/SKILL.md present
 package.json declares bin(s): messy — agents have no way to discover commands
 ```
 
@@ -89,9 +91,9 @@ context, the agent will default to generic conventions — and generic
 conventions are how regressions land.
 
 **Suggested fix.** Add an `AGENTS.md` covering install / build / test /
-architecture / safety, or a Claude Code skill under `.claude/skills/`.
-Either signal is enough to silence the finding; ship both for richer
-coverage.
+architecture / safety, a Claude Code skill under `.claude/skills/`, or a
+Codex skill under `.agents/skills/`. Any signal is enough to silence the
+finding; ship more than one for richer coverage.
 
 **False-positive notes.**
 

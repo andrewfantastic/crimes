@@ -3,12 +3,15 @@ import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
 
 interface InitCommandOptions {
+  agents: boolean;
   agentSkill: boolean;
+  codexSkill: boolean;
   force: boolean;
 }
 
 const CONFIG_FILENAME = "crimes.config.json";
-const AGENT_SKILL_PATH = ".claude/skills/crimes/SKILL.md";
+const CLAUDE_SKILL_PATH = ".claude/skills/crimes/SKILL.md";
+const CODEX_SKILL_PATH = ".agents/skills/crimes/SKILL.md";
 
 /**
  * Sensible starter `crimes.config.json` — opinionated defaults with
@@ -88,7 +91,17 @@ export function registerInitCommand(program: Command): void {
     )
     .option(
       "--agent-skill",
-      `also write ${AGENT_SKILL_PATH} so Claude Code discovers crimes in this repo`,
+      `also write ${CLAUDE_SKILL_PATH} so Claude Code discovers crimes in this repo`,
+      false,
+    )
+    .option(
+      "--codex-skill",
+      `also write ${CODEX_SKILL_PATH} so Codex discovers crimes in this repo`,
+      false,
+    )
+    .option(
+      "--agents",
+      "also write Claude Code and Codex skill files for future agents",
       false,
     )
     .option(
@@ -98,9 +111,14 @@ export function registerInitCommand(program: Command): void {
     )
     .action((options: InitCommandOptions) => {
       const path = resolve(process.cwd(), CONFIG_FILENAME);
-      const skillPath = resolve(process.cwd(), AGENT_SKILL_PATH);
+      const writeClaudeSkill = options.agents || options.agentSkill;
+      const writeCodexSkill = options.agents || options.codexSkill;
+      const writeAgentSkills = writeClaudeSkill || writeCodexSkill;
+      const claudeSkillPath = resolve(process.cwd(), CLAUDE_SKILL_PATH);
+      const codexSkillPath = resolve(process.cwd(), CODEX_SKILL_PATH);
+      const configExists = existsSync(path);
 
-      if (existsSync(path) && !options.force) {
+      if (configExists && !options.force && !writeAgentSkills) {
         process.stderr.write(
           `crimes: ${CONFIG_FILENAME} already exists. ` +
             `Pass --force to overwrite.\n`,
@@ -108,30 +126,51 @@ export function registerInitCommand(program: Command): void {
         process.exit(2);
         return;
       }
-      if (options.agentSkill && existsSync(skillPath) && !options.force) {
+      if (writeClaudeSkill && existsSync(claudeSkillPath) && !options.force) {
         process.stderr.write(
-          `crimes: ${AGENT_SKILL_PATH} already exists. ` +
+          `crimes: ${CLAUDE_SKILL_PATH} already exists. ` +
+            `Pass --force to overwrite.\n`,
+        );
+        process.exit(2);
+        return;
+      }
+      if (writeCodexSkill && existsSync(codexSkillPath) && !options.force) {
+        process.stderr.write(
+          `crimes: ${CODEX_SKILL_PATH} already exists. ` +
             `Pass --force to overwrite.\n`,
         );
         process.exit(2);
         return;
       }
 
-      writeFileSync(path, STARTER_CONFIG, "utf8");
-      const written = [CONFIG_FILENAME];
-      if (options.agentSkill) {
-        mkdirSync(dirname(skillPath), { recursive: true });
-        writeFileSync(skillPath, AGENT_SKILL, "utf8");
-        written.push(AGENT_SKILL_PATH);
+      const written: string[] = [];
+      if (!configExists || options.force) {
+        writeFileSync(path, STARTER_CONFIG, "utf8");
+        written.push(CONFIG_FILENAME);
+      }
+      if (writeClaudeSkill) {
+        mkdirSync(dirname(claudeSkillPath), { recursive: true });
+        writeFileSync(claudeSkillPath, AGENT_SKILL, "utf8");
+        written.push(CLAUDE_SKILL_PATH);
+      }
+      if (writeCodexSkill) {
+        mkdirSync(dirname(codexSkillPath), { recursive: true });
+        writeFileSync(codexSkillPath, AGENT_SKILL, "utf8");
+        written.push(CODEX_SKILL_PATH);
       }
 
-      const lineCount = STARTER_CONFIG.split("\n").length - 1;
-      process.stdout.write(
-        `Wrote ${CONFIG_FILENAME} (${lineCount} lines). ` +
-          `Tweak include/exclude/thresholds and commit.\n`,
-      );
-      if (written.length > 1) {
-        process.stdout.write(`Wrote ${AGENT_SKILL_PATH}. Commit it so future agents auto-discover crimes.\n`);
+      if (written.includes(CONFIG_FILENAME)) {
+        const lineCount = STARTER_CONFIG.split("\n").length - 1;
+        process.stdout.write(
+          `Wrote ${CONFIG_FILENAME} (${lineCount} lines). ` +
+            `Tweak include/exclude/thresholds and commit.\n`,
+        );
+      } else if (configExists) {
+        process.stdout.write(`Kept existing ${CONFIG_FILENAME}.\n`);
+      }
+      const agentFiles = written.filter((file) => file !== CONFIG_FILENAME);
+      if (agentFiles.length > 0) {
+        process.stdout.write(`Wrote ${agentFiles}. Commit them so future agents auto-discover crimes.\n`);
       }
     });
 }

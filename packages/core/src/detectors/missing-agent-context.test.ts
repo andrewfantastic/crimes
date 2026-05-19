@@ -114,6 +114,16 @@ describe("missingAgentContextDetector", () => {
     expect(findings).toEqual([]);
   });
 
+  it("suppresses when a Codex skill is present", async () => {
+    const ia = makeIndex({
+      agent: { codexSkills: [".agents/skills/example/SKILL.md"] },
+    });
+    const findings = await missingAgentContextDetector.run(
+      makeCtx("src/a.ts", ia),
+    );
+    expect(findings).toEqual([]);
+  });
+
   it("fires only on the lexicographically first file (single emission per scan)", async () => {
     const ia = makeIndex({ files: ["src/a.ts", "src/b.ts", "src/c.ts"] });
     const first = await missingAgentContextDetector.run(

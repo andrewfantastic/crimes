@@ -25,7 +25,7 @@ delete pkg.devDependencies;
 // Strip workspace-only scripts too. None of these run automatically for
 // consumers of the published tarball, and the files they reference
 // (./scripts/*.mjs, tsup, vitest, tsc) aren't shipped with the package.
-delete pkg.scripts;
+pkg.scripts = { postinstall: "node ./scripts/postinstall.mjs" };
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
 // Write to stderr so we don't pollute `npm pack --json` output.

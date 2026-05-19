@@ -1,6 +1,6 @@
 # Bundled agent assets
 
-`crimes` ships two on-disk artefacts that AI coding agents pick up
+`crimes` ships on-disk artefacts that AI coding agents pick up
 automatically. Together they teach an agent **when** to invoke `crimes`,
 **which** command to run, and **how** to interpret the JSON output. There
 is nothing to install — they live in the repo.
@@ -60,6 +60,32 @@ If you are using a different agent that supports the
 `description:`-frontmatter skill format (some tools do), this file is a
 reasonable drop-in.
 
+## `.agents/skills/crimes/SKILL.md`
+
+A Codex skill that activates when Codex judges the workflow relevant to a
+coding task in this repo.
+
+Generated path: `.agents/skills/crimes/SKILL.md`
+
+Run:
+
+```bash
+crimes init --codex-skill
+```
+
+or:
+
+```bash
+crimes init --agents
+```
+
+The content mirrors the Claude Code skill: pre-edit context checks,
+post-edit changed-file scans, branch verdicts, blocker policy, and
+false-positive feedback capture.
+
+Picked up automatically by: Codex CLI (`SKILL.md` under
+`.agents/skills/<name>/`).
+
 ---
 
 ## How the two pieces fit together
@@ -69,9 +95,9 @@ reasonable drop-in.
 | "How do I build and test this repo?"                    | `AGENTS.md`      |
 | "What's the architecture, what should I not touch?"     | `AGENTS.md`      |
 | "What's the safety policy for an agent editing here?"   | `AGENTS.md`      |
-| "Before I edit, what command should I run?"             | `SKILL.md`       |
-| "After I edit, what's the post-edit gate?"              | `SKILL.md`       |
-| "Is this finding a blocker?"                            | `SKILL.md`       |
+| "Before I edit, what command should I run?"             | agent `SKILL.md` |
+| "After I edit, what's the post-edit gate?"              | agent `SKILL.md` |
+| "Is this finding a blocker?"                            | agent `SKILL.md` |
 | "What does field X in the JSON mean?"                   | `json-schema.md` |
 | "Show me a worked pre/post-edit example."               | `agent-usage.md` |
 

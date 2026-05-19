@@ -75,7 +75,13 @@ process.stdout.write(`  unpacked size: ${(packed.unpackedSize / 1024).toFixed(1)
 
 const filePaths = packed.files.map((f) => f.path).sort();
 process.stdout.write(`  files: ${filePaths.join(", ")}\n`);
-const expectedFiles = ["LICENSE", "README.md", "dist/index.js", "package.json"];
+const expectedFiles = [
+  "LICENSE",
+  "README.md",
+  "dist/index.js",
+  "package.json",
+  "scripts/postinstall.mjs",
+];
 for (const must of expectedFiles) {
   assert(filePaths.includes(must), `tarball is missing ${must}`);
 }
@@ -85,7 +91,7 @@ for (const path of filePaths) {
     `tarball should not ship sourcemaps (found ${path})`,
   );
   assert(
-    !path.startsWith("scripts/"),
+    path === "scripts/postinstall.mjs" || !path.startsWith("scripts/"),
     `tarball should not ship dev scripts (found ${path})`,
   );
   assert(
@@ -120,6 +126,7 @@ try {
   step("crimes --help");
   const helpOut = run(installedBin, ["--help"]).stdout;
   assert(helpOut.includes("crimes"), "--help did not mention `crimes`");
+  assert(helpOut.includes("crimes init --agents"), "--help did not mention `crimes init --agents`");
   assert(helpOut.includes("scan"), "--help did not list the `scan` command");
   assert(helpOut.includes("context"), "--help did not list the `context` command");
   assert(helpOut.includes("hotspots"), "--help did not list the `hotspots` command");

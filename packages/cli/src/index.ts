@@ -25,7 +25,7 @@ program
   .version(__CRIMES_VERSION__)
   .addHelpText(
     "after",
-    "\nTip: run `crimes init --agent-skill` to add a Claude Code skill so future agents discover crimes automatically.",
+    "\nTip: run `crimes init --agents` to add Claude Code and Codex skills so future agents discover crimes automatically.",
   );
 
 registerInitCommand(program);

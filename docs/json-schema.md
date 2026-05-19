@@ -302,7 +302,7 @@ should treat unknown values defensively. The currently shipped values are:
 | `option_bag_junk_drawer`        | `Option Bag Junk Drawer`     | yes         | Generic object bags with large implicit shapes                                                   |
 | `return_shape_roulette`         | `Return Shape Roulette`      | yes         | Functions returning divergent object shapes without an explicit return type                      |
 | `negative_flag_maze`            | `Negative Flag Maze`         | no          | Conditionals that combine multiple negative flag names                                           |
-| `missing_agent_context`         | `Missing Agent Context`      | no          | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md`      |
+| `missing_agent_context`         | `Missing Agent Context`      | no          | Repo declares a `bin` but ships no `AGENTS.md` / `CLAUDE.md` / `.claude/skills/*/SKILL.md` / `.agents/skills/*/SKILL.md`      |
 | `route_metadata_drift`          | `Route Metadata Drift`       | no          | One route's path, file, component name, page title, and nav labels appear to use competing names |
 | `duplicated_navigation_source`  | `Duplicated Navigation Source` | no        | Same destination declared in multiple nav-like source files with different labels                |
 | `concept_alias_drift`           | `Concept Alias Drift`        | no          | A seeded alias group (e.g. `team` / `workspace` / `organisation`) spans multiple directories on product surface |

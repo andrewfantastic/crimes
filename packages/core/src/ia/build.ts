@@ -29,6 +29,7 @@ import type {
   IaDocSignal,
   IaFileSignals,
   IaIndex,
+  IaLabelSignal,
   IaRouteSignal,
   RepoPath,
 } from "./types.js";
@@ -55,78 +56,100 @@ export interface BuildIaIndexOptions {
 export async function buildIaIndex(options: BuildIaIndexOptions): Promise<IaIndex> {
   const root = resolve(options.root);
   const aliasGroups = options.aliasGroups ?? DEFAULT_ALIAS_GROUPS;
-
-  const fileSignals: Record<RepoPath, IaFileSignals> = {};
-  const routes: IaRouteSignal[] = [];
-  const navSources: IaIndex["navSources"] = [];
-
-  // 1. Walk discovered TS/JS files.
-  for (const abs of options.files) {
-    const rel = toRepoRel(root, abs);
-    if (!SOURCE_EXT.test(rel)) continue;
-
-    let parsed: ParsedFile;
-    let source: string;
-    try {
-      source = readFileSync(abs, "utf8");
-      parsed = parseFile({ absolutePath: abs, source });
-    } catch {
-      continue;
-    }
-
-    const labels = liftLabelSignals(parsed);
-    const navEntries = liftNavSignals(parsed);
-    const permissions = extractPermissions(source);
-    const routePath = routeFromFilePath(rel);
-
-    const signal: IaFileSignals = {
-      file: rel,
-      tokens: tokenisePath(rel),
-      componentName: parsed.defaultExport,
-      routes: routePath ? [routePath] : [],
-      labels,
-      navEntries,
-      permissions,
-      isNavSource: navEntries.length > 0,
-    };
-    fileSignals[rel] = signal;
-
-    if (routePath) {
-      routes.push({
-        file: rel,
-        routePath,
-        componentName: parsed.defaultExport,
-        titles: labels
-          .filter((l) =>
-            l.kind === "jsx_title" ||
-            l.kind === "metadata_title" ||
-            l.kind === "document_title" ||
-            l.kind === "use_title",
-          )
-          .map((l) => l.value),
-        labels: labels.map((l) => l.value),
-      });
-    }
-
-    if (navEntries.length > 0) {
-      navSources.push({ file: rel, entries: navEntries });
-    }
-  }
-
-  // 2. Walk markdown docs.
+  const sourceSignals = collectSourceSignals(root, options.files);
   const docs = await collectDocs(root);
-
-  // 3. Agent context inventory.
   const agentContext = await collectAgentInventory(root, docs);
 
   return {
     root: toPosix(root),
-    files: fileSignals,
-    routes: sortRoutes(routes),
-    navSources: navSources.sort((a, b) => a.file.localeCompare(b.file)),
+    files: sourceSignals.files,
+    routes: sortRoutes(sourceSignals.routes),
+    navSources: sourceSignals.navSources.sort((a, b) => a.file.localeCompare(b.file)),
     docs,
     agentContext,
     aliasGroups,
+  };
+}
+
+function collectSourceSignals(
+  root: string,
+  absoluteFiles: string[],
+): Pick<IaIndex, "files" | "routes" | "navSources"> {
+  const files: Record<RepoPath, IaFileSignals> = {};
+  const routes: IaRouteSignal[] = [];
+  const navSources: IaIndex["navSources"] = [];
+
+  for (const abs of absoluteFiles) {
+    const sourceSignal = readSourceSignal(root, abs);
+    if (!sourceSignal) continue;
+    files[sourceSignal.signal.file] = sourceSignal.signal;
+    if (sourceSignal.route) routes.push(sourceSignal.route);
+    if (sourceSignal.signal.navEntries.length > 0) {
+      navSources.push({
+        file: sourceSignal.signal.file,
+        entries: sourceSignal.signal.navEntries,
+      });
+    }
+  }
+
+  return { files, routes, navSources };
+}
+
+function readSourceSignal(
+  root: string,
+  abs: string,
+): { signal: IaFileSignals; route?: IaRouteSignal } | undefined {
+  const rel = toRepoRel(root, abs);
+  if (!SOURCE_EXT.test(rel)) return undefined;
+
+  let parsed: ParsedFile;
+  let source: string;
+  try {
+    source = readFileSync(abs, "utf8");
+    parsed = parseFile({ absolutePath: abs, source });
+  } catch {
+    return undefined;
+  }
+
+  const labels = liftLabelSignals(parsed);
+  const navEntries = liftNavSignals(parsed);
+  const routePath = routeFromFilePath(rel);
+  const signal: IaFileSignals = {
+    file: rel,
+    tokens: tokenisePath(rel),
+    componentName: parsed.defaultExport,
+    routes: routePath ? [routePath] : [],
+    labels,
+    navEntries,
+    permissions: extractPermissions(source),
+    isNavSource: navEntries.length > 0,
+  };
+
+  return {
+    signal,
+    route: routePath ? routeSignal(rel, routePath, parsed, labels) : undefined,
+  };
+}
+
+function routeSignal(
+  file: RepoPath,
+  routePath: string,
+  parsed: ParsedFile,
+  labels: IaLabelSignal[],
+): IaRouteSignal {
+  return {
+    file,
+    routePath,
+    componentName: parsed.defaultExport,
+    titles: labels
+      .filter((l) =>
+        l.kind === "jsx_title" ||
+        l.kind === "metadata_title" ||
+        l.kind === "document_title" ||
+        l.kind === "use_title",
+      )
+      .map((l) => l.value),
+    labels: labels.map((l) => l.value),
   };
 }
 
@@ -202,15 +225,23 @@ async function collectAgentInventory(
   const agentsMdPath = existsSync(agentsMdAbs) ? "AGENTS.md" : undefined;
   const claudeMdPath = existsSync(claudeMdAbs) ? "CLAUDE.md" : undefined;
 
-  // .claude/skills/<name>/SKILL.md
-  const claudeSkills = await fg([".claude/skills/*/SKILL.md"], {
-    cwd: root,
-    onlyFiles: true,
-    dot: true,
-    followSymbolicLinks: false,
-    suppressErrors: true,
-  });
+  const skillGlobs = [
+    ".claude/skills/*/SKILL.md",
+    ".agents/skills/*/SKILL.md",
+  ];
+  const [claudeSkills = [], codexSkills = []] = await Promise.all(
+    skillGlobs.map((glob) => fg([glob], {
+      cwd: root,
+      onlyFiles: true,
+      dot: true,
+      followSymbolicLinks: false,
+      suppressErrors: true,
+    })),
+  );
   const claudeSkillPaths = claudeSkills
+    .map((p) => toPosix(p))
+    .sort();
+  const codexSkillPaths = codexSkills
     .map((p) => toPosix(p))
     .sort();
 
@@ -236,6 +267,7 @@ async function collectAgentInventory(
     agentsMdPath,
     claudeMdPath,
     claudeSkills: claudeSkillPaths,
+    codexSkills: codexSkillPaths,
     declaredBins,
     referencedCommands,
   };

@@ -237,7 +237,8 @@ shared piece of nav.
   parsing; no detector reaches into the language pack directly.
 - **`missing_agent_context`** — flags repos that declare a `bin` in
   `package.json` but ship no `AGENTS.md`, `CLAUDE.md`, or
-  `.claude/skills/*/SKILL.md`. Medium severity, 0.90 confidence.
+  `.claude/skills/*/SKILL.md` / `.agents/skills/*/SKILL.md`. Medium
+  severity, 0.90 confidence.
 - **`route_metadata_drift`** — flags routes whose path, file location,
   default-export component, `<title>` / `metadata.title`, and
   nav-source labels appear to describe the destination with competing

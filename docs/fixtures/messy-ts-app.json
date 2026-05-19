@@ -148,11 +148,12 @@
       "severity": "medium",
       "confidence": 0.9,
       "file": "src/api/files.ts",
-      "summary": "Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.",
+      "summary": "Repo ships no agent-readable instruction files (AGENTS.md, CLAUDE.md, .claude/skills/*/SKILL.md, .agents/skills/*/SKILL.md). Agents loading this repo will not see project commands, conventions, or safety rules and are more likely to make confident-but-wrong edits.",
       "evidence": [
         "no AGENTS.md found at repo root",
         "no CLAUDE.md found at repo root",
         "no .claude/skills/*/SKILL.md present",
+        "no .agents/skills/*/SKILL.md present",
         "package.json declares bin(s): messy — agents have no way to discover commands"
       ],
       "scores": {
