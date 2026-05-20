@@ -7,7 +7,10 @@ the human-readable report is a rendering of the same underlying findings.
 
 This document covers:
 
-- The recommended pre-edit / post-edit workflow
+- Pre-edit briefing with `crimes context` — the recommended first step
+- Scan and post-edit gates — `crimes scan` and `crimes scan --changed`
+- Verdict — one-line branch summary
+- Supporting commands — `crimes hotspots`, `crimes diff`, `crimes baseline`
 - How to interpret findings as an agent
 - What is guaranteed, what may change, and what is **not** implemented yet
 
@@ -67,8 +70,8 @@ file, `crimes scan --changed --format json` after, and diff the findings.
 
 Anything that reads `AGENTS.md` or `CLAUDE.md` will pick up the workflow
 without further configuration. For agents that read neither, point them at
-this document or copy the [Recommended workflow](#recommended-workflow)
-section into your project's agent-rules file.
+this document or copy the [Pre-edit briefing](#1-pre-edit-briefing-crimes-context) and
+[Post-edit gate](#2-scan-and-post-edit-gates) sections into your project's agent-rules file.
 
 ---
 
@@ -80,8 +83,8 @@ section into your project's agent-rules file.
 | About to refactor across a directory                            | `crimes scan <path> --format json`               |
 | Mid-task, want to re-check only the files you have touched      | `crimes scan --changed --format json`            |
 | Reviewing a feature branch before merge                         | `crimes scan --changed --base main --format json`|
-| Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
 | One-line "did this branch help or hurt?" summary                | `crimes verdict --format json`                   |
+| Comparing two committed refs (e.g. main vs HEAD)                | `crimes diff main...HEAD --format json`          |
 | Gating CI on "no new debt vs the saved baseline"                | `crimes baseline check --format json`            |
 | Adopting `crimes` on a legacy repo (snapshot, then commit)      | `crimes baseline save`                           |
 | Triaging "where in the repo is the most change-risk right now?" | `crimes hotspots --format json`                  |
@@ -90,26 +93,22 @@ section into your project's agent-rules file.
 If you only learn one command, learn `crimes context <file> --format json`
 — it is the cheapest, most file-specific entry point.
 
-`crimes hotspots` uses git history to rank files by change-risk; on a
-shallow clone (common in CI runners that default to `--depth=1`) the
-report sets an optional top-level **`history_limited: true`** plus a
-short `history_limited_reason`. When you see those, treat the ranking
-as advisory — older commits are missing from the local copy. Deepen
-the clone (`fetch-depth: 0` in GitHub Actions) to clear the flag.
-
 ---
 
 ## Recommended workflow
 
-### 1. Pre-edit context (before touching a single file)
+### 1. Pre-edit briefing (`crimes context`)
 
-When you are about to edit one specific file, prefer `crimes context` over
-a directory scan — it returns the per-file findings, the test files that
-look likely to cover it, and short safe-editing notes:
+**Start here.** Before touching any file, run `crimes context` on it:
 
 ```bash
 crimes context path/to/file --format json
 ```
+
+This is the single highest-leverage command in an agent loop. It returns the
+per-file findings, the test files most likely to cover the target, the files
+in the neighbourhood an agent should read first, and short safe-editing
+notes — all deterministic, no LLM, no git history required.
 
 If you are running against an unreleased checkout, invoke it from this
 monorepo as `node packages/cli/dist/index.js context path/to/file --format json`.
@@ -125,6 +124,11 @@ The JSON shape is (canonical key order — `agent_guidance` first):
   "agent_guidance": [
     "Prefer extracting pure helpers before adding more branches.",
     "Avoid adding more direct clock access; inject time where possible."
+  ],
+  "clues": [
+    "High churn — this file changes frequently; your edit adds to a pile.",
+    "Top-quartile test gap — low test coverage relative to the repo average.",
+    "High blast radius — many callers depend on this file."
   ],
   "related_files": [
     {
@@ -152,6 +156,10 @@ How to use the fields (read in this order):
   you read anything else. When the file has no findings but does have
   related files, you'll instead see one line pointing you at the
   neighbourhood.
+- **`clues`** (new in `0.10.0`) is a short array of contextual hints
+  derived from the file's scoring context: churn band, test-gap quartile,
+  blast radius, and recency. Each clue is one sentence. They are advisory —
+  read them before deciding how carefully to edit.
 - **`related_files`** is a ranked, capped list (max 10) of other files
   in the repo that an agent should probably read before editing the
   target. Each entry carries a `reason` (`related to <charge>`,
@@ -174,9 +182,8 @@ string explaining why (e.g. `"no neighbourhood signal: …"`). Treat
 `[]` plus a reason as "we searched and found nothing", not as "we
 didn't search".
 
-### 1b. Pre-edit scan (before touching a directory)
-
-When the change spans more than one file, run a scoped scan instead:
+When the change spans more than one file, run a scoped directory scan instead
+of `crimes context` on each file individually:
 
 ```bash
 crimes scan path/to/dir --format json
@@ -194,7 +201,14 @@ What to do with the result:
   detector thinks is safe. They are heuristics, not instructions — pick the
   ones that match the user's request.
 
-### 1c. Pre/post-edit on just the changed files
+---
+
+### 2. Scan and post-edit gates
+
+After making a change, re-scan to see whether you introduced new findings.
+The two most useful post-edit gates are:
+
+#### `crimes scan --changed` (narrow gate, preferred)
 
 `crimes scan --changed` restricts the scan to files changed in the working
 tree (staged, unstaged, and untracked), optionally including everything
@@ -264,144 +278,38 @@ treat it the same as a new high-severity finding in `crimes diff` — fix
 or surface the cause before completing the task. See
 [`docs/ci.md`](./ci.md) for the CI-side equivalent of this gate.
 
-### 1d. Comparing two committed refs (`crimes diff`)
+#### `crimes scan` (broad scan)
 
-When you have two committed refs and want the deltas — e.g. reviewing
-what a feature branch did vs `main`, or what landed on `main` between
-two releases — use `crimes diff`:
-
-```bash
-crimes diff main...HEAD --format json
-crimes diff origin/main...HEAD --format json
-crimes diff v0.1.0...HEAD --format json
-```
-
-The range must be the triple-dot form (`<base>...<head>`).
-
-`crimes diff` is **working-tree-safe**: it exports each ref into a fresh
-temp directory via `git archive` and scans it there. No checkout, no
-stash, no temporary commits — your dirty working tree is preserved.
-
-The JSON shape:
-
-```jsonc
-{
-  "schema_version": "0.1.0",
-  "report_type": "diff",
-  "repo": { "name": "...", "root": "..." },
-  "base": "main",
-  "head": "HEAD",
-  "summary": { "new": 2, "fixed": 1, "unchanged": 8 },
-  "new_findings": [ /* same Finding shape as crimes scan */ ],
-  "fixed_findings": [ /* ... */ ],
-  "unchanged_findings": [ /* ... */ ]
-}
-```
-
-How to use the fields:
-
-- **`summary.new`** is the headline gate: if it is `> 0` and any of those
-  findings are `severity: "high"`, treat the branch as introducing
-  regressions and either fix or surface them to the user.
-- **`new_findings[]`** carry the full `Finding` shape — quote `evidence`
-  and `lines` back when explaining what changed.
-- **`fixed_findings[]`** are wins. Mention which charges this branch
-  cleared when summarising the work.
-- **`unchanged_findings[]`** are pre-existing debt. Don't relitigate
-  them in the diff conversation — they were there before the branch.
-
-How findings are matched across the two refs: stable fingerprint
-`<type>::<file>::<symbol-or-empty>`, not the per-scan `id`. Small line
-shifts from unrelated edits do **not** register as fix + new. See
-[`docs/json-schema.md`](./json-schema.md#diffreport-output-of-crimes-diff-basehead)
-for the full fingerprint rationale and known limitations (file renames
-register as fix + new, identical-name nested helpers collide on one
-fingerprint).
-
-Decision rule, same as the rest of the workflow: a new `severity:
-"high"` finding in `new_findings` is a blocker unless the user
-explicitly accepts the risk.
-
-### 1e. Gating CI on the saved baseline (`crimes baseline`)
-
-When the repo has a committed `.crimes/baseline.json`, the agent loop can
-run the same gate CI uses:
+A directory scan is most useful at the start of a multi-file task, or
+when you want to understand the overall risk profile of a subtree:
 
 ```bash
-crimes baseline check --format json
-crimes baseline check --fail-on high --format json   # stricter gate
+crimes scan .                            # file-grouped, top 5 files (default)
+crimes scan . --top 10                   # show top 10 files
+crimes scan . --flat                     # revert to severity-grouped output
+crimes scan . --all                      # every finding across every file
+crimes scan . --no-recency               # disable recency weighting in ranking
+crimes scan . --format json              # stable JSON contract
 ```
 
-`crimes baseline save` writes the snapshot; `crimes baseline check`
-compares the current scan to that snapshot and fails on findings absent
-from the baseline. Adoption flow:
+The default human output groups findings by file, sorted by aggregate risk
+(churn × test-gap quartile × blast radius × recency). Each file header
+shows the finding count, high/medium tally, and a one-line Risk summary.
+Use `--flat` if you want the old severity-grouped list; use `--all` to
+see every finding without a file cap.
 
-```bash
-crimes baseline save               # one-time per repo
-git add .crimes/baseline.json
-git commit -m "Add crimes baseline"
-# … later, on every PR …
-crimes baseline check
-```
+Decision rule (same for all scan commands):
 
-The JSON shape:
+- If your edit introduced a **new `severity: "high"` finding**, treat it as a
+  blocker — either fix it before continuing, or surface it to the user with a
+  short justification.
+- If `agent_risk` increased on a touched file, slow down: you may have added
+  a hidden source of truth, a duplicate rule, or a misleading name.
+- If the total counts in `summary` went down, you are in a good state.
 
-```jsonc
-{
-  "schema_version": "0.1.0",
-  "report_type": "baseline_check",
-  "repo": { "name": "...", "root": "..." },
-  "baseline_path": "/abs/path/to/.crimes/baseline.json",
-  "fail_on": "medium",
-  "failed": false,
-  "summary": {
-    "total_baseline": 5, "total_current": 5,
-    "new": 0, "fixed": 0, "unchanged": 5,
-    "new_by_severity": { "high": 0, "medium": 0, "low": 0 }
-  },
-  "new_findings": [ /* same Finding shape as crimes scan */ ],
-  "fixed_findings": [ /* BaselineEntry — fingerprint + identity fields */ ],
-  "unchanged_findings": [ /* same Finding shape as crimes scan */ ]
-}
-```
+---
 
-How to use the fields:
-
-- **`failed`** is the gate. `true` → at least one new finding meets the
-  `--fail-on` threshold; exit `1`. `false` → exit `0`.
-- **`new_findings[]`** carry the full `Finding` shape. Quote `evidence`
-  and `lines` when explaining what's new vs the baseline.
-- **`fixed_findings[]`** are `BaselineEntry` records (fingerprint + type
-  + charge + severity + file + symbol). Mention which charges this
-  branch retired. The minimal shape is intentional — once a finding is
-  fixed, its old `lines` / `evidence` no longer make sense.
-- **`unchanged_findings[]`** are the legacy debt the baseline pins.
-  Don't relitigate them in the conversation — they were already
-  accepted when the baseline was committed.
-
-`--fail-on` thresholds:
-
-| Value      | A new finding fails when its severity is …       |
-| ---------- | ------------------------------------------------ |
-| `"low"`    | low, medium, or high                             |
-| `"medium"` | medium or high _(default)_                       |
-| `"high"`   | high only                                        |
-
-Exit codes:
-
-| Exit | Meaning                                                                       |
-| ---- | ----------------------------------------------------------------------------- |
-| `0`  | No new findings at or above `--fail-on`.                                      |
-| `1`  | At least one new finding at or above `--fail-on` — blocking.                  |
-| `2`  | Missing or malformed `.crimes/baseline.json`, or a bad flag.                  |
-
-Findings are matched by the same stable fingerprint
-`<type>::<file>::<symbol-or-empty>` as `crimes diff` — small line shifts
-don't register as fix + new. See
-[`docs/json-schema.md`](./json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson)
-for the full schema and known limitations.
-
-### 1f. Branch-level verdict (`crimes verdict`)
+### 3. Verdict (`crimes verdict`)
 
 When the agent finishes a task and wants a one-line "did this branch
 help or hurt the repo?" answer, run `crimes verdict`. It is built on top
@@ -486,33 +394,7 @@ finding, the agent should treat that as a blocker — same rule as the
 rest of this document. When the verdict is `mixed`, surface the
 trade-off rather than silently merging.
 
-### 2. Make the edit
-
-Apply your change. `crimes` does not run during editing; it has no LSP and no
-watch mode.
-
-### 3. Post-edit scan (after writing the change)
-
-Re-run the same scan and **diff the findings against the pre-edit run**:
-
-```bash
-crimes scan path/to/file-or-dir --format json
-```
-
-Decision rule:
-
-- If your edit introduced a **new `severity: "high"` finding**, treat it as a
-  blocker — either fix it before continuing, or surface it to the user with a
-  short justification ("I'm leaving this God Function because the user asked
-  for the smallest possible diff").
-- If `agent_risk` increased on a touched file, slow down: you may have added
-  a hidden source of truth, a duplicate rule, or a misleading name.
-- If the total counts in `summary` went down, you are in a good state.
-
-This pre/post pattern is the single highest-leverage way to use `crimes` from
-inside an agent loop. It catches the class of regressions that linters do not
-see: code that compiles, passes tests, and still makes the repo harder to
-change next time.
+---
 
 ### 4. Communicate trade-offs explicitly
 
@@ -528,6 +410,162 @@ Good:
 Bad:
 
 > Done.
+
+---
+
+## Supporting commands
+
+### `crimes hotspots` — where in the repo is change-risk highest?
+
+`crimes hotspots` uses git history to rank files by change-risk; on a
+shallow clone (common in CI runners that default to `--depth=1`) the
+report sets an optional top-level **`history_limited: true`** plus a
+short `history_limited_reason`. When you see those, treat the ranking
+as advisory — older commits are missing from the local copy. Deepen
+the clone (`fetch-depth: 0` in GitHub Actions) to clear the flag.
+
+```bash
+crimes hotspots --format json
+crimes hotspots --since 90d --format json
+crimes hotspots --all --format json
+```
+
+### `crimes diff` — new / fixed / unchanged findings between two refs
+
+When you have two committed refs and want the deltas — e.g. reviewing
+what a feature branch did vs `main`, or what landed on `main` between
+two releases — use `crimes diff`:
+
+```bash
+crimes diff main...HEAD --format json
+crimes diff origin/main...HEAD --format json
+crimes diff v0.1.0...HEAD --format json
+```
+
+The range must be the triple-dot form (`<base>...<head>`).
+
+`crimes diff` is **working-tree-safe**: it exports each ref into a fresh
+temp directory via `git archive` and scans it there. No checkout, no
+stash, no temporary commits — your dirty working tree is preserved.
+
+The JSON shape:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "diff",
+  "repo": { "name": "...", "root": "..." },
+  "base": "main",
+  "head": "HEAD",
+  "summary": { "new": 2, "fixed": 1, "unchanged": 8 },
+  "new_findings": [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* ... */ ],
+  "unchanged_findings": [ /* ... */ ]
+}
+```
+
+How to use the fields:
+
+- **`summary.new`** is the headline gate: if it is `> 0` and any of those
+  findings are `severity: "high"`, treat the branch as introducing
+  regressions and either fix or surface them to the user.
+- **`new_findings[]`** carry the full `Finding` shape — quote `evidence`
+  and `lines` back when explaining what changed.
+- **`fixed_findings[]`** are wins. Mention which charges this branch
+  cleared when summarising the work.
+- **`unchanged_findings[]`** are pre-existing debt. Don't relitigate
+  them in the diff conversation — they were there before the branch.
+
+How findings are matched across the two refs: stable fingerprint
+`<type>::<file>::<symbol-or-empty>`, not the per-scan `id`. Small line
+shifts from unrelated edits do **not** register as fix + new. See
+[`docs/json-schema.md`](./json-schema.md#diffreport-output-of-crimes-diff-basehead)
+for the full fingerprint rationale and known limitations (file renames
+register as fix + new, identical-name nested helpers collide on one
+fingerprint).
+
+Decision rule, same as the rest of the workflow: a new `severity:
+"high"` finding in `new_findings` is a blocker unless the user
+explicitly accepts the risk.
+
+### `crimes baseline` — gating CI on the saved baseline
+
+When the repo has a committed `.crimes/baseline.json`, the agent loop can
+run the same gate CI uses:
+
+```bash
+crimes baseline check --format json
+crimes baseline check --fail-on high --format json   # stricter gate
+```
+
+`crimes baseline save` writes the snapshot; `crimes baseline check`
+compares the current scan to that snapshot and fails on findings absent
+from the baseline. Adoption flow:
+
+```bash
+crimes baseline save               # one-time per repo
+git add .crimes/baseline.json
+git commit -m "Add crimes baseline"
+# … later, on every PR …
+crimes baseline check
+```
+
+The JSON shape:
+
+```jsonc
+{
+  "schema_version": "0.1.0",
+  "report_type": "baseline_check",
+  "repo": { "name": "...", "root": "..." },
+  "baseline_path": "/abs/path/to/.crimes/baseline.json",
+  "fail_on": "medium",
+  "failed": false,
+  "summary": {
+    "total_baseline": 5, "total_current": 5,
+    "new": 0, "fixed": 0, "unchanged": 5,
+    "new_by_severity": { "high": 0, "medium": 0, "low": 0 }
+  },
+  "new_findings": [ /* same Finding shape as crimes scan */ ],
+  "fixed_findings": [ /* BaselineEntry — fingerprint + identity fields */ ],
+  "unchanged_findings": [ /* same Finding shape as crimes scan */ ]
+}
+```
+
+How to use the fields:
+
+- **`failed`** is the gate. `true` → at least one new finding meets the
+  `--fail-on` threshold; exit `1`. `false` → exit `0`.
+- **`new_findings[]`** carry the full `Finding` shape. Quote `evidence`
+  and `lines` when explaining what's new vs the baseline.
+- **`fixed_findings[]`** are `BaselineEntry` records (fingerprint + type
+  + charge + severity + file + symbol). Mention which charges this
+  branch retired. The minimal shape is intentional — once a finding is
+  fixed, its old `lines` / `evidence` no longer make sense.
+- **`unchanged_findings[]`** are the legacy debt the baseline pins.
+  Don't relitigate them in the conversation — they were already
+  accepted when the baseline was committed.
+
+`--fail-on` thresholds:
+
+| Value      | A new finding fails when its severity is …       |
+| ---------- | ------------------------------------------------ |
+| `"low"`    | low, medium, or high                             |
+| `"medium"` | medium or high _(default)_                       |
+| `"high"`   | high only                                        |
+
+Exit codes:
+
+| Exit | Meaning                                                                       |
+| ---- | ----------------------------------------------------------------------------- |
+| `0`  | No new findings at or above `--fail-on`.                                      |
+| `1`  | At least one new finding at or above `--fail-on` — blocking.                  |
+| `2`  | Missing or malformed `.crimes/baseline.json`, or a bad flag.                  |
+
+Findings are matched by the same stable fingerprint
+`<type>::<file>::<symbol-or-empty>` as `crimes diff` — small line shifts
+don't register as fix + new. See
+[`docs/json-schema.md`](./json-schema.md#baseline-on-disk-shape-of-crimesbaselinejson)
+for the full schema and known limitations.
 
 ---
 
@@ -631,10 +669,20 @@ for an agent: it stays high even when the local severity is low, when the
 area is structurally confusing (multiple sources of truth, weak tests, hidden
 side effects, etc.).
 
-Default sort order is severity-first (`high → medium → low`), then confidence,
-then file path, then line number. You can re-sort by `scores.agent_risk` if
-your goal is "what should I read before editing", rather than "what is most
-broken".
+**`scores.test_gap` — note for agents comparing exact values.** From
+`0.10.0`, `test_gap` is a repo-relative quartile value (`0 / 0.25 / 0.5 /
+0.75 / 1.0`) rather than the fixed mapping (`{0, 0.5, 1.0}`) used before.
+Agents that compared `test_gap === 1` should switch to `test_gap >= 0.75`.
+
+**`Finding.tier`** (new in `0.10.0`) tags each finding with one of `domain` ·
+`glue` · `test` · `infra` · `generated`. The compact scan line shows the tier
+prefix for non-domain findings so you can quickly see whether a high-risk
+finding is in production domain code or supporting infrastructure.
+
+Default sort order is aggregate risk-first (rank_score, derived from severity,
+confidence, churn, test-gap, blast radius, and recency), then file path, then
+line number. You can re-sort by `scores.agent_risk` if your goal is "what
+should I read before editing", rather than "what is most broken".
 
 ---
 
@@ -684,6 +732,9 @@ rely on them in agent instructions yet:
 | `crimes scan --changed`                | ✅ shipped              |
 | `crimes scan --changed --base <ref>`   | ✅ shipped              |
 | `crimes scan --changed --fail-on <severity>` | ✅ shipped (`0.2.0`) |
+| `crimes scan --top <n>`                | ✅ shipped (`0.10.0`)   |
+| `crimes scan --flat`                   | ✅ shipped (`0.10.0`)   |
+| `crimes scan --no-recency`             | ✅ shipped (`0.10.0`)   |
 | `crimes context <file>`                | ✅ shipped              |
 | `crimes context <file> --format json`  | ✅ shipped              |
 | `crimes hotspots [path]`               | ✅ shipped              |
@@ -708,6 +759,7 @@ rely on them in agent instructions yet:
 | `crimes audit-suppressions` | ✅ shipped (`0.5.0`) |
 | `crimes explain <id-or-fingerprint> [--from <scan.json>]` | ✅ shipped (`0.5.0`) |
 | `crimes init [--force]`                | ✅ shipped (`0.5.0`)    |
+| `crimes init --no-detect`              | ✅ shipped (`0.10.0`)   |
 | `--show-suppressed` on `scan` / `context` / `baseline check` / `diff` / `verdict` | ✅ shipped (`0.5.0`) |
 | `Finding.suppressed` / `suppression_reason` / `*Report.suppressed_count` | ✅ shipped (`0.5.0`) |
 | Per-finding `scores.churn` / `scores.test_gap` / `scores.blast_radius` | ✅ shipped (`0.6.0`) |
@@ -724,16 +776,23 @@ rely on them in agent instructions yet:
 | Hot-path / portability detectors (`sync_io_in_hotpath`, `hardcoded_local_path`, `hardcoded_localhost`) | ✅ shipped (`0.8.0`) |
 | Asset detectors (`oversized_raster`, `raster_should_be_vector`, `svg_with_embedded_raster`) — second-pass walk over `**/*.{png,jpg,jpeg,gif,webp,avif,svg}` | ✅ shipped (`0.8.0`) |
 | `thresholds.assetWeight.{lowKb,mediumKb,highKb}` + `assets.include/exclude` config | ✅ shipped (`0.8.0`) |
+| File-grouped scan layout (`crimes scan` default) | ✅ shipped (`0.10.0`) |
+| `Finding.tier` + scope-tier classifier | ✅ shipped (`0.10.0`) |
+| `Finding.scores.recency` (0–1 decay factor) | ✅ shipped (`0.10.0`) |
+| `scores.test_gap` repo-relative quartile ranking | ✅ shipped (`0.10.0`) |
+| `ContextReport.clues` block | ✅ shipped (`0.10.0`) |
+| `scopeTiers.nonDomain` config key | ✅ shipped (`0.10.0`) |
+| `scan.topFiles` config key | ✅ shipped (`0.10.0`) |
+| Two-prompt auto-init with agent detection | ✅ shipped (`0.10.0`) |
 | `crimes ask` / LLM-assisted modes      | 🚧 deferred to `v1+`    |
 
-The pre/post-edit workflow works as plain `crimes scan <path> --format
-json` on the directory or file you are about to touch, `crimes diff
-<base...head>` for branch-level review, and `crimes verdict` for the
-one-line "did this branch help or hurt?" summary at the end of a task.
-For a hard CI gate you have four equivalent options: `crimes scan
---changed --fail-on`, `crimes baseline check --fail-on`, `crimes diff
---fail-on new-high | new-medium`, and `crimes verdict --fail-on` — see
-[`docs/ci.md`](./ci.md).
+The pre/post-edit workflow works as `crimes context <file> --format json`
+before touching a file, `crimes scan --changed --format json` after, and
+`crimes verdict` for the one-line "did this branch help or hurt?" summary
+at the end of a task. For a hard CI gate you have four equivalent options:
+`crimes scan --changed --fail-on`, `crimes baseline check --fail-on`,
+`crimes diff --fail-on new-high | new-medium`, and `crimes verdict --fail-on`
+— see [`docs/ci.md`](./ci.md).
 
 ## Using suppressions in an agent loop
 
@@ -789,6 +848,14 @@ workflow.
   tolerating absence in mixed-version environments (a `crimes scan`
   from a fixture saved before `0.6.0` still parses cleanly). See
   [`scoring.md`](./scoring.md) for the unified `agent_risk` formula.
+- `scores.test_gap` changed from a fixed three-point mapping to a
+  repo-relative quartile scale in `0.10.0`. Values are now `0 / 0.25 /
+  0.5 / 0.75 / 1.0`. Agents that compared `test_gap === 1` should
+  switch to `test_gap >= 0.75`.
+- `Finding.tier`, `Finding.scores.recency`, and `ContextReport.clues`
+  are new optional fields added in `0.10.0`. They are absent on scan
+  output from earlier versions; tolerate their absence in mixed-version
+  environments.
 - `related_files` is populated by the IA detectors (since `0.3.0`).
   Treat its absence on a structural finding as "no cross-file context
   for this finding".

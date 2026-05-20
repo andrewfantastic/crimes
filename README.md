@@ -45,21 +45,21 @@ npx crimes scan .
 ## Quick start
 
 ```bash
-# Scan the current directory (top 10 findings)
+# Pre-edit briefing for one file (findings + likely tests + agent notes)
+crimes context src/billing/tax.ts --format json
+
+# Scan the current directory (file-grouped, top 5 files)
 crimes scan .
 
 # Stable JSON output — the product contract
 crimes scan . --format json
 
-# Show every finding, not just the top 10
+# Show every finding, not just the top files
 crimes scan . --all
 
-# Pre-edit briefing for one file (findings + likely tests + agent notes)
-crimes context src/billing/tax.ts --format json
-
-# Scan only files changed in the working tree (post-edit gate inside an agent loop)
+# Scan only files changed in the working tree (post-edit gate)
 crimes scan --changed --format json
-crimes scan --changed --base main --format json   # + commits on this branch
+crimes scan --changed --base main --format json
 
 # Rank files by Git churn × current findings
 crimes hotspots --since 90d --format json
@@ -69,20 +69,58 @@ You should see a colourful **CRIME SCENE REPORT** printed to your terminal.
 
 ---
 
-## Status — `crimes@0.9.2`
+## Status — `crimes@0.10.0`
 
-`crimes@0.9.2` is the latest published version on npm — a _UX-only
-patch_. Two threads: a single emoji severity glyph
-(🚨 high · ⚠️ medium · 🔎 low) prefixes every finding and severity
-heading in the human report, with ✅ / ❌ on the `--fail-on` gate
-line and ✨ on the "no crimes detected" empty state — suppressed
-when stdout isn't a TTY, when `NO_COLOR` is set, or when
-`--no-color` is passed, so JSON output, CI logs, and piped
-invocations stay emoji-free. Plus the metadata housekeeping after
-the repo transferred to [`ortomate/crimes`](https://github.com/ortomate/crimes):
-`repository.url` / `bugs.url` updated, every documentation deep
-link rewritten, npm Trusted Publisher config moved to the new org.
-No new detectors, no schema change. Release notes:
+`crimes@0.10.0` is the latest published version on npm — the
+**Release A front-door redesign**. The default `crimes scan` now
+groups findings by file instead of severity, showing the top-risk
+files first so the first screen tells you what to fix rather than
+listing everything at once. `crimes context` leads in every
+entry-point — the welcome banner, `--help`, this README, and the
+agent docs — because it is the single most useful command before
+an edit. Release notes:
+[`docs/releases/v0.10.0.md`](./docs/releases/v0.10.0.md).
+
+What's in `0.10.0`:
+
+- **File-grouped `scan` layout.** Default `crimes scan` groups
+  findings by file, sorted by aggregate risk (churn × test gap ×
+  blast radius × recency). Top 5 files shown by default; `--top N`
+  overrides. `--flat` reverts to the old severity-grouped list.
+  `--all` still shows every finding across every file.
+- **Repo-relative `test_gap` quartile.** `Finding.scores.test_gap`
+  is now a quartile-ranked value (0 / 0.25 / 0.5 / 0.75 / 1.0)
+  computed against the distribution of test coverage across all
+  files in the repo, not the prior fixed `{0, 0.5, 1.0}` mapping.
+  Agents that compared exact values (`if test_gap === 1`) should
+  switch to `>= 0.75`.
+- **Recency-weighted ranking.** `Finding.scores.recency` carries a
+  0–1 decay factor (1 = committed in the last 7 days, 0 = untouched
+  for ≥ 180 days). The rank score multiplies recency in so recently-
+  changed risky files surface first. `--no-recency` disables the
+  recency multiplier.
+- **`Finding.tier` and `scopeTiers.nonDomain` config.** Each finding
+  is now tagged with a tier (`domain` · `glue` · `test` · `infra` ·
+  `generated`); the compact scan line shows the tier prefix for
+  non-domain findings. `scopeTiers.nonDomain` in `crimes.config.json`
+  lets you declare additional non-domain path patterns.
+- **`clues` block on `crimes context --json`.** `ContextReport` gains
+  an optional `clues` array of short contextual hints derived from
+  the file's scoring context (churn band, test-gap quartile, blast
+  radius, recency). Agents can surface these directly.
+- **Two-prompt auto-init.** Running `crimes` on a repo with no
+  `crimes.config.json` triggers a short two-question prompt to
+  generate an agent-aware config. Agent environments detected via
+  `CI` / `CODEX_SANDBOX` / `CLAUDE_CODE` env vars skip the prompt
+  and write a minimal config automatically. `crimes init --no-detect`
+  disables detection.
+- **New CLI flags.** `--top N` (scan: show top N files), `--flat`
+  (scan: revert to flat severity-grouped output), `--no-recency`
+  (scan: disable recency weighting), `crimes init --no-detect` (skip
+  agent-environment detection).
+
+Earlier `0.9.2` work (_emoji severity glyphs + org migration_)
+remains shipped. Release notes:
 [`docs/releases/v0.9.2.md`](./docs/releases/v0.9.2.md).
 
 Earlier `0.9.1` work (_visible welcome banner on bare `crimes`_)
