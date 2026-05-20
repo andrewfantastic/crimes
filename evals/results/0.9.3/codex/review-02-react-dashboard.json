@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "codex",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:31:07.147Z",
+  "run_id": "6416c505-092f-4558-9958-7c196995de31",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4301-e5ca-7593-b7a1-ea7cf39fc937\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No findings to categorize.\\n\\n`crimes scan --format json` reported:\\n\\n- `total: 0`\\n- `high: 0`\\n- `medium: 0`\\n- `low: 0`\\n- `findings: []`\\n\\n**By Detector Type**\\n\\nNo detector types were present in the scan output, so there are no dead code, magic literal, repeated role check, or other petty/single-file findings to classify as `block merge`, `warn`, or `ignore`.\\n\\n**Merge Recommendation**\\n\\nProceed from the `crimes` perspective. There are no reported findings with severity or `scores.agent_risk` values that would justify blocking or warning on this PR.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18536,\"cached_input_tokens\":12160,\"output_tokens\":194,\"reasoning_output_tokens\":50}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

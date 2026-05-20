@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:22:55.797Z",
+  "run_id": "a15cb7b5-283d-450f-a95f-373c4b580134",
+  "response": "## Cycle\n\n```\napplication/billing-flow.ts → domain/billing.ts → presentation/invoice-view.ts → application/billing-flow.ts\n```\n\n## Break the `domain → presentation` edge\n\nRemove `domain/billing.ts:2`'s import of `renderInvoice` from `presentation/invoice-view.ts`. Refactor `chargeCustomer` to return a domain result (e.g., the charged amount) and let the caller render the invoice.\n\n```ts\n// domain/billing.ts — after\nexport function chargeCustomer(amount: number): number {\n  // ...charge logic...\n  return amount;\n}\n```\n\n```ts\n// presentation/invoice-view.ts — after\nexport function renderInvoice(amount: number): string {\n  return `Invoice: ${amount}`;\n}\n```\n\n`runBillingFlow` then composes them: `renderInvoice(chargeCustomer(100))`.\n\n## Why this edge, not the other two\n\n- **It's the only edge that's also architecturally wrong.** Crimes flags it as a separate `layer_violation` (`domain cannotImport presentation`). Domain is the innermost layer — it should know nothing about how invoices are rendered. The other two edges (`application → domain`, `presentation → application`) point in the correct direction and are worth keeping.\n- **It inverts control.** `chargeCustomer` currently delegates its return value to a presentation function, which calls back into application — that's what closes the ring. Returning a plain value from the domain function eliminates the back-edge entirely.\n- **Smaller blast radius than the alternatives.** Breaking `application → domain` would require duplicating the domain API; breaking `presentation → application` would mean presentation can't trigger flows. Breaking `domain → presentation` only requires moving formatting one frame up — where it belonged.\n\n`import type` is **not** the right fix here: `renderInvoice` is called at runtime, not used as a type. The edge has to go, not be relabeled.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "layer_violation",
+        "passed": false
+      }
+    ]
+  }
+}

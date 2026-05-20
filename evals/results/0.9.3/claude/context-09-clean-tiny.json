@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:24:12.348Z",
+  "run_id": "ba6daf69-fdcd-4bed-b096-abba2cce3bce",
+  "response": "`crimes context src/add.ts --format json` returned `summary.total: 0` and `findings: []` — schema_version 0.1.0, repo `09-clean-tiny`. No structural, dependency, duplication, testability, or history findings on this file.\n\nSafe to extend. No blockers, no `agent_risk` hotspots to slow down for. After editing, re-run `crimes scan --changed --format json` as the post-edit gate.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

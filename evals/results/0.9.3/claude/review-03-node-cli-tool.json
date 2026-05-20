@@ -1,0 +1,48 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:31:52.008Z",
+  "run_id": "c133a3a5-d030-4c06-b99a-15ad20270db7",
+  "response": "# Review verdict — nothing to block, nothing to warn\n\n`crimes scan --format json` on `evals/fixtures/03-node-cli-tool` returned an empty finding set:\n\n```\nsummary.total = 0,  high = 0,  medium = 0,  low = 0\nfindings      = []\n```\n\nPer the skill's reading rules (`evidence[]` is ground truth, `severity`/`scores.agent_risk` drive triage), there are **no findings to triage** — no block-merge calls, no warns, no ignores. The scenario asks me to enumerate \"dead code, prose-rules-in-comments, magic literals, weak test assertions, large files,\" but crimes flagged none of them on this fixture. I won't invent findings to fill the table.\n\n## Why the scenario and the scan disagree\n\nA few of the categories the prompt names aren't in crimes' detector set at all — that's deliberate, per the PRD:\n\n| Scenario category | In crimes' v0 detectors? | Notes |\n|---|---|---|\n| Large files | Yes (structural: `large_file`, `large_function`) | Didn't trip — fixture likely under thresholds |\n| Dead code | No | Out of scope; that's a linter/tsc job |\n| Prose rules in comments | No | Not a style/lint product |\n| Magic literals | Partial (`repeated_string_literal`) | Only flags *repetition*, not single occurrences |\n| Weak test assertions | No | Test-quality is deferred to v0.2 (`crimes tests`) |\n\n`CLAUDE.md` is explicit: crimes is **not** trying to replace ESLint/Biome (style), Semgrep (security), or SonarQube (platform). Asking it for dead-code or weak-assertion verdicts is asking the wrong tool.\n\n## Recommended next step\n\nTwo reasonable interpretations — your call:\n\n1. **Trust the scan**: zero findings, zero blockers. The PR merges. (This is the literal answer to the scenario as posed: `crimes scan` is the contract.)\n2. **The fixture is under-instrumented for this eval**: if the eval expects crimes to surface those agent-risk categories, the fixture either needs to actually trigger existing detectors (e.g., add a function over the size threshold, a circular import, or a duplicated string), or the scenario prompt should be rescoped to categories crimes actually detects.\n\nWant me to look at the fixture source and tell you which interpretation is right — i.e., whether the fixture *should* be tripping detectors and isn't, vs. whether the scenario prompt is asking for things outside crimes' wedge?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": "large_file",
+        "passed": false
+      }
+    ]
+  }
+}

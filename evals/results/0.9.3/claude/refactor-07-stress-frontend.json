@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:27:54.077Z",
+  "run_id": "c161b4cf-1439-46c1-9717-9d378d135a30",
+  "response": "Now I have the file and the findings. Here's the refactor proposal, tied to each finding.\n\n## Refactor proposal for `src/Card.tsx`\n\n### 1. Accessible Interaction Risk (crime_00001) — line 10 `<div onClick>`\n\nThe outer wrapper handles a click but is rendered as a `<div>` with no `role`, `tabIndex`, or keyboard handler — keyboard and AT users can't reach it.\n\n**Fix:** if the whole card is meant to be activatable, render it as a `<button type=\"button\">` (or `<a href>` if it navigates). If only part of the card is interactive, lift the click to a real button inside and leave the card non-interactive.\n\n```tsx\n<button\n  type=\"button\"\n  onClick={() => console.log(\"clicked\")}\n  className={styles.card}\n>\n  …\n</button>\n```\n\nIf the wrapper must stay a `<div>` for layout reasons, the minimum viable patch is `role=\"button\"`, `tabIndex={0}`, and an `onKeyDown` handler that fires on `Enter`/`Space` — but a real `<button>` is preferred because it gets focus styles, activation semantics, and AT exposure for free.\n\n### 2. Design Token Escape (crime_00002) — 9 raw style literals on lines 10/24\n\nHex/rgb/px values are inlined into `style={{…}}`, so the next agent editing the file has no signal that a token system exists.\n\n**Fix:** move the styling out of `style` and into CSS (CSS Modules / Tailwind / styled-system — whichever the project uses) so values resolve from tokens:\n\n```tsx\n// Card.module.css\n.card {\n  background: var(--color-surface-accent);   /* was #ff00aa */\n  color: var(--color-text-primary);          /* was #0a0a0a */\n  border-color: var(--color-border-subtle);  /* was #cccccc */\n  box-shadow: var(--shadow-sm);              /* was \"0 2px 4px rgb(0,0,0)\" */\n  outline-color: var(--color-focus-ring);    /* was #1a73e8 */\n  padding: var(--space-6);                   /* was 24 */\n}\n.body  { color: var(--color-text-primary); font-size: var(--text-md); }\n.aside { color: var(--color-text-muted);   font-size: var(--text-sm); }\n```\n\nThe point isn't to invent token names — it's that **none of these colors should be hex literals in JSX**. If no token system exists yet, this finding is the prompt to add one before the next agent copy-pastes `#ff00aa` into a sibling component.\n\n### 3. Responsive Fragility (crime_00003) — fixed `width: 800` / `720`, no `@media`\n\nThree fixed-px widths and a fixed font-size with no media query — the card overflows the viewport below ~820px.\n\n**Fix:** swap fixed widths for fluid sizing and let the inner grid collapse:\n\n```css\n.card {\n  width: 100%;\n  max-width: 50rem;          /* was width: 800 */\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 15rem;  /* body + sidebar */\n  gap: var(--space-4);\n}\n.body  { min-width: 0; font-size: clamp(1rem, 1vw + 0.75rem, 1.125rem); }\n.aside { font-size: var(--text-sm); }\n\n@media (max-width: 640px) {\n  .card { grid-template-columns: 1fr; }   /* sidebar stacks under body */\n  .aside { width: 100%; }\n}\n```\n\nKey moves: `width: 100%` + `max-width` instead of fixed `800px`/`720px`, `clamp()` for the body font-size, and a single breakpoint that collapses the 2-column grid into one column on narrow viewports.\n\n### Resulting component\n\n```tsx\nimport styles from \"./Card.module.css\";\n\nexport function Card({\n  children,\n  onActivate,\n}: {\n  children: React.ReactNode;\n  onActivate?: () => void;\n}) {\n  const Wrapper = onActivate ? \"button\" : \"div\";\n  return (\n    <Wrapper\n      {...(onActivate && { type: \"button\", onClick: onActivate })}\n      className={styles.card}\n    >\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.aside}>sidebar</aside>\n    </Wrapper>\n  );\n}\n```\n\nEach change maps 1:1 to a finding: `<button>` clears `accessible_interaction_risk`, the CSS-module token references clear `design_token_escape`, and the fluid grid + `@media` query clears `responsive_fragility`.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      }
+    ]
+  }
+}
