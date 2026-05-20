@@ -297,8 +297,12 @@ describe("recencyForDate", () => {
     expect(recencyForDate("2026-05-20T11:00:00Z", now)).toBe(1);
   });
 
-  it("returns 1.0 for any commit within the last 7 days", () => {
-    expect(recencyForDate("2026-05-14T12:00:00Z", now)).toBe(1);
+  it("returns 1.0 at exactly the 7-day boundary", () => {
+    expect(recencyForDate("2026-05-13T12:00:00Z", now)).toBe(1);
+  });
+
+  it("returns 1.0 for a commit a few days ago (mid-window)", () => {
+    expect(recencyForDate("2026-05-17T12:00:00Z", now)).toBe(1);
   });
 
   it("linearly decays between 7 and 14 days", () => {
@@ -313,6 +317,10 @@ describe("recencyForDate", () => {
 
   it("returns 0 for missing/undefined input (no churn signal)", () => {
     expect(recencyForDate(undefined, now)).toBe(0);
+  });
+
+  it("returns 0 for an unparsable date string", () => {
+    expect(recencyForDate("not-a-date", now)).toBe(0);
   });
 });
 
