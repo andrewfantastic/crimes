@@ -127,7 +127,7 @@ describe("parseGitLog", () => {
     ].join("\n");
     const parsed = parseGitLog(output);
     expect(parsed).toEqual([
-      { file: "src/a.ts", changeCount: 1, latestChange: "2026-05-10T09:00:00+00:00" },
+      { file: "src/a.ts", changeCount: 1, latestChange: "2026-05-10T09:00:00+00:00", uniqueAuthors: 0 },
     ]);
   });
 
@@ -199,6 +199,18 @@ describe("findEnclosingGitRepo", () => {
   });
 });
 
+/** Minimal repo helper: create a temp dir, initialise git, write files. */
+async function makeRepo(files: Record<string, string>): Promise<string> {
+  const raw = await mkdtemp(join(tmpdir(), "crimes-churn-makeRepo-"));
+  const root = await realpath(raw);
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = join(root, rel);
+    await mkdir(join(root, rel, ".."), { recursive: true });
+    await writeFile(abs, content);
+  }
+  return root;
+}
+
 describe("collectChurn enclosing-repo lookup", () => {
   let repo: string;
 
@@ -260,5 +272,52 @@ describe("collectChurn enclosing-repo lookup", () => {
     } finally {
       await rm(real, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * A git helper that does NOT override GIT_AUTHOR_* / GIT_COMMITTER_* env
+ * vars so that `-c user.name=X -c user.email=Y` args are actually honoured.
+ * Used only in the author-tracking test.
+ */
+async function gitBare(cwd: string, ...args: string[]): Promise<void> {
+  await execFileAsync("git", args, { cwd });
+}
+
+describe("collectChurn — author tracking", () => {
+  it("counts unique committers per file across the window", async () => {
+    const root = await makeRepo({ "src/a.ts": "x" });
+    await gitBare(root, "init", "--initial-branch=main", "--quiet");
+    await gitBare(root, "config", "commit.gpgsign", "false");
+    await gitBare(root, "add", "-A");
+    // Three commits, two distinct authors.
+    await gitBare(
+      root,
+      "-c", "user.name=Alice", "-c", "user.email=alice@example.com",
+      "commit", "-m", "c1", "--quiet",
+    );
+    await writeFile(join(root, "src/a.ts"), "y");
+    await gitBare(root, "add", "-A");
+    await gitBare(
+      root,
+      "-c", "user.name=Bob", "-c", "user.email=bob@example.com",
+      "commit", "-m", "c2", "--quiet",
+    );
+    await writeFile(join(root, "src/a.ts"), "z");
+    await gitBare(root, "add", "-A");
+    await gitBare(
+      root,
+      "-c", "user.name=Alice", "-c", "user.email=alice@example.com",
+      "commit", "-m", "c3", "--quiet",
+    );
+
+    const r = await collectChurn({ root, since: "1y" });
+    const a = r.files.find((f) => f.file === "src/a.ts");
+    expect(a).toBeDefined();
+    expect(a!.changeCount).toBe(3);
+    expect(a!.uniqueAuthors).toBe(2);
+    expect(a!.latestChange).toMatch(/^\d{4}-/);
+
+    await rm(root, { recursive: true, force: true });
   });
 });
