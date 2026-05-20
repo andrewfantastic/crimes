@@ -1,0 +1,48 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:30.424Z",
+  "run_id": "5b4d5e17-126c-477d-adc4-6990a27ff9b5",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c2-86fe-7332-afab-7a6d5ebfb453\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No agent-risk findings are present in the supplied `crimes scan --format json` output.\\n\\n`summary.total` is `0`, and `findings` is empty, so there are no detected cases of dead code, prose-rules-in-comments, magic literals, weak assertions, or large files to classify.\\n\\nDecision: **ignore / no action**  \\nJustification: no finding exists, so there is no `severity` or `scores.agent_risk` to evaluate. Based strictly on this scan result, I would **not block merge** on `crimes` findings for this PR.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18534,\"cached_input_tokens\":17792,\"output_tokens\":181,\"reasoning_output_tokens\":55}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

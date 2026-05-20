@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:02:43.539Z",
+  "run_id": "453f2595-91cd-4f0a-9dd5-7343a2c78495",
+  "response": "## Findings in scope\n\n- **crime_00002 — layer_violation** (`agent_risk: 0.56`): `src/domain/billing.ts` imports `src/presentation/invoice-view.ts`. Rule violated: `domain cannotImport presentation`.\n- **crime_00003 — deep_import** (`agent_risk: 0.45`): `src/application/billing-flow.ts` imports `some-pkg/dist/internal/private/helper.js`.\n\n(Worth noting: crime_00002's edge is also one of the three edges in the crime_00001 cycle. Fixing the layer violation breaks the cycle for free.)\n\n## Proposed changes\n\n**crime_00002 — break the domain→presentation edge, do not redirect it.**\n\nDomain importing presentation is architecturally inverted; there is no \"proper interface\" that legitimizes it. Two cases:\n\n- *If domain pulled a type/constant from `invoice-view.ts`*: that symbol belongs in domain. Move it down into `src/domain/`, then have `invoice-view.ts` import it from domain. Dependency now flows presentation → domain, matching the rule.\n- *If domain wanted behavior from the view* (e.g., a formatter): declare an interface in domain (`InvoiceRenderer` or similar), have presentation implement it, and let the **application** layer wire the implementation into domain via constructor/parameter injection. Domain depends only on its own abstraction.\n\nEither way, the literal `import '…/presentation/invoice-view'` line in `src/domain/billing.ts` gets deleted. That clears crime_00002 and removes the cycle edge that crime_00001 reports.\n\n**crime_00003 — redirect to the published entry, do not \"break\" it.**\n\nReplace `import … from 'some-pkg/dist/internal/private/helper.js'` with an import from `some-pkg`'s documented entry (`import { helper } from 'some-pkg'`). If the symbol isn't on the public surface:\n\n1. File an upstream issue requesting it be exported.\n2. In the meantime, wrap the need behind a thin adapter in **infrastructure** (not application), so application code imports a local boundary type and only one file in the repo touches the deep path. When upstream exports the symbol, you delete the adapter.\n\nThis pulls the brittle import out of application code, where it has no business living per the four-layer model.\n\n## Why layer_violation outranks deep_import on agent risk\n\nSame blast radius, same confidence, similar churn — the gap (`0.56` vs `0.45`) is structural:\n\n- **Layer violation lies about the architecture.** `crimes.config.json` declares \"domain cannot import presentation\"; the code does it anyway. That is a *multiple-sources-of-truth* hazard — exactly the class of thing `agent_risk` is designed to catch. An agent (or a new human) reading the config will reason about domain as if it were pure, and will be wrong. Worse, layer violations metastasize: once one file crosses, the next \"small change\" copies the pattern, because the rule now reads as aspirational rather than enforced.\n- **Deep import lies about a package, not the codebase.** The hazard is upstream churn (`internal/private/` can vanish on a patch release), which is real but local and *visible* — the path itself advertises the crime. An agent grepping for that import sees the problem immediately; an agent reasoning about layer boundaries does not see a violation until it traces every import.\n\nPut another way: deep imports are a brittleness risk (will break later); layer violations are a *comprehension* risk (the map disagrees with the territory right now). The scoring favors the latter, which is the right call for an agent-native tool.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

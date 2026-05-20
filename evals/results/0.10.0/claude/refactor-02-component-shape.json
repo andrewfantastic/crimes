@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-02-component-shape",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:02:44.790Z",
+  "run_id": "7e193d05-95d0-4903-a43e-4b12d98598a4",
+  "response": "The scan output shows **zero findings** — no `duplicate_component_shape` finding (or any finding) was reported. `summary.total` is 0 and `findings` is empty.\n\nI can't ground a refactor proposal in evidence that isn't there. Per the project's own rule (\"Evidence before judgement … No verdicts without receipts\"), naming files to change and a component API based on a hypothetical finding would be fabrication.\n\nA few possibilities for what's going on:\n\n- **The `duplicate_component_shape` detector isn't implemented** in this version of crimes (or isn't enabled by default). The MVP detector list in `CLAUDE.md` covers exact/near-duplicate blocks and repeated literals but doesn't mention JSX-subtree-shape detection specifically.\n- **The fixture doesn't trip the detector** at current thresholds — the duplication may exist but fall below minimum block size / similarity score.\n- **A flag is needed** (e.g. `--all`, or a config that enables the JSX-shape check) for this finding class to surface.\n\nTo actually answer the scenario I'd need one of:\n1. A non-empty finding with `evidence.locations[]` pointing at the duplicated JSX subtrees, or\n2. Permission to read the fixture at `evals/fixtures/02-react-dashboard/` directly and propose the refactor from source inspection — but that's a different task than \"interpret this scan output.\"\n\nWant me to inspect the fixture directly and propose the shared component from the source, flagging it as source-derived rather than scan-derived?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/edit-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/starter-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      }
+    ]
+  }
+}

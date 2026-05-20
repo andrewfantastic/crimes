@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:00:45.327Z",
+  "run_id": "ae830b48-0389-45be-8aeb-4a9455b37373",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c1-c721-7ca2-8b24-2b2f83a84adc\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"`crimes scan --format json` reports no findings for `04-monorepo`:\\n\\n```json\\n\\\"summary\\\": {\\n  \\\"total\\\": 0,\\n  \\\"high\\\": 0,\\n  \\\"medium\\\": 0,\\n  \\\"low\\\": 0\\n},\\n\\\"findings\\\": []\\n```\\n\\nThat means the repo already clears the agent-facing context check. There is no missing `AGENTS.md` / `CLAUDE.md` / `SKILL.md` surface finding to raise, so future agent work should have some repo-provided guidance available and the PR does not need a minimal `AGENTS.md` just to satisfy this detector.\\n\\nNo remediation needed for this scenario.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18544,\"cached_input_tokens\":12160,\"output_tokens\":206,\"reasoning_output_tokens\":61}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

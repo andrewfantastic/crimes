@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:00:37.967Z",
+  "run_id": "72c2560f-6833-41ef-873b-31d88af413db",
+  "response": "## Confirmation\n\nThe scan confirms three overlapping duplications in `src/`:\n\n- **Near-duplicate (`crime_00002`, conf 0.85):** `sanitizeUserInput` / `sanitizeText` / `cleanMessage` across `src/sanitize-{a,b,c}.ts` — identical 27-line bodies modulo identifier renames.\n- **Exact duplicate (`crime_00001`, conf 0.95):** `recordSanitiseEvent` byte-identical in `src/telemetry-a.ts` and `src/telemetry-b.ts`.\n- **Role check drift (`crime_00003`, conf 0.7):** `\"admin\"` literal compared across `policy.ts` and the three `sanitize-*.ts` admin guards in *two different shapes* (`=== \"admin\"`, `=== \"admin\" || === \"owner\"`, `!== \"admin\"`) — the kind of silent drift that bites later.\n\n## Proposed refactor\n\n**Files that change**\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` *(new)* | Single sanitiser + admin-aware variant. |\n| `src/telemetry.ts` *(new)* | Single `recordSanitiseEvent` (with injected clock — closes the `direct_date` findings `crime_00004/00005` in one move). |\n| `src/policy.ts` | Add `isAdmin` / `isAdminOrOwner`; rewrite the three `canX` helpers to delegate. |\n| `src/sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` | Delete. Replace each consumer's import with `import { sanitize } from \"./sanitize\"`. Each call site picks the matching admin shape from `policy.ts` rather than the local `assertAdminA/B/C`. |\n| `src/telemetry-a.ts`, `telemetry-b.ts` | Delete; consumers import from `./telemetry`. |\n\nThe admin-shape divergence is *not* incidental — it has to be resolved before consolidation, not papered over. Each existing call site has to be assigned to one of the three semantics, and that decision should be visible in the diff.\n\n**Public API of the consolidated module**\n\n```ts\n// src/sanitize.ts\nexport interface SanitizeOptions {\n  maxLength?: number;       // default 1000\n  rejectAngleBrackets?: boolean;  // default true\n  rejectHexEscapes?: boolean;     // default true\n  maxRepeatedPunctuation?: number; // default 5\n  uppercaseRatioThreshold?: number; // default 0.9\n  uppercaseMinLength?: number;      // default 30\n}\n\nexport function sanitize(input: unknown, opts?: SanitizeOptions): string;\n\n// src/telemetry.ts\nexport interface Clock { now(): number; }\nexport const systemClock: Clock;\n\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  clock?: Clock,  // defaults to systemClock; tests inject a fake\n): void;\n\n// src/policy.ts (additions)\nexport function isAdmin(role: string): boolean;            // role === \"admin\"\nexport function isAdminOrOwner(role: string): boolean;     // role === \"admin\" || role === \"owner\"\n```\n\n`input: unknown` preserves the existing null/undefined-tolerant behaviour (`String(raw).trim()` already coerces). Options default to the current hardcoded numbers so no caller behaviour shifts on the first commit — tuning per-callsite happens as a follow-up.\n\n**Order of operations**\n\n1. Land `sanitize.ts` + `policy.ts` additions with full tests pinning current behaviour for each of the three inputs (`a`/`b`/`c` callers).\n2. Migrate callers one file at a time, choosing the admin predicate explicitly.\n3. Delete `sanitize-{a,b,c}.ts` once unimported.\n4. Land `telemetry.ts` with injected clock, migrate, delete `telemetry-{a,b}.ts`.\n5. Re-run `crimes scan` — expect `crime_00001`/`00002`/`00003`/`00004`/`00005` all gone.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

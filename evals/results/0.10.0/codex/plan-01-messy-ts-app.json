@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:39.131Z",
+  "run_id": "924f4aaa-eaf3-41d8-ae35-101e1946433e",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c2-5e54-7842-8b4b-cb00150a343d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Using the scan ranking as the primary signal, I’d triage the top 10 in this order. If `crimes verdict --format json` reports any of these as new or worsened, promote those ahead of same-severity unchanged findings.\\n\\n**Triage Order**\\n\\n| Order | Category | Finding | File | Response | Why |\\n|---:|---|---|---|---|---|\\n| 1 | structural | `crime_00002` `direct_date` | `src/date.ts` | fix now | High severity, broad temporal nondeterminism, likely root cause for several date findings. |\\n| 2 | structural | `crime_00003` `mixed_utc_local_methods` | `src/date.ts` | fix now | High severity and directly related to date correctness; should be fixed with `crime_00002`. |\\n| 3 | structural | `crime_00009` `timezone_unsafe_parse` | `src/date.ts` | fix now | Medium, but same cluster as the high date issues; cheap to fix while touching the file. |\\n| 4 | structural | `crime_00005` `large_function` | `src/billing.ts` | defer | High severity, but refactoring a 204-line billing function is higher blast-radius work. Do after correctness issues or with tests. |\\n| 5 | frontend | `crime_00001` `svg_with_embedded_raster` | `src/assets/partner-logo.svg` | fix now | High severity, low-risk asset cleanup; should be quick if source asset exists. |\\n| 6 | IA | `crime_00006` `missing_agent_context` | repo root | fix now | Medium but highly relevant to agent safety; adding `AGENTS.md` is low-risk and prevents future bad edits. |\\n| 7 | structural | `crime_00007` `hardcoded_localhost` | `src/api/files.ts` | fix now | Environment-specific failure; easy config/env extraction. |\\n| 8 | structural | `crime_00008` `hardcoded_local_path` | `src/api/files.ts` | fix now | Machine-specific failure; fix alongside `crime_00007`. |\\n| 9 | IA | `crime_00004` `concept_alias_drift` | docs/routes | defer | Real agent-risk, but needs product vocabulary decision before mechanical cleanup. |\\n| 10 | duplication | `crime_00010` `magic_domain_literal_scatter` | multiple files | defer | Centralize after deciding whether `enterprise` is a stable domain constant/policy term. |\\n\\n**Grouped View**\\n\\n**Structural**\\nFix now: `crime_00002`, `crime_00003`, `crime_00009`, `crime_00007`, `crime_00008`.\\n\\nDefer: `crime_00005`, because extracting `generateInvoice` should be done with tests and a narrow refactor plan.\\n\\n**Frontend**\\nFix now: `crime_00001`. This is asset-level and unlikely to disturb application behavior.\\n\\n**IA**\\nFix now: `crime_00006`.\\n\\nDefer: `crime_00004`, because canonical vocabulary needs a human/product decision.\\n\\n**Duplication**\\nDefer: `crime_00010`. Centralizing `\\\"enterprise\\\"` is useful, but only after confirming the right home: constant, enum, schema, or policy module.\\n\\n**Git-history**\\nNo top-10 findings are git-history driven in the provided scan. If the verdict output marks the branch `worse` or reports new high findings, use that as the override: new high > worsened medium > unchanged high.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":29979,\"cached_input_tokens\":18304,\"output_tokens\":973,\"reasoning_output_tokens\":221}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

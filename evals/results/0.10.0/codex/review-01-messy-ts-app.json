@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:08.470Z",
+  "run_id": "414a37a3-f0b9-4c70-be67-b3cf93e48c18",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c1-ad33-7bc2-8ae3-86d6beb353c3\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’d use this review policy: **block** on `high` severity or `agent_risk >= 0.55`; **warn** on `medium` severity or `low` findings with `agent_risk >= 0.50`; **ignore** on remaining low-risk noise.\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `svg_with_embedded_raster` | **Block merge** | `high`, `agent_risk 0.70`; highest-risk finding and asset contract is misleading. |\\n| `crime_00002` `direct_date` in `src/date.ts` | **Block merge** | `high`, `agent_risk 0.62`; nondeterministic domain date logic. |\\n| `crime_00003` `mixed_utc_local_methods` | **Block merge** | `high`, `agent_risk 0.61`; timezone behavior can silently differ by host. |\\n| `crime_00004` `concept_alias_drift` | **Block merge** | `medium`, `agent_risk 0.58`; above block threshold due cross-file domain vocabulary drift. |\\n| `crime_00005` `large_function` | **Block merge** | `high`, `agent_risk 0.55`; 204-line billing function is too risky to land as new baseline. |\\n| `crime_00006` `missing_agent_context` | **Warn** | `medium`, `agent_risk 0.53`; important, but not a runtime defect. |\\n| `crime_00007` `hardcoded_localhost` | **Warn** | `medium`, `agent_risk 0.53`; environment-specific URL likely breaks outside dev. |\\n| `crime_00008` `hardcoded_local_path` | **Warn** | `medium`, `agent_risk 0.53`; machine-specific path breaks portability. |\\n| `crime_00009` `timezone_unsafe_parse` | **Warn** | `medium`, `agent_risk 0.53`; should be fixed before relying on date behavior. |\\n| `crime_00010` `magic_domain_literal_scatter` | **Warn** | `medium`, `agent_risk 0.52`; duplicated domain policy literal across areas. |\\n| `crime_00011` `dst_naive_arithmetic` | **Warn** | `medium`, `agent_risk 0.52`; real date edge-case risk. |\\n| `crime_00012` `oversized_raster` | **Warn** | `low`, `agent_risk 0.52`; low severity but high enough agent/product risk to flag. |\\n| `crime_00013` `docs_code_drift` | **Warn** | `low`, `agent_risk 0.51`; stale docs link can mislead follow-up work. |\\n| `crime_00014` `raster_should_be_vector` | **Warn** | `low`, `agent_risk 0.50`; minor asset issue, but right at warning threshold. |\\n| `crime_00015` `duplicated_navigation_source` | **Warn** | `medium`, `agent_risk 0.49`; medium severity metadata drift. |\\n| `crime_00016` `todo_density` in `src/todo.ts` | **Warn** | `medium`, `agent_risk 0.49`; too many unfinished markers for new code. |\\n| `crime_00017` `route_metadata_drift` | **Warn** | `medium`, `agent_risk 0.49`; competing labels create product/navigation drift. |\\n| `crime_00019` `direct_date` in `src/billing.ts` | **Warn** | `medium`, `agent_risk 0.46`; nondeterminism, but lower than the date cluster in `src/date.ts`. |\\n| `crime_00020` `weak_test_signal` | **Warn** | `medium`, `agent_risk 0.46`; test gives false confidence. |\\n| `crime_00021` `name_behavior_mismatch` | **Warn** | `medium`, `agent_risk 0.44`; misleading side-effect boundary. |\\n| `crime_00022` `sync_io_in_hotpath` | **Ignore** | `low`, `agent_risk 0.44`; worth backlog cleanup, not merge-blocking. |\\n| `crime_00023` `direct_date` in `src/api/state.ts` | **Ignore** | `low`, `agent_risk 0.44`; isolated clock read. |\\n| `crime_00024` `date_string_concat` | **Ignore** | `low`, `agent_risk 0.43`; local formatting smell. |\\n| `crime_00025` `locale_drift` | **Ignore** | `low`, `agent_risk 0.43`; minor unless locale output is product-critical. |\\n| `crime_00026` `large_file` | **Warn** | `medium`, `agent_risk 0.42`; barely over threshold but still medium. |\\n| `crime_00027` `logic_in_comments` | **Warn** | `medium`, `agent_risk 0.42`; hidden billing rule deserves attention. |\\n| `crime_00028` `boolean_naming_drift` | **Ignore** | `low`, `agent_risk 0.42`; readability issue only. |\\n| `crime_00029` `boolean_naming_drift` | **Ignore** | `low`, `agent_risk 0.42`; readability issue only. |\\n| `crime_00030` `option_bag_junk_drawer` | **Ignore** | `low`, `agent_risk 0.40`; acceptable backlog refactor. |\\n| `crime_00031` `return_shape_roulette` | **Ignore** | `low`, `agent_risk 0.40`; useful cleanup, not a gate. |\\n| `crime_00032` `negative_flag_maze` | **Ignore** | `low`, `agent_risk 0.40`; small local readability risk. |\\n| `crime_00033` `singular_plural_type_mismatch` | **Ignore** | `low`, `agent_risk 0.40`; naming/type clarity issue. |\\n| `crime_00034` `orphaned_destination` | **Ignore** | `low`, `agent_risk 0.39`; may be intentional in-flight route. |\\n| `crime_00035` `orphaned_destination` | **Ignore** | `low`, `agent_risk 0.39`; may be intentional in-flight route. |\\n| `crime_00036` `orphaned_destination` | **Ignore** | `low`, `agent_risk 0.39`; may be intentional in-flight route. |\\n| `crime_00037` `weak_test_signal` | **Ignore** | `low`, `agent_risk 0.34`; weak assertion, but low gate value. |\\n| `crime_00038` `todo_density` in `src/billing.ts` | **Ignore** | `low`, `agent_risk 0.32`; cleanup only. |\\n\\nSummary: **5 block**, **17 warn**, **15 ignore**. `crime_00018` is absent from the provided findings, and `suppressed_count: 1` has no payload here, so I would not classify it from this output.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":29973,\"cached_input_tokens\":12160,\"output_tokens\":2023,\"reasoning_output_tokens\":441}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

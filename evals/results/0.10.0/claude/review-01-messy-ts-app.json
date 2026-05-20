@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:47.421Z",
+  "run_id": "396c7bd2-9983-451a-8101-cdd842c37e0c",
+  "response": "# PR Review: review-01-messy-ts-app\n\nCategorising all 37 findings as **block merge / warn / ignore**, justified by severity + `agent_risk`.\n\n## BLOCK MERGE (4)\n\nConcrete correctness bugs or code that will fail outside the author's machine. Must be fixed before merge.\n\n| ID | Charge | Sev / agent_risk | Why block |\n|---|---|---|---|\n| **00008** | Localhost-on-Disk (`/Users/andrew/dev/crimes/schema.json` in `src/api/files.ts`) | med / 0.53 | Definitely broken on every other machine and in CI. Trivial confidence (0.9). |\n| **00007** | Dev-Server URL (`localhost:3000` in `src/api/files.ts`) | med / 0.53 | Same file, same problem — production code that only works against one running dev server. |\n| **00003** | Half-UTC, Half-Local (mixing `getUTCFullYear()` + `getMonth()` on the same receiver) | **high** / 0.61 | Silent correctness bug — output shifts by the host's UTC offset. High confidence (0.85), high severity. |\n| **00021** | False Identity — `calculateRefundPreview` calls `saveRefundAudit` + `sendRefundEmail` | med / 0.44 | Misleading name on a financial side-effect function. An agent or new dev seeing \"preview\" *will* call it speculatively. Real-money blast radius. |\n\n## WARN (19)\n\nSubstantive quality problems worth fixing in this PR or a follow-up — surface in review but don't gate merge.\n\n**High-severity quality issues:**\n- **00001** — SVG with embedded raster (high / 0.70). Asset hygiene, but high agent_risk means future edits will compound.\n- **00002** — Temporal Recklessness in `src/date.ts` (8 direct clock reads, high / 0.62). Whole module is untestable without monkey-patching.\n- **00005** — God Function `generateInvoice` 204 lines (high / 0.55). Core billing surface — risky but not broken.\n\n**Medium-severity quality/agent-risk issues:**\n- **00027** — Logic in the Alibi: comment encodes \"Only owners can refund enterprise plans unless billing support approves\" — auth rule that the code doesn't obviously enforce (med / 0.42). Borderline block; warn loudly.\n- **00020** — Test \"renders the enterprise plan\" has zero assertions (med / 0.46). False-confidence test on the file the God Function lives in.\n- **00009** — Timezone Roulette: `new Date(\"2026-12-25T07:00:00\")` without a zone (med / 0.53).\n- **00011** — DST-naive day math `+ 86400000` (med / 0.52).\n- **00010** — `\"enterprise\"` literal scattered across 4 files in 4 areas (med / 0.52). Plan-policy duplication risk.\n- **00004** — Concept Alias Drift: tenant/account/organisation/team/workspace across 5 files (med / 0.58). High agent_risk.\n- **00015** — Duplicated nav source: `/settings/billing` labelled \"Plans\" in one nav file, \"Billing\" in another (med / 0.49).\n- **00017** — Route Metadata Drift: same destination labelled 4 different ways (path, component `PricingPage`, title `Plans`, `<title>Subscription`, two nav labels) (med / 0.49).\n- **00019** — Temporal Recklessness in `billing.ts` (7 more direct clock reads, med / 0.46).\n- **00026** — God File `billing.ts` 310 lines (med / 0.42).\n- **00006** — Missing Agent Context (no `AGENTS.md` / `CLAUDE.md` / SKILL.md) (med / 0.53). Repo-wide, not PR-specific, but worth flagging.\n\n**Low-severity but worth noting:**\n- **00022** — Sync I/O (`existsSync` / `statSync` / `readFileSync`) in `loadPlanSchema` (low / 0.44). Same hot file as the localhost bugs.\n- **00013** — Docs-Code Drift: `docs/teams.md` links to missing `./setup.md` (low / 0.51).\n- **00034 / 00035 / 00036** — Three Orphaned Destinations (`/account/subscription`, `/team`, `/workspace/members`) (low / 0.39 each). Could be in-flight, but PR author should confirm.\n\n## IGNORE (14)\n\nLow-signal, intentional, or stylistic — not worth blocking review on.\n\n| ID | Charge | Why ignore |\n|---|---|---|\n| **00016** | Unfinished Business in `src/todo.ts` (14 TODO/FIXME, 424/1kLOC) | File is literally named `todo.ts` — appears to be a fixture for the detector itself. False positive in context. |\n| **00038** | Unfinished Business in `src/billing.ts` (4 markers, just over threshold) | Marginal density; not actionable as a merge gate. |\n| **00012** | Oversized Raster (254 KB hero banner) | Low severity, performance hygiene — backlog item. |\n| **00014** | Icon-Sized Raster (32×32 PNG) | Same — design polish. |\n| **00023** | Single `Date.now()` in `src/api/state.ts` | Low severity, isolated. |\n| **00024 / 00025** | Date string concat + missing locale arg in `src/date.ts` | The whole `date.ts` file already has block/warn entries — fixing those will likely sweep these up. |\n| **00028 / 00029** | Unprefixed Booleans (`paid`, `expired`, `stale`, `disableBilling`, `skipRetry`) | Pure naming preference. |\n| **00030 / 00031 / 00032 / 00033** | Petty findings in `src/petty.ts` (option bag, return shape, negative flags, plural mismatch) | All low severity, all stylistic, file name suggests detector-fodder. |\n| **00037** | Weak assertion matcher in `creates an invoice` test (low / 0.34) | Borderline with 00020 — but 00020 is the louder signal; address that and revisit this. |\n\n## Summary\n\n**Block: 4** — hardcoded local path, hardcoded localhost, mixed UTC/local dates, misleadingly-named side-effect function.\n**Warn: 19** — temporal/timezone hygiene, God Function/File in billing, scattered \"enterprise\" literals, route+nav drift, weak invoice test, missing agent context.\n**Ignore: 14** — fixture files (`todo.ts`, `petty.ts`), stylistic naming, asset polish, duplicate signals already covered by louder findings.\n\nThe 4 block items are all in `src/api/files.ts` + `src/date.ts` + `src/billing.ts` — three files account for every must-fix. Two are mechanical one-line edits; two are real refactors.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "hardcoded_local_path",
+        "passed": false
+      }
+    ]
+  }
+}

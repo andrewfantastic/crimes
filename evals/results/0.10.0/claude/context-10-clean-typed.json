@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:00:53.667Z",
+  "run_id": "e3588b25-deca-488e-b4b5-2d603aa211fc",
+  "response": "## `src/billing.ts` — context report\n\n- **Findings:** none (`risk.level: \"none\"`, totals all zero).\n- **Likely tests:** `src/billing.test.ts`.\n- **Agent guidance / related files:** empty — `crimes` explicitly notes \"no findings on this file and no deterministic related files\" and \"no neighbourhood signal.\"\n\n### Why this module is low risk to edit\n\n1. **Zero detector hits.** No structural, dependency, duplication, testability, or churn findings — so no large function, no deep imports, no `Date.now()`/`Math.random()`/`process.env` leaks into domain code, and no churn hotspot signal.\n2. **Co-located test exists.** `src/billing.test.ts` is the sibling test file, so behavioral changes are catchable by an existing suite rather than requiring a new test scaffold.\n3. **No neighbourhood entanglement.** `crimes` found no related files by domain tokens, filename prefix, or same-directory siblings — meaning edits here aren't expected to ripple into other modules.\n4. **No agent-risk signals.** Empty `agent_guidance` means there are no misleading names, hidden side effects, or multiple-source-of-truth warnings an agent needs to reason around before editing.\n\nEdits should still be paired with a run of `src/billing.test.ts`, but absent any receipts of risk, this file is a green-light surface to modify.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

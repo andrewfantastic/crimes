@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:02:16.999Z",
+  "run_id": "a5053e11-c9e7-48cf-a340-f6adad55f4ed",
+  "response": "# Triage plan — top 10 findings\n\nRanked by `agent_risk` (default), regrouped by category with a recommended response. No `verdict` JSON was included in the prompt — working from scan only.\n\n## Order at a glance\n\n| # | id | charge | category | agent_risk | response |\n|---|----|--------|----------|-----------:|----------|\n| 1 | crime_00006 | Missing Agent Context | IA | 0.53 | **fix now** |\n| 2 | crime_00008 | Localhost-on-Disk (`/Users/andrew/...`) | structural | 0.53 | **fix now** |\n| 3 | crime_00007 | Dev-Server URL (`localhost:3000`) | structural | 0.53 | **fix now** |\n| 4 | crime_00003 | Half-UTC, Half-Local | structural | 0.61 | **fix now** |\n| 5 | crime_00009 | Timezone Roulette | structural | 0.53 | **fix now** |\n| 6 | crime_00002 | Temporal Recklessness (`src/date.ts`) | structural | 0.62 | defer |\n| 7 | crime_00005 | God Function (`generateInvoice`, 204 lines) | structural | 0.55 | defer |\n| 8 | crime_00001 | SVG With Embedded Raster | frontend | 0.70 | defer |\n| 9 | crime_00010 | String Sprinkles (`\"enterprise\"` ×4) | duplication | 0.52 | defer |\n| 10 | crime_00004 | Concept Alias Drift (tenant/account/team/workspace) | IA | 0.58 | defer |\n\nNo git-history findings in the top 10 — every score in the set reports `churn: 0`, suggesting the fixture has no git activity, so that lane is empty by construction (not because the detectors agreed it was fine).\n\n## Grouped by category\n\n### Structural (6) — dominates the list\n- **crime_00008** Localhost-on-Disk — **fix now.** Hardcoded `/Users/andrew/...` in `src/api/files.ts:9` breaks on every other machine. Five-minute fix via `os.homedir()` / config.\n- **crime_00007** Dev-Server URL — **fix now.** Same file, same shape — pair with #8 in one PR, move both behind `process.env`.\n- **crime_00003** Half-UTC, Half-Local on one receiver in `src/date.ts` — **fix now.** Silent timezone-offset bug; the detector named the exact lines (9 and 41). Cheap and surgical.\n- **crime_00009** Timezone Roulette (2 unmarked date literals) — **fix now.** Same file, same edit session — add `Z` and move on.\n- **crime_00002** Temporal Recklessness in `src/date.ts` (8 sites) — **defer.** Needs a clock-injection decision and a test seam; not a one-line change. Land after #3 / #9 to avoid touching the same lines twice.\n- **crime_00005** God Function `generateInvoice` (lines 50–253) — **defer.** Extraction is the right move but it needs a plan, not a drive-by. Also pairs with `crime_00026` (file is 310 lines) — extract together.\n\n### IA (2)\n- **crime_00006** Missing Agent Context — **fix now, do this first.** Cheapest highest-leverage item on the board: drop `AGENTS.md` (or `CLAUDE.md`) covering commands, conventions, and the `messy` bin. Unblocks every subsequent agent edit, including all the deferred items below.\n- **crime_00004** Concept Alias Drift (tenant / account / organisation / team / workspace) — **defer.** Real risk but needs a naming decision across docs + 3 route files; do not let an agent pick a winner unilaterally. Pairs with `crime_00015` and `crime_00017` (nav + route metadata drift on `/settings/billing`) — fix as one IA sweep.\n\n### Frontend (1)\n- **crime_00001** SVG With Embedded Raster — **defer.** Highest agent_risk in the run (0.70) but the fix is a design-tool round-trip (re-export without the embedded raster, or split the bitmap out). Not an agent-edit-from-code task. File a design ticket.\n\n### Duplication (1)\n- **crime_00010** String Sprinkles `\"enterprise\"` across 4 files — **defer.** The fix is a one-line constants/registry module, but the cost is choosing where it lives. Do this *before* the God Function extraction (#7) so the helpers can import the constant instead of cementing the literal.\n\n### Git-history (0)\n- None in the top 10. Re-check after fixture gains real commit history.\n\n## Suggested execution order\n\n1. Land `AGENTS.md` (#1) — single PR.\n2. Bundle the two hardcoded-environment fixes (#2 + #3) — single PR, same file.\n3. Bundle the three date-correctness fixes in `src/date.ts` (#4 + #5, plus `crime_00011` DST math and `crime_00024` string sewing if cheap) — single PR.\n4. Then plan the harder lifts: clock injection (#6), `\"enterprise\"` constant (#9), then `generateInvoice` extraction (#7).\n5. Out-of-band: design ticket for the SVG (#8), team alignment for tenant vocabulary (#10).\n\nNothing in the top 10 reads as \"ignore\" — every finding either has a clear cheap fix or a real architectural decision behind it.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "missing_agent_context",
+        "passed": false
+      }
+    ]
+  }
+}

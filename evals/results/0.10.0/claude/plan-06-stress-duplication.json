@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:02:14.900Z",
+  "run_id": "12ffd387-6802-4b28-a456-b5adfc949c72",
+  "response": "# Refactor plan: consolidate sanitisers + role checks\n\nScope: crime_00002 (3 near-duplicate sanitisers) and crime_00003 (4 files × `role === \"admin\"`). Telemetry duplication (crime_00001) and Date.now usage (crime_00004/5) are out of scope here.\n\nOrder matters: extract the policy function **first**, because two of the three sanitisers already contain a `role === \"admin\"` check. Doing policy first means step 2 collapses three near-identical bodies into one *truly identical* body — easier to merge, easier to review.\n\n---\n\n## Step 1 — Extract `isAdmin` policy function\n\n**Why first:** purely additive at first, zero behaviour change, and it eliminates one of the two axes of variation between the three sanitisers (the inline role literal). Without this, step 2 has to reconcile both \"what does the sanitiser do\" *and* \"how does it spell the role check\" at the same time.\n\n**Changes:**\n1. In `src/policy.ts`, add `export function isAdmin(role: string): boolean { return role === \"admin\" }`. Keep the existing 4 internal uses but rewrite each to call `isAdmin(role)` so the file is self-consistent.\n2. Update the three call sites flagged in `related_files` — `src/sanitize-a.ts:7`, `sanitize-b.ts`, `sanitize-c.ts` — to import `isAdmin` from `./policy` and replace `role === \"admin\"` with `isAdmin(role)`.\n3. The finding lists \"2 distinct expression shapes\" across 4 files. After this step, grep for `\"admin\"` should return only the single literal inside `isAdmin` plus any test fixtures.\n\n**Risk:** low. Pure rename-and-delegate; no control-flow change. The 2 differing expression shapes (per the finding) are worth a quick read before merging — if one shape is e.g. `role?.toLowerCase() === \"admin\"`, fold that normalisation into `isAdmin` rather than dropping it silently.\n\n**Done when:** `crimes scan` no longer reports crime_00003, and only `policy.ts` contains the `\"admin\"` literal in domain code.\n\n---\n\n## Step 2 — Consolidate the three sanitisers\n\n**Why second:** with the role check already centralised, the three function bodies should now be byte-identical (or very close — the finding already calls them *near*-duplicate, not exact). Picking the canonical version is a 10-second decision instead of a merge negotiation.\n\n**Changes:**\n1. Diff the three bodies (`sanitizeUserInput` @ sanitize-a.ts:10-36, `sanitizeText` @ sanitize-b.ts:9-35, `cleanMessage` @ sanitize-c.ts:9-35). Reconcile any real differences — likely whitespace/regex tweaks — by choosing the strictest variant. The diff is small (~26 lines each).\n2. Create `src/sanitize.ts` exporting a single `sanitize(input, role)` function with the reconciled body. Pick the name deliberately: `sanitizeUserInput` is the most descriptive of the three; the others are vague.\n3. Delete `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts`. Update all importers to `import { sanitize } from \"./sanitize\"`. The three old names each appeared in callers under different identifiers, so this is a search-and-replace across each old export name → `sanitize`.\n4. If any caller relied on a behavioural quirk of one of the three variants, capture it as a test against the new unified function *before* deleting the old file.\n\n**Risk:** medium — this is the one that can break behaviour if the three bodies diverged in a meaningful way (e.g. one strips HTML, another doesn't). Mitigation: write a characterisation test per old variant first, point all three at the new `sanitize`, confirm green, then delete.\n\n**Done when:** `crimes scan` no longer reports crime_00002, only one sanitise function exists in domain code, and all three old import names are gone from the codebase.\n\n---\n\n## What this plan deliberately leaves alone\n\n- **crime_00001 (telemetry duplication)** — different concern (recording, not policy/input). Worth a follow-up but mixing it in here muddies the review.\n- **crime_00004 / crime_00005 (Date.now in telemetry)** — clock injection is a separate refactor with its own test-shape implications; bundling it would inflate the diff and reviewer load.\n\nTwo PRs (or two commits behind a single PR), reviewed in order. Don't combine the steps — the reason step 2 is cheap is *because* step 1 already landed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}
