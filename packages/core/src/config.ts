@@ -136,7 +136,7 @@ export interface CrimesConfig {
    * section instead of competing with domain findings for the default
    * top-N. Empty array opts out of tiering entirely.
    */
-  scopeTiers?: {
+  scopeTiers: {
     nonDomain: string[];
   };
   /**
@@ -145,7 +145,7 @@ export interface CrimesConfig {
    * - `topFiles`: how many files appear in the default file-grouped view.
    *   `--top N` (CLI) and `--all` (CLI) override per invocation.
    */
-  scan?: {
+  scan: {
     topFiles: number;
   };
   /** Suppression file path override. Defaults to `.crimes/suppressions.json`. */
@@ -352,7 +352,7 @@ const architectureSchema = z
 
 const scopeTiersSchema = z
   .object({
-    nonDomain: z.array(z.string()),
+    nonDomain: z.array(z.string().min(1)),
   })
   .strict();
 
@@ -507,6 +507,22 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
       ...base.thresholds,
       ...stripUndefined(override.thresholds ?? {}),
     },
+    // scopeTiers.nonDomain replaces the default wholesale when set, matching
+    // the contract of the top-level `include` / `exclude` lists. An explicit
+    // empty array is a valid opt-out, so we use ?? (not ||).
+    scopeTiers: {
+      nonDomain:
+        override.scopeTiers !== undefined
+          ? override.scopeTiers.nonDomain
+          : (base.scopeTiers.nonDomain ?? DEFAULT_NON_DOMAIN_PATTERNS),
+    },
+    // scan.topFiles replaces the default wholesale when set.
+    scan: {
+      topFiles:
+        override.scan !== undefined
+          ? override.scan.topFiles
+          : (base.scan.topFiles ?? DEFAULT_TOP_FILES),
+    },
   };
   if (override.$schema !== undefined) merged.$schema = override.$schema;
   if (override.thresholds?.largeFunction !== undefined) {
@@ -535,22 +551,6 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
     };
   }
   if (override.detectors !== undefined) merged.detectors = override.detectors;
-  // scopeTiers.nonDomain replaces the default wholesale when set, matching
-  // the contract of the top-level `include` / `exclude` lists. An explicit
-  // empty array is a valid opt-out, so we use ?? (not ||).
-  merged.scopeTiers = {
-    nonDomain:
-      override.scopeTiers !== undefined
-        ? override.scopeTiers.nonDomain
-        : (base.scopeTiers?.nonDomain ?? DEFAULT_NON_DOMAIN_PATTERNS),
-  };
-  // scan.topFiles replaces the default wholesale when set.
-  merged.scan = {
-    topFiles:
-      override.scan !== undefined
-        ? override.scan.topFiles
-        : (base.scan?.topFiles ?? DEFAULT_TOP_FILES),
-  };
   if (override.ia !== undefined) merged.ia = override.ia;
   if (override.suppressions !== undefined) {
     merged.suppressions = override.suppressions;
