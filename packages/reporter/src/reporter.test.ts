@@ -957,6 +957,49 @@ describe("formatBaselineCheckJsonReport", () => {
   });
 });
 
+function stubContextReport(
+  overrides: Partial<ContextReport>,
+): ContextReport {
+  return {
+    schema_version: "0.1.0",
+    report_type: "context",
+    repo: { name: "demo", root: "/tmp/demo" },
+    file: "src/billing.ts",
+    risk: { level: "none", high: 0, medium: 0, low: 0, total: 0 },
+    agent_guidance: [],
+    related_files: [],
+    likely_tests: [],
+    findings: [],
+    ...overrides,
+  };
+}
+
+describe("formatContextHumanReport — clues block", () => {
+  it("renders a Clues section with churn / suppressions / test_gap when present", () => {
+    const report: ContextReport = stubContextReport({
+      clues: {
+        churn: { commits_90d: 14, last_commit_at: "2026-05-18T12:30:00Z", unique_authors_90d: 3 },
+        suppressions: [
+          { fingerprint: "abc", detector: "large_function", reason: "legacy", pinned_version: "0.9.x", matches_current_finding: false },
+        ],
+        test_gap: { raw: 1, percentile: 0.85, label: "top-quartile" },
+        related_signals: [],
+      },
+    });
+    const out = formatContextHumanReport(report, { noColor: true });
+    expect(out).toContain("Clues");
+    expect(out).toContain("churn: 14 commits / 3 authors (last 2026-05-18)");
+    expect(out).toContain("test gap: top-quartile");
+    expect(out).toContain("known suppressions: 1");
+  });
+
+  it("omits the Clues section when report.clues is absent", () => {
+    const report = stubContextReport({});
+    const out = formatContextHumanReport(report, { noColor: true });
+    expect(out).not.toContain("Clues");
+  });
+});
+
 describe("formatHumanReport — file-grouped layout", () => {
   it("groups by file, caps at topFiles, renders Also-flagged footer + action-close", () => {
     const report = stubReport({

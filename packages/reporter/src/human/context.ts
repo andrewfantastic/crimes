@@ -72,6 +72,24 @@ export function formatContextHumanReport(
     }
   }
 
+  // Clues — context-only signals beyond the per-file findings list.
+  if (report.clues && (report.clues.churn || report.clues.suppressions || report.clues.test_gap)) {
+    lines.push("");
+    lines.push(colour.bold("Clues"));
+    if (report.clues.churn) {
+      const { commits_90d, last_commit_at, unique_authors_90d } = report.clues.churn;
+      const dateOnly = last_commit_at.slice(0, 10);
+      lines.push(`  · churn: ${commits_90d} commits / ${unique_authors_90d} author${unique_authors_90d === 1 ? "" : "s"} (last ${dateOnly})`);
+    }
+    if (report.clues.test_gap) {
+      lines.push(`  · test gap: ${report.clues.test_gap.label}`);
+    }
+    if (report.clues.suppressions && report.clues.suppressions.length > 0) {
+      const n = report.clues.suppressions.length;
+      lines.push(`  · known suppressions: ${n} (review with crimes audit-suppressions)`);
+    }
+  }
+
   // Findings — last, more verbose. Agents acting on the JSON read this
   // section from the structured `findings` array; humans get the same
   // information rendered.
