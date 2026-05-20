@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { maybeRunAutoInit } from "./auto-init.js";
 import { registerAuditSuppressionsCommand } from "./commands/audit-suppressions.js";
 import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
@@ -23,6 +24,19 @@ program
     "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   )
   .version(__CRIMES_VERSION__)
+  .option("--no-init", "suppress the first-run auto-init prompt")
+  .option(
+    "--init",
+    "force the first-run auto-init prompt even if config exists",
+  )
+  .hook("preAction", async (_thisCommand, actionCommand) => {
+    const name = actionCommand.name();
+    const opts = program.opts<{ init?: boolean; noInit?: boolean }>();
+    await maybeRunAutoInit(name, {
+      cwd: process.cwd(),
+      flags: { init: opts.init === true, noInit: opts.noInit === true },
+    });
+  })
   .addHelpText(
     "after",
     "\nTip: run `crimes init --agents` to add Claude Code and Codex skills so future agents discover crimes automatically.",
