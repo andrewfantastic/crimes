@@ -10,6 +10,9 @@
  *
  * Falls back to identity for arrays shorter than 4 — the design spec
  * §5.4 calls this the "small-repo fallback".
+ *
+ * Snapping rule is documented on the private `snapToQuartile` helper
+ * below.
  */
 export function quartileScores(raw: number[]): number[] {
   if (raw.length < 4) return raw.slice();
@@ -36,7 +39,26 @@ export function quartileScores(raw: number[]): number[] {
   return out;
 }
 
-/** Snap a percentile in [0,1] to the nearest 0.25 bucket. */
+/**
+ * Snap a midpoint percentile in [0,1] to one of {0, 0.25, 0.5, 0.75, 1}.
+ *
+ * Not pure nearest-neighbor — uses asymmetric thresholds biased toward the
+ * extremes:
+ *   [0,      0.25)   → 0
+ *   [0.25,   0.4375) → 0.25
+ *   [0.4375, 0.5625) → 0.5
+ *   [0.5625, 0.75)   → 0.75
+ *   [0.75,   1.0]    → 1
+ *
+ * Calibrated so that:
+ *   - The all-tied case (midpoint exactly 0.5) snaps to 0.5, not 1.
+ *   - A 3-of-10 tied block at the bottom (midpoint 0.15) snaps to 0.
+ *   - A 4-of-10 tied block at the top (midpoint 0.8) snaps to 1.
+ *
+ * NaN handling: `quartileScores` does not accept NaN inputs (the only
+ * caller is `buildScoringContext` with values in {0, 0.5, 1}). Passing
+ * NaN would hang the tied-block loop because `NaN === NaN` is false.
+ */
 function snapToQuartile(percentile: number): number {
   if (percentile < 0.25) return 0;
   if (percentile < 0.4375) return 0.25;

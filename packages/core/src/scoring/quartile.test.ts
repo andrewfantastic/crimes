@@ -30,9 +30,9 @@ describe("quartileScores", () => {
     expect(quartileScores([])).toEqual([]);
   });
 
-  it("snaps to the nearest 0.25 quartile bucket", () => {
-    // 4 entries, all distinct, ascending: percentiles 0.125, 0.375, 0.625, 0.875
-    // → quartiles 0.0, 0.25, 0.75, 1.0
+  it("snaps each distinct value into its calibrated quartile bucket", () => {
+    // 4 distinct ascending values → percentiles 0.125, 0.375, 0.625, 0.875
+    // → quartiles 0.0, 0.25, 0.75, 1.0 per the threshold table in quartile.ts.
     expect(quartileScores([0, 0.3, 0.7, 1])).toEqual([0, 0.25, 0.75, 1]);
   });
 
