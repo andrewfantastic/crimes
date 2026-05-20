@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:57:00.199Z",
+  "run_id": "4f8a9374-6a9a-44be-b3c5-db8d784b05d4",
+  "response": "## Findings in scope\n\n- **crime_00002 — layer_violation** (agent_risk 0.56): `src/domain/billing.ts` imports `src/presentation/invoice-view.ts`. Rule violated: `domain cannotImport presentation`.\n- **crime_00003 — deep_import** (agent_risk 0.45): `src/application/billing-flow.ts` imports `some-pkg/dist/internal/private/helper.js`.\n\n(Worth noting: crime_00001's cycle runs `billing-flow.ts → billing.ts → invoice-view.ts → billing-flow.ts`. The domain→presentation edge from crime_00002 is one of the three ring edges, so fixing crime_00002 the right way breaks the cycle too — don't treat them as independent.)\n\n## Proposed changes\n\n**1. Break the import — `domain/billing.ts` → `presentation/invoice-view.ts`** (ties to crime_00002)\n\nThe domain layer is supposed to be the stable core; reaching into presentation inverts that. Whatever `billing.ts` is calling on `invoice-view.ts` is almost certainly a *capability* (render an invoice, emit a view event, format a line item). Two viable moves, in order of preference:\n\n- **Dependency inversion.** Declare the contract in `domain/` — e.g. `interface InvoiceRenderer { render(invoice: Invoice): string }` — and make `presentation/invoice-view.ts` implement it. `domain/billing.ts` depends only on the interface; `application/billing-flow.ts` wires the concrete renderer at the seam. No code crosses the boundary the wrong way.\n- **Move the call up.** If `billing.ts` is really just sequencing \"compute totals → render,\" that sequencing belongs in `application/`. Pull the presentation call out of domain entirely; let `billing-flow.ts` orchestrate.\n\nEither move satisfies the suggested action (\"move the cross-layer collaboration behind an interface owned by the domain layer\") and, as a side effect, removes one edge of the cycle.\n\n**2. Redirect the deep import — `application/billing-flow.ts` → `some-pkg`** (ties to crime_00003)\n\n- First try the public entry: `import { helper } from 'some-pkg'`. If the symbol is exported there, the fix is a one-line change.\n- If it's genuinely not exported, isolate it: create a single `infrastructure/some-pkg-adapter.ts` that contains the deep import, exposes a narrow function, and is the only file in the repo allowed to reach in. File the upstream issue so the adapter can be deleted later. Don't sprinkle the deep specifier across multiple files.\n\n## Why the two findings differ in agent risk\n\nThe numeric gap (0.56 vs 0.45) is small but the *shape* of the risk is different, and that's what matters for agents:\n\n- **Layer violation is a reasoning trap.** The repo advertises a four-layer architecture in `crimes.config.json`. An agent reading that config builds a mental model: domain is leaf-stable, presentation depends downward. Editing `invoice-view.ts` under that model looks safe — but the hidden back-edge means a change there can ripple into domain logic. The risk is *navigational*: every agent that trusts the declared layering is mildly miscalibrated until this is fixed. It also enables cycles (as seen here), which compound the trap.\n- **Deep import is an upgrade-time bomb.** `some-pkg/dist/internal/private/helper.js` is fine *today* and fine for any agent reading `billing-flow.ts` *today*. The risk only fires when `some-pkg` ships a new version that moves or renames the internal file — and even then, the blast is contained to the one file (and any adapter around it). An agent isn't going to be misled while reading the codebase; they're going to be ambushed at `pnpm update`.\n\nSo: layer_violation scores higher because it corrupts the architectural model an agent uses to reason about *unrelated* edits, while deep_import is a localized fragility around a single specifier. Fix the layer violation first — it's both higher-risk and a free cycle-breaker.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

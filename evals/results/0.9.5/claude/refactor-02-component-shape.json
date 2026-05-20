@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-02-component-shape",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:57:02.313Z",
+  "run_id": "0690b583-c530-4378-88a9-864a2c432889",
+  "response": "The provided `crimes scan` output contains no findings at all — `findings: []` and all summary counts are 0. There is no `duplicate_component_shape` finding to act on.\n\nA couple of reasons this is the honest answer:\n\n- The scan returned an empty report, so I have no evidence (file paths, line ranges, subtree shape) to ground a refactor proposal in.\n- `duplicate_component_shape` isn't part of the MVP detector set in `CLAUDE.md` (Milestone 1 duplication detectors cover exact duplicate blocks, near-duplicate functions, repeated string literals, and duplicated role/status/plan checks — not JSX subtree shape).\n\nI won't invent file names or a component API from the scenario prose alone — that would violate the \"evidence before judgement\" rule the product is built on. If you want a real proposal, the next step is either:\n\n1. Run the scan against the actual fixture (`evals/fixtures/02-react-dashboard`) and confirm whether any duplication finding fires there, or\n2. Confirm that a `duplicate_component_shape` detector is intended to exist; if so, it isn't producing findings on this fixture and that's the bug to investigate first.\n\nWant me to run the scan directly against the fixture and see what (if anything) the current detectors flag?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/edit-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/starter-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      }
+    ]
+  }
+}

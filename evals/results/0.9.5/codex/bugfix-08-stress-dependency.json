@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:49:27.700Z",
+  "run_id": "663dfad8-4951-4af0-9b4a-6afe2240c7eb",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4349-7ba7-72e1-ba65-fdf3a109a6e8\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy: it is both part of the cycle and the only reported layer violation:\\n\\n```text\\nsrc/application/billing-flow.ts\\n -> src/domain/billing.ts\\n -> src/presentation/invoice-view.ts\\n -> src/application/billing-flow.ts\\n```\\n\\nThe domain layer should not depend on presentation. Keeping that edge means billing domain logic has a runtime dependency on invoice UI code, which is the most likely cause of initialization/re-entry problems in the circular dependency.\\n\\nBest fix: move whatever `billing.ts` needs from `invoice-view.ts` into a neutral module, or invert the dependency.\\n\\nRecommended shape:\\n\\n```text\\nsrc/domain/billing.ts\\n  imports only domain-owned types/helpers\\n\\nsrc/presentation/invoice-view.ts\\n  imports from src/domain/billing.ts\\n\\nsrc/application/billing-flow.ts\\n  coordinates billing + invoice rendering\\n```\\n\\nIf the domain import is only for TypeScript types, convert it to `import type`. If it needs runtime behavior, extract a domain-owned interface or DTO, then let presentation implement/render it instead of being called by the domain.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19365,\"cached_input_tokens\":18304,\"output_tokens\":269,\"reasoning_output_tokens\":24}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

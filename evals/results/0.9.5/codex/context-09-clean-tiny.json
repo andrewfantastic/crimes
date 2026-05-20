@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "codex",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:51:47.522Z",
+  "run_id": "e1b2d51b-67e1-4ce1-b6cc-6ee72cb7eb5e",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e434b-ab53-7580-b16c-ee348810b790\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll run the requested `crimes context` against the fixture file so the answer is based on the single-file context output, not just the broader scan summary.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'crimes context src/add.ts --format json'\",\"aggregated_output\":\"{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"context\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"09-clean-tiny\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes-release-a/evals/fixtures/09-clean-tiny\\\"\\n  },\\n  \\\"file\\\": \\\"src/add.ts\\\",\\n  \\\"risk\\\": {\\n    \\\"level\\\": \\\"none\\\",\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0,\\n    \\\"total\\\": 0\\n  },\\n  \\\"agent_guidance\\\": [],\\n  \\\"related_files\\\": [],\\n  \\\"likely_tests\\\": [\\n    \\\"src/add.test.ts\\\"\\n  ],\\n  \\\"findings\\\": [],\\n  \\\"agent_guidance_reason\\\": \\\"no findings on this file and no deterministic related files\\\",\\n  \\\"related_files_reason\\\": \\\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\\\"\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"The command is still running; I’m waiting for the JSON output before drawing the safety conclusion.\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"`crimes context src/add.ts --format json` found no risk in `src/add.ts`.\\n\\nSummary:\\n- Risk level: `none`\\n- Findings: `0`\\n- Agent guidance: none\\n- Related files: none\\n- Likely test: `src/add.test.ts`\\n\\nThe broader scan also had zero findings, so this file looks safe to extend. If you change behavior in `src/add.ts`, update or add coverage in `src/add.test.ts`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":56209,\"cached_input_tokens\":42624,\"output_tokens\":315,\"reasoning_output_tokens\":42}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

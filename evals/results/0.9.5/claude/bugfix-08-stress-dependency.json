@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:49:41.034Z",
+  "run_id": "f71d8018-55a3-46ad-ac31-0cefd6a8ecec",
+  "response": "## The cycle and which edge to break\n\nThe ring is `application → domain → presentation → application` (3 files). Crimes flags two findings on the same arc:\n\n1. **circular_dependency** across all three files\n2. **layer_violation**: `src/domain/billing.ts` imports `src/presentation/invoice-view.ts` (forbidden by `domain cannotImport presentation`)\n\n**Break the `domain → presentation` import** in `src/domain/billing.ts`.\n\n### Why this edge specifically\n\n- **It's the only architecturally wrong edge in the cycle.** `application` is allowed to depend on both `domain` and `presentation`; `presentation` is allowed to depend on `domain`. The one arc that reverses intended direction-of-change is `domain → presentation`. Breaking it fixes the cycle *and* the layer violation in one move — the other two findings collapse to zero.\n- **Domain is the stable inner layer.** It must not know about how invoices are rendered. Anything `billing.ts` currently reaches for in `invoice-view.ts` is either (a) a type that belongs in domain, or (b) behavior that should be injected, not imported.\n- **Breaking either of the other two edges would leave the layer violation in place** and just shuffle the runtime cycle without addressing the underlying architectural inversion. That's the kind of fix an agent makes when it optimizes for \"make the error go away.\"\n\n### How to break it (in order of preference)\n\n1. **Move the shared symbol into `domain/`.** If `billing.ts` is importing a type, interface, or pure data shape from `invoice-view.ts`, that symbol is misfiled — relocate it into the domain layer and have `invoice-view.ts` import it from there. This is the cleanest fix and the cycle disappears at the same time.\n2. **Invert via an interface owned by domain.** If `billing.ts` needs *behavior* from the presentation side (e.g. a renderer or formatter), define the interface in `domain/`, have presentation implement it, and inject the implementation from `application/` (which is allowed to know about both). Dependency inversion, textbook case.\n3. **`import type` as a last resort.** If the imported symbol really is only a type and you can't relocate it right now, convert the import to `import type { … }`. TS erases it, so it stops contributing a runtime edge and the cycle is broken — but the layer violation finding will likely still fire (correctly), because architecturally the dependency still exists on paper.\n\nThe suggested action on the layer-violation finding (\"move the cross-layer collaboration behind an interface owned by the domain layer\") points at option 2 and is the right framing for anything beyond a stray type import.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:52:16.265Z",
+  "run_id": "b9d37138-b486-41b3-8faf-fa5c7f185a7c",
+  "response": "## `src/billing.ts` — clean\n\n**No findings.** `risk.level: \"none\"`, totals `0/0/0`.\n\n**Likely tests:** `src/billing.test.ts` — run these after any edit.\n\n**Why low risk to edit:**\n- Zero detector hits across severity, churn, blast-radius, agent-risk axes — the module is sized, typed, and structured well enough that no charge fired.\n- `agent_guidance: []` and `related_files: []` with the reason *\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"* — meaning there's no implicit fan-out: edits here aren't predicted to ripple into other files via duplicated domain tokens or sibling coupling.\n- A colocated `billing.test.ts` exists, so behavior is pinned by a test you can re-run as the post-edit gate.\n\nStill re-run `crimes context src/billing.ts --format json` (or `crimes scan --changed`) after the edit to confirm no new findings get introduced.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

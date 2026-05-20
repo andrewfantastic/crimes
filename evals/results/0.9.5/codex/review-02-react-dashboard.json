@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "codex",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:59:02.822Z",
+  "run_id": "8b3c6533-c3a8-4cbf-8e63-76fdad65fb59",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4352-6a84-7d92-9253-7c50ff45b16b\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No petty / single-file findings were reported.\\n\\nGrouped by detector type:\\n\\n- `dead_code`: none\\n- `magic_literals`: none\\n- `repeated_role_checks`: none\\n\\nMerge categorization:\\n\\n- `block merge`: none\\n- `warn`: none\\n- `ignore`: none\\n\\nJustification: `crimes scan --format json` reports `summary.total: 0` with no `findings`, so there are no severities or `scores.agent_risk` values to evaluate. On this scan output, nothing blocks merge.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18536,\"cached_input_tokens\":12160,\"output_tokens\":177,\"reasoning_output_tokens\":60}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

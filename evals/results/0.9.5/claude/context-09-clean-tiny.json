@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:51:32.356Z",
+  "run_id": "2aa624c9-2a79-47e4-a084-948d742c536a",
+  "response": "**Crimes context for `src/add.ts`:** zero findings (0 high / 0 medium / 0 low) in fixture `09-clean-tiny`.\n\n**Safe to extend:** yes. No structural, dependency, duplication, testability, or churn risks were flagged on or around this file. There's no `agent_risk` signal (no misleading names, hidden side effects, or weak-test hotspots) that would warn against modifying it.\n\nCaveat: a clean context report means crimes didn't find risk in the existing code — it doesn't validate the change you're about to make. Re-run `crimes scan --changed` after editing to confirm the edit itself doesn't introduce new findings.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

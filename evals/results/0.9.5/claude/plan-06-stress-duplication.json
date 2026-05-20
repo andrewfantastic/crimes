@@ -1,0 +1,47 @@
+{
+  "scenario": "plan-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:53:41.886Z",
+  "run_id": "a3f14e9a-7275-4126-b8b9-3dc62eb870a1",
+  "response": "# Refactor Plan: Consolidate Duplication in 06-stress-duplication\n\n## Scope\n\nTwo findings drive this plan:\n- **crime_00002** — near-duplicate `sanitizeUserInput` / `sanitizeText` / `cleanMessage` across `sanitize-{a,b,c}.ts`\n- **crime_00003** — `role === \"admin\"` repeated in `policy.ts` (×4) and each `sanitize-*.ts` (×1), in 2 expression shapes\n\nOrder matters: collapse the role check first, then the sanitise bodies become a mechanical dedup. Doing it the other way around risks pulling slightly-different `role === \"admin\"` shapes into the shared helper and masking the policy drift.\n\n---\n\n## Step 1 — Extract `isAdmin(role)` and route every check through it\n\n**Goal:** eliminate `crime_00003`; make the 3 sanitise bodies provably equivalent so Step 2 is a no-brainer.\n\n**Changes:**\n1. In `src/policy.ts`, add a single exported predicate:\n   ```ts\n   export function isAdmin(role: string): boolean {\n     return role === \"admin\";\n   }\n   ```\n2. Replace the 4 occurrences inside `policy.ts` (lines 1, 3, 8, 13) with `isAdmin(role)`. Whatever other logic those lines wrapped stays; only the comparison changes.\n3. In `sanitize-a.ts:7`, `sanitize-b.ts`, `sanitize-c.ts`, replace the local `role === \"admin\"` (and the second expression shape — confirm what it is) with `isAdmin(role)` imported from `./policy`.\n4. Confirm both expression shapes collapse to the same call. If one shape is e.g. `role == \"admin\"` or `role?.toLowerCase() === \"admin\"`, decide which is canonical *before* the rewrite — that's a behavior choice, not a refactor.\n\n**Verification:**\n- `crimes scan --format json` should drop `crime_00003`.\n- Existing tests (if any) pass; otherwise diff the 3 sanitise functions and confirm they are now byte-identical modulo function name.\n\n**Risk:** medium — the two distinct expression shapes mean there's a behavioral question to answer first. Don't paper over the difference.\n\n---\n\n## Step 2 — Extract a single `sanitize(input, role)` helper\n\n**Goal:** eliminate `crime_00002`. Pre-condition: Step 1 is merged and the three function bodies match.\n\n**Changes:**\n1. Create `src/sanitize.ts` exporting one function (pick the clearest name — `sanitize` is fine; `sanitizeUserInput` keeps the broadest existing signature):\n   ```ts\n   import { isAdmin } from \"./policy\";\n   export function sanitize(input: string, role: string): string {\n     // single canonical body, lifted from sanitize-a.ts:10-36\n   }\n   ```\n2. Convert `sanitize-a.ts`, `sanitize-b.ts`, `sanitize-c.ts` into thin re-exports so existing callers don't break in this PR:\n   ```ts\n   export { sanitize as sanitizeUserInput } from \"./sanitize\"; // a\n   export { sanitize as sanitizeText }      from \"./sanitize\"; // b\n   export { sanitize as cleanMessage }      from \"./sanitize\"; // c\n   ```\n3. (Optional follow-up, **not** this PR.) Update call sites to import `sanitize` directly and delete the three shim files. Keeping it separate keeps this change set reviewable and the rename mechanical.\n\n**Verification:**\n- `crimes scan --format json` should drop `crime_00002`.\n- Build + typecheck pass; every existing import path still resolves.\n\n**Risk:** low after Step 1 — bodies are identical, the only judgement call is the canonical name.\n\n---\n\n## Out of scope (intentionally)\n\n- **`crime_00001`** (`recordSanitiseEvent` duplicated across `telemetry-a.ts` / `telemetry-b.ts`) — same pattern, but telemetry is a separate concern. Worth a follow-up PR with the same extract-shared-helper move; bundling it here muddies the diff.\n- **`crime_00004` / `crime_00005`** (`Date.now()` in telemetry) — orthogonal to duplication. Address with a clock-injection change once the telemetry helper is consolidated; doing it in the same PR conflates two refactors.\n\n## Why two steps, not one\n\nA single PR that consolidates both at once forces reviewers to verify (a) the policy semantics didn't change *and* (b) the sanitise bodies were genuinely equivalent. Splitting it means Step 1 is a behavior-preserving rename and Step 2 is a provable dedup — each diff answers one question.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "duplicated_role_status_plan_check",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": "near_duplicate_block",
+        "passed": false
+      }
+    ]
+  }
+}

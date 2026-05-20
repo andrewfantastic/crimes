@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:53:31.507Z",
+  "run_id": "964d23fd-d1aa-4af7-a0b5-dfdcecc45ba5",
+  "response": "# Triage plan — top 10 findings\n\nOrdered by recommended action, then grouped by detector category. One note up front: `crime_00008` is suppressed (`\"suppressed_count\": 1`), so the top 10 here are IDs 00001–00007 + 00009–00011.\n\n## Structural (testability / correctness)\n1. **crime_00003** Temporal Recklessness — `src/date.ts` (high) → **fix now**. Inject a `Clock` and route all 8 `Date.now()/new Date()` calls through it. Anchor for the date-cluster fix below.\n2. **crime_00004** Half-UTC, Half-Local — `src/date.ts:9,41` (high) → **fix now**, bundle with #1. Pick UTC for storage; convert to local only at the display boundary.\n3. **crime_00010** Timezone Roulette — `src/date.ts:29,33` (medium) → **fix now**, bundle with #1/#2. Append `Z` or parse through Luxon/Temporal.\n4. **crime_00006** Dev-Server URL `localhost:3000` — `src/api/files.ts:8` (medium) → **fix now**. Pull behind `process.env.API_URL`; trivial.\n5. **crime_00007** Localhost-on-Disk `/Users/andrew/...` — `src/api/files.ts:9` (medium) → **fix now**, bundle with #4 (same file). `os.homedir()` + config.\n6. **crime_00009** Temporal Recklessness — `src/billing.ts` (medium) → **defer**. Same fix as #1, but `generateInvoice` is the God Function — touch this only as part of the extraction in #7.\n7. **crime_00002** God Function `generateInvoice` 204 LOC — `src/billing.ts:50–253` (high) → **defer** to a dedicated PR. High effort, risk of regression; extract cohesive sections, land tests first.\n8. **crime_00011** Test That Proves Nothing — `src/billing.test.ts:4–6` (medium) → **fix now**. Either assert observable behaviour or delete; a 3-line decision.\n\n## IA / agent context\n9. **crime_00005** Missing Agent Context — repo root (medium) → **fix now**. Add `AGENTS.md` / `CLAUDE.md` declaring commands + conventions. Cheapest item with the largest agent-risk payoff; should land first so the rest of the work happens under documented rules.\n\n## Frontend / assets\n10. **crime_00001** SVG with embedded raster — `src/assets/partner-logo.svg` (high, but `severity: 0.75`, `blast_radius: 0`) → **fix now**. Re-export with the raster flattened to vector, or split the embedded JPEG/PNG out. Isolated change, low risk.\n\n## Duplication\n*(No duplication finding cracked the top 10.)* The nearest miss is **crime_00012** String Sprinkles (\"enterprise\" across 4 files) — **defer** until the billing refactor (#7) lands, since the canonical place for the constant will fall out of that work.\n\n## Git-history\n*(None in the top 10.)* Churn is `0` across this fixture, so the git-history detectors didn't fire. Worth re-running after the repo accumulates real history.\n\n---\n\n### Suggested execution order\n1. **First commit** — add `AGENTS.md` (#9). Sets ground rules for everything downstream.\n2. **Date cluster** — #1 + #2 + #3 + #8 (one PR touching `src/date.ts` + `billing.test.ts`).\n3. **Config cluster** — #4 + #5 (one PR on `src/api/files.ts`).\n4. **Asset fix** — #10 in isolation.\n5. **Billing refactor** — #7, then #6, then #12, in that order in a dedicated branch.\n\n### Ignore\nNothing in the top 10 warrants `ignore`. Items #6/#12 are *deferred-pending-refactor*, not noise — they should be picked up when the billing extraction lands, not suppressed.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

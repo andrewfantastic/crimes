@@ -1,0 +1,111 @@
+{
+  "scenario": "refactor-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:54:50.790Z",
+  "run_id": "977b99d7-f4f9-4cbd-895e-23a59a4528f5",
+  "response": "# Top 3 changes for `src/billing.ts`\n\n**1. Break up `generateInvoice` (crime_00002 → also resolves crime_00016)**\n204 lines (L50–253), 3.4× the domain threshold and the file's main reason for tripping the God File rule at 310 lines. High severity, 0.55 agent risk — this is where edits collide. Extract cohesive sections (invoice assembly, line-item math, discount/tax application, persistence, notification) into named helpers. Splitting this function alone will drop both findings and shrink the file under the 300-line threshold.\n\n**2. Fix `calculateRefundPreview` and encode its hidden rule (crime_00013 + crime_00017)**\nThese two findings are right next to each other (L39 comment, L40–44 function) and reinforce each other. The comment says *\"Only owners can refund enterprise plans unless billing support approves\"* — a load-bearing authorization rule sitting in prose — and immediately below it, a safe-sounding `calculateRefundPreview` actually calls `saveRefundAudit` and `sendRefundEmail`. Together they're a trap: an agent treats the function as pure, ignores the comment, and ships a broken authorization path. Fix: rename to disclose the side effects (e.g. `executeRefund`) or extract a pure `previewRefund` + a separate `commitRefund`, and turn the prose rule into a named guard (`assertCanRefund(plan, actor)`) or typed predicate.\n\n**3. Inject a clock to remove the 7 wall-time reads (crime_00009)**\n5× `Date.now()` and 2× `new Date()` across L57, 63, 92, 198, 238, 250, 273 — sprinkled through invoice generation, due-date math, and audit timestamps. Domain code reading the system clock means billing tests can't pin a fixed moment without monkey-patching, which is exactly the kind of weak signal that lets bugs like crime_00011's \"renders the enterprise plan\" no-assert test ship. Pass a `clock: () => Date` (or `now()`) through the call site and route every reference through it. Cheap mechanical change, large determinism win.\n\nHonorable mention: crime_00012 (`\"enterprise\"` literal at L7, repeated across 4 files) is worth folding into change #2 — if you're already touching the refund-authorization path, centralize the plan literal into a `PLANS` constant or enum at the same time so the next edit doesn't drift.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:56:41.304Z",
+  "run_id": "9b1329f9-ceb6-491b-9d1c-28a865acc252",
+  "response": "## Drift confirmed\n\nFindings `crime_00011` (action_label_drift) and `crime_00012` (copy_ia_drift) both flag the same `delete` alias group across the same three files with identical evidence and scores (severity 0.4, agent_risk 0.38). The verbs in the source:\n\n- `UserList.tsx:7-8` — **Delete** user, **Remove** member (same href `/users/manage`)\n- `TeamList.tsx:6-7` — **Archive** team, **Delete** the seat\n- `SeatList.tsx:6-7` — **Remove** member, **Archive** member (same href `/seats/manage`)\n\nThree verbs (`delete`, `remove`, `archive`) — and `SeatList`/`TeamList` even use two different verbs for the *same destination*.\n\n## Proposed canonical label set\n\nThese verbs are not synonyms; map them to intent:\n\n| Verb | When it applies | Reversible? |\n|---|---|---|\n| **Remove** | Detach a relationship — user from team, member from seat. Underlying entity survives. | Yes |\n| **Delete** | Destroy the entity itself (user, team). Data is gone. | No |\n| **Archive** | Hide/retire while preserving data (closed teams, historical seats). | Yes |\n\nPattern: `<Verb> <object>` — \"Remove member\", \"Delete user\", \"Archive team\". Drop adjectives like \"the seat\".\n\n## Refactor order\n\n**`SeatList.tsx` first.** Two verbs (`Remove member` and `Archive member`) point at the *same href* `/seats/manage` — that's the clearest contradiction and the smallest blast radius. Pick one (`Remove member`, since seats are relationships) and the file becomes the reference example.\n\nThen **`TeamList.tsx`**: separate the two actions properly — `Archive team` stays (teams retire), but `Delete the seat` is wrong scope for this file; move seat actions out, or rename to `Remove seat` and route to the seats surface.\n\n**`UserList.tsx`** last: pick `Delete user` for the destructive case and `Remove member` for the relational one — but the two `NavItem`s currently share `/users/manage`, so the underlying route likely needs splitting too. That makes it the largest change.\n\n## How the two detectors differ on this fixture\n\nOn *this* input they do not differ — same evidence, same scores, same files. That's the point of the stress fixture: it sits in the overlap. Conceptually:\n\n- **`action_label_drift`** is the narrower detector: it watches a curated alias group for **destructive verbs on interactive controls** (button/menu/link labels) and asks \"is one action wearing multiple verbs?\". The fix is a *copy decision* — pick a canonical verb and align the surfaces.\n- **`copy_ia_drift`** is the broader sibling: it watches alias drift in user-facing copy across the IA (nav labels, page titles, button text, doc headings) regardless of whether the concept is an action. Here the matched group happens to be `delete`, so it fires alongside the action-specific detector and duplicates the report.\n\nThe duplication on `crime_00011` / `crime_00012` is a real signal that the two detectors need either a dedupe pass or a clearer scope split — `action_label_drift` should probably suppress `copy_ia_drift` when the alias group is an action group and the matches are all on interactive controls. Worth a separate finding on the detector itself.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}
