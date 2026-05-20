@@ -210,6 +210,8 @@ describe("test_gap quartile pass", () => {
     expect(ctx.testGap.rawForFile("src/a.ts")).toBe(0.5);
     // b.ts has no test → raw 1.0
     expect(ctx.testGap.rawForFile("src/b.ts")).toBe(1);
+    // test files themselves → raw 0 (they're not under test)
+    expect(ctx.testGap.rawForFile("src/a.test.ts")).toBe(0);
   });
 
   it("quartile-ranks test_gap across the scan when >= 4 files are present", async () => {
