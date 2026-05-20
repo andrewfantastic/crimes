@@ -1,9 +1,48 @@
+import { exec } from "node:child_process";
 import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { context, findNearestPackageRoot } from "./context.js";
+
+const execAsync = promisify(exec);
+
+/**
+ * Initialize a git repo in `dir`, configure a dummy identity, and commit
+ * all files. Used by context clues tests that need git history.
+ */
+async function initRepo(dir: string): Promise<void> {
+  await execAsync("git init", { cwd: dir });
+  await execAsync('git config user.email "test@example.com"', { cwd: dir });
+  await execAsync('git config user.name "Test User"', { cwd: dir });
+  await execAsync("git add -A", { cwd: dir });
+  await execAsync('git commit -m "initial"', { cwd: dir });
+}
+
+/**
+ * Make a repo with git history: creates the files, initializes git, and
+ * makes multiple commits with different author emails so uniqueAuthors > 1.
+ */
+async function makeRepoWithGitHistory(
+  files: Record<string, string>,
+): Promise<string> {
+  const dir = await makeRepo(files);
+  await execAsync("git init", { cwd: dir });
+  await execAsync('git config user.email "author1@example.com"', { cwd: dir });
+  await execAsync('git config user.name "Author One"', { cwd: dir });
+  await execAsync("git add -A", { cwd: dir });
+  await execAsync('git commit -m "initial commit"', { cwd: dir });
+  // Second commit with a different author to ensure uniqueAuthors >= 1.
+  await execAsync('git config user.email "author2@example.com"', { cwd: dir });
+  await execAsync('git config user.name "Author Two"', { cwd: dir });
+  // Amend a file to create a second commit.
+  await writeFile(join(dir, "src/a.ts"), "// amended\n", "utf8");
+  await execAsync("git add -A", { cwd: dir });
+  await execAsync('git commit -m "second commit"', { cwd: dir });
+  return dir;
+}
 
 // Resolve the bundled fixture relative to the test file. Vitest's cwd
 // depends on how it was invoked (`pnpm test` from root vs from the
@@ -520,5 +559,139 @@ describe("context", () => {
       // package.json to it).
       expect(found === undefined || found !== root).toBe(true);
     });
+  });
+});
+
+describe("context — clues", () => {
+  it("populates clues.churn from the scoring context when git is available", async () => {
+    const dir = await makeRepoWithGitHistory({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({ root: dir, file: "src/a.ts" });
+    expect(result.clues?.churn).toBeDefined();
+    expect(result.clues!.churn!.commits_90d).toBeGreaterThan(0);
+    expect(result.clues!.churn!.last_commit_at).toMatch(/^\d{4}-/);
+    expect(result.clues!.churn!.unique_authors_90d).toBeGreaterThan(0);
+  });
+
+  it("omits clues.churn when git is unavailable (no git repo)", async () => {
+    // makeRepo creates files but no git repo — churnResult.gitAvailable will be false.
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({ root: dir, file: "src/a.ts" });
+    expect(result.clues?.churn).toBeUndefined();
+  });
+
+  it("emits clues.test_gap with raw + percentile + label on a repo of ≥4 files", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;\n",
+      "src/b.ts": "export const b = 2;\n",
+      "src/c.ts": "export const c = 3;\n",
+      "src/d.ts": "export const d = 4;\n",
+    });
+    await initRepo(dir);
+    const result = await context({ root: dir, file: "src/a.ts" });
+    expect(result.clues?.test_gap).toBeDefined();
+    expect(result.clues!.test_gap!.raw).toBeGreaterThanOrEqual(0);
+    expect(result.clues!.test_gap!.percentile).toBeGreaterThanOrEqual(0);
+    expect([
+      "top-quartile",
+      "median",
+      "bottom-quartile",
+      "unknown",
+    ]).toContain(result.clues!.test_gap!.label);
+  });
+
+  it("emits label='unknown' and omits percentile when fewer than 4 files are scanned", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;\n",
+      "src/b.ts": "export const b = 2;\n",
+    });
+    await initRepo(dir);
+    const result = await context({ root: dir, file: "src/a.ts" });
+    // Fewer than 4 source files — quartile ranking unavailable.
+    expect(result.clues!.test_gap!.label).toBe("unknown");
+    expect(result.clues!.test_gap!.percentile).toBeUndefined();
+  });
+
+  it("includes related_signals as an empty array (reserved for Release B)", async () => {
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({ root: dir, file: "src/a.ts" });
+    // related_signals is always present and always [] in Release A.
+    expect(result.clues?.related_signals).toEqual([]);
+  });
+
+  it("populates clues.suppressions when suppressionsEntries are passed and the file matches", async () => {
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({
+      root: dir,
+      file: "src/a.ts",
+      suppressionsEntries: [
+        {
+          fingerprint: "large_function::src/a.ts::foo",
+          type: "large_function",
+          file: "src/a.ts",
+          reason: "tracked in #42",
+          created_at: "2026-05-17T11:30:00.000Z",
+          crimes_version_pinned: "0.9",
+        },
+      ],
+    });
+    expect(result.clues?.suppressions).toBeDefined();
+    expect(result.clues!.suppressions).toHaveLength(1);
+    expect(result.clues!.suppressions![0]!.fingerprint).toBe(
+      "large_function::src/a.ts::foo",
+    );
+    expect(result.clues!.suppressions![0]!.matches_current_finding).toBe(false);
+  });
+
+  it("omits clues.suppressions when suppressionsEntries is not provided", async () => {
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({ root: dir, file: "src/a.ts" });
+    // No suppressionsEntries passed — the block is not populated.
+    expect(result.clues?.suppressions).toBeUndefined();
+  });
+
+  it("omits clues.suppressions when no entries match the requested file", async () => {
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({
+      root: dir,
+      file: "src/a.ts",
+      suppressionsEntries: [
+        {
+          fingerprint: "large_function::src/other.ts::bar",
+          type: "large_function",
+          file: "src/other.ts",
+          reason: "tracked in #99",
+          created_at: "2026-05-17T11:30:00.000Z",
+        },
+      ],
+    });
+    // Suppression is for a different file — should not appear here.
+    expect(result.clues?.suppressions).toBeUndefined();
+  });
+
+  it("omit/present clues boundary: clues is present when test_gap is populated", async () => {
+    // This test documents the Release A invariant: clues is ALWAYS present
+    // because test_gap is always populated when scoring succeeds. The spec
+    // says "omit clues when ALL of churn/suppressions/test_gap would be
+    // empty", but in Release A that state is never reached because test_gap
+    // fires whenever the scoring context can be built (which requires only
+    // that the file exists and can be discovered).
+    //
+    // Even with no git, no suppressions, and only 1 file:
+    //   - clues.churn is absent (no git)
+    //   - clues.suppressions is absent (no entries)
+    //   - clues.test_gap is present (raw + label="unknown")
+    //   - clues.related_signals is present as []
+    // Therefore clues itself is present.
+    const dir = await makeRepo({ "src/a.ts": "export const x = 1;\n" });
+    const result = await context({ root: dir, file: "src/a.ts" });
+    // clues should be defined because test_gap is always populated.
+    expect(result.clues).toBeDefined();
+    // In a no-git, single-file repo: no churn, no suppressions.
+    expect(result.clues!.churn).toBeUndefined();
+    expect(result.clues!.suppressions).toBeUndefined();
+    // test_gap should always be present.
+    expect(result.clues!.test_gap).toBeDefined();
+    // related_signals is always [].
+    expect(result.clues!.related_signals).toEqual([]);
   });
 });

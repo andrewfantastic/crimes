@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "codex",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:17:59.859Z",
+  "run_id": "6599ed43-0e8e-460e-a218-2cd46ba13cb6",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e432c-c620-73f1-b4cf-44afd2d500a6\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No petty / single-file findings were reported by `crimes scan --format json`.\\n\\n**Findings By Detector Type**\\n\\nNo detector types present. The scan returned:\\n\\n- `total: 0`\\n- `high: 0`\\n- `medium: 0`\\n- `low: 0`\\n- `findings: []`\\n\\n**Merge Categorisation**\\n\\n- **Block merge:** none\\n- **Warn:** none\\n- **Ignore:** none\\n\\nBecause there are no findings, there are no severities or `scores.agent_risk` values to justify action on. Based on this scan alone, the dashboard PR does not introduce any reported dead code, magic literals, repeated role checks, or other petty single-file risks.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18536,\"cached_input_tokens\":18304,\"output_tokens\":222,\"reasoning_output_tokens\":69}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -3,11 +3,14 @@ import type {
   BaselineCheckReport,
   ContextReport,
   DiffReport,
+  Finding,
+  FindingScores,
   HotspotsReport,
   ScanReport,
   VerdictReport,
 } from "@crimes/core";
 import { describe, expect, it } from "vitest";
+import { pc, plainColour, renderRiskProfileLine } from "./human/shared.js";
 import {
   formatBaselineCheckReport,
   formatBaselineSaveReport,
@@ -110,7 +113,11 @@ describe("formatHumanReport", () => {
         sampleReport.findings[1]!,
       ],
     };
-    const out = formatHumanReport(withRelated, { noColor: true });
+    // `Also touches:` is part of the rich per-finding render — the
+    // default file-grouped layout collapses each finding to a compact
+    // one-line entry. Use --all (or --flat) when you need the full
+    // per-finding block.
+    const out = formatHumanReport(withRelated, { noColor: true, showAll: true });
     expect(out).toContain("Also touches:");
     expect(out).toContain("src/nav/registry.ts");
     expect(out).toContain("src/nav/sidebar.ts");
@@ -137,7 +144,9 @@ describe("formatHumanReport", () => {
         sampleReport.findings[1]!,
       ],
     };
-    const out = formatHumanReport(withRelated, { noColor: true });
+    // Use --all so the rich per-finding render (which is where
+    // related_files is rendered) is exercised.
+    const out = formatHumanReport(withRelated, { noColor: true, showAll: true });
     expect(out).toContain("Also touches:");
     expect(out).toContain("src/a.ts");
     expect(out).toContain("src/e.ts");
@@ -948,10 +957,306 @@ describe("formatBaselineCheckJsonReport", () => {
   });
 });
 
+function stubContextReport(
+  overrides: Partial<ContextReport>,
+): ContextReport {
+  return {
+    schema_version: "0.1.0",
+    report_type: "context",
+    repo: { name: "demo", root: "/tmp/demo" },
+    file: "src/billing.ts",
+    risk: { level: "none", high: 0, medium: 0, low: 0, total: 0 },
+    agent_guidance: [],
+    related_files: [],
+    likely_tests: [],
+    findings: [],
+    ...overrides,
+  };
+}
+
+describe("formatContextHumanReport — clues block", () => {
+  it("renders a Clues section with churn / suppressions / test_gap when present", () => {
+    const report: ContextReport = stubContextReport({
+      clues: {
+        churn: { commits_90d: 14, last_commit_at: "2026-05-18T12:30:00Z", unique_authors_90d: 3 },
+        suppressions: [
+          { fingerprint: "abc", detector: "large_function", reason: "legacy", pinned_version: "0.9.x", matches_current_finding: false },
+        ],
+        test_gap: { raw: 1, percentile: 0.85, label: "top-quartile" },
+        related_signals: [],
+      },
+    });
+    const out = formatContextHumanReport(report, { noColor: true });
+    expect(out).toContain("Clues");
+    expect(out).toContain("churn: 14 commits / 3 authors (last 2026-05-18)");
+    expect(out).toContain("test gap: top-quartile");
+    expect(out).toContain("known suppressions: 1");
+  });
+
+  it("omits the Clues section when report.clues is absent", () => {
+    const report = stubContextReport({});
+    const out = formatContextHumanReport(report, { noColor: true });
+    expect(out).not.toContain("Clues");
+  });
+});
+
+describe("formatHumanReport — file-grouped layout", () => {
+  it("groups by file, caps at topFiles, renders Also-flagged footer + action-close", () => {
+    const report = stubReport({
+      findings: [
+        domainFinding({
+          file: "src/a.ts",
+          agent_risk: 0.9,
+          recency: 1,
+          severity: "high",
+        }),
+        domainFinding({
+          file: "src/a.ts",
+          agent_risk: 0.8,
+          recency: 1,
+          severity: "medium",
+        }),
+        domainFinding({
+          file: "src/b.ts",
+          agent_risk: 0.7,
+          recency: 0,
+          severity: "high",
+        }),
+        nonDomainFinding({
+          file: "scripts/x.ts",
+          agent_risk: 0.6,
+          severity: "medium",
+        }),
+        nonDomainFinding({
+          file: "tests/y.test.ts",
+          agent_risk: 0.5,
+          severity: "low",
+        }),
+      ],
+    });
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("Top files by risk");
+    expect(out).toContain("src/a.ts");
+    expect(out).toContain("2 findings");
+    expect(out).toContain("1 high");
+    expect(out).toContain("Also flagged elsewhere");
+    expect(out).toContain("scripts/");
+    expect(out).toContain("tests/");
+    expect(out).toContain("→ Start with `crimes context src/a.ts`");
+  });
+
+  it("--flat reverts to today's severity-grouped layout", () => {
+    const report = stubReport({
+      findings: [
+        domainFinding({
+          file: "src/a.ts",
+          agent_risk: 0.9,
+          recency: 1,
+          severity: "high",
+        }),
+        domainFinding({
+          file: "src/b.ts",
+          agent_risk: 0.7,
+          recency: 0,
+          severity: "medium",
+        }),
+      ],
+    });
+    const out = formatHumanReport(report, { flat: true, noColor: true });
+    expect(out).toContain("HIGH severity");
+    expect(out).not.toContain("Top files by risk");
+  });
+
+  it("--all flattens both tiers", () => {
+    const report = stubReport({
+      findings: [
+        domainFinding({
+          file: "src/a.ts",
+          agent_risk: 0.9,
+          recency: 1,
+          severity: "high",
+        }),
+        domainFinding({
+          file: "src/a.ts",
+          agent_risk: 0.8,
+          recency: 1,
+          severity: "medium",
+        }),
+        domainFinding({
+          file: "src/b.ts",
+          agent_risk: 0.7,
+          recency: 0,
+          severity: "high",
+        }),
+        nonDomainFinding({
+          file: "scripts/x.ts",
+          agent_risk: 0.6,
+          severity: "medium",
+        }),
+        nonDomainFinding({
+          file: "tests/y.test.ts",
+          agent_risk: 0.5,
+          severity: "low",
+        }),
+      ],
+    });
+    const out = formatHumanReport(report, { showAll: true, noColor: true });
+    expect(out).not.toContain("Also flagged elsewhere");
+    expect(out).toContain("scripts/x.ts");
+  });
+
+  it("falls back to top non-domain file when no domain findings exist", () => {
+    const report = stubReport({
+      findings: [
+        nonDomainFinding({
+          file: "scripts/x.ts",
+          agent_risk: 0.6,
+        }),
+      ],
+    });
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("every finding is in non-domain folders");
+    expect(out).toContain("crimes context scripts/x.ts");
+  });
+
+  it("keeps the green sparkle line when there are no findings", () => {
+    const report = stubReport({ findings: [] });
+    const out = formatHumanReport(report, { noColor: true });
+    expect(out).toContain("No crimes detected");
+  });
+});
+
+let nextStubFindingIndex = 1;
+function nextStubFindingId(): string {
+  const idx = nextStubFindingIndex++;
+  return `crime_${String(idx).padStart(5, "0")}`;
+}
+
+interface StubFindingOptions {
+  file: string;
+  agent_risk?: number;
+  recency?: number;
+  severity?: "low" | "medium" | "high";
+  charge?: string;
+  symbol?: string;
+  evidence?: string[];
+  churn?: number;
+  test_gap?: number;
+  blast_radius?: number;
+  type?: string;
+}
+
+function domainFinding(opts: StubFindingOptions): Finding {
+  return buildStubFinding(opts, "domain");
+}
+
+function nonDomainFinding(opts: StubFindingOptions): Finding {
+  return buildStubFinding(opts, "nonDomain");
+}
+
+function buildStubFinding(
+  opts: StubFindingOptions,
+  tier: "domain" | "nonDomain",
+): Finding {
+  const severity = opts.severity ?? "medium";
+  return {
+    id: nextStubFindingId(),
+    type: opts.type ?? "large_function",
+    charge: opts.charge ?? "God Function",
+    severity,
+    confidence: 0.9,
+    file: opts.file,
+    symbol: opts.symbol,
+    summary: `Stub finding in ${opts.file}.`,
+    evidence: opts.evidence ?? [],
+    scores: {
+      severity: severityToScore(severity),
+      confidence: 0.9,
+      agent_risk: opts.agent_risk,
+      recency: opts.recency,
+      churn: opts.churn,
+      test_gap: opts.test_gap,
+      blast_radius: opts.blast_radius,
+    },
+    tier,
+  };
+}
+
+function severityToScore(severity: "low" | "medium" | "high"): number {
+  switch (severity) {
+    case "high":
+      return 0.9;
+    case "medium":
+      return 0.5;
+    case "low":
+      return 0.2;
+  }
+}
+
+function stubReport({ findings }: { findings: Finding[] }): ScanReport {
+  const summary = findings.reduce(
+    (acc, f) => {
+      acc.total += 1;
+      acc[f.severity] += 1;
+      return acc;
+    },
+    { total: 0, high: 0, medium: 0, low: 0 },
+  );
+  return {
+    schema_version: "0.1.0",
+    report_type: "scan",
+    repo: { name: "acme-app", root: "/tmp/acme-app" },
+    summary,
+    findings,
+  };
+}
+
+describe("renderRiskProfileLine — test_gap quartile label", () => {
+  it("renders 'top-quartile' for scores >= 0.75", () => {
+    const f = stubFinding({ test_gap: 0.75 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap top-quartile");
+    expect(line).not.toContain("0.75");
+  });
+
+  it("renders 'bottom-quartile' for scores <= 0.25", () => {
+    const f = stubFinding({ test_gap: 0.25 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap bottom-quartile");
+  });
+
+  it("renders '~median' for scores in (0.25, 0.75)", () => {
+    const f = stubFinding({ test_gap: 0.5 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap ~median");
+  });
+});
+
+function stubFinding(scores: Partial<FindingScores>): Finding {
+  return {
+    id: "x",
+    type: "t",
+    charge: "C",
+    severity: "low",
+    confidence: 0.5,
+    file: "a.ts",
+    summary: "",
+    evidence: [],
+    scores: { severity: 0.5, confidence: 0.5, ...scores },
+  };
+}
+
 describe("inline feedback hints (0.7.0)", () => {
+  // Feedback hints live inside the rich per-finding block, which is
+  // emitted by `--all` (and `--flat`). The default file-grouped layout
+  // (release A) collapses each finding to a one-line compact entry and
+  // does not surface hints inline — they will be re-introduced as a
+  // single summary line in a later task. Tests retain their original
+  // intent by running through `--all`.
   it("appends 'Give feedback: ...' under each finding when enabled", () => {
     const out = formatHumanReport(sampleReport, {
       noColor: false, // hints require colour mode to fire
+      showAll: true,
       feedbackHints: { entriesByDetector: {} },
     });
     expect(out).toContain("Give feedback: crimes feedback large_function::src/billing.ts::generateInvoice --verdict {tp|fp}");
@@ -961,19 +1266,24 @@ describe("inline feedback hints (0.7.0)", () => {
   it("is suppressed when noColor is true (piped / --no-color path)", () => {
     const out = formatHumanReport(sampleReport, {
       noColor: true,
+      showAll: true,
       feedbackHints: { entriesByDetector: {} },
     });
     expect(out).not.toContain("Give feedback:");
   });
 
   it("is omitted entirely when feedbackHints is unset", () => {
-    const out = formatHumanReport(sampleReport, { noColor: false });
+    const out = formatHumanReport(sampleReport, {
+      noColor: false,
+      showAll: true,
+    });
     expect(out).not.toContain("Give feedback:");
   });
 
   it("is suppressed for detectors at or above the per-detector cap (default 5)", () => {
     const out = formatHumanReport(sampleReport, {
       noColor: false,
+      showAll: true,
       feedbackHints: {
         entriesByDetector: { large_function: 5, todo_density: 4 },
       },
@@ -987,6 +1297,7 @@ describe("inline feedback hints (0.7.0)", () => {
   it("honours a custom capPerDetector", () => {
     const out = formatHumanReport(sampleReport, {
       noColor: false,
+      showAll: true,
       feedbackHints: {
         entriesByDetector: { large_function: 2 },
         capPerDetector: 2,
@@ -1012,6 +1323,7 @@ describe("inline feedback hints (0.7.0)", () => {
     };
     const out = formatHumanReport(report, {
       noColor: false,
+      showAll: true,
       feedbackHints: { entriesByDetector: {} },
     });
     expect(out).toContain("⚠ Previously marked fp in 0.6");

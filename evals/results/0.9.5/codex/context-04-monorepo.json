@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:52:15.113Z",
+  "run_id": "b98c9c82-15a9-49bd-80d9-9908a0faad94",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e434c-286f-7430-8373-f451f967c7ac\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"`crimes scan --format json` reports no findings for `04-monorepo`:\\n\\n```json\\n\\\"summary\\\": {\\n  \\\"total\\\": 0,\\n  \\\"high\\\": 0,\\n  \\\"medium\\\": 0,\\n  \\\"low\\\": 0\\n},\\n\\\"findings\\\": []\\n```\\n\\nThat means `crimes` did not detect a missing agent-facing context surface. In this scenario, the repo appears to already provide enough agent context through one of the expected files: `AGENTS.md`, `CLAUDE.md`, or `SKILL.md`.\\n\\nConsequence: future agent work should have a documented entry point for repo-specific instructions, reducing the chance that agents miss package boundaries, test commands, release constraints, or unsafe operations.\\n\\nNo minimal `AGENTS.md` skeleton is needed to clear a finding, because there is no finding to clear.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18544,\"cached_input_tokens\":12160,\"output_tokens\":232,\"reasoning_output_tokens\":52}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

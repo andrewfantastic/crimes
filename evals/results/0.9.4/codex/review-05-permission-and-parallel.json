@@ -1,0 +1,89 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "codex",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:18:35.238Z",
+  "run_id": "9c663936-a3e2-4e4d-96d3-425412361993",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e432d-306e-7713-a36c-8c1ec17e934d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"**Findings**\\n\\n1. **Block merge: `crime_00003` permission IA drift**\\n   `/admin` is described with `admin`, `manager`, and `owner` across docs, nav, and route guard:\\n   - `docs/routes.md`\\n   - `src/nav.ts`\\n   - `src/routes/admin.ts`\\n\\n   This should block because it touches access semantics. An agent or human could update nav visibility while leaving guard behavior stale, or document access that the route does not actually enforce. The `test_gap: 1` makes that worse: there is no apparent safety net around the policy.\\n\\n2. **Warn: `crime_00004` parallel destination**\\n   `/admin/billing-plans` and `/billing-plans` look like parallel IA for the same billing-plan intent:\\n   - `src/routes/admin/billing-plans.ts`\\n   - `src/routes/billing-plans.ts`\\n\\n   This is merge-worthy only if intentional and documented. Otherwise warn and ask for a canonical destination, redirect, or explicit split. It is lower risk than `/admin` because it is mostly navigation/product-structure drift, not permission drift.\\n\\n3. **Warn: `crime_00006` docs reference missing command**\\n   `docs/routes.md` references `iaq teams`, `iaq workspace`, and `iaq refresh`, but the advertised bin only exposes `get` and `list`.\\n\\n   This is user-facing stale documentation and likely to mislead agents following docs, but I would not block unless the docs are part of the release surface for this change. Fix by updating the command references or removing retired subcommands.\\n\\n**Highest Agent Risk**\\n\\n`crime_00003` carries the highest agent-risk: `0.59`.\\n\\nIt is the riskiest because it combines ambiguous access vocabulary with multiple authority surfaces: docs, nav, and runtime guard code. The failure mode is not just duplication or stale docs; it can produce incorrect authorization behavior or misleading admin access guidance. The scan also shows `test_gap: 1`, so an agent making a “simple” `/admin` change has a high chance of confidently aligning the wrong source and leaving the real policy inconsistent.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":22271,\"cached_input_tokens\":17792,\"output_tokens\":530,\"reasoning_output_tokens\":83}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 8,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": "src/routes/admin/billing-plans.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

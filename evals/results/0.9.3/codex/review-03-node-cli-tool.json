@@ -1,0 +1,48 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:31:27.674Z",
+  "run_id": "3dfb60fa-8205-4c69-a67a-c1073b99029f",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4302-1c3e-7691-87dc-9f9fe0b63ffd\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No findings.\\n\\n`crimes scan --format json` reported:\\n\\n- `total: 0`\\n- `high: 0`\\n- `medium: 0`\\n- `low: 0`\\n- `findings: []`\\n\\nSo there are no detected agent-risk findings to classify for dead code, prose-rules-in-comments, magic literals, weak test assertions, or large files.\\n\\nMerge decision: **no crimes-based blocker**.\\n\\nResidual risk: this only reflects the provided `crimes` output. If the PR is a new Commander.js CLI codebase, I would still want normal review coverage for command behavior, error handling, help text, and tests, but there is nothing from this scan that warrants block or warn based on `severity` or `scores.agent_risk`.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18534,\"cached_input_tokens\":18304,\"output_tokens\":237,\"reasoning_output_tokens\":72}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -126,7 +126,7 @@ try {
   step("crimes --help");
   const helpOut = run(installedBin, ["--help"]).stdout;
   assert(helpOut.includes("crimes"), "--help did not mention `crimes`");
-  assert(helpOut.includes("crimes init --agents"), "--help did not mention `crimes init --agents`");
+  assert(helpOut.includes("crimes context"), "--help did not mention `crimes context`");
   assert(helpOut.includes("scan"), "--help did not list the `scan` command");
   assert(helpOut.includes("context"), "--help did not list the `context` command");
   assert(helpOut.includes("hotspots"), "--help did not list the `hotspots` command");

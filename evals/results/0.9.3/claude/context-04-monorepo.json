@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:24:46.591Z",
+  "run_id": "eda4304c-8ff0-49f6-8c9f-3450fa4dd2a0",
+  "response": "The `crimes scan` JSON shows `summary.total: 0` and an empty `findings` array — so crimes did **not** raise an agent-context finding here. That means one of two things:\n\n1. The repo already ships an agent-facing surface (AGENTS.md / CLAUDE.md / SKILL.md), or\n2. crimes 0.9.3 does not yet include a detector for \"missing agent context.\"\n\nGiven the scenario framing, this is almost certainly **#2** — the missing-agent-context check isn't in the current detector set, so the scanner can't surface it for you. The empty result is a gap in the tool, not a clean bill of health.\n\n## Consequence for future agent work\n\nWithout a top-level `AGENTS.md` (or `CLAUDE.md` / `SKILL.md`) in a monorepo:\n\n- Every new agent session has to **rediscover** the workspace layout, package boundaries, and which package owns what — burning tokens on `ls`/`grep` before any real work.\n- Conventions that aren't in code (commit style, test-runner choice, lint config, \"don't touch this folder\") get **re-litigated** each session, with agents guessing wrong some fraction of the time.\n- In a monorepo specifically, agents tend to **edit in the wrong package** or run scripts at the wrong workspace root when no map exists.\n- Cross-cutting rules (\"JSON schema is a public contract\", \"core can't import language packs\") are invisible until violated.\n\n## Minimal `AGENTS.md` skeleton\n\nDrop this at the repo root. It's intentionally short — enough to orient an agent in one read:\n\n```markdown\n# AGENTS.md\n\n## What this repo is\nOne-sentence description. Link to PRD or product doc if it exists.\n\n## Workspace layout\n- `packages/foo/` — what it does, what depends on it\n- `packages/bar/` — what it does, what depends on it\n- `apps/web/`    — what it does\n\n## Package boundaries (the rules that matter)\n- Which package owns which concern\n- Which imports are forbidden (e.g. \"core must not import language-*\")\n- Where the public contract lives (schema, types, CLI surface)\n\n## How to run things\n- Install: `pnpm install`\n- Build/test everything: `pnpm ci`\n- Test one package: `pnpm --filter <pkg> test`\n- Smoke a release artifact: `pnpm --filter <pkg> smoke`\n\n## Conventions\n- Commit style (Conventional Commits? prefix tags?)\n- Lint/format tool (one, not both)\n- Versioning (Changesets? manual?)\n\n## Don'ts\n- Things that look reasonable but break something non-obvious\n- Folders to leave alone (generated, vendored, fixtures-as-contracts)\n\n## Where to look next\n- `PRD.md` / `docs/` / `README.md` — authoritative product/architecture\n- `CHANGELOG.md` / `docs/releases/` — recent change history\n```\n\nThat's the minimum that would clear a future \"missing agent context\" detector and, more importantly, save real tokens on every agent session that touches this repo.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

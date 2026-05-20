@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:02.133Z",
+  "run_id": "a1082d74-7fe7-4abf-8de1-f8d2a190434c",
+  "response": "Here's the refactor, with each change tied to the finding that motivates it.\n\n## Refactored `src/Card.tsx`\n\n```tsx\nimport styles from \"./Card.module.css\";\n\nexport function Card({\n  children,\n  onActivate,\n  label,\n}: {\n  children: React.ReactNode;\n  onActivate: () => void;\n  label: string;\n}) {\n  return (\n    <button type=\"button\" className={styles.card} onClick={onActivate} aria-label={label}>\n      <div className={styles.body}>{children}</div>\n      <aside className={styles.sidebar}>sidebar</aside>\n    </button>\n  );\n}\n```\n\n```css\n/* Card.module.css */\n.card {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) minmax(0, 240px);\n  gap: var(--space-4);\n  width: 100%;\n  max-width: var(--size-card-max, 64rem);\n  padding: var(--space-6);\n  background: var(--color-surface-accent);\n  color: var(--color-text-primary);\n  border: 1px solid var(--color-border-muted);\n  border-radius: var(--radius-md);\n  box-shadow: var(--shadow-sm);\n  outline-color: var(--color-focus-ring);\n  text-align: left;\n  cursor: pointer;\n}\n\n.body { font-size: clamp(1rem, 0.9rem + 0.4vw, 1.125rem); }\n.sidebar { font-size: var(--font-size-sm); color: var(--color-text-muted); }\n\n@media (max-width: 640px) {\n  .card { grid-template-columns: 1fr; }\n}\n```\n\n## How each change maps to a finding\n\n**`accessible_interaction_risk` (crime_00001)** — the `<div onClick>` on line 10 becomes a real `<button type=\"button\">` with an `aria-label`. That makes it focusable, Enter/Space activatable, and screen-reader-discoverable for free; no `role=\"button\"` / `tabIndex={0}` patch needed. The handler is lifted to an `onActivate` prop so the call site owns the semantic action.\n\n**`design_token_escape` (crime_00002)** — every hex/rgb literal on lines 16–20 and 24/27 (`#ff00aa`, `#0a0a0a`, `#cccccc`, `rgb(0,0,0)`, `#1a73e8`, `#333333`, `#666666`) is replaced with theme variables (`--color-surface-accent`, `--color-text-primary`, `--color-border-muted`, `--shadow-sm`, `--color-focus-ring`, `--color-text-muted`). Spacing (`24`) and radii move to `--space-*` / `--radius-md`. An agent extending the file can no longer copy a raw color forward — there are no raw colors left to copy.\n\n**`responsive_fragility` (crime_00003)** — the three fixed widths (`width: 800`, inner `width: 720`, inner `width: 240`) are gone. The card becomes `width: 100%` with a `max-width` ceiling; the two-column body/sidebar is a `grid-template-columns` rule that collapses to a single column at `≤640px` via the new `@media` query. The 18px body font becomes a `clamp()` so it scales fluidly instead of hard-snapping at small viewports.\n\n## Caveats\n\n- The `onActivate` / `label` props are a behavior change at the call site — every existing `<Card>` caller needs to pass them. If the click was vestigial (the fixture only logs), an alternative is to drop the handler entirely and keep `<Card>` as a plain `<section aria-label={label}>`. I'd want to know which before landing this.\n- The CSS variables above assume tokens exist in the design system. If the project doesn't have a token layer yet, that's a prerequisite phase, not part of this file's refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

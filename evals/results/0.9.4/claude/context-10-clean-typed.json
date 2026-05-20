@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:10:28.439Z",
+  "run_id": "73e4f2e7-265f-4e78-91b9-73976cd4a482",
+  "response": "Here's the read:\n\n**Findings:** Zero. `risk.level: \"none\"`, all severity buckets at 0.\n\n**Likely tests:** `src/billing.test.ts` — run that after any edit.\n\n**Why this is low risk to edit:**\n- No structural, duplication, testability, or churn findings fired on `src/billing.ts` — the deterministic detectors found nothing worth flagging.\n- `agent_guidance` is empty (`\"no findings on this file and no deterministic related files\"`) — nothing here is shaped like a duplicate source of truth, misleading name, or hidden side effect that an LLM is likely to misread.\n- `related_files` is empty (`\"no neighbourhood signal: no IA finding related_files, no shared domain tokens, no domain-prefix filenames, no same-directory siblings\"`) — blast radius is contained; there's no cross-file coupling that an edit here would ripple through.\n- A colocated test (`src/billing.test.ts`) covers it, so changes are easy to verify.\n\nStandard post-edit gate still applies: re-run `crimes scan --changed --format json` after editing and run `src/billing.test.ts` to confirm no regression.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

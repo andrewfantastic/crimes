@@ -8,7 +8,7 @@ import {
   assignIds,
   buildGuidance,
   buildRisk,
-  sortFindings,
+  tagTierAndSortByRankScore,
   toRepoRelative,
 } from "./context-helpers.js";
 import {
@@ -35,8 +35,9 @@ import { resolveAliasGroups } from "./scan.js";
 import type {
   ApplySuppressionsOptions,
   SuppressionEntry,
+  SuppressionForFile,
 } from "./suppressions.js";
-import { partitionFindings } from "./suppressions.js";
+import { partitionFindings, suppressionsForFile } from "./suppressions.js";
 
 export interface ContextOptions {
   /** Repo-relative or absolute path to the file to inspect. */
@@ -54,6 +55,12 @@ export interface ContextOptions {
   config?: CrimesConfig;
   /** Override detectors. Defaults to all built-ins. */
   detectors?: Detector[];
+  /**
+   * Suppression entries the CLI loaded for this scan root. When provided,
+   * the per-file suppression block is populated under clues.suppressions.
+   * Optional — when omitted, suppressions are not included in the report.
+   */
+  suppressionsEntries?: SuppressionEntry[];
 }
 
 export interface ContextRisk {
@@ -64,6 +71,37 @@ export interface ContextRisk {
   low: number;
   /** Total finding count. */
   total: number;
+}
+
+/**
+ * Ambient signals about a file that aren't findings but help an agent
+ * understand the file's context. Frozen contract for Release B — field
+ * names, types, and omission rules are part of the public API.
+ *
+ * Omission rules (per spec §5.7):
+ * - `churn` omitted when git is unavailable.
+ * - `suppressions` omitted when the file has no suppression entries.
+ * - `test_gap.percentile` omitted when fewer than 4 files were scanned;
+ *   in that case `label === "unknown"` and `raw` carries the raw value.
+ * - `related_signals` is ALWAYS present and ALWAYS `[]` in Release A.
+ * - `clues` itself is omitted when ALL of churn/suppressions/test_gap
+ *   would be absent. In Release A `test_gap` is always populated, so
+ *   `clues` is practically always present.
+ */
+export interface ContextClues {
+  churn?: {
+    commits_90d: number;
+    last_commit_at: string;
+    unique_authors_90d: number;
+  };
+  suppressions?: SuppressionForFile[];
+  test_gap?: {
+    raw: number;
+    percentile?: number;
+    label: "top-quartile" | "median" | "bottom-quartile" | "unknown";
+  };
+  /** Reserved for Release B. Always `[]` in Release A. */
+  related_signals: unknown[];
 }
 
 export interface ContextReport {
@@ -108,6 +146,14 @@ export interface ContextReport {
    * Only present when ≥1 suppression matched.
    */
   suppressed_count?: number;
+  /**
+   * Ambient signals about the file — git churn, suppression inventory,
+   * test gap, and a reserved slot for Release B related signals.
+   * Omitted when all substantive sub-blocks (churn/suppressions/test_gap)
+   * would be absent. In Release A this threshold is never met because
+   * test_gap is always populated.
+   */
+  clues?: ContextClues;
 }
 
 /**
@@ -236,7 +282,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     functionHashIndex,
     scoring,
   });
-  sortFindings(findings);
+  tagTierAndSortByRankScore(findings, config);
   assignIds(findings);
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });
@@ -288,6 +334,70 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
   if (likely_tests.length === 0) {
     report.likely_tests_reason =
       "no sibling, __tests__, .test, .spec, _test, or _spec files matched the target basename";
+  }
+
+  // ── clues block ────────────────────────────────────────────────────────────
+  // Build the ambient signals block (frozen contract for Release B).
+  const clues: ContextClues = { related_signals: [] };
+
+  // churn — present only when git data is available for the inspected file.
+  // Plumbing note: ScoringContext.churnResult is the raw CollectChurnResult
+  // that buildScoringContext already obtained. We surface it here so context()
+  // doesn't need a second collectChurn call (Option 1 from the task spec).
+  if (scoring?.churnResult?.gitAvailable === true) {
+    const churnEntry = scoring.churnResult.files.find(
+      (f) => f.file === fileRel,
+    );
+    if (churnEntry) {
+      clues.churn = {
+        commits_90d: churnEntry.changeCount,
+        last_commit_at: churnEntry.latestChange,
+        unique_authors_90d: churnEntry.uniqueAuthors,
+      };
+    }
+  }
+
+  // suppressions — per-file inventory (regardless of whether any matched today).
+  if (options.suppressionsEntries) {
+    const supps = suppressionsForFile(
+      options.suppressionsEntries,
+      fileRel,
+      findings,
+    );
+    if (supps.length > 0) {
+      clues.suppressions = supps;
+    }
+  }
+
+  // test_gap — raw {0, 0.5, 1} + quartile-ranked percentile + label.
+  // Always populated when scoring is available. When scoring is absent
+  // (e.g. an exotic failure in safelyBuildScoringContext), we skip the
+  // block rather than fabricating a value.
+  if (scoring) {
+    const raw = scoring.testGap.rawForFile(fileRel);
+    const score = scoring.testGap.forFile(fileRel);
+    const eligible = allFiles.length >= 4;
+    clues.test_gap = eligible
+      ? {
+          raw,
+          percentile: score,
+          label:
+            score >= 0.75
+              ? "top-quartile"
+              : score <= 0.25
+                ? "bottom-quartile"
+                : "median",
+        }
+      : { raw, label: "unknown" };
+  }
+
+  // Omit clues entirely if all three substantive blocks are absent.
+  // related_signals alone does NOT count — it is always [] in Release A.
+  // In practice this threshold is never met because test_gap is always
+  // populated when scoring succeeds, and scoring succeeds in the vast
+  // majority of cases.
+  if (clues.churn || clues.suppressions || clues.test_gap) {
+    report.clues = clues;
   }
 
   return report;

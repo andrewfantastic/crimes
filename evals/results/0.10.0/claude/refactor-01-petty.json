@@ -1,0 +1,117 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:39.798Z",
+  "run_id": "8d03c746-37dd-4105-81b5-daa557309ed7",
+  "response": "# Three petty crimes in `src/petty.ts`\n\nThe crimes scan flagged exactly three findings on this file — one per function. Here's each, what an agent could break, and the refactor that earns the points.\n\n---\n\n## 1. `describeCheckout` — Option Bag Junk Drawer (`crime_00030`)\n\n**Today (lines 10–19)**\n```ts\ninterface CheckoutOptions {\n  plan: string; role: string; region: string;\n  currency: string; status: string; retry: boolean;\n}\nexport function describeCheckout(options: CheckoutOptions) {\n  return [options.plan, options.role, options.region,\n          options.currency, options.status, String(options.retry)].join(\":\");\n}\n```\n\n**Why it's an agent trap.** Five of the six fields are bare `string` — `plan`, `role`, `region`, `currency`, `status` are interchangeable to the compiler. An agent adding a new caller can pass `role` where `plan` is expected and every test passes. The `CheckoutOptions` name also implies a config-style grab bag, so an agent extending this function is likely to *add* a seventh field rather than question whether the existing six belong together. The crimes evidence (\"6 distinct property reads\") is the smoking gun — this isn't an options bag, it's six positional arguments wearing a trench coat.\n\n**Refactor.** Replace the bag with a named, branded shape that reflects what `describeCheckout` actually does — produce a stable composite key:\n\n```ts\ntype CheckoutKey = {\n  plan: PlanId;       // branded string types\n  role: Role;\n  region: RegionCode;\n  currency: CurrencyCode;\n  status: CheckoutStatus;\n  retry: boolean;\n};\nexport function describeCheckout(key: CheckoutKey): string {\n  return `${key.plan}:${key.role}:${key.region}:${key.currency}:${key.status}:${key.retry}`;\n}\n```\n\nBranded types stop the role/plan swap; the rename (`options` → `key`) tells the next agent this isn't a place to dump new config.\n\n---\n\n## 2. `resolvePaymentResult` — Return Shape Roulette (`crime_00031`)\n\n**Today (lines 21–32)**\n```ts\nif (input.error)    return { ok: false, code: input.code, message: input.message };\nif (input.redirect) return { url: input.url, permanent: false };\nreturn                     { ok: true, value: input.value, cached: false };\n```\n\n**Why it's an agent trap.** Three return shapes, **0% key overlap** between two of them (per the evidence). TypeScript infers the return type as a union, so callers either destructure unsafely or write `'ok' in result` probes. An agent adding a fourth branch (`{ pending: true, etag: '…' }`) won't see a compile error and won't realise existing callers don't handle it. The function name implies a single normalised result; the implementation says \"good luck.\"\n\n**Refactor.** Introduce a discriminated union so the compiler forces every caller (and every future agent) to handle each variant explicitly:\n\n```ts\ntype PaymentResult =\n  | { kind: \"error\";    code: string; message: string }\n  | { kind: \"redirect\"; url: string;  permanent: boolean }\n  | { kind: \"success\";  value: string; cached: boolean };\n\nexport function resolvePaymentResult(input: PaymentInput): PaymentResult {\n  if (input.error)    return { kind: \"error\",    code: input.code!,    message: input.message! };\n  if (input.redirect) return { kind: \"redirect\", url:  input.url!,     permanent: false };\n  return                     { kind: \"success\",  value: input.value!,  cached: false };\n}\n```\n\nThe `kind` tag turns an agent's \"add a fourth branch\" mistake into a TypeScript error at every call site. Bonus: the input type stops being a six-field optional bag too — split it the same way if you have the budget.\n\n---\n\n## 3. `canRunBilling` — Negative Flag Maze (`crime_00032`)\n\n**Today (lines 34–37)**\n```ts\nexport function canRunBilling(disableBilling: boolean, skipRetry: boolean) {\n  if (!disableBilling && !skipRetry) return true;\n  return false;\n}\n```\n\n**Why it's an agent trap.** Two negative flags (`disableBilling`, `skipRetry`) AND-ed under a `!`. Reading this requires inverting both operands in your head. The related finding `crime_00029` flags the same names as unprefixed booleans — together they mean an agent adding a third condition (say, `skipFraudCheck`) has to decide whether to keep the De Morgan pattern or break it, and either choice produces a subtly wrong predicate. Forty percent of the bug surface for a billing gate is in two words.\n\n**Refactor.** Flip to positive flags at the boundary and name the predicate:\n\n```ts\nexport function canRunBilling(billingEnabled: boolean, retryEnabled: boolean): boolean {\n  return billingEnabled && retryEnabled;\n}\n```\n\nIf the call sites genuinely need to pass \"disable\" semantics (e.g. a feature-flag system), invert once at the call site, not inside the predicate. The function body now reads exactly as its name: billing runs when both are enabled. Extending it to a third flag is now safe — the next agent adds `&& fraudChecksEnabled` instead of negotiating a triple negative.\n\n---\n\n**Common thread.** All three are low-severity individually (the scan reports `agent_risk: 0.40` on each), but they cluster in a 38-line file — which is the point of `crimes context`. An agent loading just this file sees three different \"I'll guess the contract\" failure modes side by side. Naming the shapes (`CheckoutKey`, `PaymentResult`) and flipping the flags removes the guesswork before the next edit lands.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "direct_date",
+      "crime_00003": "mixed_utc_local_methods",
+      "crime_00004": "concept_alias_drift",
+      "crime_00005": "large_function",
+      "crime_00006": "missing_agent_context",
+      "crime_00007": "hardcoded_localhost",
+      "crime_00008": "hardcoded_local_path",
+      "crime_00009": "timezone_unsafe_parse",
+      "crime_00010": "magic_domain_literal_scatter",
+      "crime_00011": "dst_naive_arithmetic",
+      "crime_00012": "oversized_raster",
+      "crime_00013": "docs_code_drift",
+      "crime_00014": "raster_should_be_vector",
+      "crime_00015": "duplicated_navigation_source",
+      "crime_00016": "todo_density",
+      "crime_00017": "route_metadata_drift",
+      "crime_00019": "direct_date",
+      "crime_00020": "weak_test_signal",
+      "crime_00021": "name_behavior_mismatch",
+      "crime_00022": "sync_io_in_hotpath",
+      "crime_00023": "direct_date",
+      "crime_00024": "date_string_concat",
+      "crime_00025": "locale_drift",
+      "crime_00026": "large_file",
+      "crime_00027": "logic_in_comments",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "option_bag_junk_drawer",
+      "crime_00031": "return_shape_roulette",
+      "crime_00032": "negative_flag_maze",
+      "crime_00033": "singular_plural_type_mismatch",
+      "crime_00034": "orphaned_destination",
+      "crime_00035": "orphaned_destination",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "weak_test_signal",
+      "crime_00038": "todo_density"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God Function": "large_function",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Test That Proves Nothing": "weak_test_signal",
+      "False Identity": "name_behavior_mismatch",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

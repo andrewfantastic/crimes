@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T04:58:35.770Z",
+  "run_id": "c5989353-05f0-4e9f-aae7-753f2ea7cc76",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43bf-9fe1-7562-ab71-84fe29b1d99b\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Break the import from `src/domain/billing.ts` to `src/presentation/invoice-view.ts`.\\n\\nWhy: that edge is both part of the 3-file cycle and the explicit layer violation:\\n\\n```text\\nsrc/application/billing-flow.ts\\n  -> src/domain/billing.ts\\n  -> src/presentation/invoice-view.ts\\n  -> src/application/billing-flow.ts\\n```\\n\\nThe domain layer should not depend on presentation. Presentation can format or render billing data, but domain billing logic should not import invoice UI/view code. Breaking that import fixes the cycle at the most architecturally wrong edge instead of papering over it elsewhere.\\n\\nPreferred fix: move whatever `billing.ts` needs from `invoice-view.ts` into a domain-owned type/helper module, or invert the dependency so presentation imports from domain. If the import is only for TypeScript shapes, convert it to `import type`; otherwise extract a neutral module such as `src/domain/invoice-types.ts` or `src/application/invoice-formatting.ts` depending on what is being shared.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18359,\"cached_input_tokens\":16768,\"output_tokens\":257,\"reasoning_output_tokens\":38}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": "src/presentation/invoice-view.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

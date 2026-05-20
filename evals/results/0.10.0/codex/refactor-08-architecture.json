@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:02:26.109Z",
+  "run_id": "b6fc77f8-61b7-46dd-aeef-d160e08e0007",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c3-3216-7280-8f02-ba2325cb3af5\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"The scan reports two architecture findings to act on:\\n\\n1. `crime_00002` — `layer_violation`\\n   - File: `src/domain/billing.ts`\\n   - Bad edge: `src/domain/billing.ts` imports `src/presentation/invoice-view.ts`\\n   - Rule violated: `domain cannotImport presentation`\\n\\nBreak this import. The domain layer should not know that an invoice is rendered by a presentation view. Move any shared invoice shape, formatting contract, or policy into the domain layer, then have presentation depend inward on that.\\n\\nRecommended direction:\\n\\n```ts\\n// domain owns the contract\\nsrc/domain/invoice.ts\\n\\n// presentation implements rendering\\nsrc/presentation/invoice-view.ts\\n\\n// application coordinates the two\\nsrc/application/billing-flow.ts\\n```\\n\\nIf `billing.ts` currently calls something like `renderInvoiceView(...)`, replace that with a domain-owned return value or interface, for example `InvoiceSummary`, `InvoiceDraft`, or `InvoicePresenterPort`. Then `billing-flow.ts` can pass the domain result to `invoice-view.ts`.\\n\\n2. `crime_00003` — `deep_import`\\n   - File: `src/application/billing-flow.ts`\\n   - Bad import: `some-pkg/dist/internal/private/helper.js`\\n\\nRedirect this through the package’s public entry point if available:\\n\\n```ts\\nimport { helper } from \\\"some-pkg\\\";\\n```\\n\\nIf `some-pkg` does not export the helper publicly, do not keep importing from `dist/internal/private`. Wrap the needed behavior behind an application-owned adapter or infrastructure service, then isolate the private dependency there while pursuing a proper upstream/public API.\\n\\nA reasonable target split:\\n\\n```ts\\nsrc/application/billing-flow.ts\\n  imports domain billing API\\n  imports an application-facing port/interface\\n\\nsrc/infrastructure/some-pkg-helper.ts\\n  imports from \\\"some-pkg\\\" public API if possible\\n  contains the package-specific implementation\\n```\\n\\nHow the risks differ:\\n\\n`layer_violation` is an architectural direction problem. It teaches future agents the wrong dependency flow: domain code appears allowed to reach into presentation, so later edits may keep coupling business rules to UI details. That raises refactor risk because changing views can unexpectedly affect domain behavior.\\n\\n`deep_import` is a package boundary problem. It may not violate your internal four-layer model, but it depends on another package’s private filesystem layout. The agent risk is upgrade and maintenance fragility: an agent may assume the import is supported because it compiles today, even though the package can move or remove that file without a breaking-change signal.\\n\\nI would fix `crime_00002` first because it also participates in the reported circular dependency. Then fix `crime_00003` by replacing the private package path with a public entry point or isolating it behind an adapter.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19463,\"cached_input_tokens\":18304,\"output_tokens\":620,\"reasoning_output_tokens\":41}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

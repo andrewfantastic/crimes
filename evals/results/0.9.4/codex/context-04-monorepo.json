@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:10:31.682Z",
+  "run_id": "09a57c31-eecb-4eff-8bb1-f9963843baf4",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4325-ddd6-7d91-8fec-b0e5abe32ea2\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"`crimes scan --format json` reports **0 findings** for `04-monorepo`.\\n\\nThat means the repo does **not** trigger the missing agent-facing context finding. In practical terms, `crimes` sees the repository as already having an acceptable agent-facing surface, such as `AGENTS.md`, `CLAUDE.md`, or `SKILL.md`.\\n\\nNo minimal `AGENTS.md` skeleton is needed to clear this scan, because there is no finding to clear.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18544,\"cached_input_tokens\":7552,\"output_tokens\":229,\"reasoning_output_tokens\":125}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

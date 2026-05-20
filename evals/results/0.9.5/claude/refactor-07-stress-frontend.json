@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-07-stress-frontend",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:55:35.251Z",
+  "run_id": "c302d51d-b3cf-407c-8296-38b9b5a0204d",
+  "response": "## Refactor proposal for `src/Card.tsx`\n\nThe file is a 32-line presentational component with no tests and no sibling components — low blast radius, but high test gap. All three findings collapse onto **line 10's outer `<div>`** plus the nested div on line 24. The fix is to swap the outer element for a `<button>`, route every literal through design tokens, and replace fixed pixel widths with fluid sizing.\n\n### Proposed code\n\n```tsx\nimport { tokens } from \"@/design/tokens\";\nimport styles from \"./Card.module.css\";\n\nexport function Card({\n  children,\n  onActivate,\n  label,\n}: {\n  children: React.ReactNode;\n  onActivate: () => void;\n  label: string;\n}) {\n  return (\n    <button\n      type=\"button\"\n      aria-label={label}\n      onClick={onActivate}\n      className={styles.card}\n    >\n      <div className={styles.body}>{children}</div>\n      <div className={styles.sidebar}>sidebar</div>\n    </button>\n  );\n}\n```\n\n```css\n/* Card.module.css */\n.card {\n  width: 100%;\n  max-width: var(--size-card-max, 50rem); /* was 800px */\n  padding: var(--space-6);                /* was 24 */\n  background: var(--color-surface-accent); /* was #ff00aa */\n  color: var(--color-text-primary);        /* was #0a0a0a */\n  border: 1px solid var(--color-border);   /* was #cccccc */\n  box-shadow: var(--shadow-sm);            /* was 0 2px 4px rgb(0,0,0) */\n  outline-color: var(--color-focus-ring);  /* was #1a73e8 */\n}\n.body { width: 100%; max-width: 45rem; font-size: clamp(1rem, 1vw + 0.75rem, 1.125rem); color: var(--color-text-primary); }\n.sidebar { width: 100%; max-width: 15rem; font-size: var(--font-sm); color: var(--color-text-muted); }\n@media (max-width: 640px) { .sidebar { max-width: 100%; } }\n```\n\n### Change → finding mapping\n\n| Finding | Change |\n|---|---|\n| **`accessible_interaction_risk`** (`crime_00001`) | Replace the outer `<div onClick>` with `<button type=\"button\" aria-label={label}>`. Renames the prop to `onActivate` so the contract is explicit, and lets the browser provide focus, Enter/Space activation, and screen-reader semantics for free — no manual `role`/`tabIndex` patchwork. |\n| **`design_token_escape`** (`crime_00002`) | Move all 9 literals (`#ff00aa`, `#0a0a0a`, `#cccccc`, `#1a73e8`, `rgb(0,0,0)`, `#333333`, `#666666`, `24`, `0 2px 4px`) into CSS custom properties under `var(--color-*)`, `var(--space-*)`, `var(--shadow-*)`. Pulling them out of inline `style` also means future agents extending the file can't copy literal hex codes forward — there's nothing to copy. |\n| **`responsive_fragility`** (`crime_00003`) | Replace `width: 800` / `width: 720` / `width: 240` with `width: 100%` + a `max-width` in `rem`, replace `fontSize: 18` with `clamp(1rem, 1vw + 0.75rem, 1.125rem)`, and add an `@media (max-width: 640px)` rule that lets the sidebar collapse. The detector specifically flagged the absence of any `@media` query in the file — this resolves it. |\n\n### Trade-offs to note\n\n- Switching to `<button>` is a **public-API change**: the parent must supply an `onActivate` handler and `aria-label`. If the card's children include interactive elements, button-nesting is invalid HTML — in that case use `<a>` or a `role=\"group\"` wrapper with a dedicated activation target instead.\n- Moving to CSS Modules assumes the project already has a stylesheet pipeline; if it's pure inline-styles today, an equivalent `styled-components` / `vanilla-extract` / Tailwind token refactor works the same way — the load-bearing move is \"no literal values in JSX.\"\n- The fixture has no `crimes.config.json`-defined tokens, so `var(--color-*)` names are illustrative. In a real codebase, pull the exact token names from `tokens.ts` or the Tailwind config before applying.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "accessible_interaction_risk",
+      "crime_00002": "design_token_escape",
+      "crime_00003": "responsive_fragility"
+    },
+    "detector_id_by_charge": {
+      "Accessible Interaction Risk": "accessible_interaction_risk",
+      "Design Token Escape": "design_token_escape",
+      "Responsive Fragility": "responsive_fragility"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "design_token_escape",
+        "observed": "design_token_escape",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "accessible_interaction_risk",
+        "observed": "accessible_interaction_risk",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "responsive_fragility",
+        "observed": "responsive_fragility",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/Card.tsx",
+        "observed": "src/Card.tsx",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "accessible_interaction_risk",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

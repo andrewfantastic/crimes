@@ -23,7 +23,9 @@ export {
   ConfigParseError,
   CrimesConfigSchema,
   DEFAULT_CONFIG,
+  DEFAULT_NON_DOMAIN_PATTERNS,
   DEFAULT_SUPPRESSIONS_PATH,
+  DEFAULT_TOP_FILES,
   loadConfig,
   loadConfigDetailed,
   resolveSuppressionsPath,
@@ -72,7 +74,12 @@ export {
   context,
   findNearestPackageRoot,
 } from "./context.js";
-export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
+export type {
+  ContextClues,
+  ContextOptions,
+  ContextReport,
+  ContextRisk,
+} from "./context.js";
 export {
   explain,
   UnknownDetectorTypeError,
@@ -216,6 +223,8 @@ export type {
   ScoringContext,
   TestGapIndex,
 } from "./scoring/build.js";
+export { classifyTier, makeTierClassifier } from "./scoring/tier.js";
+export type { Tier } from "./scoring/tier.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {
@@ -299,6 +308,7 @@ export {
   removeSuppression,
   resolveOverridePath,
   shouldResurface,
+  suppressionsForFile,
   SuppressionEntrySchema,
   SuppressionsSchema,
 } from "./suppressions.js";
@@ -311,6 +321,7 @@ export type {
   RemoveSuppressionOptions,
   RemoveSuppressionResult,
   SuppressionEntry,
+  SuppressionForFile,
   Suppressions,
 } from "./suppressions.js";
 export {

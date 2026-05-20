@@ -1,0 +1,33 @@
+{
+  "scenario": "context-09-clean-tiny",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:09:44.576Z",
+  "run_id": "98d6e10e-fa77-4f2c-b04a-5017dd157dda",
+  "response": "`crimes context src/add.ts` returned an empty report: `total: 0`, no high/medium/low findings, and an empty `findings` array.\n\n**What this means:**\n- No structural risk (no large function, deep nesting, oversized params)\n- No dependency risk (no circular deps, deep imports, layer violations)\n- No duplication concerns\n- No testability red flags (no untestable `Date.now()`/`Math.random()`/`process.env` usage in domain code)\n- No churn or test-gap hotspots flagged\n\n**Verdict:** Safe to extend. The file is clean by all of crimes' current detectors. Standard care still applies — add tests for any new behavior — but there's no preexisting risk that should constrain the edit.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/add.ts",
+        "observed": "src/add.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "direct_date"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T04:59:13.103Z",
+  "run_id": "ee41ea24-f21d-4ee2-834b-b0e999442c31",
+  "response": "## Recommendation: break `domain/billing.ts → presentation/invoice-view.ts`\n\n**The cycle:**\n```\napplication/billing-flow.ts → domain/billing.ts → presentation/invoice-view.ts → application/billing-flow.ts\n```\n\n**Which edge to cut, and why:**\n\nRemove `import { renderInvoice } from \"../presentation/invoice-view.js\"` in `src/domain/billing.ts:2`. This single edit kills both `crime_00001` (the cycle) and `crime_00002` (the layer violation) because they share a root cause — the domain layer reaching upward into presentation. The other two edges are legitimate-direction dependencies (application orchestrates domain; presentation triggers application flow).\n\n**How to break it:**\n\n`chargeCustomer` currently delegates string formatting to `renderInvoice`, which is exactly the inversion the layer rule forbids. Two clean options:\n\n1. **Return data, let the caller render.** Have `chargeCustomer` return `{ amount }` (or just the amount) and let `runBillingFlow` / `renderInvoice` handle presentation. Cleanest fix; preserves layering.\n2. **Inject the renderer.** If `chargeCustomer` truly needs a string, accept a `format: (n: number) => string` parameter. Domain owns the interface, presentation provides the implementation at the application seam.\n\nOption 1 is the right call here — `chargeCustomer` is trivial and there's no reason for it to know about invoices at all.\n\nThe `import type` workaround the scan suggests doesn't apply here: `renderInvoice` is used as a runtime value, not a type. And the deep-import finding (`some-pkg/dist/internal/private/helper.js`) is unrelated to the cycle and can be addressed separately.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": "circular_dependency",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:09.158Z",
+  "run_id": "85ca0f40-80e0-4e80-aebc-7c7d0081f01b",
+  "response": "The scan came back clean: `summary.total: 0`, empty `findings[]`. So I can't \"surface the finding\" the scenario expects — `crimes scan` did not report a missing-agent-context finding here.\n\nTwo possible reasons, and they have very different consequences:\n\n1. **The repo already ships an agent-facing surface** (AGENTS.md / CLAUDE.md / SKILL.md), so there is nothing to flag.\n2. **`crimes` doesn't currently detect the absence of agent context.** The MVP detector list in `CLAUDE.md` covers structural / dependency / duplication / testability / git-history risks — there is no \"missing AGENTS.md\" detector in scope. If that's the case, a zero-finding scan is silent on this question, not evidence of a pass.\n\nFrom the JSON alone I cannot distinguish (1) from (2). To answer the scenario's underlying question honestly I'd need to look at the fixture itself (`evals/fixtures/04-monorepo/`) for an `AGENTS.md` / `CLAUDE.md` / `SKILL.md` at the root or in any package.\n\n**Consequence for future agent work** (in case the files are missing): an agent landing its first PR has no curated entry point — no description of the package boundaries, no \"what this product is and isn't\", no stack lock-ins, no don't-touch list. It has to infer all of that from code, which is exactly where agent risk (multiple sources of truth, misleading names, unstated invariants) compounds.\n\n**Minimal AGENTS.md skeleton that would clear a \"missing agent context\" finding:**\n\n```markdown\n# AGENTS.md\n\n## What this repo is\nOne-paragraph product description. What ships, who uses it.\n\n## Layout\n- `packages/<name>/` — one line per workspace package, what it owns\n- Boundaries that matter (what depends on what, what must not)\n\n## Stack (locked unless explicitly changed)\nLanguage, package manager, test runner, build tool, lint/format.\n\n## How to run things\n- Install: `<cmd>`\n- Test: `<cmd>`\n- Build: `<cmd>`\n- Lint/typecheck: `<cmd>`\n\n## Conventions agents must follow\n- Commit style, PR style, branch naming\n- Where config lives, where it doesn't\n- Files / paths that are generated (don't hand-edit)\n\n## Out of scope\nWhat this repo is explicitly NOT, and where to push back if asked to add it.\n```\n\nKeep it short and load-bearing — anything an agent could derive from the code itself doesn't belong here. The high-value lines are the boundaries, the locked stack, and the \"out of scope\" list, because those encode decisions that aren't visible in the source.\n\nCaveat worth flagging upstream: if scenario `context-04-monorepo` is meant to exercise a \"missing agent context\" detector, the empty scan suggests that detector either isn't implemented yet or didn't trigger on this fixture — worth verifying before treating the zero-finding result as a pass.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

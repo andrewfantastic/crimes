@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
-import { buildScoringContext, computeAgentRisk } from "./build.js";
+import { buildScoringContext, computeAgentRisk, finaliseFindingScores, recencyForDate } from "./build.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -190,6 +190,79 @@ describe("buildScoringContext > blast_radius", () => {
   });
 });
 
+describe("test_gap quartile pass", () => {
+  it("returns the raw value for the inspected file via rawForFile", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;",
+      "src/a.test.ts": "import { a } from './a';",
+      "src/b.ts": "export const b = 2;",
+      "src/c.ts": "export const c = 3;",
+      "src/d.ts": "export const d = 4;",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // a.ts has a sibling test → raw 0.5
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(0.5);
+    // b.ts has no test → raw 1.0
+    expect(ctx.testGap.rawForFile("src/b.ts")).toBe(1);
+    // test files themselves → raw 0 (they're not under test)
+    expect(ctx.testGap.rawForFile("src/a.test.ts")).toBe(0);
+  });
+
+  it("quartile-ranks test_gap across the scan when >= 4 files are present", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "x",
+      "src/a.test.ts": "import './a';",
+      "src/b.ts": "x",
+      "src/b.test.ts": "import './b';",
+      "src/c.ts": "x",
+      "src/d.ts": "x",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // 4 source files: 2 have sibling tests (raw 0.5), 2 don't (raw 1.0).
+    // After quartile pass:
+    //   - 2 entries at raw 0.5: occupy sorted indices [0, 2) → midpoint 2/8 = 0.25 → bucket 0.25
+    //     BUT snapToQuartile uses `< 0.25 → 0`, so 0.25 itself maps to bucket 0.25
+    //     Wait — re-check: percentile EXACTLY 0.25 ≥ 0.25 (not <), so bucket 0.25.
+    //   - 2 entries at raw 1.0: occupy sorted indices [2, 4) → midpoint 6/8 = 0.75 → bucket 0.75 (≥ 0.75 → 1)
+    // The expected values per the snap thresholds at 0.25 / 0.4375 / 0.5625 / 0.75:
+    //   - percentile 0.25 → bucket 0.25 (since 0.25 is the boundary and rule is `< 0.4375 → 0.25`)
+    //   - percentile 0.75 → bucket 1 (since 0.75 is the boundary and rule is `>= 0.75 → 1`)
+    expect(ctx.testGap.forFile("src/a.ts")).toBe(0.25);
+    expect(ctx.testGap.forFile("src/c.ts")).toBe(1);
+    expect(ctx.testGap.forFile("src/d.ts")).toBe(1);
+  });
+
+  it("falls back to raw values when fewer than 4 files are scanned", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "x",
+      "src/b.ts": "x",
+      "src/c.ts": "x",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // 3 files, all raw 1.0 → no quartile pass → forFile === rawForFile
+    expect(ctx.testGap.forFile("src/a.ts")).toBe(1);
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(1);
+  });
+});
+
 describe("computeAgentRisk", () => {
   it("follows the documented unified formula", () => {
     const got = computeAgentRisk({
@@ -214,5 +287,82 @@ describe("computeAgentRisk", () => {
     });
     expect(got).toBeLessThanOrEqual(1);
     expect(got).toBeGreaterThan(0.9);
+  });
+});
+
+describe("recencyForDate", () => {
+  const now = new Date("2026-05-20T12:00:00Z").getTime();
+
+  it("returns 1.0 for a commit today", () => {
+    expect(recencyForDate("2026-05-20T11:00:00Z", now)).toBe(1);
+  });
+
+  it("returns 1.0 at exactly the 7-day boundary", () => {
+    expect(recencyForDate("2026-05-13T12:00:00Z", now)).toBe(1);
+  });
+
+  it("returns 1.0 for a commit a few days ago (mid-window)", () => {
+    expect(recencyForDate("2026-05-17T12:00:00Z", now)).toBe(1);
+  });
+
+  it("linearly decays between 7 and 14 days", () => {
+    // 10.5d old → 3.5 / 7 of the way through decay → 1 - 3.5/7 = 0.5
+    const tenAndAHalfDaysAgo = new Date(now - 10.5 * 86400 * 1000).toISOString();
+    expect(recencyForDate(tenAndAHalfDaysAgo, now)).toBeCloseTo(0.5, 2);
+  });
+
+  it("returns 0 for commits older than 14 days", () => {
+    expect(recencyForDate("2026-05-01T12:00:00Z", now)).toBe(0);
+  });
+
+  it("returns 0 for missing/undefined input (no churn signal)", () => {
+    expect(recencyForDate(undefined, now)).toBe(0);
+  });
+
+  it("returns 0 for an unparsable date string", () => {
+    expect(recencyForDate("not-a-date", now)).toBe(0);
+  });
+});
+
+describe("ScoringContext.recency", () => {
+  it("is exposed on the context and falls back to 0 when git is unavailable", async () => {
+    // Bare temp dir, no git init
+    const dir = await makeRepo({ "src/a.ts": "x" });
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    expect(ctx.recency.forFile("src/a.ts")).toBe(0);
+    expect(ctx.recency.limited).toBe(true);
+  });
+});
+
+describe("finaliseFindingScores — recency", () => {
+  it("populates scores.recency from the scoring context", () => {
+    const finding = {
+      file: "src/a.ts",
+      severity: "high" as const,
+      scores: { severity: 0.9, confidence: 0.8 },
+    } as unknown as import("../finding.js").Finding;
+    const scoring = {
+      churn: { forFile: () => 0, limited: false },
+      testGap: { forFile: () => 1, rawForFile: () => 1 },
+      blastRadius: { forFile: () => 0 },
+      recency: { forFile: () => 0.6, limited: false },
+    } as import("./build.js").ScoringContext;
+    finaliseFindingScores(finding, scoring);
+    expect(finding.scores.recency).toBe(0.6);
+  });
+
+  it("leaves recency undefined when scoring context is absent", () => {
+    const finding = {
+      file: "src/a.ts",
+      severity: "low" as const,
+      scores: { severity: 0.45, confidence: 0.5 },
+    } as unknown as import("../finding.js").Finding;
+    finaliseFindingScores(finding, undefined);
+    expect(finding.scores.recency).toBeUndefined();
   });
 });

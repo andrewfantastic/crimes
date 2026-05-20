@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:27:34.667Z",
+  "run_id": "10b1f680-80d7-4f0a-b932-98191c42e494",
+  "response": "## Confirmation from the scan\n\nThe scan reports **three independent duplication clusters** in `src/`, plus secondary `Date.now()` calls inside the duplicated telemetry code:\n\n1. **Near-duplicate sanitiser body** (`crime_00002`, confidence 0.85) — `sanitizeUserInput` / `sanitizeText` / `cleanMessage` across `sanitize-a.ts:10-36`, `sanitize-b.ts:9-35`, `sanitize-c.ts:9-35`. Bodies are byte-for-byte identical apart from the working-variable name (`working` / `cleaned` / `normalised`).\n2. **Exact-duplicate telemetry helper** (`crime_00001`, confidence 0.95) — `recordSanitiseEvent` is copy-pasted across `telemetry-a.ts` and `telemetry-b.ts`.\n3. **Drifting `\"admin\"` check** (`crime_00003`, confidence 0.70) — 4 files, 2 expression shapes. The three `assertAdmin{A,B,C}` helpers in the sanitise files already disagree (`=== \"admin\"` vs `=== \"admin\" || === \"owner\"` vs `!== \"admin\"`), which is exactly the silent-drift failure mode the detector flags.\n4. **Temporal coupling** (`crime_00004`, `crime_00005`) — `Date.now()` inside the duplicated telemetry payload. Worth fixing once at the consolidation point rather than twice.\n\n## Proposed refactor\n\nThree new modules under `src/`, then delete the duplicates:\n\n### 1. `src/sanitize.ts` — single sanitiser\n```ts\nexport interface SanitizeOptions {\n  maxLength?: number;          // default 1000\n  maxRepeatedPunctuation?: number; // default 5\n  uppercaseRatioCeiling?: number;  // default 0.9, only applied when len > 30\n}\n\nexport function sanitize(value: unknown, options?: SanitizeOptions): string;\n```\nA single pure function. The three call sites (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) become thin re-exports during migration, then are deleted once callers are updated.\n\n### 2. `src/policy.ts` (rewrite) — single role predicate\n```ts\nexport type Role = \"admin\" | \"owner\" | \"member\" | string;\n\nexport function isAdmin(role: Role): boolean;          // role === \"admin\"\nexport function canEditBilling(role: Role): boolean;   // delegates to isAdmin\nexport function canSeeAuditLog(role: Role): boolean;   // delegates to isAdmin\nexport function canImpersonate(role: Role): boolean;   // delegates to isAdmin\n```\nReconcile the three drifting `assertAdmin*` shapes deliberately: `assertAdminB`'s \"admin OR owner\" and `assertAdminC`'s negation each need a product call — pick the intended semantics per call site rather than preserving the accidental divergence. Delete `assertAdminA/B/C`.\n\n### 3. `src/telemetry.ts` — single event recorder with injected clock\n```ts\nexport interface Clock { now(): number; }\nexport const systemClock: Clock = { now: () => Date.now() };\n\nexport interface SanitiseEvent {\n  originalLength: number;\n  sanitisedLength: number;\n  reductionRatio: number;\n  timestamp: number;\n}\n\nexport function recordSanitiseEvent(\n  originalLength: number,\n  sanitisedLength: number,\n  clock: Clock = systemClock,\n): void;\n```\nClock injection resolves `crime_00004`/`00005` in one place.\n\n## Files that change\n\n| File | Change |\n|---|---|\n| `src/sanitize.ts` | **new** — consolidated `sanitize()` |\n| `src/sanitize-a.ts` | delete (callers updated to `sanitize`) |\n| `src/sanitize-b.ts` | delete |\n| `src/sanitize-c.ts` | delete |\n| `src/telemetry.ts` | **new** — consolidated `recordSanitiseEvent` with injectable `Clock` |\n| `src/telemetry-a.ts` | delete |\n| `src/telemetry-b.ts` | delete |\n| `src/policy.ts` | rewrite around `isAdmin`; existing `canEditBilling` / `canSeeAuditLog` / `canImpersonate` delegate |\n| any call sites of the old symbols | update imports (out of scope for the fixture; in a real repo, grep first) |\n\nNet effect: **−6 files, +2 files, 1 rewrite**, and all three duplication findings plus both `direct_date` findings collapse to zero.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

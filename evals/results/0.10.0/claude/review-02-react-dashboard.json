@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:27.677Z",
+  "run_id": "c337defd-998a-4763-af66-a40a85a91f89",
+  "response": "# Review: 02-react-dashboard\n\n**`crimes scan` returned zero findings on this fixture** (`summary.total: 0`, empty `findings` array). There is nothing to categorize as block / warn / ignore.\n\n## What this means\n\nGrouped-by-detector output is empty across the board:\n\n- **Structural** (large fn, large file, deep nesting, large component): none\n- **Dependency** (cycles, deep imports, layer violations, fan-in/out): none\n- **Duplication** (exact blocks, near-dupe fns, repeated literals, repeated role checks): none\n- **Testability** (`Date.now`/`Math.random`/`process.env` in domain, mixed pure+effect): none\n- **Git/history** (churn hotspots, weakly-tested churn): none — expected, since the prompt frames this as \"a PR on top of an empty baseline\" so there's no git history to mine\n\n## Honest read of the scenario\n\nThe prompt asks me to enumerate \"petty / single-file findings (dead code, magic literals, repeated role checks)\" — but `crimes` v0.10.0 does not have detectors for **dead code** at all, and the scan in front of me surfaced nothing for magic literals or repeated role checks on this fixture either. So one of three things is true:\n\n1. **The fixture genuinely is clean** by the current detector set — in which case the correct review verdict is *approve, nothing to block or warn on*.\n2. **The detectors that would catch these classes of issue aren't wired up yet** for this fixture's shape (e.g. repeated-role-check detection may need specific patterns the fixture doesn't hit).\n3. **The eval scenario is mis-specified** — it's asking the model to invent findings that the tool didn't produce, which would reward hallucination.\n\nI'm not going to invent findings to fill the categories. With zero evidence in the JSON, every \"block / warn / ignore\" call would be fabricated, and the product contract here is **evidence before judgement** — no verdicts without receipts.\n\n## Recommendation for the eval\n\nIf the intent is to exercise petty-finding triage, the fixture needs detectors that actually fire on it — either add seeded issues that the current detector set catches, or note in the scenario that a clean scan is a valid outcome and the model should say so rather than confabulate.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

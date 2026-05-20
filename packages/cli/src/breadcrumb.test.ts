@@ -17,6 +17,8 @@ function makeConfig(disabled: string[]): CrimesConfig {
       todoDensityPerKLoc: 10,
     },
     detectors: { disable: disabled },
+    scopeTiers: { nonDomain: [] },
+    scan: { topFiles: 5 },
   };
 }
 
@@ -46,6 +48,8 @@ describe("emitDetectorsDisabledBreadcrumb", () => {
           largeFunctionLines: 60,
           todoDensityPerKLoc: 10,
         },
+        scopeTiers: { nonDomain: [] },
+        scan: { topFiles: 5 },
       },
       { stderr },
     );

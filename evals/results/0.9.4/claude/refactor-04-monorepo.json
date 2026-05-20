@@ -1,0 +1,60 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:15:04.580Z",
+  "run_id": "5d12ae31-46a6-4525-a7d7-382c2258fc77",
+  "response": "The premise of this scenario can't be answered honestly from the data I have.\n\n**What I observed:**\n- `crimes scan --format json` returned `\"total\": 0`, `\"findings\": []`.\n- The fixture at `evals/fixtures/04-monorepo/` contains only `.crimes-eval-meta.json` — no `src/`, no `src/index.ts`, no `src/rollup.ts`, no `src/esbuild/svelte.ts`. The files the scenario references don't exist on disk.\n\n**What I won't do:**\n- Invent a finding list. The scan output is the contract; if it says zero, zero is the answer.\n- Fabricate a refactor plan over files I haven't read. Without the actual source there is no evidence of misleading names, junk-drawer options, or multi-shape returns to point at — the whole point of `crimes` is evidence-before-judgement, and I have none.\n\n**Likely cause:** the fixture wasn't materialized (the eval runner usually hydrates these from a tarball or git bundle before invoking the scenario). If you re-hydrate `04-monorepo` so `src/index.ts` etc. exist, re-run `crimes scan --format json` from the fixture root and the findings list should populate — at which point I can group by `kind` (e.g. `misleading-name`, `options-bag`, `multi-return-shape`), summarize the evidence for each, and propose targeted name/type changes.\n\nWant me to look at how this fixture is supposed to be set up (e.g. an extract step in the runner), or just re-run the scenario once you've hydrated it?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": "src/index.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": "src/rollup.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": "src/esbuild/svelte.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

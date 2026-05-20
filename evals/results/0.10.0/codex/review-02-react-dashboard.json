@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "codex",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:22.354Z",
+  "run_id": "fe6899d0-ea3b-4c2c-a23b-46196aed966c",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e43c2-4270-7ac3-a13a-27653fbb859d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I’ll use the repo’s crimes workflow for this review and verify the supplied scan context before categorizing anything.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes-release-a/.agents/skills/crimes/SKILL.md && crimes scan /Users/andrew/dev/crimes-release-a/evals/fixtures/02-react-dashboard --format json\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"sed -n '1,220p' /Users/andrew/dev/crimes-release-a/.agents/skills/crimes/SKILL.md && crimes scan /Users/andrew/dev/crimes-release-a/evals/fixtures/02-react-dashboard --format json\\\"\",\"aggregated_output\":\"---\\nname: crimes-codebase-risk\\ndescription: Use when editing, reviewing, or investigating a TypeScript / JavaScript codebase that ships with the crimes CLI. Helps agents run pre-edit context checks, post-edit scans, and interpret findings before risky changes.\\n---\\n\\n# crimes — codebase risk workflow\\n\\n`crimes` is a deterministic CLI (no LLM) that reports change risk and\\nagent risk. JSON output is the stable contract; prefer it when planning.\\n\\n## When to run it\\n\\n- Before editing an unfamiliar file: `crimes context <file> --format json`\\n- Before a broad refactor: `crimes scan <path> --format json`\\n- After edits: `crimes scan --changed --format json`\\n- Before merging a branch: `crimes verdict --format json`\\n\\n## Decision rules\\n\\n- Treat any new `severity: \\\"high\\\"` finding introduced by your edit as a blocker unless the user explicitly accepts it.\\n- Read `evidence[]` before acting; it contains deterministic facts, not LLM opinion.\\n- Use `scores.agent_risk` to decide which findings need human attention first.\\n- If a finding is a false positive, record feedback with `crimes feedback <fingerprint> --verdict fp --note \\\"<why>\\\"` rather than silently ignoring it.\\n{\\n  \\\"schema_version\\\": \\\"0.1.0\\\",\\n  \\\"report_type\\\": \\\"scan\\\",\\n  \\\"repo\\\": {\\n    \\\"name\\\": \\\"02-react-dashboard\\\",\\n    \\\"root\\\": \\\"/Users/andrew/dev/crimes-release-a/evals/fixtures/02-react-dashboard\\\"\\n  },\\n  \\\"summary\\\": {\\n    \\\"total\\\": 0,\\n    \\\"high\\\": 0,\\n    \\\"medium\\\": 0,\\n    \\\"low\\\": 0\\n  },\\n  \\\"findings\\\": []\\n}\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"No petty / single-file findings were reported.\\n\\n**Scan result:** `0` total findings, `0` high, `0` medium, `0` low.\\n\\nGrouped by detector type:\\n\\n| Detector type | Findings | Category | Justification |\\n|---|---:|---|---|\\n| dead code | 0 | ignore | No findings emitted; no severity or `scores.agent_risk` to act on. |\\n| magic literals | 0 | ignore | No findings emitted; no severity or `scores.agent_risk` to act on. |\\n| repeated role checks | 0 | ignore | No findings emitted; no severity or `scores.agent_risk` to act on. |\\n\\nMerge decision: no `crimes`-reported petty findings block this PR.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":37696,\"cached_input_tokens\":36096,\"output_tokens\":373,\"reasoning_output_tokens\":78}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

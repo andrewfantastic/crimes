@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:53:06.834Z",
+  "run_id": "00fa66fb-ddec-4a8b-bdb3-5fbdbbda462a",
+  "response": "## What the scan tells us (and doesn't)\n\nThe scan returned `summary.total: 0` with an empty `findings` array. Two things worth being honest about before drawing a conclusion:\n\n1. **`crimes` doesn't currently have a \"missing agent context\" detector.** The v0 detector set (CLAUDE.md → \"MVP scope\") covers structural, dependency, duplication, testability, and git/history risks — nothing inspects whether `AGENTS.md` / `CLAUDE.md` / `SKILL.md` exists. So a 0-finding result is **silent on agent surface**, not an affirmative \"the surface is fine.\"\n2. **The fixture itself is essentially empty.** Only `.crimes-eval-meta.json` is present in `evals/fixtures/04-monorepo/`; no `AGENTS.md`, `CLAUDE.md`, or `SKILL.md` exists in the tree. So in this particular repo, no agent surface ships — but `crimes scan` is not the thing that told us that.\n\n## Consequence for future agent work\n\nWithout an agent-facing context file in the repo, every agent that lands here (Claude Code, Codex, Cursor, etc.) bootstraps from `package.json` + `README` heuristics. In a monorepo that means:\n\n- Wrong package picked for edits (no signal which `packages/*` owns what).\n- Wrong tooling invoked (`npm test` when the repo uses `pnpm --filter`).\n- Reinvented architectural rules (layer boundaries, naming conventions) the human team already decided.\n- No discoverable \"what is this product trying NOT to be\" — the kind of guardrail this very repo's `CLAUDE.md` provides.\n\nThe cost is paid every time a new agent session starts, multiplied by every contributor.\n\n## Minimal `AGENTS.md` skeleton\n\nA skeleton that would satisfy a future \"missing agent context\" detector and be genuinely useful (not ceremonial):\n\n```markdown\n# AGENTS.md\n\n## What this repo is\nOne sentence on the product and its wedge. One sentence on what it explicitly is NOT.\n\n## Workspace layout\n- `packages/<name>/` — one-line purpose, one-line boundary rule\n- (repeat per package; keep boundaries explicit)\n\n## Commands an agent should reach for\n- Install:    `pnpm install`\n- Test:       `pnpm ci`            # build + typecheck + test, all packages\n- Smoke:      `pnpm --filter <pkg> smoke`\n- Lint/fmt:   `pnpm lint` / `pnpm format`\n\n## Conventions\n- Package manager: pnpm (workspaces). Never `npm`/`yarn`.\n- Commits: <style> — e.g. Conventional Commits, no Co-Authored-By trailers.\n- Versioning: Changesets. Don't hand-edit `package.json` versions.\n\n## Where the authoritative spec lives\n- Product: `PRD.md`\n- Release procedure: `docs/releasing.md`\n- Roadmap: `docs/roadmap.md`\nIf this file conflicts with the PRD, the PRD wins.\n\n## Out of scope (don't drift here)\n- Bullet list of \"looks adjacent, isn't\" — e.g. \"not a linter\", \"not a security scanner\".\n```\n\n## Recommendation for the `crimes` product side\n\nSince this scenario surfaced the gap: a `missing_agent_context` detector would fit the **agent risk** half of the wedge (per `PRD.md` §10's `agent_risk` score) better than any existing one. Evidence is trivial to gather (does the file exist? does it contain command + layout sections?), the finding is deterministic, and the remediation is the skeleton above. Worth a PRD ticket if it isn't already in the backlog.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 1,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": "missing_agent_context",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

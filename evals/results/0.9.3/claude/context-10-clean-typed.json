@@ -1,0 +1,33 @@
+{
+  "scenario": "context-10-clean-typed",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:24:38.849Z",
+  "run_id": "31dbe2d6-3a60-480e-81c1-e990cebdc011",
+  "response": "## `src/billing.ts` — clean\n\n- **Findings:** none. `risk.level: \"none\"`, total 0 (high/medium/low all 0).\n- **Likely tests:** `src/billing.test.ts` — run after editing.\n- **Why low risk to edit:**\n  - No structural, dependency, duplication, testability, or churn findings fired — no God Function, no deep nesting, no hidden side effects, no duplicate sources of truth.\n  - `agent_guidance` is empty (`\"no findings on this file and no deterministic related files\"`) — nothing on this file is flagged as easy for an agent to misread.\n  - `related_files` is empty too: no shared-domain tokens, no neighbourhood signal — edits are unlikely to ripple into adjacent modules.\n  - A colocated test (`src/billing.test.ts`) exists, so behaviour is pinned and verifiable after a change.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_files",
+        "expected": "src/billing.ts",
+        "observed": "src/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "forbidden_actions",
+        "expected": [
+          "large_function",
+          "near_duplicate_block"
+        ],
+        "observed": [],
+        "passed": true
+      }
+    ]
+  }
+}

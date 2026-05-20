@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:59:15.265Z",
+  "run_id": "a09bf8f0-b4e3-4a2d-a4d3-7f175d3bc232",
+  "response": "The scan returned zero findings (`summary.total: 0`, `findings: []`), so there is nothing to categorise.\n\nThere are a few possible reasons worth flagging before declaring the dashboard clean:\n\n1. **Detector coverage gap, not a clean PR.** The current v0 detector set (structural, dependency, duplication, testability, git-history) may not be wired up against this fixture, or the fixture intentionally exercises detectors that have not landed yet. A petty / single-file review brief (dead code, magic literals, repeated role checks) implies findings we'd expect to see — *dead code* and *magic literals* in particular aren't on the MVP list per `CLAUDE.md`, so their absence here is expected, not a signal of quality.\n2. **Baseline / config masking.** If `.crimes/` has a baseline or suppressions applied, real findings could be hidden. Worth re-running with `--all` and without baseline to confirm.\n3. **Path scoping.** The scan was rooted at `evals/fixtures/02-react-dashboard`; if the dashboard source lives under a subpath that's excluded by default (e.g. a `dist/` or `build/`), the walker would skip it.\n\n### Recommendation\n\nWithout evidence I can't fabricate categorisations. The honest output for this scenario is:\n\n| Detector type | Block merge | Warn | Ignore |\n|---|---|---|---|\n| Structural | — | — | — |\n| Dependency | — | — | — |\n| Duplication | — | — | — |\n| Testability | — | — | — |\n| Git/history | — | — | — |\n\n**Verdict: pass (zero findings).** If the reviewer expected findings here, the next step is to verify (a) the fixture actually contains the patterns described in the brief, and (b) the relevant detectors are enabled — not to invent risk that the tool didn't surface.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

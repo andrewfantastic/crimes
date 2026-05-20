@@ -1,0 +1,48 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:59:24.003Z",
+  "run_id": "c47b4a0a-f6c7-481d-a4bb-730a619bed36",
+  "response": "# Review verdict: no actionable findings\n\n`crimes scan --format json` returned an empty `findings` array (`summary.total = 0`, high/medium/low all zero). There is nothing to triage on this PR from a `crimes` perspective.\n\n## Per-category disposition\n\n| Category from prompt | Finding count | Decision | Justification |\n|---|---|---|---|\n| Dead code | 0 | n/a | No `unused-export` / `dead-code` findings emitted |\n| Prose rules in comments | 0 | n/a | No `prose-rules-in-comments` finding emitted |\n| Magic literals | 0 | n/a | No `magic-literal` / `repeated-string-literal` finding emitted |\n| Weak test assertions | 0 | n/a | No `weak-assertion` / `test-gap` finding emitted |\n| Large files | 0 | n/a | No `large-file` / `large-function` finding emitted |\n\nAggregate `agent_risk` cannot be computed without findings — there are no scores to weight.\n\n## What this means for merge\n\n- **Block:** none.\n- **Warn:** none.\n- **Ignore:** none — there is nothing to ignore.\n\nRecommended action: **merge is not blocked by `crimes`**. Note that an empty result is *not* the same as \"the code is good\"; `crimes` only asserts that the configured detectors found no change-risk or agent-risk signals above their thresholds in this fixture. If the scenario expects findings (e.g., the fixture intentionally contains a god function or a weakly-asserted test), that's a detector-coverage gap rather than a reviewer judgement call — worth flagging to whoever owns the eval baseline, but not a merge gate on this PR.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

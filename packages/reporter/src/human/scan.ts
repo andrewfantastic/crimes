@@ -5,17 +5,167 @@ import { pc, plainColour, renderFinding, severityGlyph } from "./shared.js";
 export interface HumanReportOptions {
   /** When true, every finding is shown. Otherwise the top N. */
   showAll?: boolean;
-  /** Default cap on findings shown when `showAll` is false. */
+  /**
+   * Default cap on findings shown by the legacy (`--flat`) layout when
+   * `showAll` is false.
+   */
   topN?: number;
+  /**
+   * Default cap on file groups shown by the new file-grouped layout.
+   * Ignored when `showAll` or `flat` is set.
+   */
+  topFiles?: number;
   /** Disable ANSI colour output. */
   noColor?: boolean;
+  /**
+   * When true, revert to today's severity-grouped layout (preserved for
+   * users that grep stdout or otherwise depended on the previous
+   * presentation).
+   */
+  flat?: boolean;
   /** Inline feedback hints (0.7.0). Suppressed when `noColor` is true. */
   feedbackHints?: FeedbackHintOptions;
 }
 
 const DEFAULT_TOP_N = 10;
+const DEFAULT_TOP_FILES = 5;
 
+/**
+ * Default `crimes scan` human formatter.
+ *
+ * Layout (release A):
+ *   - Header: `CRIME SCENE REPORT` + repo / counts line.
+ *   - Empty state: green sparkle line, unchanged.
+ *   - `--flat`: bit-for-bit identical to today's severity-grouped layout
+ *     (delegates to {@link formatHumanReportFlat}).
+ *   - `--all`: flat rank-ordered list of every finding, both tiers, with
+ *     the full per-finding block (charge / summary / evidence).
+ *   - Default: domain findings grouped by file (top N by Σ rank_score);
+ *     each file gets a one-line compact entry per finding, a per-file
+ *     `Risk:` summary, and an `id=...` reference range. Non-domain
+ *     findings are summarised in an "Also flagged elsewhere" footer that
+ *     buckets by path prefix.
+ *   - All paths end with a single imperative action-close line pointing
+ *     at the highest-risk file.
+ */
 export function formatHumanReport(
+  report: ScanReport,
+  options: HumanReportOptions = {},
+): string {
+  if (options.flat) return formatHumanReportFlat(report, options);
+
+  const colour = options.noColor ? plainColour() : pc;
+  const showAll = options.showAll === true;
+  const noColor = options.noColor === true;
+  const topFiles = options.topFiles ?? DEFAULT_TOP_FILES;
+
+  const lines: string[] = [];
+  lines.push(colour.bold("CRIME SCENE REPORT"));
+  const fileCount = new Set(report.findings.map((f) => f.file)).size;
+  if (report.findings.length === 0) {
+    lines.push(
+      colour.dim(`repo: ${report.repo.name}  ·  0 findings`),
+    );
+    lines.push("");
+    const cleanPrefix = noColor ? "" : "✨ ";
+    lines.push(colour.green(`${cleanPrefix}No crimes detected. Suspiciously clean.`));
+    return lines.join("\n");
+  }
+  lines.push(
+    colour.dim(
+      `repo: ${report.repo.name}  ·  ${report.findings.length} finding${
+        report.findings.length === 1 ? "" : "s"
+      } across ${fileCount} file${fileCount === 1 ? "" : "s"}`,
+    ),
+  );
+
+  const domain = report.findings.filter((f) => f.tier !== "nonDomain");
+  const nonDomain = report.findings.filter((f) => f.tier === "nonDomain");
+
+  if (showAll) {
+    // Flat rank-ordered list of every finding.
+    lines.push("");
+    report.findings.forEach((finding, idx) => {
+      lines.push(
+        ...renderFinding(finding, idx + 1, colour, {
+          alwaysShowRiskProfile: true,
+          feedbackHints: options.feedbackHints,
+          noColor,
+        }),
+      );
+      lines.push("");
+    });
+    // Trailing summary line.
+    lines.push(summaryLine(report, colour));
+  } else if (domain.length === 0) {
+    // All-non-domain edge case.
+    const groupedNon = groupByFile(nonDomain);
+    const shown = groupedNon.slice(0, topFiles);
+    lines.push("");
+    lines.push(colour.bold("All findings are in non-domain folders"));
+    renderFileGroups(lines, shown, colour, noColor);
+    if (groupedNon.length > shown.length) {
+      lines.push("");
+      lines.push(
+        colour.dim(
+          `Showing ${shown.length} of ${groupedNon.length} files. Run with --all for every finding.`,
+        ),
+      );
+    }
+    lines.push("");
+    const topFile = shown[0]!.file;
+    lines.push(
+      `→ Start with \`crimes context ${topFile}\` — every finding is in non-domain folders; review your scopeTiers config if that surprises you.`,
+    );
+  } else {
+    const groupedDomain = groupByFile(domain);
+    const shown = groupedDomain.slice(0, topFiles);
+    lines.push("");
+    lines.push(colour.bold("Top files by risk"));
+    renderFileGroups(lines, shown, colour, noColor);
+
+    if (groupedDomain.length > shown.length) {
+      lines.push("");
+      lines.push(
+        colour.dim(
+          `Showing ${shown.length} of ${groupedDomain.length} files. Run with --all for every finding.`,
+        ),
+      );
+    }
+
+    if (nonDomain.length > 0) {
+      lines.push("");
+      lines.push(colour.bold("Also flagged elsewhere"));
+      lines.push(colour.dim(`  ${nonDomainCountsLine(nonDomain)}`));
+      lines.push(colour.dim(`  Run with --all to see them.`));
+    }
+
+    lines.push("");
+    lines.push(
+      `→ Start with \`crimes context ${shown[0]!.file}\` — it concentrates the most risk in this scan.`,
+    );
+  }
+
+  if (report.suppressed_count && report.suppressed_count > 0) {
+    lines.push("");
+    lines.push(
+      colour.dim(
+        `${report.suppressed_count} finding${
+          report.suppressed_count === 1 ? "" : "s"
+        } suppressed; run with --show-suppressed to see.`,
+      ),
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Legacy severity-grouped layout. Preserved bit-for-bit so `--flat`
+ * users (greppers, downstream parsers that snapshot the old format) can
+ * keep running without changes.
+ */
+function formatHumanReportFlat(
   report: ScanReport,
   options: HumanReportOptions = {},
 ): string {
@@ -25,7 +175,13 @@ export function formatHumanReport(
 
   const lines: string[] = [];
   lines.push(colour.bold("CRIME SCENE REPORT"));
-  lines.push(colour.dim(`repo: ${report.repo.name}  ·  ${report.findings.length} finding${report.findings.length === 1 ? "" : "s"}`));
+  lines.push(
+    colour.dim(
+      `repo: ${report.repo.name}  ·  ${report.findings.length} finding${
+        report.findings.length === 1 ? "" : "s"
+      }`,
+    ),
+  );
   lines.push("");
 
   if (report.findings.length === 0) {
@@ -63,9 +219,7 @@ export function formatHumanReport(
   }
 
   lines.push("");
-  lines.push(
-    summaryLine(report, colour),
-  );
+  lines.push(summaryLine(report, colour));
 
   if (report.suppressed_count && report.suppressed_count > 0) {
     lines.push(
@@ -142,4 +296,246 @@ function groupBySeverity(findings: Finding[]): Record<Severity, Finding[]> {
   const groups: Record<Severity, Finding[]> = { high: [], medium: [], low: [] };
   for (const f of findings) groups[f.severity].push(f);
   return groups;
+}
+
+interface FileGroup {
+  file: string;
+  findings: Finding[];
+  totalRankScore: number;
+  maxSeverity: Severity;
+  severityCounts: Record<Severity, number>;
+}
+
+function rankScore(f: Finding): number {
+  const agentRisk = f.scores.agent_risk ?? 0;
+  const recency = f.scores.recency ?? 0;
+  return agentRisk * (1 + recency * 0.5);
+}
+
+const SEVERITY_RANK: Record<Severity, number> = { high: 3, medium: 2, low: 1 };
+
+function maxSeverity(a: Severity, b: Severity): Severity {
+  return SEVERITY_RANK[a] >= SEVERITY_RANK[b] ? a : b;
+}
+
+/**
+ * Bucket findings by `file`, sort by Σ rank_score desc. Preserves the
+ * input order of findings within each group (the scanner already
+ * orders them by rank_score desc, so the highest-risk finding in a
+ * file lands first).
+ */
+function groupByFile(findings: Finding[]): FileGroup[] {
+  const groups = new Map<string, FileGroup>();
+  for (const f of findings) {
+    const existing = groups.get(f.file);
+    if (existing) {
+      existing.findings.push(f);
+      existing.totalRankScore += rankScore(f);
+      existing.maxSeverity = maxSeverity(existing.maxSeverity, f.severity);
+      existing.severityCounts[f.severity] += 1;
+    } else {
+      groups.set(f.file, {
+        file: f.file,
+        findings: [f],
+        totalRankScore: rankScore(f),
+        maxSeverity: f.severity,
+        severityCounts: {
+          high: f.severity === "high" ? 1 : 0,
+          medium: f.severity === "medium" ? 1 : 0,
+          low: f.severity === "low" ? 1 : 0,
+        },
+      });
+    }
+  }
+  return Array.from(groups.values()).sort(
+    (a, b) => b.totalRankScore - a.totalRankScore,
+  );
+}
+
+/**
+ * Render the per-file blocks for the new layout. Each block has:
+ *   - A header line: severity glyph + file + tally
+ *     (e.g. `4 findings · 2 high, 1 medium, 1 low`).
+ *   - One compact line per finding: `   N. {charge} · {symbol}   {evidence}`.
+ *   - A `Risk:` summary line aggregating max churn / dominant test_gap
+ *     label / max blast radius across the file's findings (when any of
+ *     those scores are populated).
+ *   - An `id=<first>..<last>` reference line when the file has more
+ *     than one finding, so users can map a row back to a JSON entry.
+ */
+function renderFileGroups(
+  lines: string[],
+  groups: FileGroup[],
+  colour: ColourFns,
+  noColor: boolean,
+): void {
+  groups.forEach((group, groupIdx) => {
+    if (groupIdx > 0) lines.push("");
+    const glyph = severityGlyph(group.maxSeverity, noColor);
+    const tally = fileTally(group);
+    lines.push(`${glyph}${colour.bold(group.file)}  ${colour.dim(tally)}`);
+    group.findings.forEach((f, idx) => {
+      lines.push(formatFindingCompactLine(f, idx + 1, colour));
+    });
+    const risk = fileRiskSummary(group);
+    if (risk) {
+      lines.push(`     ${colour.bold("Risk:")} ${colour.dim(risk)}`);
+    }
+    if (group.findings.length > 1) {
+      const first = group.findings[0]!.id;
+      const last = group.findings[group.findings.length - 1]!.id;
+      lines.push(`     ${colour.dim(`id=${first} … ${last}`)}`);
+    } else {
+      lines.push(`     ${colour.dim(`id=${group.findings[0]!.id}`)}`);
+    }
+  });
+}
+
+function fileTally(group: FileGroup): string {
+  const total = group.findings.length;
+  const parts: string[] = [];
+  if (group.severityCounts.high > 0) parts.push(`${group.severityCounts.high} high`);
+  if (group.severityCounts.medium > 0) parts.push(`${group.severityCounts.medium} medium`);
+  if (group.severityCounts.low > 0) parts.push(`${group.severityCounts.low} low`);
+  return `${total} finding${total === 1 ? "" : "s"} · ${parts.join(", ")}`;
+}
+
+/**
+ * One compact, single-line per-finding row inside a file block:
+ *   `   N. {charge} · {symbol}   {first 1–2 evidence strings, ", "-joined}`
+ *
+ * Evidence is capped at 2 strings to keep the row readable in a typical
+ * terminal; the full evidence array is still available via `--all` and
+ * the JSON output.
+ */
+function formatFindingCompactLine(
+  f: Finding,
+  n: number,
+  colour: ColourFns,
+): string {
+  const symbol = f.symbol ? ` · ${colour.cyan(`${f.symbol}()`)}` : "";
+  const evidence = compactEvidence(f);
+  const evidenceSegment = evidence ? `   ${colour.dim(evidence)}` : "";
+  return `   ${colour.bold(`${n}.`)} ${f.charge}${symbol}${evidenceSegment}`;
+}
+
+function compactEvidence(f: Finding): string {
+  if (f.evidence.length === 0) return "";
+  return f.evidence.slice(0, 2).join(", ");
+}
+
+/**
+ * Per-file Risk summary line: max churn, dominant test_gap label, max
+ * blast radius. Returns undefined when none of these scores are set on
+ * any finding in the file (so stub-style findings stay clean).
+ *
+ * `dominant test_gap label` is chosen by majority of quartile buckets
+ * across the file's findings, falling back to the highest bucket on a
+ * tie (top-quartile beats ~median beats bottom-quartile) since
+ * higher-gap is the safer signal to surface.
+ */
+function fileRiskSummary(group: FileGroup): string | undefined {
+  let maxChurn: number | undefined;
+  let maxBlast: number | undefined;
+  const testGapBuckets: Record<TestGapBucket, number> = {
+    "top-quartile": 0,
+    "~median": 0,
+    "bottom-quartile": 0,
+    unknown: 0,
+  };
+  let anyTestGap = false;
+  for (const f of group.findings) {
+    if (f.scores.churn !== undefined) {
+      maxChurn = maxChurn === undefined ? f.scores.churn : Math.max(maxChurn, f.scores.churn);
+    }
+    if (f.scores.blast_radius !== undefined) {
+      maxBlast = maxBlast === undefined ? f.scores.blast_radius : Math.max(maxBlast, f.scores.blast_radius);
+    }
+    if (f.scores.test_gap !== undefined) {
+      anyTestGap = true;
+      testGapBuckets[testGapBucket(f.scores.test_gap)] += 1;
+    }
+  }
+  if (maxChurn === undefined && maxBlast === undefined && !anyTestGap) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  if (maxChurn !== undefined) parts.push(`max churn ${maxChurn.toFixed(2)}`);
+  if (anyTestGap) parts.push(`test gap ${dominantTestGap(testGapBuckets)}`);
+  if (maxBlast !== undefined) parts.push(`max blast radius ${maxBlast.toFixed(2)}`);
+  return parts.join(" · ");
+}
+
+type TestGapBucket = "top-quartile" | "~median" | "bottom-quartile" | "unknown";
+
+function testGapBucket(score: number): TestGapBucket {
+  if (score >= 0.75) return "top-quartile";
+  if (score <= 0.25) return "bottom-quartile";
+  return "~median";
+}
+
+/**
+ * Pick the dominant quartile bucket across a file's findings.
+ * Tie-breaks by preferring the higher-risk bucket (more conservative
+ * surfaces the more alarming label).
+ */
+function dominantTestGap(buckets: Record<TestGapBucket, number>): TestGapBucket {
+  const order: TestGapBucket[] = [
+    "top-quartile",
+    "~median",
+    "bottom-quartile",
+    "unknown",
+  ];
+  let bestBucket: TestGapBucket = "unknown";
+  let bestCount = -1;
+  for (const bucket of order) {
+    if (buckets[bucket] > bestCount) {
+      bestCount = buckets[bucket];
+      bestBucket = bucket;
+    }
+  }
+  return bestBucket;
+}
+
+/**
+ * Summarise non-domain findings as a one-line breakdown by path
+ * prefix. Buckets (in priority order):
+ *   - `scripts/` — anything under `scripts/`
+ *   - `examples/`
+ *   - `fixtures/`
+ *   - `public/`
+ *   - `tests/` — `*.test.*`, `*.spec.*`, or anything inside a
+ *     `__tests__` directory at any depth
+ *   - everything else falls back to its first path segment
+ */
+function nonDomainCountsLine(findings: Finding[]): string {
+  const counts = new Map<string, number>();
+  for (const f of findings) {
+    const bucket = nonDomainBucket(f.file);
+    counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+  }
+  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  return sorted
+    .map(([bucket, n]) => `${bucket}  ${n} finding${n === 1 ? "" : "s"}`)
+    .join("    ");
+}
+
+function nonDomainBucket(file: string): string {
+  const lower = file.toLowerCase();
+  if (lower.startsWith("scripts/")) return "scripts/";
+  if (lower.startsWith("examples/")) return "examples/";
+  if (lower.startsWith("fixtures/")) return "fixtures/";
+  if (lower.startsWith("public/")) return "public/";
+  if (
+    /\.test\.[^/]+$/.test(lower) ||
+    /\.spec\.[^/]+$/.test(lower) ||
+    /(^|\/)__tests__\//.test(lower)
+  ) {
+    return "tests/";
+  }
+  // Bare filename with no directory — return it as the bucket label
+  // without a trailing slash, since "foo.ts/" reads as wrong.
+  if (!file.includes("/")) return file;
+  const first = file.split("/")[0];
+  return first ? `${first}/` : file;
 }

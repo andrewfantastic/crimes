@@ -1,0 +1,30 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:23:11.541Z",
+  "run_id": "d7cc4ab1-e5e3-499b-b100-08cd66d852dd",
+  "response": "The scan returned zero findings — `\"total\": 0`, `\"findings\": []` — so there is no evidence to quote and no specific test to point at from this output.\n\nI won't invent a weak-test finding to satisfy the prompt. Either:\n\n1. **The detector didn't fire on this fixture.** `crimes scan test` in `evals/fixtures/04-monorepo` produced an empty result. If the regression really slipped through CI, the `test_gap` / weak-assertion detector either doesn't cover the pattern that masked it (e.g. a test that calls the plugin but only asserts truthy on the result, or only checks that no error was thrown), or the relevant test file is being excluded by config.\n2. **Wrong subcommand or scope.** Worth double-checking that `crimes scan test --format json` is the intended invocation — if \"test\" is being treated as a path filter rather than a detector category, an empty result against a non-existent path would also produce this output.\n\nTo actually answer your underlying question I'd need a non-empty report. Suggested next steps before I commit to a recommendation:\n\n- Re-run as `crimes scan --format json` (no `test` argument) against the same fixture and see whether weak-test findings surface under a different code path.\n- If still empty, run `crimes scan --all --format json` to confirm nothing is being filtered out by the default top-N cutoff.\n- Share the resulting JSON and I'll quote the evidence and name the specific assertion to add.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

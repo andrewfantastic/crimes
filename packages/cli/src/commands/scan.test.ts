@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { Command } from "commander";
 import { describe, expect, it } from "vitest";
+import { registerScanCommand } from "./scan.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -180,5 +182,18 @@ describe("crimes scan --changed --fail-on", () => {
     const parsed = JSON.parse(result.stdout);
     expect(parsed.fail_on).toBe("medium");
     expect(parsed.failed).toBe(true);
+  });
+});
+
+describe("crimes scan — new flags", () => {
+  it("declares --top, --flat, --no-recency", () => {
+    const program = new Command();
+    registerScanCommand(program);
+    const scan = program.commands.find((c) => c.name() === "scan");
+    expect(scan).toBeDefined();
+    const opts = scan!.options.map((o) => o.long);
+    expect(opts).toContain("--top");
+    expect(opts).toContain("--flat");
+    expect(opts).toContain("--no-recency");
   });
 });

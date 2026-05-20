@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { maybeRunAutoInit } from "./auto-init.js";
+import { welcomeBanner as _welcomeBanner } from "./banner.js";
 import { registerAuditSuppressionsCommand } from "./commands/audit-suppressions.js";
 import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerContextCommand } from "./commands/context.js";
@@ -23,9 +25,22 @@ program
     "A crime scene investigator for your codebase. Built for agents, readable by humans.",
   )
   .version(__CRIMES_VERSION__)
+  .option("--no-init", "suppress the first-run auto-init prompt")
+  .option(
+    "--init",
+    "force the first-run auto-init prompt even if config exists",
+  )
+  .hook("preAction", async (_thisCommand, actionCommand) => {
+    const name = actionCommand.name();
+    const opts = program.opts<{ init?: boolean; noInit?: boolean }>();
+    await maybeRunAutoInit(name, {
+      cwd: process.cwd(),
+      flags: { init: opts.init === true, noInit: opts.noInit === true },
+    });
+  })
   .addHelpText(
     "after",
-    "\nTip: run `crimes init --agents` to add Claude Code and Codex skills so future agents discover crimes automatically.",
+    "\nTip: run `crimes context <file>` before editing — it concentrates findings + likely tests + agent notes for one file.",
   )
   .action(() => {
     // Bare `crimes` (no subcommand) prints a welcome banner pointing at
@@ -35,20 +50,8 @@ program
     process.stdout.write(welcomeBanner());
   });
 
-function welcomeBanner(): string {
-  return [
-    `crimes ${__CRIMES_VERSION__}`,
-    "",
-    "A crime scene investigator for your codebase. Built for agents, readable by humans.",
-    "",
-    "Pick one to get started:",
-    "  crimes init --agents   config + Claude Code and Codex skills",
-    "  crimes init            just the config",
-    "  crimes --help          list all commands",
-    "",
-    "Docs: https://crimes.sh",
-    "",
-  ].join("\n");
+export function welcomeBanner(): string {
+  return _welcomeBanner(__CRIMES_VERSION__);
 }
 
 registerInitCommand(program);

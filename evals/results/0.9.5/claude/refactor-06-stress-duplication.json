@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:55:17.343Z",
+  "run_id": "5cabd8a3-363b-4c42-9975-c7cdfa3c5455",
+  "response": "## Confirmation of duplication\n\nThe scan output (crime_00002) is correct — three near-duplicate sanitisers exist, identical apart from renamed locals:\n\n- `src/sanitize-a.ts:10-36` — `sanitizeUserInput`\n- `src/sanitize-b.ts:9-35` — `sanitizeText`\n- `src/sanitize-c.ts:9-35` — `cleanMessage`\n\nAll three apply the same pipeline: null/undefined guard → `String().trim()` → strip control chars → collapse whitespace → cap at 1000 chars → reject leading `<`/`>` → reject `\\x` escapes → reject >5 `!!!`/`???` runs → lowercase if >90% uppercase and >30 chars. Confidence 0.85, `agent_risk` 0.54 — three sources of truth that can drift silently.\n\nA related secondary issue (crime_00003): each file also ships its own `assertAdminA/B/C`, and the three guards have **already drifted** (`=== \"admin\"`, `=== \"admin\" || === \"owner\"`, `!== \"admin\"`). The duplicate-block detector found the sanitisers; the role-check detector found the admin guards. The refactor should address the sanitisers cleanly and flag the admin drift as a separate decision (it can't be collapsed without first deciding which behaviour is correct).\n\n## Proposed refactor\n\n**Files added:**\n- `src/sanitize.ts` — the single consolidated implementation\n\n**Files changed:**\n- `src/sanitize-a.ts` — re-export `sanitize` as `sanitizeUserInput`, or delete and update callers\n- `src/sanitize-b.ts` — same, alias `sanitizeText`\n- `src/sanitize-c.ts` — same, alias `cleanMessage`\n\n(For an internal codebase I'd delete the three files and update imports directly; the alias re-export approach is only worth it if the names are part of a published API.)\n\n**Public API for `src/sanitize.ts`:**\n\n```ts\nexport interface SanitizeOptions {\n  maxLength?: number;        // default 1000\n  maxPunctuationRuns?: number; // default 5; runs of /[!?]{3,}/\n  uppercaseRatioThreshold?: number; // default 0.9\n  uppercaseMinLength?: number;      // default 30\n}\n\nexport function sanitize(input: unknown, options?: SanitizeOptions): string;\n```\n\nBehaviour: returns `\"\"` for null/undefined, non-string coerced via `String()`, trimmed, control chars stripped, whitespace collapsed, truncated to `maxLength`, returns `\"\"` for leading `<`/`>` or embedded `\\x`, returns `\"\"` if punctuation-run count exceeds threshold, lowercases when uppercase ratio exceeds threshold on inputs longer than `uppercaseMinLength`. The three existing callers pass no options and get the current behaviour.\n\n**Admin guards (separate, not part of this refactor):** the three `assertAdmin*` helpers encode three different policies. Before consolidating, someone needs to decide whether non-admin owners count, and whether call sites want \"is admin\" or \"is not admin.\" Once that's settled, a single `isAdmin(role)` in `src/policy.ts` replaces all three. Flag this to the reviewer rather than picking a winner silently.\n\n**Temporal Recklessness (crime_00004, crime_00005):** out of scope for the duplication refactor — `Date.now()` calls in `telemetry-a.ts` and `telemetry-b.ts` should be handled when those telemetry files are deduplicated (crime_00001), by injecting a `Clock`/`now()` into the shared helper.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

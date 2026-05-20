@@ -1,0 +1,30 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T04:59:35.704Z",
+  "run_id": "2b2b0746-6db2-4151-a0fa-c89ab75888f3",
+  "response": "The scan returned **zero findings** — `\"total\": 0`, `\"findings\": []`. There's no evidence to quote, so I can't honestly identify \"which test I'd strengthen first\" from this output.\n\nA few possibilities for why this came back empty:\n\n1. **The `test` detector category may not be implemented yet** in the v0 detector set. Per `CLAUDE.md`, MVP detectors cover structural, dependency, duplication, testability (in domain code — `Date.now()`, `Math.random()`, etc.), and git/history. A dedicated \"weak test\" detector that flags missing/trivial assertions isn't listed in MVP scope.\n2. **The fixture `04-monorepo` may not have test files matching the detector's path globs**, or the tests genuinely look fine to the current rules.\n3. **The CLI may have accepted `scan test` as `scan` against a path named `test`** that doesn't exist, silently producing zero findings instead of erroring.\n\nI'd want to verify which before answering the bugfix question. Concretely I'd run:\n\n- `crimes scan --format json` (no `test` subcommand) on the fixture to see if anything fires at all\n- `ls evals/fixtures/04-monorepo` to confirm there are actual test files\n- `crimes --help` / `crimes scan --help` to confirm whether `scan test` is a real invocation or got parsed as a path\n\nWithout findings in hand, naming a \"specific assertion to add\" would be guessing — which is exactly the failure mode the *evidence-before-judgement* rule in `CLAUDE.md` exists to prevent. Want me to run those diagnostics?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

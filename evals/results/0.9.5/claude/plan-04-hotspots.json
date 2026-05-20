@@ -1,0 +1,42 @@
+{
+  "scenario": "plan-04-hotspots",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:53:41.150Z",
+  "run_id": "b6e9f41d-fbbe-4219-a425-7ba963a96af8",
+  "response": "The scan returned zero findings — `total: 0`, empty `findings` array. There's nothing to triage from this output.\n\nA few possibilities for what's going on, and how I'd respond to each:\n\n**If the scan genuinely found nothing in `evals/fixtures/04-monorepo`** — the honest answer is \"no action.\" Refactoring picks need evidence (fan-in / fan-out counts, line ranges, churn), and there's none here. Inventing a triage list would violate the \"evidence before judgement\" rule from CLAUDE.md.\n\n**If the scan should have produced findings but didn't** — that's a detector or fixture problem, not a triage problem. Worth checking:\n- Does `04-monorepo` actually contain code that should trip `high_fan_in_fan_out`, `large_file`, or `large_function`?\n- Was the scan run from the right root? The report shows `root: .../evals/fixtures/04-monorepo`, so that looks correct.\n- Are the detectors that produce those finding kinds wired into the default scan, or do they need a flag?\n\n**Recommended next step:** re-run the scan with `--all` (in case the default filter is hiding everything) and confirm the fixture has files large enough to trigger the structural detectors. If the fixture is intentionally clean, the scenario prompt itself is mismatched to the fixture — flag that to whoever wrote it.\n\nI won't fabricate a triage order against fan-in/fan-out numbers that don't exist in the output.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      }
+    ]
+  }
+}

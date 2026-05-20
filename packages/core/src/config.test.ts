@@ -366,3 +366,72 @@ describe("architecture placeholder", () => {
     expect(() => loadConfig(root)).toThrowError(ConfigParseError);
   });
 });
+
+describe("scopeTiers", () => {
+  it("defaults to the static seven-pattern non-domain list", async () => {
+    const root = await makeTempDir();
+    const cfg = loadConfig(root);
+    expect(cfg.scopeTiers.nonDomain).toEqual([
+      "scripts/**",
+      "examples/**",
+      "fixtures/**",
+      "public/**",
+      "**/__tests__/**",
+      "**/*.test.{ts,tsx,js,jsx}",
+      "**/*.spec.{ts,tsx,js,jsx}",
+    ]);
+  });
+
+  it("honours a user-supplied empty list (opt-out)", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scopeTiers: { nonDomain: [] } });
+    expect(loadConfig(root).scopeTiers.nonDomain).toEqual([]);
+  });
+
+  it("honours a user-supplied custom list", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, {
+      scopeTiers: { nonDomain: ["packages/legacy/**"] },
+    });
+    expect(loadConfig(root).scopeTiers.nonDomain).toEqual([
+      "packages/legacy/**",
+    ]);
+  });
+
+  it("rejects non-string entries", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scopeTiers: { nonDomain: [42] } });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+
+  it("rejects empty-string entries (matches the glob-validation pattern elsewhere)", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scopeTiers: { nonDomain: [""] } });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+});
+
+describe("scan.topFiles", () => {
+  it("defaults to 5", async () => {
+    const root = await makeTempDir();
+    expect(loadConfig(root).scan.topFiles).toBe(5);
+  });
+
+  it("honours a user-supplied value", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scan: { topFiles: 10 } });
+    expect(loadConfig(root).scan.topFiles).toBe(10);
+  });
+
+  it("rejects non-positive integers", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scan: { topFiles: 0 } });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+
+  it("rejects non-integer values", async () => {
+    const root = await makeTempDir();
+    await writeConfig(root, { scan: { topFiles: 3.5 } });
+    expect(() => loadConfig(root)).toThrowError(ConfigParseError);
+  });
+});

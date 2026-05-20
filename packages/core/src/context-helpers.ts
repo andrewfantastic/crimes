@@ -1,7 +1,9 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ContextRelatedFile } from "./context-related-files.js";
+import type { CrimesConfig } from "./config.js";
 import type { Finding, Severity } from "./finding.js";
 import type { ContextRisk } from "./context.js";
+import { makeTierClassifier } from "./scoring/tier.js";
 
 /**
  * Per-finding-type guidance shown to agents in the human report and in
@@ -101,14 +103,57 @@ export function toRepoPath(p: string): string {
   return p.split(sep).join("/");
 }
 
-export function sortFindings(findings: Finding[]): void {
-  const order = { high: 0, medium: 1, low: 2 } as const;
+const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
+
+/**
+ * Secondary (tiebreaker) comparator used by tagTierAndSortByRankScore.
+ * Matches the historical scan.ts ordering: severity desc → confidence
+ * desc → file asc → line-start asc.
+ */
+function existingSecondarySort(a: Finding, b: Finding): number {
+  const sev = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+  if (sev !== 0) return sev;
+  if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+  if (a.file !== b.file) return a.file.localeCompare(b.file);
+  return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+}
+
+/**
+ * Tag every finding with `tier` from config.scopeTiers.nonDomain and sort
+ * by rank_score = agent_risk * (1 + recency * 0.5) desc.
+ *
+ * Tiebreaker falls back to existingSecondarySort (severity desc, confidence
+ * desc, file asc, lines start asc) to preserve stable secondary ordering.
+ *
+ * rank_score is intentionally NOT stored on the finding — it's ephemeral
+ * and not part of the JSON contract.
+ *
+ * @param options.recencyEnabled When false, the recency multiplier collapses
+ *   to 1 so findings sort by agent_risk alone. Default true.
+ */
+export function tagTierAndSortByRankScore(
+  findings: Finding[],
+  config: CrimesConfig,
+  options: { recencyEnabled?: boolean } = {},
+): void {
+  const recencyEnabled = options.recencyEnabled ?? true;
+  const nonDomain = config.scopeTiers?.nonDomain ?? [];
+  const classify = makeTierClassifier(nonDomain);
+  for (const f of findings) {
+    f.tier = classify(f.file);
+  }
   findings.sort((a, b) => {
-    const sev = order[a.severity] - order[b.severity];
-    if (sev !== 0) return sev;
-    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+    const ra = rankScore(a, recencyEnabled);
+    const rb = rankScore(b, recencyEnabled);
+    if (rb !== ra) return rb - ra;
+    return existingSecondarySort(a, b);
   });
+}
+
+function rankScore(f: Finding, recencyEnabled: boolean): number {
+  const ar = f.scores.agent_risk ?? 0;
+  const rec = recencyEnabled ? (f.scores.recency ?? 0) : 0;
+  return ar * (1 + rec * 0.5);
 }
 
 export function assignIds(findings: Finding[]): void {

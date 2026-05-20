@@ -39,6 +39,10 @@ import type {
   SuppressionEntry,
 } from "./suppressions.js";
 import { partitionFindings } from "./suppressions.js";
+import {
+  assignIds as assignIdsHelper,
+  tagTierAndSortByRankScore,
+} from "./context-helpers.js";
 
 export interface ScanOptions {
   /** Absolute or relative path to scan. Defaults to cwd. */
@@ -63,6 +67,11 @@ export interface ScanOptions {
    * Only meaningful when `changed` is true.
    */
   base?: string;
+  /**
+   * When false, disables the recency multiplier on rank_score so findings
+   * sort by agent_risk alone. Default true.
+   */
+  recencyEnabled?: boolean;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
@@ -106,8 +115,8 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     finaliseFindingScores(f, indexes.scoring);
   }
 
-  const sorted = sortFindings(findings);
-  assignIds(sorted);
+  tagTierAndSortByRankScore(findings, config, { recencyEnabled: options.recencyEnabled ?? true });
+  assignIdsHelper(findings);
 
   const report: ScanReport = {
     schema_version: SCHEMA_VERSION,
@@ -116,8 +125,8 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
       name: basename(root),
       root,
     },
-    summary: summarise(sorted),
-    findings: sorted,
+    summary: summarise(findings),
+    findings,
   };
   if (inputs.changedAll !== undefined) {
     report.changed_files = inputs.changedAll;
@@ -427,22 +436,6 @@ async function safeRealpath(p: string): Promise<string> {
   }
 }
 
-function sortFindings(findings: Finding[]): Finding[] {
-  const order = { high: 0, medium: 1, low: 2 } as const;
-  return [...findings].sort((a, b) => {
-    const sev = order[a.severity] - order[b.severity];
-    if (sev !== 0) return sev;
-    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-    if (a.file !== b.file) return a.file.localeCompare(b.file);
-    return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
-  });
-}
-
-function assignIds(findings: Finding[]): void {
-  findings.forEach((finding, index) => {
-    finding.id = `crime_${String(index + 1).padStart(5, "0")}`;
-  });
-}
 
 function summarise(findings: Finding[]): ScanSummary {
   const summary: ScanSummary = { total: findings.length, high: 0, medium: 0, low: 0 };

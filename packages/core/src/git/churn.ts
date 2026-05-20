@@ -16,6 +16,8 @@ export interface FileChurn {
   changeCount: number;
   /** ISO-8601 timestamp of the most recent commit that touched the file. */
   latestChange: string;
+  /** Number of distinct committer emails in the window. */
+  uniqueAuthors: number;
 }
 
 export interface CollectChurnOptions {
@@ -80,32 +82,49 @@ export function normaliseSince(since: string): string {
 }
 
 /**
- * Parse the output of `git log --pretty=format:CRIMES_COMMIT %cI --name-only`.
+ * Parse the output of `git log --pretty=format:CRIMES_COMMIT %cI %ae --name-only`.
  *
  * Output shape (one commit shown):
  *
- *   CRIMES_COMMIT 2026-05-15T14:30:00+00:00
+ *   CRIMES_COMMIT 2026-05-15T14:30:00+00:00 author@example.com
  *   path/to/file-a.ts
  *   path/to/file-b.ts
  *
- *   CRIMES_COMMIT 2026-05-14T...
+ *   CRIMES_COMMIT 2026-05-14T... author2@example.com
  *   path/to/file-c.ts
  *
  * Each blank line ends a commit block. Merge commits (no file changes) are
  * tolerated and ignored.
+ *
+ * Also handles the legacy `CRIMES_COMMIT <date>` format (no email field) —
+ * the `spaceIdx === -1` branch sets `currentAuthor = ""` which is filtered
+ * out, so `uniqueAuthors` will be 0 for those entries (backwards-compat).
  */
 export function parseGitLog(output: string): FileChurn[] {
-  const byFile = new Map<string, { count: number; latest: string }>();
+  const byFile = new Map<
+    string,
+    { count: number; latest: string; authors: Set<string> }
+  >();
   let currentDate: string | null = null;
+  let currentAuthor: string | null = null;
 
   for (const rawLine of output.split("\n")) {
     const line = rawLine.replace(/\r$/, "");
     if (line.length === 0) {
       currentDate = null;
+      currentAuthor = null;
       continue;
     }
     if (line.startsWith(COMMIT_MARKER)) {
-      currentDate = line.slice(COMMIT_MARKER.length).trim();
+      const payload = line.slice(COMMIT_MARKER.length).trim();
+      const spaceIdx = payload.indexOf(" ");
+      if (spaceIdx === -1) {
+        currentDate = payload;
+        currentAuthor = "";
+      } else {
+        currentDate = payload.slice(0, spaceIdx);
+        currentAuthor = payload.slice(spaceIdx + 1);
+      }
       continue;
     }
     if (currentDate === null) continue;
@@ -117,14 +136,24 @@ export function parseGitLog(output: string): FileChurn[] {
     if (existing) {
       existing.count += 1;
       if (existing.latest < currentDate) existing.latest = currentDate;
+      if (currentAuthor) existing.authors.add(currentAuthor);
     } else {
-      byFile.set(file, { count: 1, latest: currentDate });
+      byFile.set(file, {
+        count: 1,
+        latest: currentDate,
+        authors: new Set(currentAuthor ? [currentAuthor] : []),
+      });
     }
   }
 
   const result: FileChurn[] = [];
-  for (const [file, { count, latest }] of byFile) {
-    result.push({ file, changeCount: count, latestChange: latest });
+  for (const [file, { count, latest, authors }] of byFile) {
+    result.push({
+      file,
+      changeCount: count,
+      latestChange: latest,
+      uniqueAuthors: authors.size,
+    });
   }
   result.sort((a, b) => {
     if (b.changeCount !== a.changeCount) return b.changeCount - a.changeCount;
@@ -226,7 +255,7 @@ export async function collectChurn(
     const logArgs = [
       "log",
       `--since=${sinceArg}`,
-      `--pretty=format:${COMMIT_MARKER} %cI`,
+      `--pretty=format:${COMMIT_MARKER} %cI %ae`,
       "--name-only",
       "--no-merges",
     ];

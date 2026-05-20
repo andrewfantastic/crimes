@@ -1,0 +1,60 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:28:12.563Z",
+  "run_id": "3815cb96-09f2-4e66-9b62-4e5acfb0a6dc",
+  "response": "The scan output you provided contains zero findings — `\"total\": 0`, `\"findings\": []`. There's nothing for me to group by type or build a refactor plan around.\n\nA few possibilities for what happened:\n\n1. **The fixture genuinely has no findings under current detector tuning.** The scenario brief describes what the fixture is *supposed* to surface (\"misleading function names, junk-drawer options, multiple return shapes\"), but those categories — naming/shape critiques — aren't part of the v0 MVP detector set (structural, dependency, duplication, testability, git/history per `CLAUDE.md`). If the fixture was authored against an aspirational detector list, current `crimes scan` would correctly return empty.\n\n2. **The scan was run against the wrong path or with filters that excluded the target files.** The repo root in the output is `evals/fixtures/04-monorepo`, which looks right, but flags like `--changed` or a restrictive `crimes.config.json` could zero it out.\n\n3. **The output was captured before the relevant detectors landed.**\n\nI won't invent findings to populate a plan — that would violate the \"evidence before judgement\" rule in `CLAUDE.md` and produce exactly the kind of unfounded refactor proposal the tool is meant to prevent.\n\nHow would you like to proceed?\n- Re-run `crimes scan --format json` against `evals/fixtures/04-monorepo` and paste the fresh output, or\n- Have me read `src/index.ts`, `src/rollup.ts`, and `src/esbuild/svelte.ts` directly and report what's there (clearly labeled as manual inspection, not detector output), or\n- Investigate why the scan returned empty when the scenario expects findings (likely a detector-coverage gap worth filing).",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": "src/index.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": "src/rollup.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": "src/esbuild/svelte.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

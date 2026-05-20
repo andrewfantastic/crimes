@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:11:04.593Z",
+  "run_id": "f04e1e77-408b-49c8-81b9-e569f7b5225b",
+  "response": "## What crimes told us (and didn't)\n\n`crimes scan` returned **0 findings** on this monorepo. That's a true negative on detection — but **it's not because the repo has an agent surface**. A direct `ls` of the fixture confirms there's no `AGENTS.md`, `CLAUDE.md`, or `SKILL.md` anywhere in the tree:\n\n```\n.crimes-eval-meta.json  ← only file present\n```\n\nSo the honest read: **crimes doesn't currently ship a detector for \"missing agent context\"**. Today the absence of an agent surface is invisible to `crimes scan` — it's a gap in the detector set, not a clean bill of health. Worth flagging upstream as a candidate detector (it fits the wedge: \"agent-native codebase risk and context\").\n\n## Consequence for future agent work\n\nWithout an `AGENTS.md` / `CLAUDE.md` at the repo root, every agent that lands here starts cold:\n\n- **No layering contract.** Agent has to infer the package graph from `pnpm-workspace.yaml` and import patterns, and will guess wrong on which packages are allowed to depend on which.\n- **No stack lock.** Agent will reach for whatever's idiomatic in its training data (oclif, ESLint+Prettier together, Next.js for docs) instead of the choices the team has already made.\n- **No \"what this is / isn't\" framing.** Agents drift into scope creep — adding detectors that overlap with ESLint, or collapsing scoring dimensions — because the product wedge isn't written down where they'll see it.\n- **No `pnpm ci` / smoke-test pointer.** Agents miss the canonical pre-commit check and either run nothing or invent their own.\n\nThe cost compounds: each new agent session re-derives (badly) what one file at the root would settle in 30 seconds of reading.\n\n## Minimal `AGENTS.md` skeleton\n\nDrop this at the repo root. It's the smallest version that would clear a hypothetical `missing-agent-context` detector and actually be load-bearing for the next agent that walks in:\n\n```markdown\n# AGENTS.md\n\n> Agent-facing context for this repo. Read this before touching code.\n\n## What this is\nOne-paragraph product description. What the wedge is. What this is explicitly **not** trying to be.\n\n## Architecture\n- Package layout (paths + one-line purpose each)\n- Layering rules: who can import from whom\n- Where the public contract lives (schema, API, CLI surface)\n\n## Stack (locked)\nBullet list: language, package manager, build tool, test runner, lint/format, framework choices. Note anything explicitly deferred or rejected.\n\n## Workflows\n- How to install: `pnpm install`\n- How to verify a change: `pnpm ci` (build + typecheck + test across workspaces)\n- How to run the smoke test: `pnpm --filter <pkg> smoke`\n- How to release: link to `docs/releasing.md`\n\n## Conventions\n- Commit style\n- When to bump versions\n- Where to put new detectors / features / docs\n\n## Out of scope\nShort list of \"don't reach for this in vX\" items so agents don't waste cycles proposing them.\n\n## See also\n- `PRD.md` — authoritative product spec; wins on conflicts\n- `docs/roadmap.md`, `docs/releasing.md`\n```\n\nKeep it scannable (~1 screen). The trap is over-writing it — anything that duplicates `PRD.md` rots. Link, don't copy.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scenario": "refactor-05-action-labels",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:15:35.055Z",
+  "run_id": "d062061b-94c8-48d7-a960-a2f39b8bf65a",
+  "response": "## Confirming the drift\n\nFindings #11 (`action_label_drift`) and #12 (`copy_ia_drift`) both flag the same evidence: the verbs `archive`, `delete`, and `remove` co-occur across `SeatList.tsx`, `TeamList.tsx`, and `UserList.tsx`. The crucial cross-file pattern from the evidence:\n\n- UserList: `delete`, `remove`\n- TeamList: `delete`, `archive`\n- SeatList: `archive`, `remove`\n\nEvery file uses two of the three verbs, and no two files agree.\n\n## Canonical label set\n\nDon't collapse to one verb — these aren't synonyms, they're three real concepts that just happen to share a button slot. Lock the meanings:\n\n- **Delete** — permanent destruction of the entity itself. Use for the actual user/team/seat record.\n- **Remove** — dissociation only (e.g., remove a user from a team; the user still exists).\n- **Archive** — reversible hide; entity persists and can be restored.\n\nThen per surface:\n- `UserList` → **Delete** (deleting the user)\n- `TeamList` → **Delete** for the team itself; **Remove** for member rows\n- `SeatList` → **Remove** (seats are an association, not a first-class entity)\n\nDocument this in a copy guide so the next agent doesn't re-litigate it.\n\n## Refactor TeamList.tsx first\n\n`TeamList` is the only file that mixes `delete` *and* `archive` internally — it's self-inconsistent, which means a reader/agent has no anchor to copy from. Fix it first so it becomes the reference; align `UserList` and `SeatList` to it.\n\n## How the two findings differ here\n\nOn this fixture, `action_label_drift` and `copy_ia_drift` report **identical evidence, file, score, and severity** (0.38 agent_risk, low). They're not redundant by design — they're answering different questions:\n\n- **`action_label_drift`** is narrow: it watches for inconsistent **verbs on the same action** (delete/remove/archive, save/submit, cancel/discard). Its remediation is \"pick the canonical verb.\"\n- **`copy_ia_drift`** is the broader category for any **user-facing copy** that diverges across surfaces — modal titles, empty states, nav labels, button text. Action verbs are a subset of that.\n\nOn this fixture they collapse onto the same signal because the only drifting copy *is* action verbs. On a richer repo, `copy_ia_drift` would also fire on things like \"Delete user?\" vs \"Are you sure?\" modal titles, where `action_label_drift` would stay silent. Treating crime_00011 as the actionable one and crime_00012 as its broader sibling is the right read — fixing the verbs resolves both.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "copy_ia_drift",
+        "observed": "copy_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/UserList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/TeamList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/components/SeatList.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "action_label_drift",
+        "observed": "action_label_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -589,3 +589,68 @@ export function loadSuppressionsForRoot(
 export function resolveOverridePath(root: string, override: string): string {
   return isAbsolute(override) ? override : resolve(root, override);
 }
+
+/**
+ * Shape of a single suppression as surfaced in `ContextReport.clues.suppressions`.
+ * Frozen contract for Release B — do not change field names or types.
+ */
+export interface SuppressionForFile {
+  fingerprint: string;
+  detector: string;
+  reason: string;
+  pinned_version: string;
+  matches_current_finding: boolean;
+}
+
+/**
+ * Return every suppression entry scoped to this file (by file path or by
+ * fingerprint), with a flag indicating whether at least one current
+ * finding matched.
+ *
+ * An entry is considered "scoped to this file" when:
+ *   1. Its `file` field equals `repoRelPath` (explicit file-scoped entry), OR
+ *   2. Its fingerprint matches the fingerprint of at least one finding in
+ *      `currentFindings` (fingerprint-scoped — no `file` field, but the
+ *      finding lives on this file).
+ *
+ * `matches_current_finding` is `true` when the entry's fingerprint matches
+ * at least one finding in `currentFindings` (regardless of how the entry
+ * was scoped to this file).
+ *
+ * Output is sorted by fingerprint ascending so JSON output is stable.
+ */
+export function suppressionsForFile(
+  entries: SuppressionEntry[],
+  repoRelPath: string,
+  currentFindings: Finding[],
+): SuppressionForFile[] {
+  // Build a set of fingerprints present in currentFindings for O(1) lookup.
+  const currentPrints = new Set(
+    currentFindings.map((f) => fingerprintFinding(f)),
+  );
+
+  const results: SuppressionForFile[] = [];
+  for (const entry of entries) {
+    const matchesCurrentFinding = currentPrints.has(entry.fingerprint);
+
+    // Determine whether this entry is scoped to this file:
+    //   1. Explicit file field pointing at this file.
+    const fileScoped = entry.file === repoRelPath;
+    //   2. No file field, but the fingerprint matches a finding on this file.
+    const printScoped = !entry.file && matchesCurrentFinding;
+
+    if (!fileScoped && !printScoped) continue;
+
+    results.push({
+      fingerprint: entry.fingerprint,
+      detector: entry.type,
+      reason: entry.reason,
+      pinned_version: entry.crimes_version_pinned ?? "",
+      matches_current_finding: matchesCurrentFinding,
+    });
+  }
+
+  // Deterministic order: fingerprint ascending.
+  results.sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
+  return results;
+}

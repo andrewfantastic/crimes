@@ -1,0 +1,89 @@
+{
+  "scenario": "review-05-permission-and-parallel",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:59:50.530Z",
+  "run_id": "9954ad45-2dc1-461e-b642-4472f632ac8f",
+  "response": "# Three IA drifts on /admin and friends\n\n## 1. Permission IA drift on `/admin` — **BLOCK MERGE** *(highest agent-risk)*\n\n`crime_00003` · agent_risk **0.59** · confidence 0.70 · test_gap **1.0**\n\nThree different tokens (`admin`, `manager`, `owner`) describe access to the same destination across `src/nav.ts:6`, `src/routes/admin.ts:2-9`, and `docs/routes.md`. The route guard itself disagrees with itself — `admin` on line 2, `manager` on lines 2 and 9, `owner` on line 4.\n\n**Block.** This is an access-control surface with zero tests covering it. An agent told \"tighten admin perms\" will edit one source of truth and leave the other two stale, producing either a privilege escalation (guard loosened relative to nav) or a silent lockout (guard tightened, nav still shows the link). Pick the canonical role, align all three surfaces, add a guard test, then merge.\n\n## 2. Parallel destination `/admin/billing-plans` ↔ `/billing-plans` — **WARN**\n\n`crime_00004` · agent_risk **0.48** · confidence 0.60\n\nTwo routes with overlapping intent, no nav/doc/import linking them. Both are orphaned (`crime_00007`, `crime_00008` confirm), so neither is in an active user flow today — which is exactly why this isn't block-worthy.\n\n**Warn.** Require the PR author to declare canonical-vs-deprecated in the description and either link them in docs or delete the loser. Don't block, because the user-facing blast radius right now is zero, but don't let it ship silently — the next agent doing \"add tax handling to the billing plans page\" will pick one file at random.\n\n## 3. Docs reference missing `iaq` subcommands — **WARN**\n\n`crime_00006` · agent_risk **0.51** · confidence 0.80\n\n`docs/routes.md` tells readers to run `iaq teams`, `iaq workspace`, `iaq refresh`; the bin advertises only `get` and `list`. Plus the related `docs/routes.md:14 → /admin` dead link (`crime_00005`).\n\n**Warn.** Stale docs steer agents into hallucinated commands and dead routes — that's why agent_risk is higher than its severity (0.4). But the failure mode is a confused agent and a \"command not found\", not a security incident or data loss. Fix in the same PR by either restoring the commands, updating the doc, or deleting the references.\n\n---\n\n## Why permission drift wins on agent-risk\n\nIt's the only one of the three where:\n- the **system of record disagrees with itself** (the guard file alone uses three different tokens),\n- the surface is **security-sensitive** (wrong answer = real authorization bug, not a confused dev), and\n- **test_gap is 1.0** — nothing will catch the agent's wrong guess at CI time.\n\nParallel destinations and stale docs both lead an agent to do incomplete work; permission drift lets an agent confidently ship a *broken authorization model* with no safety net.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "missing_agent_context",
+      "crime_00002": "concept_alias_drift",
+      "crime_00003": "permission_ia_drift",
+      "crime_00004": "parallel_destination",
+      "crime_00005": "docs_code_drift",
+      "crime_00006": "command_drift_docs_code_drift",
+      "crime_00007": "orphaned_destination",
+      "crime_00008": "orphaned_destination",
+      "crime_00009": "orphaned_destination",
+      "crime_00010": "orphaned_destination",
+      "crime_00011": "action_label_drift",
+      "crime_00012": "copy_ia_drift"
+    },
+    "detector_id_by_charge": {
+      "Missing Agent Context": "missing_agent_context",
+      "Concept Alias Drift": "concept_alias_drift",
+      "Permission IA Drift": "permission_ia_drift",
+      "Parallel Destination": "parallel_destination",
+      "Docs-Code Drift": "docs_code_drift",
+      "Docs Reference Missing Command": "command_drift_docs_code_drift",
+      "Orphaned Destination": "orphaned_destination",
+      "Action Label Drift": "action_label_drift",
+      "Copy / IA Drift": "copy_ia_drift"
+    }
+  },
+  "structural_score": {
+    "passed": 7,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "parallel_destination",
+        "observed": "parallel_destination",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "command_drift_docs_code_drift",
+        "observed": "command_drift_docs_code_drift",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin.ts",
+        "observed": "src/routes/admin.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/nav.ts",
+        "observed": "src/nav.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/routes/admin/billing-plans.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "docs/routes.md",
+        "observed": "docs/routes.md",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "permission_ia_drift",
+        "observed": "permission_ia_drift",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,63 +1,20 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
+import { generateConfig } from "../init-detect.js";
 
 interface InitCommandOptions {
   agents: boolean;
   agentSkill: boolean;
   codexSkill: boolean;
   force: boolean;
+  detect: boolean;
 }
 
 const CONFIG_FILENAME = "crimes.config.json";
 const CLAUDE_SKILL_PATH = ".claude/skills/crimes/SKILL.md";
 const CODEX_SKILL_PATH = ".agents/skills/crimes/SKILL.md";
 
-/**
- * Sensible starter `crimes.config.json` — opinionated defaults with
- * inline JSONC comments that explain the new knobs. The trailing newline
- * keeps `git diff` and POSIX text tools happy.
- *
- * The `$schema` URL is reserved against the website's eventual hosting;
- * even if it 404s today, the comment block tells the user where they
- * would get IDE validation once it lands.
- */
-const STARTER_CONFIG = `{
-  "$schema": "https://crimes.sh/schema/0.1.0/config.json",
-
-  "include": ["**/*.{ts,tsx,js,jsx,mjs,cjs}"],
-  "exclude": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/.next/**",
-    "**/out/**",
-    "**/coverage/**",
-    "**/*.min.js",
-    "**/*.generated.*",
-    "**/.crimes/**"
-  ],
-
-  "thresholds": {
-    "largeFileLines": 300,
-    "largeFunctionLines": 60,
-    "todoDensityPerKLoc": 10
-  },
-
-  "detectors": {
-    "enable": [],
-    "disable": []
-  },
-
-  "ia": {
-    "aliasGroups": []
-  },
-
-  "suppressions": {
-    "path": ".crimes/suppressions.json"
-  }
-}
-`;
 
 const AGENT_SKILL = `---
 name: crimes-codebase-risk
@@ -109,7 +66,11 @@ export function registerInitCommand(program: Command): void {
       "overwrite existing generated files instead of failing",
       false,
     )
-    .action((options: InitCommandOptions) => {
+    .option(
+      "--no-detect",
+      "skip repo detection and write the static template",
+    )
+    .action(async (options: InitCommandOptions) => {
       const path = resolve(process.cwd(), CONFIG_FILENAME);
       const writeClaudeSkill = options.agents || options.agentSkill;
       const writeCodexSkill = options.agents || options.codexSkill;
@@ -145,7 +106,11 @@ export function registerInitCommand(program: Command): void {
 
       const written: string[] = [];
       if (!configExists || options.force) {
-        writeFileSync(path, STARTER_CONFIG, "utf8");
+        const configText = await generateConfig({
+          root: process.cwd(),
+          detect: options.detect,
+        });
+        writeFileSync(path, configText, "utf8");
         written.push(CONFIG_FILENAME);
       }
       if (writeClaudeSkill) {
@@ -160,9 +125,8 @@ export function registerInitCommand(program: Command): void {
       }
 
       if (written.includes(CONFIG_FILENAME)) {
-        const lineCount = STARTER_CONFIG.split("\n").length - 1;
         process.stdout.write(
-          `Wrote ${CONFIG_FILENAME} (${lineCount} lines). ` +
+          `Wrote ${CONFIG_FILENAME}. ` +
             `Tweak include/exclude/thresholds and commit.\n`,
         );
       } else if (configExists) {
@@ -177,7 +141,9 @@ export function registerInitCommand(program: Command): void {
 
 /**
  * Exposed for the init command's tests — keeps the file fixture in sync
- * with the writer.
+ * with the writer. Returns the static (detect=false) template.
  */
-export const STARTER_CONFIG_TEXT = STARTER_CONFIG;
+export function getStarterConfigText(): Promise<string> {
+  return generateConfig({ root: ".", detect: false });
+}
 export const AGENT_SKILL_TEXT = AGENT_SKILL;

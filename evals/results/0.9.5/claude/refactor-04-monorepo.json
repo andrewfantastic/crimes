@@ -1,0 +1,60 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:55:59.391Z",
+  "run_id": "5ed67463-181c-47c5-9a52-d7f7d298a081",
+  "response": "The scan output you provided is empty — `summary.total: 0`, `findings: []`. There are no findings to group, rank, or build a refactor plan around.\n\nA few possibilities for why:\n\n1. **Wrong working directory.** The scan ran against `evals/fixtures/04-monorepo` (per `repo.root`), which is the fixture used to evaluate the tool. If you intended to scan the actual `crimes-release-a` repo's `src/index.ts`, `src/rollup.ts`, `src/esbuild/svelte.ts`, those paths don't exist in this monorepo anyway — there is no top-level `src/` (the code lives under `packages/*/src/`). The scenario prompt looks like it was written against a different codebase (likely a Svelte/Rollup/esbuild project) than the one actually present.\n2. **Detectors didn't trip.** If the fixture really is the intended target, then at the current 0.9.5 baseline none of the structural / duplication / testability / churn detectors flagged the files named in the prompt. That's a legitimate outcome, not a bug to paper over.\n3. **Filtering.** Default `crimes scan` shows top findings only, but `summary.total: 0` rules that out — even `--all` would have nothing to surface.\n\nPer the project's own rule — \"evidence before judgement, no verdicts without receipts\" — I'm not going to fabricate misleading-name / junk-drawer-options / multiple-return-shape findings to fit the scenario description. If you want a real plan, point me at the actual files (full paths) and I'll read them and propose tightenings based on what's there, or re-run the scan against the right root and paste the non-empty output.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": "src/index.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": "src/rollup.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": "src/esbuild/svelte.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "scenario": "review-01-messy-ts-app",
+  "agent": "codex",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:58:55.013Z",
+  "run_id": "c9f5f6c4-b188-4a1b-9953-f157f3f4a4b8",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e4351-c18b-7921-9faf-4d7e5741923d\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"I would **block merge on 8 findings**, **warn on 24**, and **ignore 5**. Since this PR adds the whole repo from an empty baseline, I’m treating high severity as merge-blocking, and also blocking medium findings at roughly `agent_risk >= 0.53` when they point to portability, runtime, or repo-operability hazards.\\n\\n| Finding | Category | Justification |\\n|---|---:|---|\\n| `crime_00001` `svg_with_embedded_raster` | block merge | `severity: high`, `agent_risk: 0.70`; high-risk asset problem with strong confidence. |\\n| `crime_00002` `large_function` | block merge | `severity: high`, `agent_risk: 0.55`; 204-line billing function is a risky initial merge surface. |\\n| `crime_00003` `direct_date` in `src/date.ts` | block merge | `severity: high`, `agent_risk: 0.62`; direct wall-clock use creates non-deterministic domain behavior. |\\n| `crime_00004` `mixed_utc_local_methods` | block merge | `severity: high`, `agent_risk: 0.61`; timezone behavior can silently differ by host. |\\n| `crime_00005` `missing_agent_context` | block merge | `severity: medium`, `agent_risk: 0.53`; for this repo’s purpose, missing agent instructions is material. |\\n| `crime_00006` `hardcoded_localhost` | block merge | `severity: medium`, `agent_risk: 0.53`; hardcoded dev URL breaks non-local environments. |\\n| `crime_00007` `hardcoded_local_path` | block merge | `severity: medium`, `agent_risk: 0.53`; absolute `/Users/andrew/...` path is not portable. |\\n| `crime_00010` `timezone_unsafe_parse` | block merge | `severity: medium`, `agent_risk: 0.53`; ambiguous date parsing is a real cross-environment correctness risk. |\\n| `crime_00009` `direct_date` in `src/billing.ts` | warn | `severity: medium`, `agent_risk: 0.46`; worth fixing, but lower risk than the concentrated date module issue. |\\n| `crime_00011` `weak_test_signal` | warn | `severity: medium`, `agent_risk: 0.46`; test gives false confidence, but does not itself break runtime. |\\n| `crime_00012` `magic_domain_literal_scatter` | warn | `severity: medium`, `agent_risk: 0.52`; near-blocking duplication risk, but not enough alone to stop merge. |\\n| `crime_00013` `name_behavior_mismatch` | warn | `severity: medium`, `agent_risk: 0.44`; misleading side-effecting name should be cleaned up. |\\n| `crime_00014` `dst_naive_arithmetic` | warn | `severity: medium`, `agent_risk: 0.52`; date math can be wrong, but localized to one line. |\\n| `crime_00015` `concept_alias_drift` | warn | `severity: medium`, `agent_risk: 0.58`; high agent-risk vocabulary drift, but primarily maintainability/docs alignment. |\\n| `crime_00016` `large_file` | warn | `severity: medium`, `agent_risk: 0.42`; barely over threshold, lower confidence. |\\n| `crime_00017` `logic_in_comments` | warn | `severity: medium`, `agent_risk: 0.42`; hidden business rule should become code or test. |\\n| `crime_00018` `duplicated_navigation_source` | warn | `severity: medium`, `agent_risk: 0.49`; duplicated labels can drift. |\\n| `crime_00019` `todo_density` in `src/todo.ts` | warn | `severity: medium`, `agent_risk: 0.49`; very high TODO density signals unfinished behavior. |\\n| `crime_00020` `route_metadata_drift` | warn | `severity: medium`, `agent_risk: 0.49`; inconsistent route labels should be reconciled. |\\n| `crime_00021` `oversized_raster` | warn | `severity: low`, `agent_risk: 0.52`; low severity but relatively high agent risk/page weight impact. |\\n| `crime_00022` `docs_code_drift` | warn | `severity: low`, `agent_risk: 0.51`; stale doc link can mislead future edits. |\\n| `crime_00023` `sync_io_in_hotpath` | warn | `severity: low`, `agent_risk: 0.44`; low severity, but event-loop blocking deserves follow-up. |\\n| `crime_00024` `direct_date` in `src/api/state.ts` | warn | `severity: low`, `agent_risk: 0.44`; isolated nondeterminism. |\\n| `crime_00025` `raster_should_be_vector` | warn | `severity: low`, `agent_risk: 0.50`; asset hygiene issue with moderate agent risk. |\\n| `crime_00026` `date_string_concat` | warn | `severity: low`, `agent_risk: 0.43`; formatting bug risk, localized. |\\n| `crime_00027` `locale_drift` | warn | `severity: low`, `agent_risk: 0.43`; host-locale variance should be explicit. |\\n| `crime_00028` `boolean_naming_drift` in `src/api/state.ts` | ignore | `severity: low`, `agent_risk: 0.42`; naming concern only, not worth gating this PR. |\\n| `crime_00029` `boolean_naming_drift` in `src/petty.ts` | ignore | `severity: low`, `agent_risk: 0.42`; same naming-only concern. |\\n| `crime_00030` `weak_test_signal` | warn | `severity: low`, `agent_risk: 0.34`; weak test should improve, but not a blocker. |\\n| `crime_00031` `option_bag_junk_drawer` | warn | `severity: low`, `agent_risk: 0.40`; maintainability risk if this API grows. |\\n| `crime_00032` `return_shape_roulette` | warn | `severity: low`, `agent_risk: 0.40`; explicit return type would reduce caller confusion. |\\n| `crime_00033` `negative_flag_maze` | ignore | `severity: low`, `agent_risk: 0.40`; minor readability issue. |\\n| `crime_00034` `singular_plural_type_mismatch` | warn | `severity: low`, `agent_risk: 0.40`; name/type mismatch can cause real caller mistakes. |\\n| `crime_00035` `todo_density` in `src/billing.ts` | ignore | `severity: low`, `agent_risk: 0.32`; low score and less dense than `src/todo.ts`. |\\n| `crime_00036` `orphaned_destination` `/account/subscription` | warn | `severity: low`, `agent_risk: 0.39`; route may be dead or unlinked; needs product confirmation. |\\n| `crime_00037` `orphaned_destination` `/team` | warn | `severity: low`, `agent_risk: 0.39`; same route reachability concern. |\\n| `crime_00038` `orphaned_destination` `/workspace/members` | warn | `severity: low`, `agent_risk: 0.39`; same route reachability concern. |\\n\\nOne note: the scan reports `suppressed_count: 1`, and `crime_00008` is absent. I would not assess that suppressed finding from this JSON alone.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":29416,\"cached_input_tokens\":7552,\"output_tokens\":1907,\"reasoning_output_tokens\":181}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": "todo_density",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "svg_with_embedded_raster",
+        "passed": false
+      }
+    ]
+  }
+}

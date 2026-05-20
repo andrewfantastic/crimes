@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-02-component-shape",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:29:42.849Z",
+  "run_id": "8443face-4c23-4eaf-90ab-529400d87ce9",
+  "response": "I can't answer this scenario truthfully as posed. Two grounded facts:\n\n1. **The crimes scan returned zero findings.** There is no `duplicate_component_shape` finding in the output you pasted — `findings: []` and `total: 0`. The detector either didn't fire or isn't wired up for this fixture.\n\n2. **The fixture has no source files.** `/Users/andrew/dev/crimes-release-a/evals/fixtures/02-react-dashboard/` contains only `.crimes-eval-meta.json`, which points upstream at `vercel/next-learn` SHA `914a334`. The actual invoice form code hasn't been vendored in — so there's nothing to name, no subtree to inspect, no props to design from evidence.\n\nWithout either the finding (which would carry concrete file locations and the duplicated subtree) or the source files (which I could read directly to identify the real shape), any \"shared component API\" I gave you would be a plausible-sounding fabrication — exactly the kind of evidence-free verdict the PRD calls out as off-limits.\n\nTo actually do this scenario, one of these has to be true first:\n- Re-run `crimes scan` after the `duplicate_component_shape` detector is implemented and fires on this fixture, **or**\n- Vendor the next-learn source into the fixture so the invoice form files exist on disk and I can read them.\n\nIf you want, I can instead: (a) sketch what the `duplicate_component_shape` finding *schema* should look like so the detector has a target to emit against, or (b) clone the upstream next-learn at the pinned SHA and propose the refactor from the real code. Either is honest; the original ask isn't, given what's actually here.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/edit-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/starter-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      }
+    ]
+  }
+}

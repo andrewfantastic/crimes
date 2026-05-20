@@ -1,0 +1,30 @@
+{
+  "scenario": "context-04-monorepo",
+  "agent": "codex",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:24:27.304Z",
+  "run_id": "a75bf38b-d262-4f8f-b826-e0113e8c8777",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e42fb-ce95-79d2-bf99-6c157d8c1b32\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"`crimes scan --format json` reports no findings for `04-monorepo`:\\n\\n```json\\n\\\"summary\\\": {\\n  \\\"total\\\": 0,\\n  \\\"high\\\": 0,\\n  \\\"medium\\\": 0,\\n  \\\"low\\\": 0\\n},\\n\\\"findings\\\": []\\n```\\n\\nThat means the repo does **not** currently trigger the missing agent-context finding. In this scenario, it likely already ships an agent-facing surface such as `AGENTS.md`, `CLAUDE.md`, or `SKILL.md`, or otherwise satisfies the detector’s expectations.\\n\\nConsequence: future agent work should have enough repo-local guidance to avoid starting cold on package boundaries, test commands, release constraints, and project-specific risks.\\n\\nNo minimal `AGENTS.md` skeleton is needed to clear the finding because there is no finding to clear.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18544,\"cached_input_tokens\":12160,\"output_tokens\":227,\"reasoning_output_tokens\":51}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "missing_agent_context",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

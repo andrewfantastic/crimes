@@ -5,6 +5,8 @@
  */
 export const SCHEMA_VERSION = "0.1.0" as const;
 
+import type { Tier } from "./scoring/tier.js";
+
 export type Severity = "low" | "medium" | "high";
 
 export interface FindingScores {
@@ -30,6 +32,13 @@ export interface FindingScores {
    * in stubs. Ordinal.
    */
   test_gap?: number;
+  /**
+   * Recency boost in [0,1] derived from file's most recent commit. 1.0 =
+   * touched within the last 7 days; linear decay to 0 over 7→14 days; 0
+   * thereafter or when git is unavailable. Used by the scan reporter to
+   * compute file-level rank_score = agent_risk * (1 + recency * 0.5).
+   */
+  recency?: number;
   /**
    * Unified composite of severity / confidence / churn / test_gap /
    * blast_radius (0-1). Computed by core's finalisation pass after every
@@ -93,6 +102,13 @@ export interface Finding {
     /** The reason recorded on the original feedback `fp` entry. */
     reason: string;
   };
+  /**
+   * Scope tier of the finding's file, computed from
+   * `config.scopeTiers.nonDomain`. Optional and additive — readers that
+   * don't care can ignore it. Absent only on findings produced by tests
+   * that bypass scan/context wiring.
+   */
+  tier?: Tier;
 }
 
 export interface ScanSummary {

@@ -1,0 +1,117 @@
+{
+  "scenario": "refactor-01-petty",
+  "agent": "claude",
+  "crimes_version": "0.9.3",
+  "timestamp": "2026-05-20T01:28:22.336Z",
+  "run_id": "851c5ce7-01bd-43a5-b613-9965baf8df23",
+  "response": "## Three petty crimes in `src/petty.ts`\n\n### 1. `describeCheckout` — Option Bag Junk Drawer (crime_00031, L10–19)\n\nThe function takes an unnamed `options` object and pulls six unrelated fields out of it: `currency`, `plan`, `region`, `retry`, `role`, `status`. There's no type, no destructuring at the signature, so the contract lives only in the function body.\n\n**What an agent gets wrong today:** Nothing at the call site says which fields are required, which are optional, or what types they should be. An agent adding a seventh field (`coupon`, say) won't update callers because the signature didn't change. An agent renaming `region` → `country` won't see the existing callers either — TypeScript can't help, because `options` is structurally anything.\n\n**Refactor:** name the shape and destructure at the signature so the contract is local to the function.\n\n```ts\ntype CheckoutDescriptor = {\n  currency: Currency;\n  plan: PlanId;\n  region: Region;\n  role: Role;\n  status: CheckoutStatus;\n  retry?: RetryPolicy;\n};\n\nexport function describeCheckout({\n  currency, plan, region, role, status, retry,\n}: CheckoutDescriptor): string { … }\n```\n\n---\n\n### 2. `resolvePaymentResult` — Return Shape Roulette (crime_00032, L21–32)\n\nThree object-literal returns, 0% key overlap, no explicit return type. The detector caught `{ code, message, ok }` vs `{ permanent, url }` as the worst pair.\n\n**What an agent gets wrong today:** TypeScript infers a union, but the union is invisible without hovering. Callers naturally reach for `result.ok` and get `undefined` (falsy) on the redirect branch — silently taking the wrong path without an error. An agent adding a fourth branch with yet another shape compounds the trap; an agent reading the function might \"fix\" a branch by aligning its keys to a different branch and break the discriminator entirely.\n\n**Refactor:** make the return a discriminated union with an explicit `kind` tag and an explicit return type, so callers are forced to narrow.\n\n```ts\ntype PaymentResult =\n  | { kind: 'ok'; code: string; message: string }\n  | { kind: 'redirect'; permanent: boolean; url: string }\n  | { kind: 'failed'; reason: string };\n\nfunction resolvePaymentResult(…): PaymentResult {\n  if (…) return { kind: 'ok',       code, message };\n  if (…) return { kind: 'redirect', permanent, url };\n  return       { kind: 'failed',   reason };\n}\n```\n\n---\n\n### 3. Negative Flag Maze (crime_00033, L35) + boolean naming drift (crime_00029, L34)\n\nThe condition is `!disableBilling && !skipRetry`. Two negative-named booleans, each negated again at the predicate — a double negative on each axis. The boolean-naming-drift finding on the same line is the root cause: the names themselves are inverted.\n\n**What an agent gets wrong today:** Reading \"not disable\" as \"enable\" requires a mental flip per flag. An agent extending this with a third flag — `noEmail`, say — will copy the pattern and write `!disableBilling && !skipRetry && !noEmail`. Any single inversion mistake silently flips who gets charged, who gets retried, who gets the receipt. Worse: an agent shortening the condition by introducing `const skipAll = disableBilling || skipRetry; if (!skipAll) …` looks fine in isolation but inverts the meaning if anyone later adds a positive flag to the disjunction.\n\n**Refactor:** flip the names at the source, prefer positive predicates, and pull the combined rule into a named helper before extending it.\n\n```ts\n// At the call boundary, take positive flags:\nfunction chargeCustomer({ billing = true, retry = true }: ChargeOptions) {\n  const shouldChargeWithRetry = billing && retry;\n  if (shouldChargeWithRetry) { … }\n}\n```\n\nIf the callers really must keep `disableBilling`/`skipRetry` for back-compat at an outer layer, invert them once at the entry point and never let the negative names reach the predicate:\n\n```ts\nconst billingEnabled = !disableBilling;\nconst retryEnabled   = !skipRetry;\nconst shouldChargeWithRetry = billingEnabled && retryEnabled;\n```\n\nThe common thread across all three: each crime makes the **contract invisible at the signature or call site**, which is exactly the surface an agent reads when extending the code.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 4,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": "option_bag_junk_drawer",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": "return_shape_roulette",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "negative_flag_maze",
+        "observed": "negative_flag_maze",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/petty.ts",
+        "observed": "src/petty.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "return_shape_roulette",
+        "observed": "option_bag_junk_drawer",
+        "passed": false
+      }
+    ]
+  }
+}

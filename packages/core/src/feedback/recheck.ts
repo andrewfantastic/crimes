@@ -1,4 +1,4 @@
-import { minorKey } from "../suppressions.js";
+import { compareMinor, minorKey } from "../suppressions.js";
 import type { SuppressionEntry } from "../suppressions.js";
 import { releaseNoteFor } from "./release-notes.js";
 
@@ -43,12 +43,11 @@ export function resurfacedSuppressions(
   for (const e of entries) {
     if (e.source !== "feedback") continue;
     if (!e.crimes_version_pinned) continue;
-    if (minorKey(e.crimes_version_pinned) >= currentMinor) {
+    if (compareMinor(e.crimes_version_pinned, currentVersion) >= 0) {
       // Same-minor or future-pinned — not resurfaced.
-      // (`>=` works lexicographically here because minorKey returns
-      // major.minor as a string and major is unbounded in length only
-      // for non-realistic versions; for our 0.x / 1.x range, string
-      // compare matches numeric compare.)
+      // Use compareMinor (numeric) instead of lexicographic string compare;
+      // `"0.5" >= "0.10"` is true lexicographically but false numerically,
+      // and the 0.9 → 0.10 boundary hit that exact case.
       continue;
     }
     if (options.detector && e.type !== options.detector) continue;

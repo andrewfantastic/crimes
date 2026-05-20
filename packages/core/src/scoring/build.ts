@@ -23,8 +23,10 @@
 import { relative, sep } from "node:path";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
+import type { CollectChurnResult } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
 import { isTestFile } from "../util/test-files.js";
+import { quartileScores } from "./quartile.js";
 
 export interface ChurnIndex {
   /** Returns [0,1] churn for a file, from git log over the configured window. */
@@ -40,10 +42,21 @@ export interface ChurnIndex {
 
 export interface TestGapIndex {
   /**
-   * Returns [0,1] test gap for a file. 1.0 = no nearby tests; 0.0 =
-   * strong test coverage (an actual test file imports the target).
+   * Quartile-ranked test gap for this file in [0,1]. Higher = worse-covered
+   * relative to other files in this scan. Falls back to the raw value when
+   * the scan has fewer than 4 source files (no meaningful distribution).
+   *
+   * Returns 0 for test files themselves — the measure is not applicable
+   * to them, not "well-covered".
    */
   forFile(repoPath: string): number;
+  /**
+   * Raw {0, 0.5, 1.0} value before quartile normalisation. Used by
+   * `context.clues.test_gap.raw`.
+   *
+   * Returns 0 for test files themselves — not applicable, not well-covered.
+   */
+  rawForFile(repoPath: string): number;
 }
 
 export interface BlastRadiusIndex {
@@ -54,10 +67,44 @@ export interface BlastRadiusIndex {
   forFile(repoPath: string): number;
 }
 
+const RECENCY_FULL_DAYS = 7;
+const RECENCY_DECAY_DAYS = 14;
+const MS_PER_DAY = 86_400_000;
+
+export function recencyForDate(
+  iso: string | undefined,
+  nowMs: number = Date.now(),
+): number {
+  if (!iso) return 0;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return 0;
+  const days = (nowMs - t) / MS_PER_DAY;
+  if (days <= RECENCY_FULL_DAYS) return 1;
+  if (days >= RECENCY_DECAY_DAYS) return 0;
+  // Linear decay from 1 → 0 across (FULL, DECAY].
+  return 1 - (days - RECENCY_FULL_DAYS) / (RECENCY_DECAY_DAYS - RECENCY_FULL_DAYS);
+}
+
+export interface RecencyIndex {
+  /** Returns [0,1] recency boost for a file. 0 when git is unavailable. */
+  forFile(repoPath: string): number;
+  /** True when git history is shallow or absent. */
+  limited: boolean;
+  /** Short human-readable reason. Only set when `limited` is true. */
+  limitedReason?: string;
+}
+
 export interface ScoringContext {
   churn: ChurnIndex;
   testGap: TestGapIndex;
   blastRadius: BlastRadiusIndex;
+  recency: RecencyIndex;
+  /**
+   * Raw churn collection result — exposed so `context()` can populate
+   * `clues.churn` without a second `collectChurn` call. Not intended for
+   * use by detectors; treat it as internal plumbing for the context report.
+   */
+  churnResult?: CollectChurnResult;
 }
 
 export interface BuildScoringContextOptions {
@@ -104,6 +151,20 @@ export async function buildScoringContext(
         : {}),
   };
 
+  const latestByFile = new Map<string, string>();
+  for (const c of churnResult.files) {
+    latestByFile.set(c.file, c.latestChange);
+  }
+  const recency: RecencyIndex = {
+    forFile(repoPath) {
+      return recencyForDate(latestByFile.get(repoPath));
+    },
+    limited: !churnResult.gitAvailable,
+    ...(churnResult.gitAvailable ? {} : {
+      limitedReason: "not a git repository or git is unavailable; recency is unknown",
+    }),
+  };
+
   const repoPaths = options.files.map((abs) =>
     toRepoPath(options.root, abs),
   );
@@ -113,7 +174,7 @@ export async function buildScoringContext(
   });
   const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
 
-  return { churn, testGap, blastRadius };
+  return { churn, testGap, blastRadius, recency, churnResult };
 }
 
 function buildTestGapIndex(args: {
@@ -159,18 +220,30 @@ function buildTestGapIndex(args: {
     return false;
   };
 
+  const rawFor = (repoPath: string): number => {
+    if (isTestFile(repoPath)) return 0;
+    if (!fileSet.has(repoPath)) return 1;
+    if (importedByTest(repoPath)) return 0;
+    if (siblingTestFor(repoPath) || tellsTestCoversBasename(repoPath)) {
+      return 0.5;
+    }
+    return 1;
+  };
+
+  // Compute raw for every source file once, then quartile-rank in one pass.
+  const sourcePaths = repoPaths.filter((p) => !isTestFile(p));
+  const rawValues = sourcePaths.map((p) => rawFor(p));
+  const quartiles = quartileScores(rawValues);
+  const quartileByPath = new Map<string, number>();
+  sourcePaths.forEach((p, i) => quartileByPath.set(p, quartiles[i]!));
+
   return {
     forFile(repoPath) {
-      // Test files themselves — they aren't the thing under test.
       if (isTestFile(repoPath)) return 0;
-      // The file isn't known to us (e.g. unscanned path). Treat as a full
-      // gap rather than guess.
-      if (!fileSet.has(repoPath)) return 1;
-      if (importedByTest(repoPath)) return 0;
-      if (siblingTestFor(repoPath) || tellsTestCoversBasename(repoPath)) {
-        return 0.5;
-      }
-      return 1;
+      return quartileByPath.get(repoPath) ?? rawFor(repoPath);
+    },
+    rawForFile(repoPath) {
+      return rawFor(repoPath);
     },
   };
 }
@@ -264,9 +337,11 @@ export function finaliseFindingScores(
     churn = round(scoring.churn.forFile(finding.file));
     test_gap = round(scoring.testGap.forFile(finding.file));
     blast_radius = round(scoring.blastRadius.forFile(finding.file));
+    const recency = round(scoring.recency.forFile(finding.file));
     finding.scores.churn = churn;
     finding.scores.test_gap = test_gap;
     finding.scores.blast_radius = blast_radius;
+    finding.scores.recency = recency;
   }
   finding.scores.agent_risk = computeAgentRisk({
     severity: finding.severity,

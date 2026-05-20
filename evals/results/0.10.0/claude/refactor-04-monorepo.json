@@ -1,0 +1,60 @@
+{
+  "scenario": "refactor-04-monorepo",
+  "agent": "claude",
+  "crimes_version": "0.10.0",
+  "timestamp": "2026-05-20T05:01:27.719Z",
+  "run_id": "a95dc908-b2bc-4aaf-9d09-502e3d4189d4",
+  "response": "The scan output you've shared contains zero findings — `summary.total: 0` and `findings: []`. There's nothing to enumerate or group.\n\nA few possibilities for why:\n\n1. **Fixture state mismatch.** The scenario description expects petty agent-risk findings in `src/index.ts`, `src/rollup.ts`, and `src/esbuild/svelte.ts`, but the current detectors (or their thresholds) aren't firing on the fixture as it stands. Worth checking whether the fixture has drifted or whether the agent-risk detectors that would surface \"misleading names\", \"junk-drawer options\", and \"multiple return shapes\" are actually implemented and wired into `crimes scan` at this version.\n2. **Wrong invocation.** If the scenario expected `--all` or a different working directory, the empty result could be a scope issue. The repo root in the output is `evals/fixtures/04-monorepo`, so the scan did land on the right tree — but defaults filter to top findings only.\n3. **Detectors not yet shipped.** Per `CLAUDE.md`, MVP detectors are structural/dependency/duplication/testability/git. \"Misleading function names\" and \"junk-drawer options\" sound like agent-risk detectors that may be deferred.\n\nI won't fabricate a refactor plan from findings the tool didn't produce — that would defeat the \"evidence before judgement\" rule in the PRD.\n\n**What I'd suggest:** run `crimes scan --all --format json` on the fixture and share that, or confirm which detectors the scenario assumes are active. If the fixture itself needs to be updated to trigger findings, that's a separate task. Want me to inspect the three files directly and identify the petty agent-risk issues by reading the code, with the caveat that those findings would come from me, not from `crimes`?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "option_bag_junk_drawer",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "return_shape_roulette",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/index.ts",
+        "observed": "src/index.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/rollup.ts",
+        "observed": "src/rollup.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/esbuild/svelte.ts",
+        "observed": "src/esbuild/svelte.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "name_behavior_mismatch",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

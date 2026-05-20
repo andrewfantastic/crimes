@@ -1,0 +1,30 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "claude",
+  "crimes_version": "0.9.5",
+  "timestamp": "2026-05-20T02:50:01.944Z",
+  "run_id": "18727ae3-5ea2-44c9-9afc-c44af64563ec",
+  "response": "The scan output is empty — `\"findings\": []` with `\"total\": 0`. There's nothing for me to quote and nothing for me to point at as \"the test I'd strengthen first.\"\n\nI won't invent finding evidence to satisfy the prompt. Two real possibilities to investigate:\n\n1. **The detector didn't fire on this fixture.** `crimes scan test` is supposed to surface tests-without-assertions, but on `evals/fixtures/04-monorepo` it produced zero findings. If the fixture genuinely contains an assertion-less test (which the scenario implies it does, since \"the relevant test still passes\" despite a regression), that's a detector miss worth filing — the scenario itself is the repro.\n\n2. **The command shape may not match the runner's expectation.** `crimes scan test --format json` reads like a positional path argument `test` rather than a `scan test` subcommand. If the runner intended a tests-specific scan and the CLI just scanned a `test` path that doesn't exist (or is empty) in the fixture, that would also explain the zero-finding output.\n\nIf you want me to actually answer the scenario, I'd need either (a) a non-empty scan output to quote, or (b) permission to look at the fixture and the test detector to diagnose why it returned nothing.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
