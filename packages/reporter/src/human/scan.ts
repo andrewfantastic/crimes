@@ -384,7 +384,7 @@ function renderFileGroups(
     if (group.findings.length > 1) {
       const first = group.findings[0]!.id;
       const last = group.findings[group.findings.length - 1]!.id;
-      lines.push(`     ${colour.dim(`id=${first}..${last}`)}`);
+      lines.push(`     ${colour.dim(`id=${first} … ${last}`)}`);
     } else {
       lines.push(`     ${colour.dim(`id=${group.findings[0]!.id}`)}`);
     }
@@ -413,7 +413,7 @@ function formatFindingCompactLine(
   n: number,
   colour: ColourFns,
 ): string {
-  const symbol = f.symbol ? ` · ${colour.cyan(f.symbol)}` : "";
+  const symbol = f.symbol ? ` · ${colour.cyan(`${f.symbol}()`)}` : "";
   const evidence = compactEvidence(f);
   const evidenceSegment = evidence ? `   ${colour.dim(evidence)}` : "";
   return `   ${colour.bold(`${n}.`)} ${f.charge}${symbol}${evidenceSegment}`;
@@ -533,6 +533,9 @@ function nonDomainBucket(file: string): string {
   ) {
     return "tests/";
   }
+  // Bare filename with no directory — return it as the bucket label
+  // without a trailing slash, since "foo.ts/" reads as wrong.
+  if (!file.includes("/")) return file;
   const first = file.split("/")[0];
   return first ? `${first}/` : file;
 }
