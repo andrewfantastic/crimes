@@ -8,7 +8,7 @@ import {
   assignIds,
   buildGuidance,
   buildRisk,
-  sortFindings,
+  tagTierAndSortByRankScore,
   toRepoRelative,
 } from "./context-helpers.js";
 import {
@@ -236,7 +236,7 @@ export async function context(options: ContextOptions): Promise<ContextReport> {
     functionHashIndex,
     scoring,
   });
-  sortFindings(findings);
+  tagTierAndSortByRankScore(findings, config);
   assignIds(findings);
 
   const likely_tests = await findLikelyTests({ root, fileRel, targetAbs, allFiles });

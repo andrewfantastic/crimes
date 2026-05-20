@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { Finding, ScanReport } from "./finding.js";
 import { SCHEMA_VERSION } from "./finding.js";
 import { NotAGitRepoError } from "./git/changed-files.js";
+import { loadConfig } from "./config.js";
 import { applyScanFailOn, scan } from "./scan.js";
 
 const execFileAsync = promisify(execFile);
@@ -320,6 +321,101 @@ function makeReport(findings: Finding[]): ScanReport {
     findings,
   };
 }
+
+/** A large function body (81 lines) that fires the large_function detector. */
+function longFunctionFixture(name: string): string {
+  return `export function ${name}() {\n${"  console.log('x');\n".repeat(80)}}\n`;
+}
+
+/**
+ * Initialise a bare git repo using a back-dated initial commit so that
+ * recency for files committed here decays to 0 (>14 days old).
+ */
+async function initRepo(dir: string): Promise<void> {
+  const pastDate = "2000-01-01T00:00:00+00:00";
+  const baseEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "crimes-test",
+    GIT_AUTHOR_EMAIL: "test@example.com",
+    GIT_COMMITTER_NAME: "crimes-test",
+    GIT_COMMITTER_EMAIL: "test@example.com",
+  };
+  await execFileAsync("git", ["init", "--initial-branch=main", "--quiet"], {
+    cwd: dir,
+    env: baseEnv,
+  });
+  await execFileAsync("git", ["add", "-A"], { cwd: dir, env: baseEnv });
+  await execFileAsync("git", ["commit", "-m", "init", "--quiet"], {
+    cwd: dir,
+    env: {
+      ...baseEnv,
+      GIT_AUTHOR_DATE: pastDate,
+      GIT_COMMITTER_DATE: pastDate,
+    },
+  });
+}
+
+/**
+ * Write `content` to `filename` and create a fresh commit (using current
+ * time so recency = 1.0).
+ */
+async function commitFile(
+  dir: string,
+  filename: string,
+  content: string,
+  message: string,
+): Promise<void> {
+  await writeFile(join(dir, filename), content, "utf8");
+  await git(dir, "add", filename);
+  await git(dir, "commit", "-m", message, "--quiet");
+}
+
+describe("scan — tier tagging and rank_score order", () => {
+  it(
+    "tags findings with tier based on scopeTiers and sorts by rank_score desc",
+    { timeout: 30_000 },
+    async () => {
+      const dir = await makeRepo({
+        "src/hot.ts": longFunctionFixture("hotFn"),
+        "scripts/probe.ts": longFunctionFixture("probeFn"),
+        "src/cold.ts": longFunctionFixture("coldFn"),
+        "crimes.config.json": JSON.stringify({
+          scopeTiers: { nonDomain: ["scripts/**"] },
+        }),
+      });
+      await initRepo(dir);
+      // Touch hot.ts with a fresh commit to bump its recency.
+      await commitFile(
+        dir,
+        "src/hot.ts",
+        longFunctionFixture("hotFn") + "\n// touch\n",
+        "touch hot",
+      );
+
+      const config = loadConfig(dir);
+      const report = await scan({ root: dir, config });
+
+      const hot = report.findings.find((f) => f.file === "src/hot.ts");
+      const probe = report.findings.find((f) => f.file === "scripts/probe.ts");
+      const cold = report.findings.find((f) => f.file === "src/cold.ts");
+
+      expect(hot?.tier).toBe("domain");
+      expect(probe?.tier).toBe("nonDomain");
+      expect(cold?.tier).toBe("domain");
+
+      // hot.ts was committed recently → recency 1.0 → rank_score = agent_risk * 1.5
+      // cold.ts was only in the back-dated init commit → recency 0 → rank_score = agent_risk * 1.0
+      // Hot must appear before cold even if agent_risks were equal.
+      const hotIdx = report.findings.findIndex((f) => f.file === "src/hot.ts");
+      const coldIdx = report.findings.findIndex(
+        (f) => f.file === "src/cold.ts",
+      );
+      expect(hotIdx).toBeGreaterThanOrEqual(0);
+      expect(coldIdx).toBeGreaterThanOrEqual(0);
+      expect(hotIdx).toBeLessThan(coldIdx);
+    },
+  );
+});
 
 describe("applyScanFailOn", () => {
   it("does not mutate the input report", () => {

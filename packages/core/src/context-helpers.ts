@@ -1,7 +1,9 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ContextRelatedFile } from "./context-related-files.js";
+import type { CrimesConfig } from "./config.js";
 import type { Finding, Severity } from "./finding.js";
 import type { ContextRisk } from "./context.js";
+import { makeTierClassifier } from "./scoring/tier.js";
 
 /**
  * Per-finding-type guidance shown to agents in the human report and in
@@ -101,14 +103,56 @@ export function toRepoPath(p: string): string {
   return p.split(sep).join("/");
 }
 
+const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
+
+/**
+ * Secondary (tiebreaker) comparator shared by sortFindings and
+ * tagTierAndSortByRankScore. Matches the ordering that scan.ts uses:
+ * severity desc → confidence desc → file asc → line-start asc.
+ */
+function existingSecondarySort(a: Finding, b: Finding): number {
+  const sev = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+  if (sev !== 0) return sev;
+  if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+  if (a.file !== b.file) return a.file.localeCompare(b.file);
+  return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+}
+
 export function sortFindings(findings: Finding[]): void {
-  const order = { high: 0, medium: 1, low: 2 } as const;
+  findings.sort(existingSecondarySort);
+}
+
+/**
+ * Tag every finding with `tier` from config.scopeTiers.nonDomain and sort
+ * by rank_score = agent_risk * (1 + recency * 0.5) desc.
+ *
+ * Tiebreaker falls back to existingSecondarySort (severity desc, confidence
+ * desc, file asc, lines start asc) to preserve stable secondary ordering.
+ *
+ * rank_score is intentionally NOT stored on the finding — it's ephemeral
+ * and not part of the JSON contract.
+ */
+export function tagTierAndSortByRankScore(
+  findings: Finding[],
+  config: CrimesConfig,
+): void {
+  const nonDomain = config.scopeTiers?.nonDomain ?? [];
+  const classify = makeTierClassifier(nonDomain);
+  for (const f of findings) {
+    f.tier = classify(f.file);
+  }
   findings.sort((a, b) => {
-    const sev = order[a.severity] - order[b.severity];
-    if (sev !== 0) return sev;
-    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
+    const ra = rankScore(a);
+    const rb = rankScore(b);
+    if (rb !== ra) return rb - ra;
+    return existingSecondarySort(a, b);
   });
+}
+
+function rankScore(f: Finding): number {
+  const ar = f.scores.agent_risk ?? 0;
+  const rec = f.scores.recency ?? 0;
+  return ar * (1 + rec * 0.5);
 }
 
 export function assignIds(findings: Finding[]): void {
