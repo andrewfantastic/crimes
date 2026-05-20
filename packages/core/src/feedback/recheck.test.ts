@@ -136,4 +136,22 @@ describe("resurfacedSuppressions", () => {
     );
     expect(result).toEqual([]);
   });
+
+  it("resurfaces across the single-digit → double-digit minor boundary (0.5 vs 0.10)", () => {
+    // Regression — lexicographic compare said "0.5" >= "0.10", numeric says <.
+    const result = resurfacedSuppressions(
+      [
+        {
+          fingerprint: "direct_date::a.ts::",
+          type: "direct_date",
+          reason: "r",
+          ...FB,
+          crimes_version_pinned: "0.5",
+        },
+      ],
+      "0.10.0",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]!.crimes_version_pinned).toBe("0.5");
+  });
 });
