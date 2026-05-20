@@ -10,6 +10,27 @@ import { z } from "zod";
 export const DEFAULT_SUPPRESSIONS_PATH = ".crimes/suppressions.json";
 
 /**
+ * Default glob patterns that classify files as non-domain. Used as the
+ * runtime default for `scopeTiers.nonDomain` when the user has not
+ * supplied that key. Empty array opts out of tiering entirely.
+ */
+export const DEFAULT_NON_DOMAIN_PATTERNS: string[] = [
+  "scripts/**",
+  "examples/**",
+  "fixtures/**",
+  "public/**",
+  "**/__tests__/**",
+  "**/*.test.{ts,tsx,js,jsx}",
+  "**/*.spec.{ts,tsx,js,jsx}",
+];
+
+/**
+ * Default value for `scan.topFiles` — how many files appear in the
+ * default file-grouped view of `crimes scan`.
+ */
+export const DEFAULT_TOP_FILES = 5;
+
+/**
  * `crimes.config.json` shape. All fields are optional and back-compat —
  * a config from `crimes@0.4.0` keeps loading unchanged, and a config that
  * sets only the new fields keeps the existing defaults for the rest.
@@ -109,6 +130,24 @@ export interface CrimesConfig {
     disable?: string[];
     options?: Record<string, unknown>;
   };
+  /**
+   * Two-tier scope classification. Patterns under `nonDomain` mark files
+   * whose findings should appear in a separate "Also flagged elsewhere"
+   * section instead of competing with domain findings for the default
+   * top-N. Empty array opts out of tiering entirely.
+   */
+  scopeTiers?: {
+    nonDomain: string[];
+  };
+  /**
+   * `crimes scan` rendering knobs.
+   *
+   * - `topFiles`: how many files appear in the default file-grouped view.
+   *   `--top N` (CLI) and `--all` (CLI) override per invocation.
+   */
+  scan?: {
+    topFiles: number;
+  };
   /** Suppression file path override. Defaults to `.crimes/suppressions.json`. */
   suppressions?: {
     path?: string;
@@ -167,6 +206,8 @@ export const DEFAULT_CONFIG: CrimesConfig = {
       "**/*.test.{png,jpg,jpeg,gif,webp,avif,svg}",
     ],
   },
+  scopeTiers: { nonDomain: DEFAULT_NON_DOMAIN_PATTERNS },
+  scan: { topFiles: DEFAULT_TOP_FILES },
 };
 
 /**
@@ -309,6 +350,18 @@ const architectureSchema = z
   })
   .strict();
 
+const scopeTiersSchema = z
+  .object({
+    nonDomain: z.array(z.string()),
+  })
+  .strict();
+
+const scanSchema = z
+  .object({
+    topFiles: z.number().int().positive(),
+  })
+  .strict();
+
 /**
  * Top-level schema. Unknown keys are stripped (and ignored) so future
  * config releases can extend the file without breaking old CLI builds.
@@ -322,6 +375,8 @@ export const CrimesConfigSchema = z
     thresholds: thresholdsSchema.optional(),
     assets: assetsSchema.optional(),
     detectors: detectorsSchema.optional(),
+    scopeTiers: scopeTiersSchema.optional(),
+    scan: scanSchema.optional(),
     ia: iaSchema.optional(),
     suppressions: suppressionsConfigSchema.optional(),
     architecture: architectureSchema.optional(),
@@ -480,6 +535,22 @@ function mergeConfig(base: CrimesConfig, override: CrimesConfig): CrimesConfig {
     };
   }
   if (override.detectors !== undefined) merged.detectors = override.detectors;
+  // scopeTiers.nonDomain replaces the default wholesale when set, matching
+  // the contract of the top-level `include` / `exclude` lists. An explicit
+  // empty array is a valid opt-out, so we use ?? (not ||).
+  merged.scopeTiers = {
+    nonDomain:
+      override.scopeTiers !== undefined
+        ? override.scopeTiers.nonDomain
+        : (base.scopeTiers?.nonDomain ?? DEFAULT_NON_DOMAIN_PATTERNS),
+  };
+  // scan.topFiles replaces the default wholesale when set.
+  merged.scan = {
+    topFiles:
+      override.scan !== undefined
+        ? override.scan.topFiles
+        : (base.scan?.topFiles ?? DEFAULT_TOP_FILES),
+  };
   if (override.ia !== undefined) merged.ia = override.ia;
   if (override.suppressions !== undefined) {
     merged.suppressions = override.suppressions;
