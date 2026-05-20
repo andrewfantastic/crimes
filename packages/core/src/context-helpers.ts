@@ -106,9 +106,9 @@ export function toRepoPath(p: string): string {
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 
 /**
- * Secondary (tiebreaker) comparator shared by sortFindings and
- * tagTierAndSortByRankScore. Matches the ordering that scan.ts uses:
- * severity desc → confidence desc → file asc → line-start asc.
+ * Secondary (tiebreaker) comparator used by tagTierAndSortByRankScore.
+ * Matches the historical scan.ts ordering: severity desc → confidence
+ * desc → file asc → line-start asc.
  */
 function existingSecondarySort(a: Finding, b: Finding): number {
   const sev = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
@@ -116,10 +116,6 @@ function existingSecondarySort(a: Finding, b: Finding): number {
   if (b.confidence !== a.confidence) return b.confidence - a.confidence;
   if (a.file !== b.file) return a.file.localeCompare(b.file);
   return (a.lines?.[0] ?? 0) - (b.lines?.[0] ?? 0);
-}
-
-export function sortFindings(findings: Finding[]): void {
-  findings.sort(existingSecondarySort);
 }
 
 /**
