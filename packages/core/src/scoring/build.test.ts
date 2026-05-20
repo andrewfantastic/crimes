@@ -190,6 +190,77 @@ describe("buildScoringContext > blast_radius", () => {
   });
 });
 
+describe("test_gap quartile pass", () => {
+  it("returns the raw value for the inspected file via rawForFile", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "export const a = 1;",
+      "src/a.test.ts": "import { a } from './a';",
+      "src/b.ts": "export const b = 2;",
+      "src/c.ts": "export const c = 3;",
+      "src/d.ts": "export const d = 4;",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // a.ts has a sibling test → raw 0.5
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(0.5);
+    // b.ts has no test → raw 1.0
+    expect(ctx.testGap.rawForFile("src/b.ts")).toBe(1);
+  });
+
+  it("quartile-ranks test_gap across the scan when >= 4 files are present", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "x",
+      "src/a.test.ts": "import './a';",
+      "src/b.ts": "x",
+      "src/b.test.ts": "import './b';",
+      "src/c.ts": "x",
+      "src/d.ts": "x",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // 4 source files: 2 have sibling tests (raw 0.5), 2 don't (raw 1.0).
+    // After quartile pass:
+    //   - 2 entries at raw 0.5: occupy sorted indices [0, 2) → midpoint 2/8 = 0.25 → bucket 0.25
+    //     BUT snapToQuartile uses `< 0.25 → 0`, so 0.25 itself maps to bucket 0.25
+    //     Wait — re-check: percentile EXACTLY 0.25 ≥ 0.25 (not <), so bucket 0.25.
+    //   - 2 entries at raw 1.0: occupy sorted indices [2, 4) → midpoint 6/8 = 0.75 → bucket 0.75 (≥ 0.75 → 1)
+    // The expected values per the snap thresholds at 0.25 / 0.4375 / 0.5625 / 0.75:
+    //   - percentile 0.25 → bucket 0.25 (since 0.25 is the boundary and rule is `< 0.4375 → 0.25`)
+    //   - percentile 0.75 → bucket 1 (since 0.75 is the boundary and rule is `>= 0.75 → 1`)
+    expect(ctx.testGap.forFile("src/a.ts")).toBe(0.25);
+    expect(ctx.testGap.forFile("src/c.ts")).toBe(1);
+    expect(ctx.testGap.forFile("src/d.ts")).toBe(1);
+  });
+
+  it("falls back to raw values when fewer than 4 files are scanned", async () => {
+    const dir = await makeRepo({
+      "src/a.ts": "x",
+      "src/b.ts": "x",
+      "src/c.ts": "x",
+    });
+    await initRepo(dir);
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    // 3 files, all raw 1.0 → no quartile pass → forFile === rawForFile
+    expect(ctx.testGap.forFile("src/a.ts")).toBe(1);
+    expect(ctx.testGap.rawForFile("src/a.ts")).toBe(1);
+  });
+});
+
 describe("computeAgentRisk", () => {
   it("follows the documented unified formula", () => {
     const got = computeAgentRisk({

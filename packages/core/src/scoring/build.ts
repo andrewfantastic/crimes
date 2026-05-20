@@ -25,6 +25,7 @@ import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
 import { isTestFile } from "../util/test-files.js";
+import { quartileScores } from "./quartile.js";
 
 export interface ChurnIndex {
   /** Returns [0,1] churn for a file, from git log over the configured window. */
@@ -39,11 +40,10 @@ export interface ChurnIndex {
 }
 
 export interface TestGapIndex {
-  /**
-   * Returns [0,1] test gap for a file. 1.0 = no nearby tests; 0.0 =
-   * strong test coverage (an actual test file imports the target).
-   */
+  /** Quartile-ranked test gap for this file. See spec §5.4. */
   forFile(repoPath: string): number;
+  /** Raw {0, 0.5, 1.0} value before quartile normalisation. Used by context.clues. */
+  rawForFile(repoPath: string): number;
 }
 
 export interface BlastRadiusIndex {
@@ -159,18 +159,30 @@ function buildTestGapIndex(args: {
     return false;
   };
 
+  const rawFor = (repoPath: string): number => {
+    if (isTestFile(repoPath)) return 0;
+    if (!fileSet.has(repoPath)) return 1;
+    if (importedByTest(repoPath)) return 0;
+    if (siblingTestFor(repoPath) || tellsTestCoversBasename(repoPath)) {
+      return 0.5;
+    }
+    return 1;
+  };
+
+  // Compute raw for every source file once, then quartile-rank in one pass.
+  const sourcePaths = repoPaths.filter((p) => !isTestFile(p));
+  const rawValues = sourcePaths.map((p) => rawFor(p));
+  const quartiles = quartileScores(rawValues);
+  const quartileByPath = new Map<string, number>();
+  sourcePaths.forEach((p, i) => quartileByPath.set(p, quartiles[i]!));
+
   return {
     forFile(repoPath) {
-      // Test files themselves — they aren't the thing under test.
       if (isTestFile(repoPath)) return 0;
-      // The file isn't known to us (e.g. unscanned path). Treat as a full
-      // gap rather than guess.
-      if (!fileSet.has(repoPath)) return 1;
-      if (importedByTest(repoPath)) return 0;
-      if (siblingTestFor(repoPath) || tellsTestCoversBasename(repoPath)) {
-        return 0.5;
-      }
-      return 1;
+      return quartileByPath.get(repoPath) ?? rawFor(repoPath);
+    },
+    rawForFile(repoPath) {
+      return rawFor(repoPath);
     },
   };
 }
