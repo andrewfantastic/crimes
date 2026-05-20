@@ -3,11 +3,14 @@ import type {
   BaselineCheckReport,
   ContextReport,
   DiffReport,
+  Finding,
+  FindingScores,
   HotspotsReport,
   ScanReport,
   VerdictReport,
 } from "@crimes/core";
 import { describe, expect, it } from "vitest";
+import { pc, plainColour, renderRiskProfileLine } from "./human/shared.js";
 import {
   formatBaselineCheckReport,
   formatBaselineSaveReport,
@@ -947,6 +950,41 @@ describe("formatBaselineCheckJsonReport", () => {
     expect(parsed.failed).toBe(true);
   });
 });
+
+describe("renderRiskProfileLine — test_gap quartile label", () => {
+  it("renders 'top-quartile' for scores >= 0.75", () => {
+    const f = stubFinding({ test_gap: 0.75 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap top-quartile");
+    expect(line).not.toContain("0.75");
+  });
+
+  it("renders 'bottom-quartile' for scores <= 0.25", () => {
+    const f = stubFinding({ test_gap: 0.25 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap bottom-quartile");
+  });
+
+  it("renders '~median' for scores in (0.25, 0.75)", () => {
+    const f = stubFinding({ test_gap: 0.5 });
+    const line = renderRiskProfileLine(f, pc, { alwaysShowRiskProfile: true });
+    expect(line).toContain("test gap ~median");
+  });
+});
+
+function stubFinding(scores: Partial<FindingScores>): Finding {
+  return {
+    id: "x",
+    type: "t",
+    charge: "C",
+    severity: "low",
+    confidence: 0.5,
+    file: "a.ts",
+    summary: "",
+    evidence: [],
+    scores: { severity: 0.5, confidence: 0.5, ...scores },
+  };
+}
 
 describe("inline feedback hints (0.7.0)", () => {
   it("appends 'Give feedback: ...' under each finding when enabled", () => {

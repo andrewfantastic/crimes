@@ -160,8 +160,13 @@ export function appendFeedbackHint(
 /**
  * One-line "Risk profile" block surfacing the per-finding scoring signals
  * the 0.6.0 release added. Shown only when at least one of churn,
- * test_gap, or blast_radius is greater than 0.5 — keeps the report tidy
- * on low-signal findings — or always when `--all` was passed.
+ * test_gap, or blast_radius is notable — keeps the report tidy on
+ * low-signal findings — or always when `--all` was passed.
+ *
+ * test_gap is rendered as a quartile label (top-quartile / ~median /
+ * bottom-quartile) because the underlying score is repo-relative
+ * quartile-ranked — the numeric form carries no additional meaning for a
+ * human reader.
  */
 export function renderRiskProfileLine(
   finding: Finding,
@@ -174,13 +179,20 @@ export function renderRiskProfileLine(
   }
   const notable =
     (churn ?? 0) > 0.5 ||
-    (test_gap ?? 0) > 0.5 ||
+    (test_gap ?? 0) >= 0.75 ||
     (blast_radius ?? 0) > 0.5;
   if (!notable && !options.alwaysShowRiskProfile) return undefined;
   const parts = [
     `churn ${(churn ?? 0).toFixed(2)}`,
-    `test gap ${(test_gap ?? 0).toFixed(2)}`,
+    `test gap ${testGapLabel(test_gap)}`,
     `blast radius ${(blast_radius ?? 0).toFixed(2)}`,
   ];
   return `     ${colour.bold("Risk profile:")} ${colour.dim(parts.join(" · "))}`;
+}
+
+function testGapLabel(score: number | undefined): string {
+  if (score === undefined) return "unknown";
+  if (score >= 0.75) return "top-quartile";
+  if (score <= 0.25) return "bottom-quartile";
+  return "~median";
 }
