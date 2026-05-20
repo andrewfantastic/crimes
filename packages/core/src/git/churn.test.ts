@@ -278,10 +278,18 @@ describe("collectChurn enclosing-repo lookup", () => {
 /**
  * A git helper that does NOT override GIT_AUTHOR_* / GIT_COMMITTER_* env
  * vars so that `-c user.name=X -c user.email=Y` args are actually honoured.
- * Used only in the author-tracking test.
+ * Explicitly *unsets* those four env vars on the child if the outer
+ * environment (CI runners, Git hosting hooks) injected them, so the test
+ * is reproducible across environments. Used only in the author-tracking
+ * test.
  */
 async function gitBare(cwd: string, ...args: string[]): Promise<void> {
-  await execFileAsync("git", args, { cwd });
+  const env = { ...process.env };
+  delete env.GIT_AUTHOR_NAME;
+  delete env.GIT_AUTHOR_EMAIL;
+  delete env.GIT_COMMITTER_NAME;
+  delete env.GIT_COMMITTER_EMAIL;
+  await execFileAsync("git", args, { cwd, env });
 }
 
 describe("collectChurn — author tracking", () => {
