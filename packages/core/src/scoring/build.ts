@@ -40,9 +40,21 @@ export interface ChurnIndex {
 }
 
 export interface TestGapIndex {
-  /** Quartile-ranked test gap for this file. See spec §5.4. */
+  /**
+   * Quartile-ranked test gap for this file in [0,1]. Higher = worse-covered
+   * relative to other files in this scan. Falls back to the raw value when
+   * the scan has fewer than 4 source files (no meaningful distribution).
+   *
+   * Returns 0 for test files themselves — the measure is not applicable
+   * to them, not "well-covered".
+   */
   forFile(repoPath: string): number;
-  /** Raw {0, 0.5, 1.0} value before quartile normalisation. Used by context.clues. */
+  /**
+   * Raw {0, 0.5, 1.0} value before quartile normalisation. Used by
+   * `context.clues.test_gap.raw`.
+   *
+   * Returns 0 for test files themselves — not applicable, not well-covered.
+   */
   rawForFile(repoPath: string): number;
 }
 
