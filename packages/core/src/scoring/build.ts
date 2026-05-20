@@ -66,10 +66,38 @@ export interface BlastRadiusIndex {
   forFile(repoPath: string): number;
 }
 
+const RECENCY_FULL_DAYS = 7;
+const RECENCY_DECAY_DAYS = 14;
+const MS_PER_DAY = 86_400_000;
+
+export function recencyForDate(
+  iso: string | undefined,
+  nowMs: number = Date.now(),
+): number {
+  if (!iso) return 0;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return 0;
+  const days = (nowMs - t) / MS_PER_DAY;
+  if (days <= RECENCY_FULL_DAYS) return 1;
+  if (days >= RECENCY_DECAY_DAYS) return 0;
+  // Linear decay from 1 → 0 across (FULL, DECAY].
+  return 1 - (days - RECENCY_FULL_DAYS) / (RECENCY_DECAY_DAYS - RECENCY_FULL_DAYS);
+}
+
+export interface RecencyIndex {
+  /** Returns [0,1] recency boost for a file. 0 when git is unavailable. */
+  forFile(repoPath: string): number;
+  /** True when git history is shallow or absent. */
+  limited: boolean;
+  /** Short human-readable reason. Only set when `limited` is true. */
+  limitedReason?: string;
+}
+
 export interface ScoringContext {
   churn: ChurnIndex;
   testGap: TestGapIndex;
   blastRadius: BlastRadiusIndex;
+  recency: RecencyIndex;
 }
 
 export interface BuildScoringContextOptions {
@@ -116,6 +144,20 @@ export async function buildScoringContext(
         : {}),
   };
 
+  const latestByFile = new Map<string, string>();
+  for (const c of churnResult.files) {
+    latestByFile.set(c.file, c.latestChange);
+  }
+  const recency: RecencyIndex = {
+    forFile(repoPath) {
+      return recencyForDate(latestByFile.get(repoPath));
+    },
+    limited: !churnResult.gitAvailable,
+    ...(churnResult.gitAvailable ? {} : {
+      limitedReason: "not a git repository or git is unavailable; recency is unknown",
+    }),
+  };
+
   const repoPaths = options.files.map((abs) =>
     toRepoPath(options.root, abs),
   );
@@ -125,7 +167,7 @@ export async function buildScoringContext(
   });
   const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
 
-  return { churn, testGap, blastRadius };
+  return { churn, testGap, blastRadius, recency };
 }
 
 function buildTestGapIndex(args: {

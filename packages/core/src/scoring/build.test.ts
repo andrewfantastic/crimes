@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
-import { buildScoringContext, computeAgentRisk } from "./build.js";
+import { buildScoringContext, computeAgentRisk, recencyForDate } from "./build.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -287,5 +287,46 @@ describe("computeAgentRisk", () => {
     });
     expect(got).toBeLessThanOrEqual(1);
     expect(got).toBeGreaterThan(0.9);
+  });
+});
+
+describe("recencyForDate", () => {
+  const now = new Date("2026-05-20T12:00:00Z").getTime();
+
+  it("returns 1.0 for a commit today", () => {
+    expect(recencyForDate("2026-05-20T11:00:00Z", now)).toBe(1);
+  });
+
+  it("returns 1.0 for any commit within the last 7 days", () => {
+    expect(recencyForDate("2026-05-14T12:00:00Z", now)).toBe(1);
+  });
+
+  it("linearly decays between 7 and 14 days", () => {
+    // 10.5d old → 3.5 / 7 of the way through decay → 1 - 3.5/7 = 0.5
+    const tenAndAHalfDaysAgo = new Date(now - 10.5 * 86400 * 1000).toISOString();
+    expect(recencyForDate(tenAndAHalfDaysAgo, now)).toBeCloseTo(0.5, 2);
+  });
+
+  it("returns 0 for commits older than 14 days", () => {
+    expect(recencyForDate("2026-05-01T12:00:00Z", now)).toBe(0);
+  });
+
+  it("returns 0 for missing/undefined input (no churn signal)", () => {
+    expect(recencyForDate(undefined, now)).toBe(0);
+  });
+});
+
+describe("ScoringContext.recency", () => {
+  it("is exposed on the context and falls back to 0 when git is unavailable", async () => {
+    // Bare temp dir, no git init
+    const dir = await makeRepo({ "src/a.ts": "x" });
+    const files = await discover(dir);
+    const ctx = await buildScoringContext({
+      root: dir,
+      files,
+      imports: undefined,
+    });
+    expect(ctx.recency.forFile("src/a.ts")).toBe(0);
+    expect(ctx.recency.limited).toBe(true);
   });
 });
