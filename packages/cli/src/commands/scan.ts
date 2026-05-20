@@ -37,6 +37,9 @@ interface ScanCommandOptions {
   base?: string;
   failOn?: string;
   showSuppressed: boolean;
+  top?: number;
+  flat: boolean;
+  recency: boolean; // Commander gives this as `true` by default with --no-recency
 }
 
 const VALID_FAIL_ON = new Set<FailOn>(["low", "medium", "high"]);
@@ -71,6 +74,9 @@ export function registerScanCommand(program: Command): void {
       "include findings filtered by .crimes/suppressions.json, annotated as suppressed",
       false,
     )
+    .option("--top <n>", "show only the top N files (default 5)", (v) => Number.parseInt(v, 10))
+    .option("--flat", "use the legacy flat-by-severity layout", false)
+    .option("--no-recency", "disable the recency multiplier on rank_score")
     .action(async (path: string | undefined, options: ScanCommandOptions) => {
       const root = resolve(path ?? process.cwd());
       const format = options.format;
@@ -118,6 +124,7 @@ export function registerScanCommand(program: Command): void {
           config,
           changed: options.changed,
           base: options.base,
+          recencyEnabled: options.recency, // Commander: true unless --no-recency
         });
         const suppressions = loadSuppressionsForRoot(root, config);
         // Future-pinned warnings can fire even when nothing resurfaces
@@ -168,6 +175,8 @@ export function registerScanCommand(program: Command): void {
         process.stdout.write(
           formatHumanReport(gatedReport, {
             showAll: options.all,
+            topFiles: options.top ?? config.scan.topFiles,
+            flat: options.flat,
             noColor: effectiveNoColor,
             feedbackHints: {
               entriesByDetector: countEntriesByDetector(feedbackEntries),

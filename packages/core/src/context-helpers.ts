@@ -127,27 +127,32 @@ function existingSecondarySort(a: Finding, b: Finding): number {
  *
  * rank_score is intentionally NOT stored on the finding — it's ephemeral
  * and not part of the JSON contract.
+ *
+ * @param options.recencyEnabled When false, the recency multiplier collapses
+ *   to 1 so findings sort by agent_risk alone. Default true.
  */
 export function tagTierAndSortByRankScore(
   findings: Finding[],
   config: CrimesConfig,
+  options: { recencyEnabled?: boolean } = {},
 ): void {
+  const recencyEnabled = options.recencyEnabled ?? true;
   const nonDomain = config.scopeTiers?.nonDomain ?? [];
   const classify = makeTierClassifier(nonDomain);
   for (const f of findings) {
     f.tier = classify(f.file);
   }
   findings.sort((a, b) => {
-    const ra = rankScore(a);
-    const rb = rankScore(b);
+    const ra = rankScore(a, recencyEnabled);
+    const rb = rankScore(b, recencyEnabled);
     if (rb !== ra) return rb - ra;
     return existingSecondarySort(a, b);
   });
 }
 
-function rankScore(f: Finding): number {
+function rankScore(f: Finding, recencyEnabled: boolean): number {
   const ar = f.scores.agent_risk ?? 0;
-  const rec = f.scores.recency ?? 0;
+  const rec = recencyEnabled ? (f.scores.recency ?? 0) : 0;
   return ar * (1 + rec * 0.5);
 }
 

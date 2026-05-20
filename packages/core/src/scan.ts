@@ -67,6 +67,11 @@ export interface ScanOptions {
    * Only meaningful when `changed` is true.
    */
   base?: string;
+  /**
+   * When false, disables the recency multiplier on rank_score so findings
+   * sort by agent_risk alone. Default true.
+   */
+  recencyEnabled?: boolean;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
@@ -110,7 +115,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanReport> {
     finaliseFindingScores(f, indexes.scoring);
   }
 
-  tagTierAndSortByRankScore(findings, config);
+  tagTierAndSortByRankScore(findings, config, { recencyEnabled: options.recencyEnabled ?? true });
   assignIdsHelper(findings);
 
   const report: ScanReport = {

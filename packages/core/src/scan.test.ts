@@ -9,6 +9,7 @@ import { SCHEMA_VERSION } from "./finding.js";
 import { NotAGitRepoError } from "./git/changed-files.js";
 import { loadConfig } from "./config.js";
 import { applyScanFailOn, scan } from "./scan.js";
+import { tagTierAndSortByRankScore } from "./context-helpers.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -472,5 +473,54 @@ describe("applyScanFailOn", () => {
     expect(gated.repo).toEqual(report.repo);
     expect(gated.summary).toEqual(report.summary);
     expect(gated.findings).toEqual(report.findings);
+  });
+});
+
+describe("tagTierAndSortByRankScore — recencyEnabled: false", () => {
+  /** Synthetic finding with explicit agent_risk and recency scores. */
+  function makeScoredFinding(
+    file: string,
+    agentRisk: number,
+    recency: number,
+  ): Finding {
+    return {
+      id: "crime_00001",
+      type: "large_function",
+      charge: "God Function",
+      severity: "high",
+      confidence: 0.9,
+      file,
+      symbol: "fn",
+      lines: [1, 100],
+      summary: "spans 100 lines",
+      evidence: [],
+      scores: {
+        severity: 0.9,
+        confidence: 0.9,
+        agent_risk: agentRisk,
+        recency,
+      },
+    };
+  }
+
+  const emptyConfig = loadConfig("/nonexistent/path");
+
+  it("recencyEnabled: true (default) ranks high-recency finding above low-recency when agent_risk equal", () => {
+    const hot = makeScoredFinding("hot.ts", 0.8, 1.0);  // rank = 0.8 * 1.5 = 1.2
+    const cold = makeScoredFinding("cold.ts", 0.8, 0.0); // rank = 0.8 * 1.0 = 0.8
+    const findings = [cold, hot];
+    tagTierAndSortByRankScore(findings, emptyConfig, { recencyEnabled: true });
+    expect(findings[0]!.file).toBe("hot.ts");
+    expect(findings[1]!.file).toBe("cold.ts");
+  });
+
+  it("recencyEnabled: false collapses multiplier — findings with equal agent_risk sort by tiebreaker (file asc)", () => {
+    const hot = makeScoredFinding("hot.ts", 0.8, 1.0);  // rank = 0.8 * 1.0 = 0.8
+    const cold = makeScoredFinding("cold.ts", 0.8, 0.0); // rank = 0.8 * 1.0 = 0.8
+    const findings = [hot, cold];
+    tagTierAndSortByRankScore(findings, emptyConfig, { recencyEnabled: false });
+    // Equal rank_score; tiebreaker is file asc → cold.ts < hot.ts
+    expect(findings[0]!.file).toBe("cold.ts");
+    expect(findings[1]!.file).toBe("hot.ts");
   });
 });
