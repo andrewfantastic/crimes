@@ -218,6 +218,8 @@ export type {
   ScoringContext,
   TestGapIndex,
 } from "./scoring/build.js";
+export { classifyTier, makeTierClassifier } from "./scoring/tier.js";
+export type { Tier } from "./scoring/tier.js";
 export { buildPettyIndex } from "./petty/build.js";
 export { extractStringLiterals } from "./petty/literals.js";
 export type {

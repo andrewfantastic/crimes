@@ -5,6 +5,8 @@
  */
 export const SCHEMA_VERSION = "0.1.0" as const;
 
+import type { Tier } from "./scoring/tier.js";
+
 export type Severity = "low" | "medium" | "high";
 
 export interface FindingScores {
@@ -93,6 +95,13 @@ export interface Finding {
     /** The reason recorded on the original feedback `fp` entry. */
     reason: string;
   };
+  /**
+   * Scope tier of the finding's file, computed from
+   * `config.scopeTiers.nonDomain`. Optional and additive — readers that
+   * don't care can ignore it. Absent only on findings produced by tests
+   * that bypass scan/context wiring.
+   */
+  tier?: Tier;
 }
 
 export interface ScanSummary {
