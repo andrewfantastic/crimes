@@ -33,6 +33,13 @@ export interface FindingScores {
    */
   test_gap?: number;
   /**
+   * Recency boost in [0,1] derived from file's most recent commit. 1.0 =
+   * touched within the last 7 days; linear decay to 0 over 7→14 days; 0
+   * thereafter or when git is unavailable. Used by the scan reporter to
+   * compute file-level rank_score = agent_risk * (1 + recency * 0.5).
+   */
+  recency?: number;
+  /**
    * Unified composite of severity / confidence / churn / test_gap /
    * blast_radius (0-1). Computed by core's finalisation pass after every
    * detector runs — detectors no longer set this field directly. Absent

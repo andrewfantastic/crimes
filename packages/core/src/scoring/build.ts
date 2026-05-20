@@ -330,9 +330,11 @@ export function finaliseFindingScores(
     churn = round(scoring.churn.forFile(finding.file));
     test_gap = round(scoring.testGap.forFile(finding.file));
     blast_radius = round(scoring.blastRadius.forFile(finding.file));
+    const recency = round(scoring.recency.forFile(finding.file));
     finding.scores.churn = churn;
     finding.scores.test_gap = test_gap;
     finding.scores.blast_radius = blast_radius;
+    finding.scores.recency = recency;
   }
   finding.scores.agent_risk = computeAgentRisk({
     severity: finding.severity,

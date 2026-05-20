@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { discoverFiles } from "@crimes/language-js";
 import { DEFAULT_CONFIG } from "../config.js";
 import { buildImportGraph } from "../imports/build.js";
-import { buildScoringContext, computeAgentRisk, recencyForDate } from "./build.js";
+import { buildScoringContext, computeAgentRisk, finaliseFindingScores, recencyForDate } from "./build.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -336,5 +336,33 @@ describe("ScoringContext.recency", () => {
     });
     expect(ctx.recency.forFile("src/a.ts")).toBe(0);
     expect(ctx.recency.limited).toBe(true);
+  });
+});
+
+describe("finaliseFindingScores — recency", () => {
+  it("populates scores.recency from the scoring context", () => {
+    const finding = {
+      file: "src/a.ts",
+      severity: "high" as const,
+      scores: { severity: 0.9, confidence: 0.8 },
+    } as unknown as import("../finding.js").Finding;
+    const scoring = {
+      churn: { forFile: () => 0, limited: false },
+      testGap: { forFile: () => 1, rawForFile: () => 1 },
+      blastRadius: { forFile: () => 0 },
+      recency: { forFile: () => 0.6, limited: false },
+    } as import("./build.js").ScoringContext;
+    finaliseFindingScores(finding, scoring);
+    expect(finding.scores.recency).toBe(0.6);
+  });
+
+  it("leaves recency undefined when scoring context is absent", () => {
+    const finding = {
+      file: "src/a.ts",
+      severity: "low" as const,
+      scores: { severity: 0.45, confidence: 0.5 },
+    } as unknown as import("../finding.js").Finding;
+    finaliseFindingScores(finding, undefined);
+    expect(finding.scores.recency).toBeUndefined();
   });
 });
