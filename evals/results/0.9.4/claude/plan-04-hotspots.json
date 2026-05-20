@@ -1,0 +1,42 @@
+{
+  "scenario": "plan-04-hotspots",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:12:12.835Z",
+  "run_id": "e3f6faff-8583-4c0b-8374-38a24526c003",
+  "response": "The scan output contains **zero findings** (`\"total\": 0`, `\"findings\": []`), so there is no evidence on which to base a triage order.\n\nI can't fabricate fan-in / fan-out numbers, file sizes, or function lengths that aren't in the report — and I shouldn't pick \"hotspots\" by guessing at the fixture's directory structure when the detectors themselves reported nothing to act on.\n\n**Triage recommendation: refactor nothing.** Justification: every pick would have to cite evidence that isn't in the JSON.\n\nIf this empty result is itself the surprise, the next step is to figure out *why* the scan came back empty on `evals/fixtures/04-monorepo` rather than to invent findings:\n\n- The fixture may genuinely be below every detector threshold (small files, shallow imports, no churn history because it's a fresh checkout — git/history detectors need commits).\n- The scan may have been run from the wrong root, or with filters that excluded the source tree (the `repo.root` does point at the fixture, so this is less likely).\n- A detector wiring regression in this build of `crimes` could be suppressing `high_fan_in_fan_out`, `large_file`, and `large_function` simultaneously — worth checking against a prior baseline in `evals/results/`.\n\nIf you want, I can re-run the scan with `--all` (in case the default top-N filter is hiding everything) or compare against the previous version's results under `evals/results/` to see whether this is a fixture issue or a detector regression.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 3,
+    "failed": 1,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "high_fan_in_fan_out",
+        "observed": "high_fan_in_fan_out",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_file",
+        "observed": "large_file",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "high_fan_in_fan_out",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

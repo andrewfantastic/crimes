@@ -1,0 +1,65 @@
+{
+  "scenario": "refactor-06-stress-duplication",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:14:03.405Z",
+  "run_id": "9a6a877a-7c23-49a3-a77b-7fd52d3b8a60",
+  "response": "## Confirmation from the scan\n\n`crime_00002` (Near-Duplicate Block, confidence 0.85) is the headline finding: one body in three files with only the parameter and local variable names renamed:\n\n- `src/sanitize-a.ts:10-36` — `sanitizeUserInput(raw)`\n- `src/sanitize-b.ts:9-35` — `sanitizeText(input)`\n- `src/sanitize-c.ts:9-35` — `cleanMessage(value)`\n\nReading the bodies confirms it: identical trim → control-char strip → whitespace collapse → 1000-char cap → empty / `<>` / `\\x` rejections → `!?{3,}` punctuation cap → uppercase-ratio downcase. The three are pure renames.\n\nTangential but worth flagging while you're in here: `assertAdminA/B/C` are *not* identical (`=== \"admin\"`, `=== \"admin\" || === \"owner\"`, `!== \"admin\"`), so they're feeding `crime_00003`'s \"2 distinct expression shapes\" signal — don't fold those into the consolidation blindly.\n\n## Refactor proposal\n\n**One new module, three rewrites, zero behaviour change at the call sites.**\n\n### Files that change\n\n| File | Change |\n|------|--------|\n| `src/sanitize.ts` *(new)* | Houses the single canonical implementation + named re-exports for back-compat |\n| `src/sanitize-a.ts` | Delete body; re-export `sanitizeUserInput` from `./sanitize`. Keep `assertAdminA` untouched. |\n| `src/sanitize-b.ts` | Delete body; re-export `sanitizeText` from `./sanitize`. Keep `assertAdminB` untouched. |\n| `src/sanitize-c.ts` | Delete body; re-export `cleanMessage` from `./sanitize`. Keep `assertAdminC` untouched. |\n\nThe three legacy files stay as thin shims so existing imports anywhere in the repo don't break — once you've grepped callers and updated them, the shims can be deleted in a follow-up.\n\n### Public API of the consolidated function\n\n```ts\n// src/sanitize.ts\n\nexport interface SanitizeOptions {\n  /** Max length after whitespace collapse. Default 1000. */\n  maxLength?: number;\n  /** Max runs of 3+ `!`/`?` allowed before the string is rejected. Default 5. */\n  maxPunctuationRuns?: number;\n  /** If uppercase ratio exceeds this and length exceeds 30, downcase. Default 0.9. */\n  shoutThreshold?: number;\n}\n\n/**\n * Normalise free-form user-supplied text:\n *  - coerce null/undefined to \"\"\n *  - trim, strip ASCII control chars, collapse whitespace\n *  - cap length at maxLength\n *  - reject HTML-ish leads (`<`, `>`) and hex-escape leakage (`\\x`)\n *  - reject punctuation spam\n *  - downcase obvious shouting\n *\n * Returns \"\" for anything rejected. Pure, deterministic, no I/O.\n */\nexport function sanitize(value: unknown, options?: SanitizeOptions): string;\n```\n\nWhy this shape:\n\n- **Single name, `sanitize`.** The three current names (`sanitizeUserInput`, `sanitizeText`, `cleanMessage`) describe the same operation; picking one canonical verb removes the \"which one do I import?\" question that's currently a near-perfect setup for the next near-duplicate.\n- **`value: unknown`, not `string`.** All three implementations already do `String(value)` and null-coerce — typing it `string` is a lie. `unknown` makes the coercion contract explicit.\n- **Options object, not positional args.** The three magic numbers (`1000`, `5`, `0.9`, `30`) are the *actual* policy and the most likely thing to drift next. Surfacing them as named options means a future tweak is one keyword arg, not a fourth copy.\n- **No admin-role logic in here.** That's `crime_00003`'s problem and lives in `policy.ts`. Folding it into `sanitize` would couple input-cleaning to authz, which is exactly the kind of hidden-side-effect bait that raises `agent_risk`.\n\n### Out of scope for this refactor\n\n- `crime_00001` (`recordSanitiseEvent` exact duplicate in `telemetry-a/b.ts`) — same pattern, different module. Worth a follow-up commit but unrelated to the sanitisation files.\n- `crime_00003` (`\"admin\"` literal scattered across 6 sites) — should land as `isAdmin(role)` in `policy.ts`; do it separately so the diff stays reviewable.\n- `crime_00004` / `crime_00005` (`Date.now()` in telemetry) — solved by injecting a clock into `recordSanitiseEvent` when you consolidate it, not here.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "exact_duplicate_block",
+      "crime_00002": "near_duplicate_block",
+      "crime_00003": "duplicated_role_status_plan_check",
+      "crime_00004": "direct_date",
+      "crime_00005": "direct_date"
+    },
+    "detector_id_by_charge": {
+      "Exact Duplicate Block": "exact_duplicate_block",
+      "Near-Duplicate Block": "near_duplicate_block",
+      "Duplicated Role / Status / Plan Check": "duplicated_role_status_plan_check",
+      "Temporal Recklessness": "direct_date"
+    }
+  },
+  "structural_score": {
+    "passed": 6,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "exact_duplicate_block",
+        "observed": "exact_duplicate_block",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-a.ts",
+        "observed": "src/sanitize-a.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-b.ts",
+        "observed": "src/sanitize-b.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/sanitize-c.ts",
+        "observed": "src/sanitize-c.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "near_duplicate_block",
+        "observed": "near_duplicate_block",
+        "passed": true
+      }
+    ]
+  }
+}

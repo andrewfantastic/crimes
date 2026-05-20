@@ -1,0 +1,48 @@
+{
+  "scenario": "refactor-02-component-shape",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:16:05.665Z",
+  "run_id": "5237fb77-30f1-4b72-a6d9-99db632a78b4",
+  "response": "The provided `crimes scan` output contains zero findings — `summary.total: 0` and `findings: []`. There is no `duplicate_component_shape` finding to work from.\n\nI can't propose a refactor here without inventing the evidence. Per the project's own rule (\"Evidence before judgement. Every finding must include concrete evidence… No verdicts without receipts\"), naming files and a shared component API from this scan would be fabrication — I'd be guessing at which JSX subtrees overlap, in which files, with what props.\n\nA couple of likely explanations worth checking before treating this as a real refactor task:\n\n1. **The detector isn't implemented / didn't run on this fixture.** `duplicate_component_shape` isn't in the MVP detector list in `CLAUDE.md` (structural / dependency / duplication / testability / git-history). Duplication detectors at MVP are exact duplicate blocks, near-duplicate functions, and repeated literals — JSX-subtree-shape duplication is a step beyond those.\n2. **The scan ran against the wrong root or with filters excluding the dashboard files.** The repo root reported is `evals/fixtures/02-react-dashboard`, which is correct for the scenario, but if `crimes.config.json` excludes the relevant paths or the detector is disabled, you'd get an empty report.\n\nIf you want me to proceed, the next step is to re-run the scan with the detector confirmed enabled (or check whether this scenario is currently expected to surface zero findings as a calibration baseline). If the eval is supposed to find this duplication and isn't, that's the bug — not the refactor.",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 3,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/final-example/app/ui/invoices/edit-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "dashboard/starter-example/app/ui/invoices/create-form.tsx",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicate_component_shape",
+        "observed": "duplicate_component_shape",
+        "passed": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "refactor-08-architecture",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:15:45.904Z",
+  "run_id": "91179fda-7a40-4343-8e9c-539a15f4e11f",
+  "response": "## Changes, tied to findings\n\n**1. Break `domain → presentation` (crime_00002, layer_violation)**\n\nIn `src/domain/billing.ts`, remove the direct import of `src/presentation/invoice-view.ts`. Domain owns the contract, not the consumer:\n\n- Define an interface in domain — e.g. `InvoicePresenter` (or whatever role `invoice-view` is playing for billing) — that captures only what billing needs.\n- Have `presentation/invoice-view.ts` implement that interface.\n- Inject the implementation from the application layer (`billing-flow.ts`) where domain and presentation are already composed.\n\nThis is the dependency-inversion move the `respect_layer_boundary` suggested action points to. It also dissolves the 3-file cycle in **crime_00001** as a free side effect: the ring is `application → domain → presentation → application`, and removing the `domain → presentation` edge cuts it.\n\n**2. Redirect the deep import (crime_00003, deep_import)**\n\nIn `src/application/billing-flow.ts`, replace:\n\n```ts\nimport { ... } from \"some-pkg/dist/internal/private/helper.js\";\n```\n\nwith the package's public entry (`some-pkg` or a documented subpath). If the symbol genuinely isn't exported, file upstream and isolate the leak in a single adapter module so the eventual fix is one edit, not many.\n\n## How the two findings differ in agent risk\n\nBoth are \"wrong import\" findings, but they fail differently:\n\n- **`layer_violation` (agent_risk 0.56)** lies about *this codebase's internal contract*. The layer names promise a direction of change (\"domain doesn't know about UI\"); the import secretly inverts it. An agent reading `domain/billing.ts` trusts the architectural promise, edits accordingly, and may break presentation — or vice versa. The mental model itself is corrupt, which is what raises the score above raw severity.\n\n- **`deep_import` (agent_risk 0.45)** lies about *an external boundary's stability*. The local edit isn't misleading; the dependency is. An agent who changes nothing here can still get broken by a minor version bump in `some-pkg` that reorganizes `dist/internal/`. Lower agent risk because the failure mode is upstream version drift, not an agent making a confidently-wrong local change.\n\nShort version: layer violations mislead agents about *structure*; deep imports mislead them about *stability*. Structure-lies are worse because every edit in the affected files inherits the bad mental model.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 5,
+    "failed": 0,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "deep_import",
+        "observed": "deep_import",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": "src/domain/billing.ts",
+        "passed": true
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": "src/application/billing-flow.ts",
+        "passed": true
+      },
+      {
+        "check": "expected_priority",
+        "expected": "layer_violation",
+        "observed": "layer_violation",
+        "passed": true
+      }
+    ]
+  }
+}

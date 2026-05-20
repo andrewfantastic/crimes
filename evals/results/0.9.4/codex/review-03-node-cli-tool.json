@@ -1,0 +1,48 @@
+{
+  "scenario": "review-03-node-cli-tool",
+  "agent": "codex",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:18:15.233Z",
+  "run_id": "3334539f-9dd3-4e98-b2f4-7d90fc1c0ba3",
+  "response": "{\"type\":\"thread.started\",\"thread_id\":\"019e432c-f5e7-76c3-8fb3-2a4f81b9ebd2\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"No agent-risk findings were reported by `crimes scan --format json`.\\n\\nDecision: **ignore / no action**\\n\\nJustification: scan summary is `total: 0`, with `high: 0`, `medium: 0`, `low: 0`, and an empty `findings` array. There are therefore no reported instances of dead code, prose-rules-in-comments, magic literals, weak test assertions, or large files to block or warn on.\\n\\nResidual risk: this review is limited to the provided `crimes` output. Based on that output alone, I would not block the merge.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":18534,\"cached_input_tokens\":12160,\"output_tokens\":193,\"reasoning_output_tokens\":63}}\n",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "logic_in_comments",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "scenario": "bugfix-04-weak-tests",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:08:30.472Z",
+  "run_id": "ee7bcc75-dc1b-4b0c-a23e-7458e71bf418",
+  "response": "The `crimes scan test --format json` output for this fixture is empty — no findings to quote:\n\n```json\n\"summary\": { \"total\": 0, \"high\": 0, \"medium\": 0, \"low\": 0 },\n\"findings\": []\n```\n\nI can't honestly recommend which test to strengthen first based on this output, because the scan didn't surface any weak-test findings. Paraphrasing or inventing evidence here would defeat the purpose of the `evidence before judgement` rule that `crimes` is built around.\n\nA couple of plausible reasons the scan came back empty on `evals/fixtures/04-monorepo`:\n\n1. **No weak-test detector is wired up yet for this scenario.** The MVP detector list in `CLAUDE.md` includes `frequently-changed + weakly-tested files` under git/history, and `mixed pure+side-effect functions` under testability — but a dedicated \"test asserts nothing\" detector (empty `it` blocks, missing `expect`, commented-out assertions, `expect(true).toBe(true)`) isn't in the v0 scope.\n2. **The fixture may not contain the regression-shaped test the scenario describes.** The bug report mentions an esbuild plugin regression slipping past a passing test; if the fixture's tests do assert *something* (just not the right thing), a structural scan wouldn't flag them — that's a semantic gap, not a structural one.\n\nIf you want me to push further, useful next steps would be:\n- Run `crimes scan --all test` (or without the `test` scope filter) to confirm no findings were filtered out by severity threshold.\n- Look at `evals/fixtures/04-monorepo` directly for esbuild plugin tests and inspect them by hand — if there's a real weak test there, that's a signal the detector set has a gap worth filing.\n\nWant me to do either of those?",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "weak_test_signal",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

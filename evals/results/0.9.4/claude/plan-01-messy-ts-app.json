@@ -1,0 +1,111 @@
+{
+  "scenario": "plan-01-messy-ts-app",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:11:37.727Z",
+  "run_id": "09694f3b-cd83-43ba-8c96-7bb0a1c43249",
+  "response": "## Triage plan — top 10 findings\n\n**Headline order:** fix the four `high` findings first (one per file: `partner-logo.svg`, `billing.ts`, `date.ts` ×2). Then knock out the cheap wins in `src/api/files.ts` (localhost URL + home-path) and `src/date.ts` (timezone-unsafe parse) — same files, same agent context. Defer the second `direct_date` in `billing.ts` until the God Function split lands; bundle the weak test with that work.\n\n### Frontend (1)\n| # | id | finding | file | response | why |\n|---|---|---|---|---|---|\n| 1 | `crime_00001` | SVG With Embedded Raster | `src/assets/partner-logo.svg` | **fix now** | High sev, low-risk re-export; ship-blocking for any DPI scaling. |\n\n### Structural — function/file shape (2)\n| # | id | finding | file | response | why |\n|---|---|---|---|---|---|\n| 2 | `crime_00002` | God Function `generateInvoice` (204 lines) | `src/billing.ts` | **fix now** | Gates every other billing edit; do extraction before piling on more fixes here. |\n| 8 | `crime_00009` | Temporal Recklessness (7 calls) | `src/billing.ts` | **defer** | Bundle with the `generateInvoice` extraction — touching the same call sites twice is waste. |\n\n### Structural — correctness / testability (5)\n| # | id | finding | file | response | why |\n|---|---|---|---|---|---|\n| 3 | `crime_00003` | Temporal Recklessness (8 calls) | `src/date.ts` | **fix now** | High sev; inject a `now()` and make all date utilities deterministic in one pass. |\n| 4 | `crime_00004` | Half-UTC, Half-Local on same receiver | `src/date.ts` | **fix now** | Silent off-by-one-day bugs at host-TZ offsets; touch with #3. |\n| 9 | `crime_00010` | Timezone Roulette (unsafe parse) | `src/date.ts` | **fix now** | Same file as #3/#4 — fold in. |\n| 6 | `crime_00006` | Dev-Server URL (`localhost:3000`) | `src/api/files.ts` | **fix now** | Cheap config move; breaks every non-local environment until done. |\n| 7 | `crime_00007` | Localhost-on-Disk (`/Users/andrew/…`) | `src/api/files.ts` | **fix now** | Same file as #6, same fix shape — config-supplied path. |\n| 10 | `crime_00011` | Test That Proves Nothing (no expects) | `src/billing.test.ts` | **fix now** | Two-line delete-or-assert; remove false confidence before refactoring billing (#2). |\n\n### IA / agent context (1)\n| # | id | finding | file | response | why |\n|---|---|---|---|---|---|\n| 5 | `crime_00005` | Missing Agent Context | repo root | **fix now** | One file (`AGENTS.md`) unblocks every future agent edit; near-zero risk. |\n\n### git-history / duplication\nNone in the top 10 (the duplication findings — `crime_00012` string sprinkles, `crime_00018` nav source — and the IA-drift cluster sit just below). Address them in the next pass after the structural cleanup lands, since several touch files (`billing.ts`, `pricing.ts`, `nav/*`) that the top-10 fixes will already churn.\n\n### Recommended commit sequence\n1. `crime_00005` (AGENTS.md scaffold) — unblocks agent runs on the rest.\n2. `crime_00011` (delete/assert the empty test) — cheap precondition for billing work.\n3. `crime_00003` + `crime_00004` + `crime_00010` in `src/date.ts` — single PR, inject clock + unify UTC + fix parses.\n4. `crime_00002` + `crime_00009` in `src/billing.ts` — extract `generateInvoice`, route remaining `Date.now()` through the new clock.\n5. `crime_00006` + `crime_00007` in `src/api/files.ts` — config-supplied URL + portable path.\n6. `crime_00001` (SVG re-export) — independent, drop in whenever.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "svg_with_embedded_raster",
+      "crime_00002": "large_function",
+      "crime_00003": "direct_date",
+      "crime_00004": "mixed_utc_local_methods",
+      "crime_00005": "missing_agent_context",
+      "crime_00006": "hardcoded_localhost",
+      "crime_00007": "hardcoded_local_path",
+      "crime_00009": "direct_date",
+      "crime_00010": "timezone_unsafe_parse",
+      "crime_00011": "weak_test_signal",
+      "crime_00012": "magic_domain_literal_scatter",
+      "crime_00013": "name_behavior_mismatch",
+      "crime_00014": "dst_naive_arithmetic",
+      "crime_00015": "concept_alias_drift",
+      "crime_00016": "large_file",
+      "crime_00017": "logic_in_comments",
+      "crime_00018": "duplicated_navigation_source",
+      "crime_00019": "todo_density",
+      "crime_00020": "route_metadata_drift",
+      "crime_00021": "oversized_raster",
+      "crime_00022": "docs_code_drift",
+      "crime_00023": "sync_io_in_hotpath",
+      "crime_00024": "direct_date",
+      "crime_00025": "raster_should_be_vector",
+      "crime_00026": "date_string_concat",
+      "crime_00027": "locale_drift",
+      "crime_00028": "boolean_naming_drift",
+      "crime_00029": "boolean_naming_drift",
+      "crime_00030": "weak_test_signal",
+      "crime_00031": "option_bag_junk_drawer",
+      "crime_00032": "return_shape_roulette",
+      "crime_00033": "negative_flag_maze",
+      "crime_00034": "singular_plural_type_mismatch",
+      "crime_00035": "todo_density",
+      "crime_00036": "orphaned_destination",
+      "crime_00037": "orphaned_destination",
+      "crime_00038": "orphaned_destination"
+    },
+    "detector_id_by_charge": {
+      "SVG With Embedded Raster": "svg_with_embedded_raster",
+      "God Function": "large_function",
+      "Temporal Recklessness": "direct_date",
+      "Half-UTC, Half-Local": "mixed_utc_local_methods",
+      "Missing Agent Context": "missing_agent_context",
+      "Dev-Server URL": "hardcoded_localhost",
+      "Localhost-on-Disk": "hardcoded_local_path",
+      "Timezone Roulette": "timezone_unsafe_parse",
+      "Test That Proves Nothing": "weak_test_signal",
+      "String Sprinkles": "magic_domain_literal_scatter",
+      "False Identity": "name_behavior_mismatch",
+      "DST-Naive Day Math": "dst_naive_arithmetic",
+      "Concept Alias Drift": "concept_alias_drift",
+      "God File": "large_file",
+      "Logic in the Alibi": "logic_in_comments",
+      "Duplicated Navigation Source": "duplicated_navigation_source",
+      "Unfinished Business": "todo_density",
+      "Route Metadata Drift": "route_metadata_drift",
+      "Oversized Raster": "oversized_raster",
+      "Docs-Code Drift": "docs_code_drift",
+      "Sync I/O in Hot Path": "sync_io_in_hotpath",
+      "Icon-Sized Raster": "raster_should_be_vector",
+      "Date String Sewing": "date_string_concat",
+      "Host-Locale Drift": "locale_drift",
+      "Unprefixed Boolean": "boolean_naming_drift",
+      "Option Bag Junk Drawer": "option_bag_junk_drawer",
+      "Return Shape Roulette": "return_shape_roulette",
+      "Negative Flag Maze": "negative_flag_maze",
+      "Plural Mismatch": "singular_plural_type_mismatch",
+      "Orphaned Destination": "orphaned_destination"
+    }
+  },
+  "structural_score": {
+    "passed": 2,
+    "failed": 2,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "large_function",
+        "observed": "large_function",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "direct_date",
+        "observed": "direct_date",
+        "passed": true
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "todo_density",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "large_function",
+        "observed": "direct_date",
+        "passed": false
+      }
+    ]
+  }
+}

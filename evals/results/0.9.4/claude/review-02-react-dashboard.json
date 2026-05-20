@@ -1,0 +1,42 @@
+{
+  "scenario": "review-02-react-dashboard",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:18:11.685Z",
+  "run_id": "f17c412c-6422-4640-992e-c955b1efdff2",
+  "response": "The scan returned **zero findings** on `02-react-dashboard`, so there's nothing to categorize.\n\n```\nsummary: { total: 0, high: 0, medium: 0, low: 0 }\nfindings: []\n```\n\n## What this means for the review\n\nTreating an empty scan as a passing signal would be wrong here — `crimes` only reports what its detectors actually fired on. A clean output means one of:\n\n1. **The PR genuinely has no detectable petty findings** under the current detector set (dead code, magic literals, repeated role checks, structural smells, etc.).\n2. **The detectors that *would* catch the scenario's named patterns aren't wired up yet** in this baseline. Per `CLAUDE.md`, the MVP detector list includes duplication of \"role/status/plan checks\" and magic-literal repetition, but dead-code detection isn't on the v0 list at all.\n3. **The fixture wasn't scanned with the flags the scenario implies** (e.g. no `--all`, default top-N truncation — though with `total: 0` that's not the cause here).\n\n## Recommended categorization for the PR\n\nSince there are no findings:\n\n- **Block merge:** none.\n- **Warn:** none.\n- **Ignore:** none.\n\n## What I'd do before signing off\n\nI would **not** approve the PR solely on this output. Two follow-ups:\n\n- Re-run with `crimes scan --all --format json` to confirm nothing was truncated by default top-N.\n- Manually spot-check the fixture for the specific patterns the scenario names (dead code, magic literals, repeated role checks). If those exist in the source and `crimes` missed them, that's a **detector gap**, not a clean PR — and it's worth filing against `packages/core` rather than rubber-stamping the merge.\n\nIf you want, I can run the scan with `--all` against the fixture and/or grep the fixture for the named patterns to distinguish \"clean PR\" from \"detector gap.\"",
+  "scan_context": {
+    "detector_id_by_finding_id": {},
+    "detector_id_by_charge": {}
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 4,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "commented_out_code",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "magic_domain_literal_scatter",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_findings",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "duplicated_role_status_plan_check",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "bugfix-08-stress-dependency",
+  "agent": "claude",
+  "crimes_version": "0.9.4",
+  "timestamp": "2026-05-20T02:08:09.867Z",
+  "run_id": "32505c0a-a315-4b75-b891-1891f25b89c0",
+  "response": "## The cycle\n\n```\napplication/billing-flow.ts → domain/billing.ts → presentation/invoice-view.ts → application/billing-flow.ts\n```\n\n## Break this edge: `domain/billing.ts → presentation/invoice-view.ts`\n\nThat single edge is doing double damage — it's both the import that closes the cycle *and* the one flagged as a layer violation (`domain cannotImport presentation`). Cutting it fixes both findings in one move and restores the intended direction of change (presentation → application → domain).\n\n**Why this edge and not the others:**\n- `application → domain` is the natural direction; domain shouldn't be reaching back into anything else.\n- `presentation → application` is also expected — UIs orchestrating use cases is normal.\n- `domain → presentation` is the only edge that inverts the layering. Domain code referencing a view means the view's shape has leaked into the core business model.\n\n**How to break it:**\n1. **Preferred:** identify what `billing.ts` is actually using from `invoice-view.ts`. If it's a type/shape (e.g. `InvoiceViewModel`), define that shape in `domain/` and have the presentation file import *it*, not the reverse. Domain owns the contract; presentation conforms.\n2. **If it's only types**, the cheapest mechanical fix is `import type { ... } from '../presentation/invoice-view'` — TS erases it at runtime so the cycle dissolves. Use this only as a stopgap; it preserves the layer violation conceptually even though the runtime edge is gone, and `crimes` will (correctly) still flag the layering finding.\n3. **If it's runtime behavior** (a function/class), invert via a domain-owned interface that presentation implements and inject at the application layer. This is the real fix.\n\nThe deep-import finding in `billing-flow.ts` is unrelated to the cycle — worth fixing separately but not blocking.",
+  "scan_context": {
+    "detector_id_by_finding_id": {
+      "crime_00001": "circular_dependency",
+      "crime_00002": "layer_violation",
+      "crime_00003": "deep_import"
+    },
+    "detector_id_by_charge": {
+      "Circular Dependency": "circular_dependency",
+      "Layer Violation": "layer_violation",
+      "Deep Import Abuse": "deep_import"
+    }
+  },
+  "structural_score": {
+    "passed": 0,
+    "failed": 5,
+    "details": [
+      {
+        "check": "referenced_findings",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/domain/billing.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/presentation/invoice-view.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "referenced_files",
+        "expected": "src/application/billing-flow.ts",
+        "observed": null,
+        "passed": false
+      },
+      {
+        "check": "expected_priority",
+        "expected": "circular_dependency",
+        "observed": null,
+        "passed": false
+      }
+    ]
+  }
+}
