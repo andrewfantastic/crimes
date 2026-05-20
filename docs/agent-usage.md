@@ -125,11 +125,28 @@ The JSON shape is (canonical key order — `agent_guidance` first):
     "Prefer extracting pure helpers before adding more branches.",
     "Avoid adding more direct clock access; inject time where possible."
   ],
-  "clues": [
-    "High churn — this file changes frequently; your edit adds to a pile.",
-    "Top-quartile test gap — low test coverage relative to the repo average.",
-    "High blast radius — many callers depend on this file."
-  ],
+  "clues": {
+    "churn": {
+      "commits_90d": 14,
+      "last_commit_at": "2026-05-18T12:30:00Z",
+      "unique_authors_90d": 3
+    },
+    "suppressions": [
+      {
+        "fingerprint": "large_function::src/billing.ts::renderInvoice",
+        "detector": "large_function",
+        "reason": "Legacy billing module, rewrite planned",
+        "pinned_version": "0.9",
+        "matches_current_finding": false
+      }
+    ],
+    "test_gap": {
+      "raw": 1,
+      "percentile": 0.85,
+      "label": "top-quartile"
+    },
+    "related_signals": []
+  },
   "related_files": [
     {
       "file": "src/nav/sidebar.ts",
@@ -156,10 +173,18 @@ How to use the fields (read in this order):
   you read anything else. When the file has no findings but does have
   related files, you'll instead see one line pointing you at the
   neighbourhood.
-- **`clues`** (new in `0.10.0`) is a short array of contextual hints
-  derived from the file's scoring context: churn band, test-gap quartile,
-  blast radius, and recency. Each clue is one sentence. They are advisory —
-  read them before deciding how carefully to edit.
+- **`clues`** (new in `0.10.0`) is an optional object with up to three
+  sub-blocks: `clues.churn` carries `commits_90d` / `last_commit_at`
+  (ISO 8601) / `unique_authors_90d` and is omitted when git is
+  unavailable; `clues.suppressions` is a per-file inventory of every
+  suppression entry that scopes to this path (each entry carries
+  `fingerprint`, `detector`, `reason`, `pinned_version`,
+  `matches_current_finding`) and is omitted when empty;
+  `clues.test_gap` carries the raw `{0, 0.5, 1}` value plus a
+  repo-relative quartile `percentile` and a human `label`
+  (`"top-quartile"` / `"median"` / `"bottom-quartile"` / `"unknown"`).
+  `clues.related_signals` is always present as `[]` — reserved for
+  future use. Frozen contract — safe to consume from a PreToolUse hook.
 - **`related_files`** is a ranked, capped list (max 10) of other files
   in the repo that an agent should probably read before editing the
   target. Each entry carries a `reason` (`related to <charge>`,
@@ -674,10 +699,13 @@ side effects, etc.).
 0.75 / 1.0`) rather than the fixed mapping (`{0, 0.5, 1.0}`) used before.
 Agents that compared `test_gap === 1` should switch to `test_gap >= 0.75`.
 
-**`Finding.tier`** (new in `0.10.0`) tags each finding with one of `domain` ·
-`glue` · `test` · `infra` · `generated`. The compact scan line shows the tier
-prefix for non-domain findings so you can quickly see whether a high-risk
-finding is in production domain code or supporting infrastructure.
+**`Finding.tier`** (new in `0.10.0`) is `"domain" | "nonDomain"`. Non-domain
+findings come from paths listed in `config.scopeTiers.nonDomain` (defaults:
+`scripts/**`, `examples/**`, `fixtures/**`, `public/**`, `**/__tests__/**`,
+`**/*.test.{ts,tsx,js,jsx}`, `**/*.spec.{ts,tsx,js,jsx}`). They appear in
+a separate "Also flagged elsewhere" footer in the human scan report and
+don't compete with domain findings for the default top-N. Set
+`scopeTiers.nonDomain: []` in `crimes.config.json` to opt out.
 
 Default sort order is aggregate risk-first (rank_score, derived from severity,
 confidence, churn, test-gap, blast radius, and recency), then file path, then

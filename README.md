@@ -100,20 +100,29 @@ What's in `0.10.0`:
   changed risky files surface first. `--no-recency` disables the
   recency multiplier.
 - **`Finding.tier` and `scopeTiers.nonDomain` config.** Each finding
-  is now tagged with a tier (`domain` · `glue` · `test` · `infra` ·
-  `generated`); the compact scan line shows the tier prefix for
-  non-domain findings. `scopeTiers.nonDomain` in `crimes.config.json`
-  lets you declare additional non-domain path patterns.
-- **`clues` block on `crimes context --json`.** `ContextReport` gains
-  an optional `clues` array of short contextual hints derived from
-  the file's scoring context (churn band, test-gap quartile, blast
-  radius, recency). Agents can surface these directly.
-- **Two-prompt auto-init.** Running `crimes` on a repo with no
-  `crimes.config.json` triggers a short two-question prompt to
-  generate an agent-aware config. Agent environments detected via
-  `CI` / `CODEX_SANDBOX` / `CLAUDE_CODE` env vars skip the prompt
-  and write a minimal config automatically. `crimes init --no-detect`
-  disables detection.
+  is now tagged with `tier: "domain" | "nonDomain"`; non-domain
+  findings appear in a separate "Also flagged elsewhere" footer in
+  the human report and don't compete with domain findings for the
+  default top-N. `scopeTiers.nonDomain` in `crimes.config.json` is a
+  glob list (defaults to `scripts/**`, `examples/**`, `fixtures/**`,
+  `public/**`, `**/__tests__/**`, `**/*.test.{ts,tsx,js,jsx}`,
+  `**/*.spec.{ts,tsx,js,jsx}`); empty array opts out.
+- **`clues` object on `crimes context --json`.** `ContextReport`
+  gains an optional `clues` object with three sub-blocks: `churn`
+  (`commits_90d`, `last_commit_at`, `unique_authors_90d`),
+  `suppressions` (per-file inventory), and `test_gap` (`raw`,
+  `percentile`, `label`). `clues.related_signals: []` is reserved
+  for future use. Sub-blocks are omitted when empty.
+- **Two-prompt auto-init.** On any subcommand other than
+  `init` / `feedback` / `ignore` / `unignore` / `baseline`, if
+  `crimes.config.json` is missing and stdout is a TTY (CI / piped
+  invocations are skipped), `crimes` prompts to generate the config
+  and (when an agent is detected via `CLAUDECODE`, `CLAUDE_CODE`,
+  `OPENAI_CODEX`, or `CODEX_AGENT` env vars, or `.claude/`/`.agents/`
+  directories) the agent skill. Decline once and `.crimes/.skip-init`
+  is written so it never asks again. Global flags `--no-init` and
+  `--init` suppress or force-re-enter the prompt. `crimes init
+  --no-detect` skips repo-shape detection inside `init` itself.
 - **New CLI flags.** `--top N` (scan: show top N files), `--flat`
   (scan: revert to flat severity-grouped output), `--no-recency`
   (scan: disable recency weighting), `crimes init --no-detect` (skip

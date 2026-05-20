@@ -71,6 +71,22 @@ That writes `.claude/skills/crimes/SKILL.md` and
     "disable": []
   },
 
+  "scopeTiers": {
+    "nonDomain": [
+      "scripts/**",
+      "examples/**",
+      "fixtures/**",
+      "public/**",
+      "**/__tests__/**",
+      "**/*.test.{ts,tsx,js,jsx}",
+      "**/*.spec.{ts,tsx,js,jsx}"
+    ]
+  },
+
+  "scan": {
+    "topFiles": 5
+  },
+
   "ia": {
     "aliasGroups": []
   },
@@ -253,6 +269,51 @@ load time. Three failure modes — all CLI exit `2`
 The keys each detector understands are documented alongside that
 detector under [`finding-types/`](./finding-types/). Detectors
 that don't appear in those docs accept no options.
+
+### `scopeTiers.nonDomain` (since 0.10.0)
+
+Glob patterns whose findings are classified as `tier: "nonDomain"`.
+Non-domain findings appear in a separate "Also flagged elsewhere"
+footer in the default `crimes scan` human report and don't compete
+with domain findings for the default top-N file slots.
+
+```jsonc
+{
+  "scopeTiers": {
+    "nonDomain": [
+      "scripts/**",
+      "examples/**",
+      "fixtures/**",
+      "public/**",
+      "**/__tests__/**",
+      "**/*.test.{ts,tsx,js,jsx}",
+      "**/*.spec.{ts,tsx,js,jsx}"
+    ]
+  }
+}
+```
+
+If `scopeTiers` is omitted from the config, the seven-pattern default
+above is applied at scan time. Set `"nonDomain": []` to opt out
+entirely (every finding becomes `"domain"`).
+
+### `scan.topFiles` (since 0.10.0)
+
+Default number of files shown in the file-grouped `crimes scan` human
+output. Override per-invocation with `--top N`; pass `--all` to see
+every finding (both tiers, no cap); pass `--flat` to revert to the
+legacy severity-grouped layout.
+
+```jsonc
+{
+  "scan": {
+    "topFiles": 10
+  }
+}
+```
+
+Defaults to `5`. JSON output is unaffected — the `topFiles` knob only
+shapes the human renderer.
 
 ### `ia.aliasGroups`
 
