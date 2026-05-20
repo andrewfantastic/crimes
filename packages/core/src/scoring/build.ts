@@ -23,6 +23,7 @@
 import { relative, sep } from "node:path";
 import type { Finding, FindingScores, Severity } from "../finding.js";
 import { collectChurn } from "../git/churn.js";
+import type { CollectChurnResult } from "../git/churn.js";
 import type { ImportGraph } from "../imports/types.js";
 import { isTestFile } from "../util/test-files.js";
 import { quartileScores } from "./quartile.js";
@@ -98,6 +99,12 @@ export interface ScoringContext {
   testGap: TestGapIndex;
   blastRadius: BlastRadiusIndex;
   recency: RecencyIndex;
+  /**
+   * Raw churn collection result — exposed so `context()` can populate
+   * `clues.churn` without a second `collectChurn` call. Not intended for
+   * use by detectors; treat it as internal plumbing for the context report.
+   */
+  churnResult?: CollectChurnResult;
 }
 
 export interface BuildScoringContextOptions {
@@ -167,7 +174,7 @@ export async function buildScoringContext(
   });
   const blastRadius = buildBlastRadiusIndex({ imports: options.imports });
 
-  return { churn, testGap, blastRadius, recency };
+  return { churn, testGap, blastRadius, recency, churnResult };
 }
 
 function buildTestGapIndex(args: {

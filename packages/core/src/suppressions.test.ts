@@ -16,7 +16,9 @@ import {
   partitionFindings,
   removeSuppression,
   shouldResurface,
+  suppressionsForFile,
 } from "./suppressions.js";
+import type { SuppressionEntry } from "./suppressions.js";
 
 async function tempPath(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "crimes-supp-test-"));
@@ -824,5 +826,161 @@ describe("0.5.0 / 0.6.0 file back-compat", () => {
     expect(reread.entries).toHaveLength(1);
     expect(reread.entries[0]!.source).toBe("feedback");
     expect(reread.entries[0]!.crimes_version_pinned).toBe("0.7");
+  });
+});
+
+describe("suppressionsForFile", () => {
+  const FILE_PATH = "src/billing.ts";
+  const OTHER_FILE = "src/other.ts";
+
+  const entryForFile: SuppressionEntry = {
+    fingerprint: "large_function::src/billing.ts::generateInvoice",
+    type: "large_function",
+    file: FILE_PATH,
+    reason: "tracked in #1234",
+    created_at: "2026-05-17T11:30:00.000Z",
+    crimes_version_pinned: "0.9",
+  };
+
+  const entryOtherFile: SuppressionEntry = {
+    fingerprint: "large_file::src/other.ts::",
+    type: "large_file",
+    file: OTHER_FILE,
+    reason: "too big for now",
+    created_at: "2026-05-17T11:30:00.000Z",
+    crimes_version_pinned: "0.9",
+  };
+
+  const entryByPrint: SuppressionEntry = {
+    // No `file` field — fingerprint-scoped only.
+    fingerprint: "direct_date::src/billing.ts::",
+    type: "direct_date",
+    reason: "injected for tests",
+    created_at: "2026-05-17T11:30:00.000Z",
+    crimes_version_pinned: "0.8",
+  };
+
+  const findingOnFile: Finding = {
+    id: "crime_00001",
+    type: "large_function",
+    charge: "God Function",
+    severity: "high",
+    confidence: 0.9,
+    file: FILE_PATH,
+    symbol: "generateInvoice",
+    lines: [10, 200],
+    summary: "long function",
+    evidence: [],
+    scores: { severity: 0.9, confidence: 0.9 },
+  };
+
+  const findingDateOnFile: Finding = {
+    id: "crime_00002",
+    type: "direct_date",
+    charge: "Temporal Recklessness",
+    severity: "low",
+    confidence: 0.8,
+    file: FILE_PATH,
+    symbol: undefined,
+    lines: [5, 5],
+    summary: "uses Date.now()",
+    evidence: [],
+    scores: { severity: 0.45, confidence: 0.8 },
+  };
+
+  it("returns entries scoped to the file by the `file` field", () => {
+    const result = suppressionsForFile(
+      [entryForFile, entryOtherFile],
+      FILE_PATH,
+      [],
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]!.fingerprint).toBe(entryForFile.fingerprint);
+    expect(result[0]!.detector).toBe("large_function");
+    expect(result[0]!.reason).toBe("tracked in #1234");
+    expect(result[0]!.pinned_version).toBe("0.9");
+    // The finding isn't in currentFindings, so matches_current_finding is false.
+    expect(result[0]!.matches_current_finding).toBe(false);
+  });
+
+  it("returns entries scoped by fingerprint match (no `file` field)", () => {
+    // entryByPrint has no `file` field; it should be included only when
+    // its fingerprint appears in currentFindings.
+    const result = suppressionsForFile(
+      [entryByPrint, entryOtherFile],
+      FILE_PATH,
+      [findingDateOnFile],
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]!.fingerprint).toBe(entryByPrint.fingerprint);
+    expect(result[0]!.detector).toBe("direct_date");
+    expect(result[0]!.matches_current_finding).toBe(true);
+  });
+
+  it("sets matches_current_finding correctly", () => {
+    // entryForFile points at FILE_PATH. findingOnFile is in currentFindings
+    // and has a matching fingerprint.
+    const result = suppressionsForFile(
+      [entryForFile],
+      FILE_PATH,
+      [findingOnFile],
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]!.matches_current_finding).toBe(true);
+  });
+
+  it("sets matches_current_finding false when no current finding matches the fingerprint", () => {
+    const result = suppressionsForFile(
+      [entryForFile],
+      FILE_PATH,
+      [], // no current findings
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]!.matches_current_finding).toBe(false);
+  });
+
+  it("output is sorted deterministically by fingerprint ascending", () => {
+    const entryZ: SuppressionEntry = {
+      fingerprint: "zzz::src/billing.ts::z",
+      type: "zzz",
+      file: FILE_PATH,
+      reason: "z",
+      created_at: "2026-05-17T11:30:00.000Z",
+    };
+    const entryA: SuppressionEntry = {
+      fingerprint: "aaa::src/billing.ts::a",
+      type: "aaa",
+      file: FILE_PATH,
+      reason: "a",
+      created_at: "2026-05-17T11:30:00.000Z",
+    };
+    const result = suppressionsForFile([entryZ, entryA], FILE_PATH, []);
+    expect(result.map((r) => r.fingerprint)).toEqual([
+      "aaa::src/billing.ts::a",
+      "zzz::src/billing.ts::z",
+    ]);
+  });
+
+  it("returns empty array when no entries match this file", () => {
+    const result = suppressionsForFile([entryOtherFile], FILE_PATH, []);
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns empty array when entries list is empty", () => {
+    const result = suppressionsForFile([], FILE_PATH, [findingOnFile]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("uses empty string for pinned_version when crimes_version_pinned is absent", () => {
+    const entryNoPinned: SuppressionEntry = {
+      fingerprint: "large_function::src/billing.ts::generateInvoice",
+      type: "large_function",
+      file: FILE_PATH,
+      reason: "old entry",
+      created_at: "2026-05-17T11:30:00.000Z",
+      // no crimes_version_pinned
+    };
+    const result = suppressionsForFile([entryNoPinned], FILE_PATH, []);
+    expect(result[0]!.pinned_version).toBe("");
   });
 });

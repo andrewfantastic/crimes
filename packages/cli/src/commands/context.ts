@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import {
   applySuppressionsToContext,
   context,
   countEntriesByDetector,
   countResurfacedByPinnedMinor,
+  findNearestPackageRoot,
   loadConfig,
   loadSuppressionsForRoot,
   readFeedback,
@@ -78,25 +79,34 @@ export function registerContextCommand(program: Command): void {
       // what makes `crimes context examples/pkg/src/foo.ts` from a
       // monorepo root produce the same findings as running it from
       // inside `examples/pkg`.
+      //
+      // Suppressions must be passed to context() in the same call (not
+      // applied after) so that clues.suppressions is populated in the
+      // report. We pre-resolve the scan root here so we can load
+      // suppressions before calling context() — mirroring the same walk
+      // that context() does internally (nearest enclosing package.json).
       let report;
       try {
-        report = await context({
-          ...(options.root !== undefined ? { root: options.root } : {}),
-          file: absoluteFile,
-        });
-        // `context()` resolves the scan root itself (nearest enclosing
-        // package.json by default); load suppressions from that same root
-        // so the .crimes/suppressions.json lines up with the report.
-        const resolvedRoot = report.repo.root;
-        const config = loadConfig(resolvedRoot);
         const noColor = resolveNoColor(options);
+        // Pre-resolve root so we can load suppressions before context().
+        const earlyRoot =
+          options.root !== undefined
+            ? resolve(options.root)
+            : ((await findNearestPackageRoot(dirname(absoluteFile))) ??
+              lookupRoot);
+        const config = loadConfig(earlyRoot);
         emitDetectorsDisabledBreadcrumb(config, { noColor });
-        const suppressions = loadSuppressionsForRoot(resolvedRoot, config);
+        const suppressions = loadSuppressionsForRoot(earlyRoot, config);
         emitFuturePinnedSuppressionsWarnings(
           suppressions.entries,
           __CRIMES_VERSION__,
           { noColor },
         );
+        report = await context({
+          ...(options.root !== undefined ? { root: options.root } : {}),
+          file: absoluteFile,
+          suppressionsEntries: suppressions.entries,
+        });
         report = applySuppressionsToContext(report, suppressions.entries, {
           showSuppressed: options.showSuppressed,
           crimesVersion: __CRIMES_VERSION__,

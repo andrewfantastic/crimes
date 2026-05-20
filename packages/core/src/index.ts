@@ -74,7 +74,12 @@ export {
   context,
   findNearestPackageRoot,
 } from "./context.js";
-export type { ContextOptions, ContextReport, ContextRisk } from "./context.js";
+export type {
+  ContextClues,
+  ContextOptions,
+  ContextReport,
+  ContextRisk,
+} from "./context.js";
 export {
   explain,
   UnknownDetectorTypeError,
@@ -303,6 +308,7 @@ export {
   removeSuppression,
   resolveOverridePath,
   shouldResurface,
+  suppressionsForFile,
   SuppressionEntrySchema,
   SuppressionsSchema,
 } from "./suppressions.js";
@@ -315,6 +321,7 @@ export type {
   RemoveSuppressionOptions,
   RemoveSuppressionResult,
   SuppressionEntry,
+  SuppressionForFile,
   Suppressions,
 } from "./suppressions.js";
 export {
